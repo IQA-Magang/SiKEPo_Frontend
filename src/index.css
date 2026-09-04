@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+:root { font-family: 'DM Sans', sans-serif; color: #202638; background: #f5f7fb; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button { font: inherit; }
+.app-shell { min-height: 100vh; background: #f5f7fb; }
+.topbar { height: 66px; display: flex; align-items: center; color: #fff; background: linear-gradient(110deg, #d52e25, #ba241d); position: relative; z-index: 2; box-shadow: 0 2px 9px #9e1e193d; }
+.brand-wrap { width: 270px; padding-left: 28px; display: flex; align-items: center; gap: 11px; }
+.brand-mark { width: 25px; height: 25px; display: grid; place-items: center; font-size: 30px; font-weight: 700; line-height: 1; transform: rotate(45deg); }
+.brand-mark span { transform: rotate(-45deg); }
+.brand-name { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; }
+.page-title { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; }
+.profile-button { margin-left: auto; margin-right: 22px; border: 0; border-radius: 6px; padding: 8px 11px; display: flex; gap: 6px; align-items: center; color: #fff; background: #df3a31; font-size: 12px; font-weight: 700; cursor: pointer; }
+.profile-button:hover { background: #e74b42; }
+.user-icon { font-size: 15px; transform: rotate(180deg); }
+.chevron { font-size: 15px; margin-left: 2px; }
+.profile-menu { position: absolute; right: 22px; top: 55px; width: 130px; display: grid; gap: 8px; padding: 12px; border: 1px solid #eadfdf; border-radius: 6px; color: #2c3040; background: #fff; box-shadow: 0 8px 22px #54241f1c; font-size: 12px; }
+.profile-menu span { color: #a72a25; cursor: pointer; }
+.sidebar { position: fixed; top: 66px; bottom: 0; left: 0; width: 270px; padding: 28px 16px; border-right: 1px solid #dce1ea; background: #fff; }
+.sidebar nav { display: grid; gap: 6px; }
+.nav-item { width: 100%; border: 0; border-left: 3px solid transparent; border-radius: 4px; padding: 12px 13px; display: flex; align-items: center; gap: 14px; text-align: left; color: #656d7d; background: transparent; cursor: pointer; font-size: 14px; font-weight: 600; transition: .2s ease; }
+.nav-item:hover, .nav-item.active { color: #c52922; background: #fff2f1; border-left-color: #d32c25; }
+.nav-icon { width: 20px; text-align: center; color: #9ba3b1; font-size: 21px; line-height: 1; }
+.nav-item.active .nav-icon { color: #d32c25; }
+.sidebar-foot { position: absolute; bottom: 22px; left: 29px; color: #b8bfca; font-size: 10px; letter-spacing: .08em; }
+.main-content { margin-left: 270px; padding: 36px 37px 50px; max-width: 1240px; }
+.welcome h1 { margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 20px; letter-spacing: -.02em; }
+.welcome p { margin: 4px 0 22px; color: #929aaa; font-size: 11px; }
+.welcome p span { color: #788395; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.stat-card { min-height: 63px; padding: 10px 12px; border: 1px solid #e6eaf1; border-left: 3px solid; border-radius: 5px; background: #fff; box-shadow: 0 2px 6px #27324b05; }
+.stat-card span { display: block; color: #7e8797; font-size: 9px; text-transform: uppercase; }
+.stat-card strong { display: block; margin-top: 4px; color: #2a3040; font-family: 'Space Grotesk', sans-serif; font-size: 17px; }
+.stat-card.blue { border-left-color: #3d6bff; }.stat-card.green { border-left-color: #20b978; background: #effaf5; }.stat-card.purple { border-left-color: #8b5cf6; }.stat-card.red { border-left-color: #ef5b5b; background: #fff4f4; }
+.dashboard-grid { display: grid; grid-template-columns: 1.4fr .9fr; gap: 10px; margin-top: 15px; }
+.panel { border: 1px solid #e6eaf1; border-radius: 6px; background: #fff; }
+.status-panel, .due-panel { min-height: 238px; padding: 13px 12px; }
+.panel h2 { margin: 0 0 9px; color: #343c4c; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 600; }
+.chart-placeholder { height: 155px; position: relative; overflow: hidden; border: 1px solid #e4e9f1; border-radius: 5px; background: #f9fafc; }
+.chart-grid-lines { position: absolute; inset: 20px 15px 24px; display: grid; align-content: space-between; }
+.chart-grid-lines i { display: block; border-top: 1px dashed #e3e8f0; }
+.chart-bars { position: absolute; right: 34px; bottom: 24px; left: 34px; height: 110px; display: flex; justify-content: space-around; align-items: end; }
+.chart-bars b { width: 18px; border-radius: 3px 3px 0 0; background: linear-gradient(#d9362d, #ef9d67); opacity: .9; }
+.chart-caption { position: absolute; inset: 0; display: grid; place-items: center; color: #9da7b7; font-size: 11px; pointer-events: none; }
+.chart-labels { display: flex; justify-content: space-around; margin: 5px 28px 0; color: #a2aabb; font-size: 9px; }
+.legend-list { display: grid; gap: 20px; margin-top: 19px; padding: 0 5px; }
+.legend-list div { display: flex; align-items: center; gap: 8px; color: #6f7888; font-size: 10px; }.legend-list strong { margin-left: auto; color: #a2aab8; font-size: 10px; font-weight: 500; }.dot { width: 7px; height: 7px; border-radius: 50%; }.today { background: #ed5d5d; }.week { background: #f49a17; }.month { background: #f5c334; }
+.empty-state { max-width: 650px; margin-top: 25px; padding: 50px 20px; text-align: center; }.empty-icon { color: #d12c26; font-size: 40px; }.empty-state h2 { font-size: 19px; }.empty-state p { color: #7c8697; font-size: 13px; }.empty-state button { border: 0; border-radius: 5px; padding: 10px 15px; color: #fff; background: #ce2b24; cursor: pointer; font-size: 12px; }
+@media (max-width: 760px) { .topbar { height: 60px; }.brand-wrap { width: auto; padding-left: 17px; }.brand-name { font-size: 17px; }.page-title { margin-left: 20px; font-size: 14px; }.profile-button { margin-right: 12px; padding: 7px; }.sidebar { top: 60px; width: 66px; padding: 19px 8px; }.nav-item { justify-content: center; padding: 11px 6px; border-left: 0; border-bottom: 3px solid transparent; }.nav-item.active { border-bottom-color: #d32c25; border-left-color: transparent; }.nav-item span:last-child, .sidebar-foot { display: none; }.main-content { margin-left: 66px; padding: 25px 16px; }.stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.dashboard-grid { grid-template-columns: 1fr; }.status-panel, .due-panel { min-height: 220px; } }
