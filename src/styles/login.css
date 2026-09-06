@@ -1,0 +1,400 @@
+/* ==========================================================================
+   LOGIN: page layout, wave, login card, form, forgot password, help modal,
+   and responsive breakpoints for login pages.
+   ========================================================================== */
+
+/* Page Layout */
+.login-page-container {
+  position: relative;
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  background-color: var(--color-background);
+}
+
+/* Wave Backgrounds */
+.wave-background-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.svg-wave { position: absolute; }
+
+.wave-top-left {
+  top: 0;
+  left: 0;
+  width: 22vw;
+  max-width: 280px;
+  height: auto;
+}
+
+.wave-bottom {
+  bottom: -2px;
+  left: 0;
+  width: 100vw;
+  height: 165px;
+}
+
+/* Content Grid */
+.login-content-grid {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1280px;
+  height: 100vh;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 50% 50%;
+}
+
+/* Left Column */
+.login-left-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 20px 45px 20px 20px;
+  position: relative;
+  z-index: 5;
+}
+
+.login-left-wrapper {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sikepo-branding {
+  text-align: center;
+  margin-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 5;
+}
+
+.sikepo-header-logo-img {
+  height: 52px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.sikepo-tagline {
+  font-size: 24px;
+  font-weight: 800;
+  color: #111111;
+  line-height: 1.25;
+  font-family: var(--font-heading);
+  letter-spacing: -0.2px;
+  text-align: center;
+}
+
+/* Login Card */
+.login-card {
+  background: var(--color-white);
+  border-radius: 28px;
+  padding: 44px 40px 36px 40px;
+  width: 100%;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  z-index: 5;
+}
+
+.form-group {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.input-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-black);
+  margin-bottom: 8px;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.pill-input {
+  width: 100%;
+  height: 50px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--color-input-border);
+  padding: 0 24px;
+  font-size: 15px;
+  font-family: var(--font-sans);
+  color: var(--color-black);
+  background-color: var(--color-white);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pill-input::placeholder { color: #9CA3AF; font-weight: 400; }
+
+.pill-input:focus {
+  border-color: var(--color-dark-red);
+  box-shadow: 0 0 0 4px rgba(227, 6, 19, 0.12);
+}
+
+.pill-input.input-error {
+  border-color: #DC2626 !important;
+  background-color: #FEF2F2;
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+
+.toggle-password-btn:hover { color: var(--color-primary-red); }
+
+/* Error & Banner */
+.error-text {
+  font-size: 13px;
+  color: #DC2626;
+  font-weight: 600;
+  margin-top: 6px;
+  margin-left: 12px;
+}
+
+.error-banner {
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  color: #991B1B;
+  padding: 12px 18px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Buttons */
+.btn-masuk {
+  width: 100%;
+  height: 50px;
+  border-radius: 9999px;
+  background: var(--color-primary-red);
+  color: var(--color-white);
+  border: none;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background-color 0.25s ease, transform 0.15s ease, box-shadow 0.25s ease;
+  box-shadow: var(--shadow-btn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-masuk:hover:not(:disabled) { background-color: var(--color-dark-red); transform: translateY(-1px); }
+.btn-masuk:active:not(:disabled) { transform: translateY(1px); }
+.btn-masuk:disabled { opacity: 0.75; cursor: not-allowed; }
+
+.loading-state { display: flex; align-items: center; gap: 10px; }
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Card Links */
+.form-links {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding: 0 4px;
+}
+
+.link-item {
+  font-size: 15px;
+  font-weight: 500;
+  color: #4B5563;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.link-item:hover { color: var(--color-primary-red); text-decoration: underline; }
+
+.btn-link { background: transparent; border: none; cursor: pointer; font-family: inherit; }
+
+/* Right Column */
+.login-right-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px 20px 20px 45px;
+  position: relative;
+  z-index: 5;
+}
+
+.tth-branding-wrapper {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  width: 100%;
+  max-width: 480px;
+}
+
+.tth-branding-container { display: flex; justify-content: flex-start; align-items: center; width: 100%; }
+
+.tth-logo-img {
+  width: 100%;
+  max-width: 460px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+/* Forgot Password */
+.forgot-card { text-align: left; }
+.forgot-heading { font-size: 24px; font-weight: 800; color: var(--color-black); margin-bottom: 8px; }
+.forgot-subtext { font-size: 14px; color: var(--color-gray); margin-bottom: 24px; line-height: 1.5; }
+.btn-kirim { margin-top: 14px; }
+.back-link-wrapper { justify-content: center; margin-top: 24px; }
+.link-back { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+
+.info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background-color: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  color: #065F46;
+  padding: 16px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+/* Help Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(17, 17, 17, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.25s ease;
+}
+
+.modal-content {
+  background: var(--color-white);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 440px;
+  padding: 32px;
+  position: relative;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+  animation: scaleUp 0.25s ease;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: #F3F4F6;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #4B5563;
+  transition: background-color 0.2s ease;
+}
+
+.modal-close-btn:hover { background-color: #E5E7EB; color: var(--color-primary-red); }
+.modal-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.modal-icon-wrapper { width: 48px; height: 48px; border-radius: 50%; background: #FEF2F2; display: flex; align-items: center; justify-content: center; }
+.modal-header h3 { font-size: 20px; font-weight: 800; color: var(--color-black); }
+.modal-body { font-size: 15px; color: #4B5563; line-height: 1.6; margin-bottom: 24px; }
+.modal-footer { display: flex; justify-content: flex-end; }
+
+.btn-modal-close {
+  background: var(--color-primary-red);
+  color: var(--color-white);
+  border: none;
+  padding: 10px 24px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-modal-close:hover { background-color: var(--color-dark-red); }
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .login-left-col { padding-right: 25px; }
+  .login-right-col { padding-left: 25px; }
+  .tth-logo-img { max-width: 400px; }
+}
+
+@media (max-width: 992px) {
+  .login-content-grid { grid-template-columns: 50% 50%; }
+  .wave-top-left { width: 28vw; max-width: 220px; }
+  .login-left-col, .login-right-col { align-items: center; padding: 20px; }
+  .tth-branding-wrapper { justify-content: center; }
+  .tth-logo-img { max-width: 340px; }
+  .sikepo-tagline { font-size: 20px; }
+}
+
+@media (max-width: 768px) {
+  .login-page-container { height: auto; min-height: 100vh; overflow-y: auto; }
+  .login-content-grid { grid-template-columns: 100%; height: auto; padding: 30px 16px 120px 16px; }
+  .login-right-col { grid-row: 1; padding: 20px 0 10px 0; align-items: center; }
+  .login-left-col { grid-row: 2; padding: 0; align-items: center; }
+  .tth-branding-wrapper { justify-content: center; max-width: 280px; }
+  .tth-logo-img { max-width: 260px; }
+  .sikepo-header-logo-img { height: 44px; }
+  .sikepo-tagline { font-size: 19px; }
+  .login-card { padding: 30px 20px; border-radius: 20px; }
+  .wave-top-left { width: 35vw; max-width: 180px; }
+  .wave-bottom { height: 110px; }
+}

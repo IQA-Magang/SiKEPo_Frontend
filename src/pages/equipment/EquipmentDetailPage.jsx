@@ -1,0 +1,49 @@
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import Topbar from '../../components/layout/Topbar';
+import Sidebar from '../../components/layout/Sidebar';
+import EquipmentDetail from '../../components/equipment/EquipmentDetail';
+import { mockEquipment } from '../../data/mockEquipment';
+
+export default function EquipmentDetailPage({ onNavigate, equipmentId }) {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const raw = localStorage.getItem('sikepo_user');
+    if (raw) try { setUser(JSON.parse(raw)); } catch (e) { console.error(e); }
+  }, []);
+
+  const equipment = mockEquipment.find(e => e.id === Number(equipmentId));
+
+  if (!equipment) {
+    return (
+      <div className="app-shell">
+        <Topbar user={user} onNavigate={onNavigate} title="Detail Alat" />
+        <Sidebar activePath="/alat-ukur" onNavigate={onNavigate} />
+        <main className="main-content">
+          <div className="eq-empty">
+            <p>Alat dengan ID <strong>{equipmentId}</strong> tidak ditemukan.</p>
+            <button className="eq-btn-action detail" style={{ marginTop: '12px' }} onClick={() => onNavigate('/alat-ukur')}>
+              ← Kembali ke Daftar
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-shell">
+      <Topbar user={user} onNavigate={onNavigate} title="Detail Alat" />
+      <Sidebar activePath="/alat-ukur" onNavigate={onNavigate} />
+
+      <main className="main-content">
+        <button className="eq-back-btn" onClick={() => onNavigate('/alat-ukur')}>
+          <ArrowLeft size={16} /> Kembali ke Daftar Alat Ukur
+        </button>
+
+        <EquipmentDetail equipment={equipment} />
+      </main>
+    </div>
+  );
+}
