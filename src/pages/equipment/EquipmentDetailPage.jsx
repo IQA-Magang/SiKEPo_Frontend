@@ -18,7 +18,7 @@ export default function EquipmentDetailPage({ onNavigate, equipmentId }) {
   if (!equipment) {
     return (
       <div className="app-shell">
-        <Topbar user={user} onNavigate={onNavigate} title="Detail Alat" />
+        <Topbar user={user} onNavigate={onNavigate} title="Detail Alat" onUpdateUser={(u) => setUser(u)} />
         <Sidebar activePath="/alat-ukur" onNavigate={onNavigate} />
         <main className="main-content">
           <div className="eq-empty">
@@ -34,7 +34,7 @@ export default function EquipmentDetailPage({ onNavigate, equipmentId }) {
 
   return (
     <div className="app-shell">
-      <Topbar user={user} onNavigate={onNavigate} title="Detail Alat" />
+      <Topbar user={user} onNavigate={onNavigate} title="Detail Alat" onUpdateUser={(u) => setUser(u)} />
       <Sidebar activePath="/alat-ukur" onNavigate={onNavigate} />
 
       <main className="main-content">
@@ -42,7 +42,7 @@ export default function EquipmentDetailPage({ onNavigate, equipmentId }) {
           <ArrowLeft size={16} /> Kembali ke Daftar Alat Ukur
         </button>
 
-        <EquipmentDetail equipment={equipment} />
+        <EquipmentDetail equipment={equipment} user={user} />
       </main>
     </div>
   );

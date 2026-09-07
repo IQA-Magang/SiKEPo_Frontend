@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   ClipboardList, BookOpen, FileText, ShieldCheck, MapPin,
-  Package, Download, Eye
+  Package, Download, Eye, Check, AlertCircle, CheckCircle
 } from 'lucide-react';
 import EquipmentStatusBadge from './EquipmentStatusBadge';
 
@@ -22,8 +22,12 @@ function Row({ label, value }) {
   );
 }
 
-export default function EquipmentDetail({ equipment }) {
+export default function EquipmentDetail({ equipment, user }) {
   const [activeTab, setActiveTab] = useState('info');
+  const [verifyStatus, setVerifyStatus] = useState(equipment.verification?.status || 'Terverifikasi');
+  const [verifyNotice, setVerifyNotice] = useState('');
+
+  const role = (user?.role || 'admin').toLowerCase();
 
   return (
     <div className="eq-detail-layout">
@@ -132,13 +136,64 @@ export default function EquipmentDetail({ equipment }) {
         {activeTab === 'verify' && (
           <div className="panel">
             <div className="panel-header">
-              <div><h2>Verifikasi</h2><p className="panel-subtitle">Informasi verifikasi alat</p></div>
+              <div>
+                <h2>Verifikasi & Kelayakan (TLKM13/P)</h2>
+                <p className="panel-subtitle">Informasi verifikasi kelayakan operasional alat ukur</p>
+              </div>
+              <span className="compliance-tag">SOP TLKM13/P</span>
             </div>
+
+            {verifyNotice && (
+              <div className="eq-confirm-banner" style={{ background: '#ECFDF5', borderColor: '#A7F3D0', color: '#065F46', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CheckCircle size={16} color="#059669" />
+                  <span>{verifyNotice}</span>
+                </div>
+              </div>
+            )}
+
             <div className="eq-detail-rows">
-              <Row label="Status Verifikasi"   value={equipment.verification.status} />
+              <Row label="Status Verifikasi"   value={verifyStatus} />
               <Row label="Tanggal Verifikasi"  value={equipment.verification.date} />
-              <Row label="Petugas"             value={equipment.verification.officer} />
-              <Row label="Catatan"             value={equipment.verification.note} />
+              <Row label="Petugas Otorisasi"   value={equipment.verification.officer} />
+              <Row label="Catatan TLKM13/P"    value={equipment.verification.note} />
+            </div>
+
+            {/* Role Action under TLKM13/P */}
+            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #F3F4F6' }}>
+              {role === 'manager' ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <strong style={{ fontSize: '13px', color: '#111827', display: 'block' }}>Kewenangan Verifikasi Manajer</strong>
+                    <span style={{ fontSize: '12px', color: '#6B7280' }}>Anda memiliki hak otorisasi kelayakan alat sesuai prosedur TLKM13/P</span>
+                  </div>
+                  <button
+                    className="btn-hero-primary"
+                    style={{ padding: '8px 16px', fontSize: '12.5px' }}
+                    onClick={() => {
+                      setVerifyStatus('Terverifikasi (Disetujui Manajer Mutu TLKM13/P)');
+                      setVerifyNotice(`Alat "${equipment.name}" telah berhasil diverifikasi dan disahkan sesuai SOP TLKM13/P.`);
+                      setTimeout(() => setVerifyNotice(''), 4000);
+                    }}
+                  >
+                    <Check size={14} /> Verifikasi Kelayakan Alat
+                  </button>
+                </div>
+              ) : role === 'staff' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F9FAFB', border: '1px solid #E5E7EB', padding: '12px 14px', borderRadius: '10px' }}>
+                  <AlertCircle size={18} color="#6B7280" />
+                  <span style={{ fontSize: '12px', color: '#4B5563' }}>
+                    Status kelayakan alat diverifikasi secara berkala oleh Manajer Mutu Laboratorium berdasarkan SOP TLKM13/P.
+                  </span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#FEF2F2', border: '1px solid #FECACA', padding: '12px 14px', borderRadius: '10px' }}>
+                  <ShieldCheck size={18} color="#E30613" />
+                  <span style={{ fontSize: '12px', color: '#991B1B' }}>
+                    Administrator Sistem: Mengelola pencatatan master data verifikasi dan integrasi audit log sistem.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}

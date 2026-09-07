@@ -29,7 +29,7 @@ export default function EquipmentCreate({ onNavigate }) {
       const u = JSON.parse(raw);
       setUser(u);
       // Redirect non-admin
-      if (u.role !== 'Admin') onNavigate('/alat-ukur');
+      if (u.role?.toLowerCase() !== 'admin') onNavigate('/alat-ukur');
     } catch (e) { onNavigate('/alat-ukur'); }
     else onNavigate('/alat-ukur');
   }, []);
@@ -44,7 +44,7 @@ export default function EquipmentCreate({ onNavigate }) {
   if (saved) {
     return (
       <div className="app-shell">
-        <Topbar user={user} onNavigate={onNavigate} title="Alat Ukur Baru" />
+        <Topbar user={user} onNavigate={onNavigate} title="Alat Ukur Baru" onUpdateUser={(u) => setUser(u)} />
         <Sidebar activePath="/alat-ukur" onNavigate={onNavigate} />
         <main className="main-content">
           <div className="eq-success-state">
@@ -59,7 +59,7 @@ export default function EquipmentCreate({ onNavigate }) {
 
   return (
     <div className="app-shell">
-      <Topbar user={user} onNavigate={onNavigate} title="Alat Ukur Baru" />
+      <Topbar user={user} onNavigate={onNavigate} title="Alat Ukur Baru" onUpdateUser={(u) => setUser(u)} />
       <Sidebar activePath="/alat-ukur" onNavigate={onNavigate} />
 
       <main className="main-content">

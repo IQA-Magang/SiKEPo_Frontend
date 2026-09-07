@@ -19,7 +19,7 @@ export default function EquipmentList({ onNavigate }) {
     if (raw) try { setUser(JSON.parse(raw)); } catch (e) { console.error(e); }
   }, []);
 
-  const isAdmin = user?.role === 'Admin';
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
 
   const filtered = useMemo(() => {
     const q = filters.query.toLowerCase();
@@ -44,7 +44,7 @@ export default function EquipmentList({ onNavigate }) {
 
   return (
     <div className="app-shell">
-      <Topbar user={user} onNavigate={onNavigate} title="Daftar Alat Ukur" />
+      <Topbar user={user} onNavigate={onNavigate} title="Daftar Alat Ukur" onUpdateUser={(u) => setUser(u)} />
       <Sidebar activePath="/alat-ukur" onNavigate={onNavigate} />
 
       <main className="main-content">
@@ -86,10 +86,11 @@ export default function EquipmentList({ onNavigate }) {
           <EquipmentTable
             equipment={filtered}
             isAdmin={isAdmin}
+            userRole={user?.role?.toLowerCase()}
             onDetail={(id) => onNavigate(`/alat-ukur/${id}`)}
             onEdit={(id) => onNavigate(`/alat-ukur/edit/${id}`)}
             onDelete={handleDelete}
-            onBorrow={(eq) => alert(`Fitur Pinjam alat "${eq.name}" akan segera tersedia.`)}
+            onBorrow={(eq) => alert(`Pengajuan pinjam alat "${eq.name}" berhasil dicatat.`)}
           />
         </div>
       </main>

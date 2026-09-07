@@ -13,7 +13,7 @@ export default function Peminjaman({ onNavigate }) {
 
   return (
     <div className="app-shell">
-      <Topbar user={user} onNavigate={onNavigate} title="Peminjaman Alat" />
+      <Topbar user={user} onNavigate={onNavigate} title="Peminjaman Alat" onUpdateUser={(u) => setUser(u)} />
       <Sidebar activePath="/peminjaman" onNavigate={onNavigate} />
 
       <main className="main-content">

@@ -1,13 +1,20 @@
 import React from 'react';
-import { LayoutDashboard, Wrench, ArrowRightLeft, ShieldCheck } from 'lucide-react';
-
-const menuItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-  { label: 'Alat Ukur', icon: Wrench, path: '/alat-ukur' },
-  { label: 'Peminjaman', icon: ArrowRightLeft, path: '/peminjaman' },
-];
+import { LayoutDashboard, Wrench, ArrowRightLeft, ShieldCheck, UserCheck, Users } from 'lucide-react';
 
 export default function Sidebar({ activePath, onNavigate }) {
+  let userRole = 'staff';
+  try {
+    const raw = localStorage.getItem('sikepo_user');
+    if (raw) userRole = (JSON.parse(raw).role || 'staff').toLowerCase();
+  } catch (e) {}
+
+  const menuItems = [
+    { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+    { label: 'Alat Ukur', icon: Wrench, path: '/alat-ukur' },
+    { label: 'Peminjaman', icon: ArrowRightLeft, path: '/peminjaman' },
+    ...(userRole === 'admin' ? [{ label: 'Kelola Pengguna', icon: Users, path: '/users' }] : []),
+    { label: 'Profil & Akses', icon: UserCheck, path: '/profile' },
+  ];
   return (
     <aside className="sidebar">
       <div className="sidebar-top">

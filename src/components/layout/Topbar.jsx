@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, User, ChevronDown, LogOut } from 'lucide-react';
+import { Search, Bell, User, ChevronDown, LogOut, UserCheck, Shield, Users } from 'lucide-react';
 import tthLogo from '../../assets/logo/tth-logo.png';
+import ProfileModal from '../ProfileModal';
+import { mockUsers } from '../../data/mockUsers';
 
-export default function Topbar({ user, onNavigate, title, searchValue, onSearchChange, searchPlaceholder }) {
+export default function Topbar({ user, onNavigate, title, searchValue, onSearchChange, searchPlaceholder, onUpdateUser }) {
   const [profileOpen, setProfileOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const profileRef = useRef(null);
 
   useEffect(() => {
@@ -27,11 +30,27 @@ export default function Topbar({ user, onNavigate, title, searchValue, onSearchC
 
   const handleLogout = () => {
     localStorage.removeItem('sikepo_user');
+    localStorage.removeItem('sikepo_token');
     onNavigate('/login');
   };
 
+  const handleSwitchRole = (newRole) => {
+    const template = mockUsers.find(u => u.role === newRole) || {
+      name: newRole === 'manager' ? 'Ir. Hendra Wijaya, M.T.' : newRole === 'staff' ? 'Siti Nurhaliza, S.T.' : 'Ahmad Rizky',
+      role: newRole,
+      email: `${newRole}@sikepo.test`,
+      nip: newRole === 'manager' ? '197509142000031001' : newRole === 'staff' ? '199503222019022004' : '198805122011011002',
+      position: newRole === 'manager' ? 'Manager Penjaminan Mutu & Pengujian' : newRole === 'staff' ? 'Staff Pengujian Lab Optik (PIC)' : 'Administrator Sistem',
+      division: newRole === 'manager' ? 'Manajemen Mutu Laboratorium (TLKM13/P)' : newRole === 'staff' ? 'Laboratorium Transmisi' : 'IT & Sistem Lab'
+    };
+    const updated = { ...(user || {}), ...template };
+    localStorage.setItem('sikepo_user', JSON.stringify(updated));
+    if (onUpdateUser) onUpdateUser(updated);
+    setProfileModalOpen(false);
+  };
+
   const userName = user?.name ?? 'Administrator';
-  const userRole = user?.role ?? 'Admin';
+  const userRole = user?.role ? (user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()) : 'Admin';
 
   return (
     <header className="topbar">
@@ -82,9 +101,25 @@ export default function Topbar({ user, onNavigate, title, searchValue, onSearchC
               <div className="dropdown-header">
                 <strong>{userName}</strong>
                 <p>{user?.email ?? 'admin@sikepo.test'}</p>
+                {user?.position && (
+                  <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 6px' }}>
+                    {user.position} {user.nip ? `• NIP: ${user.nip}` : ''}
+                  </p>
+                )}
                 <span className="role-chip">{userRole}</span>
               </div>
               <div className="dropdown-divider" />
+              <button className="dropdown-item profile-action-btn" onClick={() => { setProfileOpen(false); if (onNavigate) onNavigate('/profile'); }}>
+                <UserCheck size={15} /><span>Profil Personel</span>
+              </button>
+              {userRole.toLowerCase() === 'admin' && (
+                <button className="dropdown-item" onClick={() => { setProfileOpen(false); if (onNavigate) onNavigate('/users'); }}>
+                  <Users size={15} /><span>Manajemen Pengguna</span>
+                </button>
+              )}
+              <button className="dropdown-item" onClick={() => { setProfileOpen(false); setProfileModalOpen(true); }}>
+                <Shield size={15} /><span>Matriks Hak Akses (TLKM13/P)</span>
+              </button>
               <button className="dropdown-item" onClick={handleLogout}>
                 <LogOut size={15} /><span>Keluar Aplikasi</span>
               </button>
@@ -92,6 +127,13 @@ export default function Topbar({ user, onNavigate, title, searchValue, onSearchC
           )}
         </div>
       </div>
+
+      <ProfileModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        user={user}
+        onSwitchRole={handleSwitchRole}
+      />
     </header>
   );
 }

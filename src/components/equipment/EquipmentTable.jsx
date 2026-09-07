@@ -2,7 +2,7 @@ import React from 'react';
 import { Eye, Pencil, Trash2, BookOpen } from 'lucide-react';
 import EquipmentStatusBadge from './EquipmentStatusBadge';
 
-export default function EquipmentTable({ equipment, isAdmin, onDetail, onEdit, onDelete, onBorrow }) {
+export default function EquipmentTable({ equipment, isAdmin, userRole, onDetail, onEdit, onDelete, onBorrow }) {
   if (equipment.length === 0) {
     return (
       <div className="eq-empty">
@@ -45,8 +45,8 @@ export default function EquipmentTable({ equipment, isAdmin, onDetail, onEdit, o
                   <button className="eq-btn-action detail" onClick={() => onDetail(eq.id)} title="Detail">
                     <Eye size={14} /> Detail
                   </button>
-                  {isAdmin && eq.status === 'Tersedia' && (
-                    <button className="eq-btn-action borrow" onClick={() => onBorrow(eq)} title="Pinjam">
+                  {eq.status === 'Tersedia' && (isAdmin || userRole === 'staff' || !userRole) && (
+                    <button className="eq-btn-action borrow" onClick={() => onBorrow(eq)} title="Pinjam Alat">
                       <BookOpen size={14} /> Pinjam
                     </button>
                   )}

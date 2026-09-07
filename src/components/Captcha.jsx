@@ -1,166 +1,146 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { RotateCw, Volume2 } from 'lucide-react';
 
-export default function Captcha({ captchaCode, onRefresh, value, onChange, error, disabled }) {
-  const canvasRef = useRef(null);
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [canSpeak, setCanSpeak] = useState(false);
+// Kunci pengujian resmi Google reCAPTCHA v2 Checkbox (selalu valid untuk testing lokal)
+const DEFAULT_TEST_SITE_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
+const BACKEND_SITEKEY_URL = 'http://localhost:5000/recaptcha/sitekey';
 
+export default function Captcha({ onVerify, onExpire, error, disabled, resetTrigger }) {
+  const containerRef = useRef(null);
+  const widgetIdRef = useRef(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState('');
+
+  // 1. Ambil site_key dari backend (dengan fallback ke kunci tes) & muat skrip Google reCAPTCHA v2
   useEffect(() => {
-    setCanSpeak(typeof window !== 'undefined' && 'speechSynthesis' in window);
+    let isMounted = true;
+
+    const setupRecaptcha = async () => {
+      let siteKey = DEFAULT_TEST_SITE_KEY;
+
+      // Ambil site key langsung dari endpoint backend jika backend aktif
+      try {
+        const response = await fetch(BACKEND_SITEKEY_URL);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.site_key) {
+            siteKey = data.site_key;
+          }
+        }
+      } catch {
+        // Jika backend belum dijalankan atau tidak merespons, gunakan kunci tes bawaan
+        siteKey = DEFAULT_TEST_SITE_KEY;
+      }
+
+      if (!isMounted) return;
+
+      // Fungsi untuk me-render widget reCAPTCHA ke dalam kontainer
+      const renderCheckbox = () => {
+        if (!containerRef.current || !window.grecaptcha || !window.grecaptcha.render) return;
+
+        // Hindari render ganda jika iframe sudah ada
+        if (containerRef.current.hasChildNodes()) {
+          setIsLoaded(true);
+          return;
+        }
+
+        try {
+          const id = window.grecaptcha.render(containerRef.current, {
+            sitekey: siteKey,
+            callback: (token) => {
+              if (onVerify) onVerify(token);
+            },
+            'expired-callback': () => {
+              if (onExpire) onExpire();
+            },
+            'error-callback': () => {
+              if (onExpire) onExpire();
+            },
+            hl: 'id' // Bahasa Indonesia: "Saya bukan robot"
+          });
+
+          widgetIdRef.current = id;
+          setIsLoaded(true);
+        } catch (err) {
+          console.warn('reCAPTCHA render info:', err);
+        }
+      };
+
+      // Periksa apakah skrip Google reCAPTCHA sudah ada di DOM
+      const scriptId = 'google-recaptcha-v2-script';
+      if (!window.grecaptcha) {
+        const existingScript = document.getElementById(scriptId);
+        if (!existingScript) {
+          const script = document.createElement('script');
+          script.id = scriptId;
+          script.src = 'https://www.google.com/recaptcha/api.js?render=explicit&hl=id';
+          script.async = true;
+          script.defer = true;
+          script.onload = () => {
+            if (window.grecaptcha) {
+              window.grecaptcha.ready(renderCheckbox);
+            }
+          };
+          script.onerror = () => {
+            if (isMounted) {
+              setLoadError('Gagal memuat reCAPTCHA. Pastikan perangkat terhubung ke internet.');
+            }
+          };
+          document.head.appendChild(script);
+        } else {
+          existingScript.addEventListener('load', () => {
+            if (window.grecaptcha) {
+              window.grecaptcha.ready(renderCheckbox);
+            }
+          });
+        }
+      } else {
+        window.grecaptcha.ready(renderCheckbox);
+      }
+    };
+
+    setupRecaptcha();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Draw captcha whenever captchaCode changes
+  // 2. Reset status centang jika login gagal atau di-trigger ulang oleh parent
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !captchaCode) return;
-
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-
-    // Background gradient
-    const bg = ctx.createLinearGradient(0, 0, width, height);
-    bg.addColorStop(0, '#F8FAFC');
-    bg.addColorStop(1, '#EEF2F6');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, width, height);
-
-    // Subtle background dots for noise
-    for (let i = 0; i < 30; i++) {
-      ctx.fillStyle = `rgba(${Math.floor(Math.random() * 120 + 80)}, ${Math.floor(Math.random() * 80)}, ${Math.floor(Math.random() * 80)}, 0.15)`;
-      ctx.beginPath();
-      ctx.arc(
-        Math.random() * width,
-        Math.random() * height,
-        Math.random() * 1.8 + 0.5,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
+    if (resetTrigger && widgetIdRef.current !== null && window.grecaptcha) {
+      try {
+        window.grecaptcha.reset(widgetIdRef.current);
+        if (onExpire) onExpire();
+      } catch (err) {
+        console.warn('reCAPTCHA reset info:', err);
+      }
     }
-
-    // Curved interference lines
-    for (let i = 0; i < 3; i++) {
-      ctx.strokeStyle = `rgba(${Math.floor(Math.random() * 180 + 40)}, ${Math.floor(Math.random() * 50)}, ${Math.floor(Math.random() * 50)}, 0.22)`;
-      ctx.lineWidth = Math.random() * 1.5 + 1;
-      ctx.beginPath();
-      ctx.moveTo(Math.random() * 20, Math.random() * height);
-      ctx.bezierCurveTo(
-        Math.random() * width, Math.random() * height,
-        Math.random() * width, Math.random() * height,
-        width - Math.random() * 20, Math.random() * height
-      );
-      ctx.stroke();
-    }
-
-    // Character drawing
-    const charList = captchaCode.split('');
-    const charSpacing = width / (charList.length + 1);
-    const colors = ['#E30613', '#B8000A', '#1F2937', '#111827', '#991B1B', '#374151'];
-
-    charList.forEach((char, index) => {
-      ctx.save();
-      const x = charSpacing * (index + 1);
-      const y = height / 2 + (Math.random() * 6 - 3);
-      const angle = (Math.random() - 0.5) * 0.4; // -11 to +11 deg
-
-      ctx.translate(x, y);
-      ctx.rotate(angle);
-
-      // Random font size and family
-      const fontSize = Math.floor(Math.random() * 4 + 22);
-      ctx.font = `bold ${fontSize}px 'Courier New', Monaco, monospace`;
-      ctx.fillStyle = colors[index % colors.length];
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      // Slight shadow for depth
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
-      ctx.shadowBlur = 2;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
-
-      ctx.fillText(char, 0, 0);
-      ctx.restore();
-    });
-  }, [captchaCode]);
-
-  const handleRefreshClick = () => {
-    setIsSpinning(true);
-    onRefresh();
-    setTimeout(() => setIsSpinning(false), 500);
-  };
-
-  const handleAudioClick = () => {
-    if (!canSpeak || !captchaCode) return;
-    window.speechSynthesis.cancel();
-
-    // Spell out letters slowly
-    const textToSpeak = captchaCode.split('').join(' . ');
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.rate = 0.75;
-    utterance.pitch = 1.0;
-    window.speechSynthesis.speak(utterance);
-  };
+  }, [resetTrigger]);
 
   return (
     <div className="form-group captcha-form-group">
-      <label htmlFor="captchaInput" className="input-label">
-        Verifikasi Keamanan (Captcha)
+      <label className="input-label">
+        Verifikasi Keamanan
       </label>
 
-      {/* Visual Canvas and Actions */}
-      <div className="captcha-display-card">
-        <canvas
-          ref={canvasRef}
-          width={150}
-          height={44}
-          className="captcha-canvas"
-          aria-label={`Captcha visual: ${captchaCode}`}
-        />
+      <div className={`recaptcha-wrapper ${error ? 'recaptcha-has-error' : ''} ${disabled ? 'recaptcha-disabled' : ''}`}>
+        {!isLoaded && !loadError && (
+          <div className="recaptcha-skeleton">
+            <span className="spinner-mini" />
+            <span>Menyiapkan verifikasi keamanan...</span>
+          </div>
+        )}
 
-        <div className="captcha-actions">
-          <button
-            type="button"
-            className="captcha-btn"
-            onClick={handleRefreshClick}
-            title="Ganti kode captcha"
-            aria-label="Ganti kode captcha baru"
-            disabled={disabled}
-          >
-            <RotateCw size={18} className={isSpinning ? 'spin-once' : ''} />
-          </button>
+        {loadError && (
+          <div className="recaptcha-error-notice">
+            <span>{loadError}</span>
+          </div>
+        )}
 
-          {canSpeak && (
-            <button
-              type="button"
-              className="captcha-btn"
-              onClick={handleAudioClick}
-              title="Dengarkan kode captcha"
-              aria-label="Dengarkan kode captcha"
-              disabled={disabled}
-            >
-              <Volume2 size={18} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Input Field */}
-      <div className="input-wrapper" style={{ marginTop: '10px' }}>
-        <input
-          id="captchaInput"
-          type="text"
-          className={`pill-input captcha-input ${error ? 'input-error' : ''}`}
-          placeholder="Ketik kode di atas"
-          value={value}
-          onChange={onChange}
-          disabled={disabled}
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck="false"
-          maxLength={6}
+        <div
+          ref={containerRef}
+          className="recaptcha-container"
+          style={{ display: isLoaded ? 'flex' : 'none' }}
         />
       </div>
 

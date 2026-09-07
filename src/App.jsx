@@ -6,6 +6,8 @@ import EquipmentList from './pages/equipment/EquipmentList';
 import EquipmentCreate from './pages/equipment/EquipmentCreate';
 import EquipmentDetailPage from './pages/equipment/EquipmentDetailPage';
 import Peminjaman from './pages/Peminjaman';
+import Profile from './pages/Profile';
+import UserManagement from './pages/admin/UserManagement';
 
 const getPath = () => window.location.hash ? window.location.hash.replace('#', '') : '/login';
 
@@ -20,12 +22,23 @@ export default function App() {
 
   const navigate = (path) => { window.location.hash = path; setCurrentPath(path); };
 
+  // ponytail: minimal auth guard based on backend JWT token
+  const isAuth = Boolean(localStorage.getItem('sikepo_token'));
+  if (!isAuth && currentPath !== '/forgot-password' && currentPath !== '/login') {
+    return <Login onNavigate={navigate} />;
+  }
+  if (isAuth && currentPath === '/login') {
+    return <Dashboard onNavigate={navigate} />;
+  }
+
   // Route matching — order matters: specific before wildcard
   if (currentPath === '/forgot-password')   return <ForgotPassword onNavigate={navigate} />;
   if (currentPath === '/dashboard')         return <Dashboard onNavigate={navigate} />;
   if (currentPath === '/alat-ukur/tambah')  return <EquipmentCreate onNavigate={navigate} />;
   if (currentPath === '/alat-ukur')         return <EquipmentList onNavigate={navigate} />;
   if (currentPath === '/peminjaman')        return <Peminjaman onNavigate={navigate} />;
+  if (currentPath === '/profile')           return <Profile onNavigate={navigate} />;
+  if (currentPath === '/users' || currentPath === '/admin/users') return <UserManagement onNavigate={navigate} />;
 
   // Dynamic: /alat-ukur/:id
   const detailMatch = currentPath.match(/^\/alat-ukur\/(\d+)$/);

@@ -1,39 +1,29 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import { mockUsers } from '../data/mockUsers';
 import Captcha from './Captcha';
-
-const CAPTCHA_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-const generateRandomCode = (len = 5) => {
-  let str = '';
-  for (let i = 0; i < len; i++) {
-    str += CAPTCHA_CHARS.charAt(Math.floor(Math.random() * CAPTCHA_CHARS.length));
-  }
-  return str;
-};
 
 export default function LoginForm({ onNavigate, onOpenHelp }) {
   const [emailOrNip, setEmailOrNip] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [captchaCode, setCaptchaCode] = useState(() => generateRandomCode(5));
-  const [captchaInput, setCaptchaInput] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState('');
+  const [captchaResetTrigger, setCaptchaResetTrigger] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({ email: '', password: '', captcha: '', general: '' });
 
-  const refreshCaptcha = () => {
-    setCaptchaCode(generateRandomCode(5));
-    setCaptchaInput('');
+  const resetCaptcha = () => {
+    setRecaptchaToken('');
+    setCaptchaResetTrigger((prev) => prev + 1);
     clearErrors('captcha');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const newErrors = {
-      email: !emailOrNip.trim() ? 'Email / NIP wajib diisi.' : '',
+      email: !emailOrNip.trim() ? 'Email terdaftar wajib diisi.' : '',
       password: !password.trim() ? 'Password wajib diisi.' : '',
-      captcha: !captchaInput.trim() ? 'Kode captcha wajib diisi.' : '',
+      captcha: !recaptchaToken ? 'Harap centang verifikasi "Saya bukan robot".' : '',
       general: ''
     };
 
@@ -42,36 +32,55 @@ export default function LoginForm({ onNavigate, onOpenHelp }) {
       return;
     }
 
-    // Client-side captcha verification (case-insensitive)
-    if (captchaInput.trim().toUpperCase() !== captchaCode.toUpperCase()) {
-      setErrors((prev) => ({
-        ...prev,
-        captcha: 'Kode captcha tidak cocok. Silakan coba lagi.'
-      }));
-      refreshCaptcha();
-      return;
-    }
-
     setErrors({ email: '', password: '', captcha: '', general: '' });
     setIsLoading(true);
 
-    setTimeout(() => {
-      const trimmedEmail = emailOrNip.trim().toLowerCase();
-      const user = mockUsers.find(
-        (u) => u.email.toLowerCase() === trimmedEmail && u.password === password
-      );
+    try {
+      // Tahap 3: Kirim kredensial & recaptcha_token ke backend API
+      const response = await fetch('http://localhost:5000/api/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: emailOrNip.trim(),
+          password: password,
+          recaptcha_token: recaptchaToken,
+        }),
+      });
 
-      if (!user) {
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
         setIsLoading(false);
-        setErrors((prev) => ({ ...prev, general: 'Email / NIP atau password tidak sesuai.' }));
-        refreshCaptcha();
+        setErrors((prev) => ({
+          ...prev,
+          general: result.message || 'Login gagal. Periksa kembali email dan password Anda.'
+        }));
+        resetCaptcha();
         return;
       }
 
-      localStorage.setItem('sikepo_user', JSON.stringify(user));
+      // Tahap 4: Simpan token & profil user ke localStorage
+      if (result.data) {
+        if (result.data.token) {
+          localStorage.setItem('sikepo_token', result.data.token);
+        }
+        if (result.data.user) {
+          localStorage.setItem('sikepo_user', JSON.stringify(result.data.user));
+        }
+      }
+
       setIsLoading(false);
       onNavigate('/dashboard');
-    }, 600);
+    } catch (err) {
+      setIsLoading(false);
+      setErrors((prev) => ({
+        ...prev,
+        general: 'Gagal terhubung ke server backend (port 5000). Pastikan server backend sedang aktif.'
+      }));
+      resetCaptcha();
+    }
   };
 
   const clearErrors = (field) => {
@@ -90,13 +99,13 @@ export default function LoginForm({ onNavigate, onOpenHelp }) {
         )}
 
         <div className="form-group">
-          <label htmlFor="emailOrNip" className="input-label">Email / NIP</label>
+          <label htmlFor="emailOrNip" className="input-label">Email Terdaftar</label>
           <div className="input-wrapper">
             <input
               id="emailOrNip"
               type="text"
               className={`pill-input ${errors.email ? 'input-error' : ''}`}
-              placeholder="Masukkan Email / NIP"
+              placeholder="Masukkan Email terdaftar"
               value={emailOrNip}
               onChange={(e) => {
                 setEmailOrNip(e.target.value);
@@ -136,15 +145,16 @@ export default function LoginForm({ onNavigate, onOpenHelp }) {
           {errors.password && <span className="error-text">{errors.password}</span>}
         </div>
 
-        {/* Frontend Captcha */}
+        {/* Google reCAPTCHA v2 Checkbox */}
         <Captcha
-          captchaCode={captchaCode}
-          onRefresh={refreshCaptcha}
-          value={captchaInput}
-          onChange={(e) => {
-            setCaptchaInput(e.target.value);
+          onVerify={(token) => {
+            setRecaptchaToken(token);
             clearErrors('captcha');
           }}
+          onExpire={() => {
+            setRecaptchaToken('');
+          }}
+          resetTrigger={captchaResetTrigger}
           error={errors.captcha}
           disabled={isLoading}
         />
