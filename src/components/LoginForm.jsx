@@ -1,13 +1,31 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { mockUsers } from '../data/mockUsers';
+import Captcha from './Captcha';
+
+const CAPTCHA_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+const generateRandomCode = (len = 5) => {
+  let str = '';
+  for (let i = 0; i < len; i++) {
+    str += CAPTCHA_CHARS.charAt(Math.floor(Math.random() * CAPTCHA_CHARS.length));
+  }
+  return str;
+};
 
 export default function LoginForm({ onNavigate, onOpenHelp }) {
   const [emailOrNip, setEmailOrNip] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [captchaCode, setCaptchaCode] = useState(() => generateRandomCode(5));
+  const [captchaInput, setCaptchaInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState({ email: '', password: '', general: '' });
+  const [errors, setErrors] = useState({ email: '', password: '', captcha: '', general: '' });
+
+  const refreshCaptcha = () => {
+    setCaptchaCode(generateRandomCode(5));
+    setCaptchaInput('');
+    clearErrors('captcha');
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -15,15 +33,26 @@ export default function LoginForm({ onNavigate, onOpenHelp }) {
     const newErrors = {
       email: !emailOrNip.trim() ? 'Email / NIP wajib diisi.' : '',
       password: !password.trim() ? 'Password wajib diisi.' : '',
+      captcha: !captchaInput.trim() ? 'Kode captcha wajib diisi.' : '',
       general: ''
     };
 
-    if (newErrors.email || newErrors.password) {
+    if (newErrors.email || newErrors.password || newErrors.captcha) {
       setErrors(newErrors);
       return;
     }
 
-    setErrors({ email: '', password: '', general: '' });
+    // Client-side captcha verification (case-insensitive)
+    if (captchaInput.trim().toUpperCase() !== captchaCode.toUpperCase()) {
+      setErrors((prev) => ({
+        ...prev,
+        captcha: 'Kode captcha tidak cocok. Silakan coba lagi.'
+      }));
+      refreshCaptcha();
+      return;
+    }
+
+    setErrors({ email: '', password: '', captcha: '', general: '' });
     setIsLoading(true);
 
     setTimeout(() => {
@@ -35,6 +64,7 @@ export default function LoginForm({ onNavigate, onOpenHelp }) {
       if (!user) {
         setIsLoading(false);
         setErrors((prev) => ({ ...prev, general: 'Email / NIP atau password tidak sesuai.' }));
+        refreshCaptcha();
         return;
       }
 
@@ -105,6 +135,19 @@ export default function LoginForm({ onNavigate, onOpenHelp }) {
           </div>
           {errors.password && <span className="error-text">{errors.password}</span>}
         </div>
+
+        {/* Frontend Captcha */}
+        <Captcha
+          captchaCode={captchaCode}
+          onRefresh={refreshCaptcha}
+          value={captchaInput}
+          onChange={(e) => {
+            setCaptchaInput(e.target.value);
+            clearErrors('captcha');
+          }}
+          error={errors.captcha}
+          disabled={isLoading}
+        />
 
         <button type="submit" className="btn-masuk" disabled={isLoading}>
           {isLoading ? (

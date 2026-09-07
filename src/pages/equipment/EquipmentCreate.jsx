@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2, FileText } from 'lucide-react';
 import Topbar from '../../components/layout/Topbar';
 import Sidebar from '../../components/layout/Sidebar';
 import EquipmentStepper from '../../components/equipment/EquipmentStepper';
@@ -119,8 +119,11 @@ export default function EquipmentCreate({ onNavigate }) {
                     ? <p className="eq-empty-tab">Tidak ada dokumen dilampirkan.</p>
                     : documents.map((d, i) => (
                         <div key={i} className="eq-doc-item">
-                          <span className="eq-doc-name">{d.name}</span>
-                          <span className="eq-doc-meta">{d.type} · {d.size}</span>
+                          <FileText size={18} className="eq-doc-icon" />
+                          <div className="eq-doc-info">
+                            <span className="eq-doc-name" title={d.name}>{d.name}</span>
+                            <span className="eq-doc-meta">{d.type} · {d.size}</span>
+                          </div>
                         </div>
                       ))
                   }

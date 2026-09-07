@@ -1,9 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Bell, User, ChevronDown, LogOut } from 'lucide-react';
 import tthLogo from '../../assets/logo/tth-logo.png';
 
 export default function Topbar({ user, onNavigate, title, searchValue, onSearchChange, searchPlaceholder }) {
   const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setProfileOpen(false);
+    };
+    if (profileOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [profileOpen]);
 
   const handleLogout = () => {
     localStorage.removeItem('sikepo_user');
@@ -47,7 +67,7 @@ export default function Topbar({ user, onNavigate, title, searchValue, onSearchC
           <span className="notification-dot" />
         </button>
 
-        <div className="profile-wrapper">
+        <div className="profile-wrapper" ref={profileRef}>
           <button className="profile-button" onClick={() => setProfileOpen(!profileOpen)} aria-expanded={profileOpen}>
             <div className="avatar-circle"><User size={15} /></div>
             <div className="user-meta">
