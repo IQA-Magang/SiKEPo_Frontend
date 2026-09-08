@@ -1,5 +1,0 @@
-/* SiKEPo - Entry point CSS. Imports all feature stylesheets. */
-@import './styles/base.css';
-@import './styles/login.css';
-@import './styles/dashboard.css';
-@import './styles/equipment.css';
