@@ -101,8 +101,8 @@ Aplikasi ini menerapkan sistem keamanan bertingkat berdasarkan peran pengguna:
 | Peran Pengguna | Kewenangan Utama |
 | --- | --- |
 | **Administrator** | Memiliki kendali penuh terhadap sistem, membuat akun pengguna baru, mengedit data pengguna, mereset kata sandi, mengubah hak akses peran, serta menghapus akun pengguna non-aktif. |
-| **Pimpinan** | Memantau kinerja seluruh pegawai, melihat laporan agregat, menyetujui evaluasi berkala, dan meninjau pencapaian target organisasi. |
-| **Pegawai / Staff** | Mengisi presensi atau catatan kehadiran harian, memperbarui profil pribadi, mengisi lembar pencapaian kinerja individu, serta melihat riwayat penilaian mandiri. |
+| **Manager** | Memantau kinerja seluruh pegawai, melihat laporan agregat, menyetujui evaluasi berkala, dan meninjau pencapaian target organisasi. |
+| **Staff** | Mengisi presensi atau catatan kehadiran harian, memperbarui profil pribadi, mengisi lembar pencapaian kinerja individu, serta melihat riwayat penilaian mandiri. |
 
 ---
 
