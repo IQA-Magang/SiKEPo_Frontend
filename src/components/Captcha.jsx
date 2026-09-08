@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { authApi } from '../utils/api';
 
 // Kunci pengujian resmi Google reCAPTCHA v2 Checkbox (selalu valid untuk testing lokal)
 const DEFAULT_TEST_SITE_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
-const BACKEND_SITEKEY_URL = 'http://localhost:5000/recaptcha/sitekey';
 
 export default function Captcha({ onVerify, onExpire, error, disabled, resetTrigger }) {
   const containerRef = useRef(null);
@@ -17,17 +17,14 @@ export default function Captcha({ onVerify, onExpire, error, disabled, resetTrig
     const setupRecaptcha = async () => {
       let siteKey = DEFAULT_TEST_SITE_KEY;
 
-      // Ambil site key langsung dari endpoint backend jika backend aktif
+      // Ambil site key langsung dari endpoint backend via authApi
       try {
-        const response = await fetch(BACKEND_SITEKEY_URL);
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.site_key) {
-            siteKey = data.site_key;
-          }
+        const fetchedKey = await authApi.getSiteKey();
+        if (fetchedKey) {
+          siteKey = fetchedKey;
         }
       } catch {
-        // Jika backend belum dijalankan atau tidak merespons, gunakan kunci tes bawaan
+        // Jika backend belum merespons, gunakan kunci tes bawaan
         siteKey = DEFAULT_TEST_SITE_KEY;
       }
 

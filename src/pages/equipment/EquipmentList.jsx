@@ -5,18 +5,22 @@ import Sidebar from '../../components/layout/Sidebar';
 import EquipmentFilters from '../../components/equipment/EquipmentFilters';
 import EquipmentTable from '../../components/equipment/EquipmentTable';
 import { mockEquipment } from '../../data/mockEquipment';
+import { getStoredUser } from '../../utils/api';
 
 const EMPTY_FILTERS = { query: '', status: '', room: '', category: '' };
 
 export default function EquipmentList({ onNavigate }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [equipment, setEquipment] = useState(mockEquipment);
 
   useEffect(() => {
-    const raw = localStorage.getItem('sikepo_user');
-    if (raw) try { setUser(JSON.parse(raw)); } catch (e) { console.error(e); }
+    const handleUserChanged = (e) => {
+      if (e.detail) setUser(e.detail);
+    };
+    window.addEventListener('sikepo_user_changed', handleUserChanged);
+    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
   }, []);
 
   const isAdmin = user?.role?.toLowerCase() === 'admin';

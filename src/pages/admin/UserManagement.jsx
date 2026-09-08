@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import Topbar from '../../components/layout/Topbar';
 import Sidebar from '../../components/layout/Sidebar';
-import { userApi } from '../../utils/api';
+import { userApi, getStoredUser, setStoredUser } from '../../utils/api';
 
 const EMPTY_FORM = {
   nip: '',
@@ -30,7 +30,7 @@ const EMPTY_FORM = {
 };
 
 export default function UserManagement({ onNavigate }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState('');
@@ -50,22 +50,24 @@ export default function UserManagement({ onNavigate }) {
   // Delete State
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    const raw = localStorage.getItem('sikepo_user');
-    if (raw) {
-      try {
-        const u = JSON.parse(raw);
-        setUser(u);
-        if (u.role?.toLowerCase() !== 'admin') {
-          onNavigate('/dashboard');
-        }
-      } catch (e) {
+    const current = getStoredUser();
+    if (current) {
+      setUser(current);
+      if (current.role?.toLowerCase() !== 'admin') {
         onNavigate('/dashboard');
       }
     } else {
       onNavigate('/login');
     }
+
+    const handleUserChanged = (e) => {
+      if (e.detail) setUser(e.detail);
+    };
+    window.addEventListener('sikepo_user_changed', handleUserChanged);
+    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
   }, []);
 
   // Fetch users from backend API
@@ -140,17 +142,64 @@ export default function UserManagement({ onNavigate }) {
     setFormSubmitting(true);
 
     try {
+      const cleanName = formData.name.trim();
+      const cleanEmail = formData.email.trim();
+      const cleanNip = formData.nip.trim();
+      const cleanRole = (formData.role || 'staff').trim();
+      const cleanPosition = formData.position.trim();
+
+      if (!cleanName || !cleanEmail || !cleanNip || !cleanPosition) {
+        throw new Error('Semua field wajib diisi (NIP, Nama, Email, Peran, Jabatan)');
+      }
+
       if (modalMode === 'create') {
         if (!formData.password || formData.password.length < 6) {
           throw new Error('Password wajib diisi minimal 6 karakter');
         }
-        await userApi.create(formData);
-        showNotice(`User "${formData.name}" berhasil dibuat.`);
+        await userApi.create({
+          nip: cleanNip,
+          name: cleanName,
+          email: cleanEmail,
+          password: formData.password,
+          role: cleanRole,
+          position: cleanPosition
+        });
+        showNotice(`User "${cleanName}" berhasil dibuat.`);
       } else if (modalMode === 'edit') {
-        const payload = { ...formData };
-        if (!payload.password) delete payload.password; // do not send empty password
-        await userApi.update(selectedUserId, payload);
-        showNotice(`Data user "${formData.name}" berhasil diperbarui.`);
+        if (!selectedUserId) {
+          throw new Error('ID user tidak valid untuk pembaruan');
+        }
+
+        const payload = {
+          nip: cleanNip,
+          name: cleanName,
+          email: cleanEmail,
+          role: cleanRole,
+          position: cleanPosition
+        };
+
+        if (formData.password && formData.password.trim().length >= 6) {
+          payload.password = formData.password.trim();
+        }
+
+        const res = await userApi.update(selectedUserId, payload);
+        showNotice(`Data user "${cleanName}" berhasil diperbarui.`);
+
+        // Jika user yang diedit adalah akun admin yang sedang login
+        const currentUser = getStoredUser();
+        if (currentUser && (currentUser.user_id === selectedUserId || currentUser.nip === cleanNip || currentUser.email === cleanEmail)) {
+          const updatedCurrent = {
+            ...currentUser,
+            ...(res?.data || {}),
+            name: cleanName,
+            email: cleanEmail,
+            nip: cleanNip,
+            role: cleanRole,
+            position: cleanPosition
+          };
+          setUser(updatedCurrent);
+          setStoredUser(updatedCurrent);
+        }
       }
 
       setModalMode(null);
@@ -165,14 +214,28 @@ export default function UserManagement({ onNavigate }) {
   // Confirm and Execute Delete
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
+
+    // Guard: admin cannot delete their own account
+    const currentUser = getStoredUser();
+    if (
+      currentUser &&
+      (String(currentUser.user_id) === String(deleteTarget.user_id) ||
+        currentUser.email === deleteTarget.email)
+    ) {
+      setDeleteError('Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif.');
+      return;
+    }
+
     setDeleting(true);
+    setDeleteError('');
     try {
       await userApi.delete(deleteTarget.user_id);
-      showNotice(`User "${deleteTarget.name}" berhasil dihapus.`);
+      showNotice(`Akun "${deleteTarget.name}" (NIP: ${deleteTarget.nip}) berhasil dihapus dari database.`);
       setDeleteTarget(null);
+      setDeleteError('');
       fetchUsers();
     } catch (err) {
-      alert(`Gagal menghapus user: ${err.message}`);
+      setDeleteError(err.message || 'Gagal menghapus user. Coba lagi.');
     } finally {
       setDeleting(false);
     }
@@ -201,26 +264,41 @@ export default function UserManagement({ onNavigate }) {
 
         {/* Delete Confirmation Banner */}
         {deleteTarget && (
-          <div className="eq-confirm-banner" style={{ background: '#FEF2F2', borderColor: '#FCA5A5', color: '#991B1B', marginBottom: '16px' }}>
-            <span>
-              Hapus akun <strong>{deleteTarget.name}</strong> (NIP: {deleteTarget.nip})? Akun ini tidak akan dapat login lagi.
-            </span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                className="eq-btn-action delete"
-                disabled={deleting}
-                onClick={handleConfirmDelete}
-              >
-                {deleting ? 'Menghapus...' : 'Ya, Hapus'}
-              </button>
-              <button
-                className="eq-btn-cancel"
-                style={{ padding: '6px 14px' }}
-                onClick={() => setDeleteTarget(null)}
-              >
-                Batal
-              </button>
+          <div style={{ marginBottom: '16px' }}>
+            <div className="eq-confirm-banner" style={{ background: '#FEF2F2', borderColor: '#FCA5A5', color: '#991B1B' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={18} color="#DC2626" />
+                <span>
+                  Konfirmasi hapus akun <strong>{deleteTarget.name}</strong> (NIP: <code>{deleteTarget.nip}</code>)?
+                  Akun ini akan <strong>dihapus permanen</strong> dan tidak dapat login lagi.
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                <button
+                  className="eq-btn-action delete"
+                  disabled={deleting}
+                  onClick={handleConfirmDelete}
+                  id="btn-confirm-delete"
+                >
+                  {deleting ? 'Menghapus...' : '🗑️ Ya, Hapus Permanen'}
+                </button>
+                <button
+                  className="eq-btn-cancel"
+                  style={{ padding: '6px 14px' }}
+                  onClick={() => { setDeleteTarget(null); setDeleteError(''); }}
+                  id="btn-cancel-delete"
+                >
+                  Batal
+                </button>
+              </div>
             </div>
+            {/* Inline error from delete operation */}
+            {deleteError && (
+              <div style={{ marginTop: '8px', padding: '10px 14px', background: '#FFF1F2', borderRadius: '8px', border: '1px solid #FECDD3', color: '#BE123C', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={15} color="#BE123C" />
+                <span>{deleteError}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -378,8 +456,12 @@ export default function UserManagement({ onNavigate }) {
               <tbody>
                 {filteredUsers.map((u, idx) => {
                   const roleLower = (u.role || 'staff').toLowerCase();
+                  const isSelf = user && (
+                    String(user.user_id) === String(u.user_id) ||
+                    user.email === u.email
+                  );
                   return (
-                    <tr key={u.user_id || idx}>
+                    <tr key={u.user_id || idx} style={isSelf ? { background: '#F0FDF4' } : {}}>
                       <td><span className="eq-row-num">{String(idx + 1).padStart(2, '0')}</span></td>
                       <td>
                         <div className="table-id-cell">
@@ -389,6 +471,11 @@ export default function UserManagement({ onNavigate }) {
                       <td>
                         <div>
                           <strong className="tool-name-text">{u.name}</strong>
+                          {isSelf && (
+                            <span style={{ marginLeft: '6px', fontSize: '10px', background: '#DCFCE7', color: '#16A34A', borderRadius: '4px', padding: '1px 6px', fontWeight: 600 }}>
+                              Anda
+                            </span>
+                          )}
                           <br />
                           <small style={{ color: '#6B7280' }}>{u.email}</small>
                         </div>
@@ -418,8 +505,10 @@ export default function UserManagement({ onNavigate }) {
                           </button>
                           <button
                             className="eq-btn-action delete"
-                            onClick={() => setDeleteTarget(u)}
-                            title="Hapus Akun User"
+                            onClick={() => { setDeleteError(''); setDeleteTarget(u); }}
+                            title={isSelf ? 'Tidak bisa menghapus akun Anda sendiri' : 'Hapus Akun User'}
+                            disabled={isSelf}
+                            style={isSelf ? { opacity: 0.35, cursor: 'not-allowed' } : {}}
                           >
                             <Trash2 size={13} />
                           </button>

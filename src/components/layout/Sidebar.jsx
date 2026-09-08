@@ -1,12 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Wrench, ArrowRightLeft, ShieldCheck, UserCheck, Users } from 'lucide-react';
+import { getStoredUser } from '../../utils/api';
 
 export default function Sidebar({ activePath, onNavigate }) {
-  let userRole = 'staff';
-  try {
-    const raw = localStorage.getItem('sikepo_user');
-    if (raw) userRole = (JSON.parse(raw).role || 'staff').toLowerCase();
-  } catch (e) {}
+  const [userRole, setUserRole] = useState(() => (getStoredUser()?.role || 'staff').toLowerCase());
+
+  useEffect(() => {
+    const handleUserChanged = (e) => {
+      if (e.detail?.role) {
+        setUserRole(e.detail.role.toLowerCase());
+      }
+    };
+    window.addEventListener('sikepo_user_changed', handleUserChanged);
+    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
+  }, []);
 
   const menuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },

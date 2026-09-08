@@ -82,15 +82,15 @@ export default function ProfileModal({ isOpen, onClose, user, onSwitchRole }) {
             <div className="profile-info-grid">
               <div className="profile-info-item">
                 <span className="info-label"><Hash size={13} /> NIP Pegawai</span>
-                <strong className="info-value">{user?.nip || '198805122011011002'}</strong>
+                <strong className="info-value">{user?.nip || '-'}</strong>
               </div>
               <div className="profile-info-item">
                 <span className="info-label"><Mail size={13} /> Email Resmi</span>
-                <strong className="info-value">{user?.email || 'admin@sikepo.test'}</strong>
+                <strong className="info-value">{user?.email || '-'}</strong>
               </div>
               <div className="profile-info-item">
                 <span className="info-label"><Award size={13} /> Jabatan / Posisi</span>
-                <strong className="info-value">{user?.position || 'Administrator Sistem'}</strong>
+                <strong className="info-value">{user?.position || '-'}</strong>
               </div>
               <div className="profile-info-item">
                 <span className="info-label"><Building2 size={13} /> Unit Laboratorium</span>
@@ -124,43 +124,20 @@ export default function ProfileModal({ isOpen, onClose, user, onSwitchRole }) {
             </div>
           </section>
 
-          {/* Role Preview Switcher for Testing/Demo */}
-          <section className="profile-section switcher-section">
-            <div className="switcher-header">
-              <h3 className="profile-section-title">
-                <RefreshCw size={16} /> Beralih Mode Peran (Demo & Pengujian)
-              </h3>
-              <small className="text-muted">Uji tampilan dashboard untuk setiap peran</small>
-            </div>
-            <div className="role-switcher-grid">
-              <button
-                className={`btn-role-switch ${currentRole === 'staff' ? 'active' : ''}`}
-                onClick={() => onSwitchRole && onSwitchRole('staff')}
-              >
-                <strong>Staff Lab</strong>
-                <span>Akses Operasional & Peminjaman</span>
-              </button>
-              <button
-                className={`btn-role-switch ${currentRole === 'manager' ? 'active' : ''}`}
-                onClick={() => onSwitchRole && onSwitchRole('manager')}
-              >
-                <strong>Manajer</strong>
-                <span>Verifikasi TLKM13/P & Monitoring</span>
-              </button>
-              <button
-                className={`btn-role-switch ${currentRole === 'admin' ? 'active' : ''}`}
-                onClick={() => onSwitchRole && onSwitchRole('admin')}
-              >
-                <strong>Admin</strong>
-                <span>Master Data, User & Kontrol Penuh</span>
-              </button>
+          {/* Informasi Hak Akses Resmi */}
+          <section className="profile-section" style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4B5563', fontSize: '12.5px' }}>
+              <Shield size={16} color="#E30613" />
+              <span>
+                <strong>Catatan Otorisasi:</strong> Perubahan peran (role) dan hak akses personel hanya dapat dikelola secara resmi oleh <strong>Administrator</strong> melalui menu <em>Manajemen Pengguna</em>.
+              </span>
             </div>
           </section>
         </div>
 
         <div className="profile-modal-footer">
           <button className="btn-profile-done" onClick={onClose}>
-            Selesai
+            Tutup
           </button>
         </div>
       </div>

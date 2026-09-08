@@ -5,35 +5,61 @@ import AdminProfile from './admin/AdminProfile';
 import ManagerProfile from './manager/ManagerProfile';
 import StaffProfile from './staff/StaffProfile';
 import { mockUsers } from '../data/mockUsers';
+import { getStoredUser, setStoredUser, userApi } from '../utils/api';
 
 export default function Profile({ onNavigate }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
 
   useEffect(() => {
-    const raw = localStorage.getItem('sikepo_user');
-    if (raw) {
+    // 1. Sync from backend with comprehensive fallback (by id or by email/nip)
+    const syncUser = async () => {
       try {
-        setUser(JSON.parse(raw));
+        if (user?.user_id) {
+          const res = await userApi.getById(user.user_id);
+          if (res?.data) {
+            const fresh = { ...user, ...res.data };
+            setUser(fresh);
+            setStoredUser(fresh);
+            return;
+          }
+        }
+
+        // If user_id wasn't in state, find active user in database list
+        const listRes = await userApi.getAll();
+        if (listRes?.data?.length && (user?.email || user?.nip)) {
+          const found = listRes.data.find(u =>
+            (user.email && u.email === user.email) ||
+            (user.nip && u.nip === user.nip)
+          );
+          if (found) {
+            const fresh = { ...user, ...found };
+            setUser(fresh);
+            setStoredUser(fresh);
+          }
+        }
       } catch (e) {
-        console.error(e);
+        // If offline or network error, keep stored user
       }
-    }
+    };
+
+    syncUser();
+
+    // 2. Listen to custom update events across components
+    const handleUserChanged = (e) => {
+      if (e.detail) {
+        setUser(e.detail);
+      }
+    };
+
+    window.addEventListener('sikepo_user_changed', handleUserChanged);
+    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
   }, []);
 
   const role = (user?.role || 'admin').toLowerCase();
 
-  const handleRoleChange = (newRole) => {
-    const template = mockUsers.find(u => u.role === newRole) || {
-      name: newRole === 'manager' ? 'Ir. Hendra Wijaya, M.T.' : newRole === 'staff' ? 'Siti Nurhaliza, S.T.' : 'Ahmad Rizky',
-      role: newRole,
-      email: `${newRole}@sikepo.test`,
-      nip: newRole === 'manager' ? '197509142000031001' : newRole === 'staff' ? '199503222019022004' : '198805122011011002',
-      position: newRole === 'manager' ? 'Manager Penjaminan Mutu & Pengujian' : newRole === 'staff' ? 'Staff Pengujian Lab Optik (PIC)' : 'Administrator Sistem',
-      division: newRole === 'manager' ? 'Manajemen Mutu Laboratorium (TLKM13/P)' : newRole === 'staff' ? 'Laboratorium Transmisi' : 'IT & Sistem Lab'
-    };
-    const updated = { ...(user || {}), ...template };
+  const handleUpdateUser = (updated) => {
     setUser(updated);
-    localStorage.setItem('sikepo_user', JSON.stringify(updated));
+    setStoredUser(updated);
   };
 
   return (
@@ -42,7 +68,7 @@ export default function Profile({ onNavigate }) {
         user={user}
         onNavigate={onNavigate}
         title="Profil Personel & Hak Akses"
-        onUpdateUser={(updated) => setUser(updated)}
+        onUpdateUser={handleUpdateUser}
       />
       <Sidebar activePath="/profile" onNavigate={onNavigate} />
 
@@ -50,22 +76,19 @@ export default function Profile({ onNavigate }) {
         {role === 'manager' ? (
           <ManagerProfile
             user={user}
-            onUpdateUser={(updated) => setUser(updated)}
-            onSwitchRole={handleRoleChange}
+            onUpdateUser={handleUpdateUser}
             onNavigate={onNavigate}
           />
         ) : role === 'staff' ? (
           <StaffProfile
             user={user}
-            onUpdateUser={(updated) => setUser(updated)}
-            onSwitchRole={handleRoleChange}
+            onUpdateUser={handleUpdateUser}
             onNavigate={onNavigate}
           />
         ) : (
           <AdminProfile
             user={user}
-            onUpdateUser={(updated) => setUser(updated)}
-            onSwitchRole={handleRoleChange}
+            onUpdateUser={handleUpdateUser}
             onNavigate={onNavigate}
           />
         )}

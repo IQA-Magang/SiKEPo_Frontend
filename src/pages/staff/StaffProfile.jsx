@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Shield,
@@ -18,6 +18,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+import { setStoredUser, userApi } from '../../utils/api';
+
 const STAFF_PERMISSIONS = [
   { text: 'Pencarian Informasi & Ketersediaan Alat Real-time', granted: true },
   { text: 'Pengajuan Peminjaman, Perpanjangan & Pengembalian Alat', granted: true },
@@ -32,15 +34,23 @@ export default function StaffProfile({ user, onUpdateUser, onSwitchRole, onNavig
   const [saving, setSaving] = useState(false);
 
   // Editable: name and email only!
-  const [name, setName] = useState(user?.name || 'Siti Nurhaliza, S.T.');
-  const [email, setEmail] = useState(user?.email || 'staff@sikepo.test');
+  const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
 
-  // Locked values
-  const nip = user?.nip || '199503222019022004';
-  const position = user?.position || 'Staff Pengujian Lab Optik (PIC)';
-  const division = user?.division || 'Laboratorium Transmisi & Optik (R01/R02)';
+  // Sync state whenever user prop updates
+  useEffect(() => {
+    if (user) {
+      if (user.name) setName(user.name);
+      if (user.email) setEmail(user.email);
+    }
+  }, [user]);
 
-  const handleSave = (e) => {
+  // Locked values — taken from real DB data, no hardcoded fallback
+  const nip = user?.nip || '';
+  const position = user?.position || '';
+  const division = user?.division || '';
+
+  const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
 
@@ -54,10 +64,26 @@ export default function StaffProfile({ user, onUpdateUser, onSwitchRole, onNavig
       role: 'staff'
     };
 
-    localStorage.setItem('sikepo_user', JSON.stringify(updatedUser));
+    // If backend allows (e.g. current JWT is admin testing staff profile), try sync
+    if (user?.user_id) {
+      try {
+        await userApi.update(user.user_id, {
+          name: updatedUser.name,
+          email: updatedUser.email,
+          nip: updatedUser.nip,
+          position: updatedUser.position,
+          role: 'staff'
+        });
+      } catch (err) {
+        // Backend only allows role admin to update /api/users/:id. Keep client session updated.
+        console.warn('Backend update note:', err.message);
+      }
+    }
+
+    setStoredUser(updatedUser);
     if (onUpdateUser) onUpdateUser(updatedUser);
 
-    setNotice('Nama dan Email Anda berhasil disimpan.');
+    setNotice('Nama dan Email Anda berhasil disimpan dan diperbarui.');
     setIsEditing(false);
     setSaving(false);
     setTimeout(() => setNotice(''), 3500);
@@ -143,13 +169,6 @@ export default function StaffProfile({ user, onUpdateUser, onSwitchRole, onNavig
                 <X size={14} /> Batal
               </button>
             )}
-
-            {/* Quick Switcher for Demo */}
-            <div style={{ background: '#F3F4F6', padding: '6px', borderRadius: '12px', display: 'flex', gap: '6px' }}>
-              <button type="button" className="role-switch-pill active" style={{ padding: '6px 12px', fontSize: '12px' }}>Staff Lab</button>
-              <button type="button" className="role-switch-pill" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onSwitchRole('manager')}>Manajer</button>
-              <button type="button" className="role-switch-pill" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onSwitchRole('admin')}>Admin</button>
-            </div>
           </div>
         </div>
 

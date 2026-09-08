@@ -4,7 +4,7 @@ import Sidebar from '../components/layout/Sidebar';
 import AdminDashboard from './admin/AdminDashboard';
 import ManagerDashboard from './manager/ManagerDashboard';
 import StaffDashboard from './staff/StaffDashboard';
-import { mockUsers } from '../data/mockUsers';
+import { getStoredUser, setStoredUser } from '../utils/api';
 
 const recentLoans = [
   { id: 'PMJ-089', code: 'TTH-OTDR-014', tool: 'OTDR EXFO FTB-1v2 Pro',             borrower: 'Ahmad Rizky (Div. Optik)',      date: '06 Sep 2026', returnDate: '10 Sep 2026', status: 'Dipinjam',  statusTone: 'warning' },
@@ -15,36 +15,18 @@ const recentLoans = [
 ];
 
 export default function Dashboard({ onNavigate }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const raw = localStorage.getItem('sikepo_user');
-    if (raw) {
-      try {
-        setUser(JSON.parse(raw));
-      } catch (e) {
-        console.error(e);
-      }
-    }
+    const handleUserChanged = (e) => {
+      if (e.detail) setUser(e.detail);
+    };
+    window.addEventListener('sikepo_user_changed', handleUserChanged);
+    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
   }, []);
 
   const role = (user?.role || 'admin').toLowerCase();
-
-  // Quick switch role handler
-  const handleRoleChange = (newRole) => {
-    const template = mockUsers.find(u => u.role === newRole) || {
-      name: newRole === 'manager' ? 'Ir. Hendra Wijaya, M.T.' : newRole === 'staff' ? 'Siti Nurhaliza, S.T.' : 'Ahmad Rizky',
-      role: newRole,
-      email: `${newRole}@sikepo.test`,
-      nip: newRole === 'manager' ? '197509142000031001' : newRole === 'staff' ? '199503222019022004' : '198805122011011002',
-      position: newRole === 'manager' ? 'Manager Penjaminan Mutu & Pengujian' : newRole === 'staff' ? 'Staff Pengujian Lab Optik (PIC)' : 'Administrator Sistem',
-      division: newRole === 'manager' ? 'Manajemen Mutu Laboratorium (TLKM13/P)' : newRole === 'staff' ? 'Laboratorium Transmisi' : 'IT & Sistem Lab'
-    };
-    const updated = { ...(user || {}), ...template };
-    setUser(updated);
-    localStorage.setItem('sikepo_user', JSON.stringify(updated));
-  };
 
   return (
     <div className="app-shell">
@@ -53,7 +35,7 @@ export default function Dashboard({ onNavigate }) {
         onNavigate={onNavigate}
         searchValue={searchQuery}
         onSearchChange={(e) => setSearchQuery(e.target.value)}
-        onUpdateUser={(updated) => setUser(updated)}
+        onUpdateUser={(updated) => { setUser(updated); setStoredUser(updated); }}
       />
 
       <Sidebar activePath="/dashboard" onNavigate={onNavigate} />
@@ -63,7 +45,6 @@ export default function Dashboard({ onNavigate }) {
           <ManagerDashboard
             user={user}
             onNavigate={onNavigate}
-            onSwitchRole={handleRoleChange}
             recentLoans={recentLoans}
             searchQuery={searchQuery}
           />
@@ -71,7 +52,6 @@ export default function Dashboard({ onNavigate }) {
           <StaffDashboard
             user={user}
             onNavigate={onNavigate}
-            onSwitchRole={handleRoleChange}
             recentLoans={recentLoans}
             searchQuery={searchQuery}
           />
@@ -79,7 +59,6 @@ export default function Dashboard({ onNavigate }) {
           <AdminDashboard
             user={user}
             onNavigate={onNavigate}
-            onSwitchRole={handleRoleChange}
             recentLoans={recentLoans}
             searchQuery={searchQuery}
           />

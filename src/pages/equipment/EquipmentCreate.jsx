@@ -15,8 +15,10 @@ function ConfirmRow({ label, value }) {
   );
 }
 
+import { getStoredUser } from '../../utils/api';
+
 export default function EquipmentCreate({ onNavigate }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(null);
   const [documents, setDocuments] = useState([]);
@@ -24,14 +26,19 @@ export default function EquipmentCreate({ onNavigate }) {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const raw = localStorage.getItem('sikepo_user');
-    if (raw) try {
-      const u = JSON.parse(raw);
-      setUser(u);
-      // Redirect non-admin
-      if (u.role?.toLowerCase() !== 'admin') onNavigate('/alat-ukur');
-    } catch (e) { onNavigate('/alat-ukur'); }
-    else onNavigate('/alat-ukur');
+    const current = getStoredUser();
+    if (current) {
+      setUser(current);
+      if (current.role?.toLowerCase() !== 'admin') onNavigate('/alat-ukur');
+    } else {
+      onNavigate('/alat-ukur');
+    }
+
+    const handleUserChanged = (e) => {
+      if (e.detail) setUser(e.detail);
+    };
+    window.addEventListener('sikepo_user_changed', handleUserChanged);
+    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
   }, []);
 
   const handleSave = () => {

@@ -2,13 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRightLeft } from 'lucide-react';
 import Topbar from '../components/layout/Topbar';
 import Sidebar from '../components/layout/Sidebar';
+import { getStoredUser } from '../utils/api';
 
 export default function Peminjaman({ onNavigate }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
 
   useEffect(() => {
-    const raw = localStorage.getItem('sikepo_user');
-    if (raw) try { setUser(JSON.parse(raw)); } catch (e) { console.error(e); }
+    const handleUserChanged = (e) => {
+      if (e.detail) setUser(e.detail);
+    };
+    window.addEventListener('sikepo_user_changed', handleUserChanged);
+    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
   }, []);
 
   return (

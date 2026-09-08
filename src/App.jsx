@@ -17,7 +17,16 @@ export default function App() {
   useEffect(() => {
     const onHash = () => setCurrentPath(getPath());
     window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
+
+    const onSessionExpired = () => {
+      navigate('/login');
+    };
+    window.addEventListener('sikepo_session_expired', onSessionExpired);
+
+    return () => {
+      window.removeEventListener('hashchange', onHash);
+      window.removeEventListener('sikepo_session_expired', onSessionExpired);
+    };
   }, []);
 
   const navigate = (path) => { window.location.hash = path; setCurrentPath(path); };

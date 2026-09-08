@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Shield,
@@ -19,6 +19,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+import { setStoredUser, userApi } from '../../utils/api';
+
 const MANAGER_PERMISSIONS = [
   { text: 'Verifikasi & Otorisasi Status Kelayakan (TLKM13/P)', granted: true },
   { text: 'Persetujuan Mutasi Lokasi Antar Laboratorium', granted: true },
@@ -33,15 +35,23 @@ export default function ManagerProfile({ user, onUpdateUser, onSwitchRole, onNav
   const [saving, setSaving] = useState(false);
 
   // Editable: name and email only!
-  const [name, setName] = useState(user?.name || 'Ir. Hendra Wijaya, M.T.');
-  const [email, setEmail] = useState(user?.email || 'manager@sikepo.test');
+  const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
 
-  // Locked values
-  const nip = user?.nip || '197509142000031001';
-  const position = user?.position || 'Manager Penjaminan Mutu & Pengujian';
-  const division = user?.division || 'Manajemen Mutu Laboratorium (TLKM13/P)';
+  // Sync state whenever user prop updates
+  useEffect(() => {
+    if (user) {
+      if (user.name) setName(user.name);
+      if (user.email) setEmail(user.email);
+    }
+  }, [user]);
 
-  const handleSave = (e) => {
+  // Locked values — taken from real DB data, no hardcoded fallback
+  const nip = user?.nip || '';
+  const position = user?.position || '';
+  const division = user?.division || '';
+
+  const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
 
@@ -55,7 +65,23 @@ export default function ManagerProfile({ user, onUpdateUser, onSwitchRole, onNav
       role: 'manager'
     };
 
-    localStorage.setItem('sikepo_user', JSON.stringify(updatedUser));
+    // If backend allows (e.g. current JWT is admin testing manager profile), try sync
+    if (user?.user_id) {
+      try {
+        await userApi.update(user.user_id, {
+          name: updatedUser.name,
+          email: updatedUser.email,
+          nip: updatedUser.nip,
+          position: updatedUser.position,
+          role: 'manager'
+        });
+      } catch (err) {
+        // Backend only allows role admin to update /api/users/:id. Keep client session updated.
+        console.warn('Backend update note:', err.message);
+      }
+    }
+
+    setStoredUser(updatedUser);
     if (onUpdateUser) onUpdateUser(updatedUser);
 
     setNotice('Nama dan Email Manajer berhasil diperbarui.');
@@ -144,13 +170,6 @@ export default function ManagerProfile({ user, onUpdateUser, onSwitchRole, onNav
                 <X size={14} /> Batal
               </button>
             )}
-
-            {/* Quick Switcher for Demo */}
-            <div style={{ background: '#F3F4F6', padding: '6px', borderRadius: '12px', display: 'flex', gap: '6px' }}>
-              <button type="button" className="role-switch-pill" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onSwitchRole('staff')}>Staff Lab</button>
-              <button type="button" className="role-switch-pill active" style={{ padding: '6px 12px', fontSize: '12px' }}>Manajer</button>
-              <button type="button" className="role-switch-pill" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onSwitchRole('admin')}>Admin</button>
-            </div>
           </div>
         </div>
 

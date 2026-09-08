@@ -2,12 +2,69 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, Bell, User, ChevronDown, LogOut, UserCheck, Shield, Users } from 'lucide-react';
 import tthLogo from '../../assets/logo/tth-logo.png';
 import ProfileModal from '../ProfileModal';
-import { mockUsers } from '../../data/mockUsers';
+import { getStoredUser, setStoredUser, userApi } from '../../utils/api';
 
 export default function Topbar({ user, onNavigate, title, searchValue, onSearchChange, searchPlaceholder, onUpdateUser }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => user || getStoredUser());
   const profileRef = useRef(null);
+
+  // Sync when prop user changes
+  useEffect(() => {
+    if (user) {
+      setCurrentUser(user);
+    }
+  }, [user]);
+
+  // Sync from backend database on mount to ensure live real name & role
+  useEffect(() => {
+    const syncRealUser = async () => {
+      try {
+        const stored = getStoredUser();
+        if (stored?.user_id) {
+          const res = await userApi.getById(stored.user_id);
+          if (res?.data && res.data.name && res.data.name !== stored.name) {
+            const fresh = { ...stored, ...res.data };
+            setCurrentUser(fresh);
+            setStoredUser(fresh);
+            return;
+          }
+        }
+
+        // Fallback: match by email/nip in backend list
+        if (stored?.email || stored?.nip) {
+          const listRes = await userApi.getAll();
+          if (listRes?.data?.length) {
+            const match = listRes.data.find(u =>
+              (stored.email && u.email === stored.email) ||
+              (stored.nip && u.nip === stored.nip)
+            );
+            if (match && (match.name !== stored.name || match.role !== stored.role)) {
+              const fresh = { ...stored, ...match };
+              setCurrentUser(fresh);
+              setStoredUser(fresh);
+            }
+          }
+        }
+      } catch (err) {
+        // Ignore offline error
+      }
+    };
+
+    syncRealUser();
+  }, []);
+
+  // Sync when custom event sikepo_user_changed is triggered anywhere in the app
+  useEffect(() => {
+    const handleUserChanged = (e) => {
+      if (e.detail) {
+        setCurrentUser(e.detail);
+      }
+    };
+    window.addEventListener('sikepo_user_changed', handleUserChanged);
+    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
+  }, []);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -29,28 +86,14 @@ export default function Topbar({ user, onNavigate, title, searchValue, onSearchC
   }, [profileOpen]);
 
   const handleLogout = () => {
-    localStorage.removeItem('sikepo_user');
+    setStoredUser(null);
     localStorage.removeItem('sikepo_token');
     onNavigate('/login');
   };
 
-  const handleSwitchRole = (newRole) => {
-    const template = mockUsers.find(u => u.role === newRole) || {
-      name: newRole === 'manager' ? 'Ir. Hendra Wijaya, M.T.' : newRole === 'staff' ? 'Siti Nurhaliza, S.T.' : 'Ahmad Rizky',
-      role: newRole,
-      email: `${newRole}@sikepo.test`,
-      nip: newRole === 'manager' ? '197509142000031001' : newRole === 'staff' ? '199503222019022004' : '198805122011011002',
-      position: newRole === 'manager' ? 'Manager Penjaminan Mutu & Pengujian' : newRole === 'staff' ? 'Staff Pengujian Lab Optik (PIC)' : 'Administrator Sistem',
-      division: newRole === 'manager' ? 'Manajemen Mutu Laboratorium (TLKM13/P)' : newRole === 'staff' ? 'Laboratorium Transmisi' : 'IT & Sistem Lab'
-    };
-    const updated = { ...(user || {}), ...template };
-    localStorage.setItem('sikepo_user', JSON.stringify(updated));
-    if (onUpdateUser) onUpdateUser(updated);
-    setProfileModalOpen(false);
-  };
-
-  const userName = user?.name ?? 'Administrator';
-  const userRole = user?.role ? (user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()) : 'Admin';
+  const effectiveUser = currentUser || user;
+  const userName = effectiveUser?.name || 'Administrator';
+  const userRole = effectiveUser?.role ? (effectiveUser.role.charAt(0).toUpperCase() + effectiveUser.role.slice(1).toLowerCase()) : 'Admin';
 
   return (
     <header className="topbar">
@@ -131,8 +174,7 @@ export default function Topbar({ user, onNavigate, title, searchValue, onSearchC
       <ProfileModal
         isOpen={profileModalOpen}
         onClose={() => setProfileModalOpen(false)}
-        user={user}
-        onSwitchRole={handleSwitchRole}
+        user={effectiveUser}
       />
     </header>
   );

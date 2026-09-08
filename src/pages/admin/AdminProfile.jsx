@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Shield,
@@ -19,7 +19,7 @@ import {
   Activity,
   ArrowRight
 } from 'lucide-react';
-import { userApi } from '../../utils/api';
+import { userApi, setStoredUser } from '../../utils/api';
 
 const ADMIN_PERMISSIONS = [
   { text: 'Kelola Master Data Alat Ukur (CRUD Penuh: Tambah, Edit, Hapus)', granted: true },
@@ -37,13 +37,27 @@ export default function AdminProfile({ user, onUpdateUser, onSwitchRole, onNavig
 
   // Form state for Admin
   const [formData, setFormData] = useState({
-    name: user?.name || 'Ahmad Rizky',
-    email: user?.email || 'admin@sikepo.test',
-    nip: user?.nip || '198805122011011002',
-    position: user?.position || 'Administrator Sistem',
+    name: user?.name || '',
+    email: user?.email || '',
+    nip: user?.nip || '',
+    position: user?.position || '',
     division: user?.division || 'IT & Sistem Lab (Telkom Test House)',
     password: ''
   });
+
+  // Sync formData whenever user prop changes (no hardcoded fallback — use real DB data)
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.name || prev.name || '',
+        email: user.email || prev.email || '',
+        nip: user.nip || prev.nip || '',
+        position: user.position || prev.position || '',
+        division: user.division || prev.division || 'IT & Sistem Lab (Telkom Test House)',
+      }));
+    }
+  }, [user]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -51,42 +65,66 @@ export default function AdminProfile({ user, onUpdateUser, onSwitchRole, onNavig
     setError('');
 
     try {
-      // 1. Prepare updated user object
-      const updatedUser = {
-        ...(user || {}),
+      let targetUserId = user?.user_id;
+
+      // If user_id is missing, find it from backend users list by NIP/email
+      if (!targetUserId) {
+        try {
+          const listRes = await userApi.getAll();
+          if (listRes?.data?.length) {
+            const found = listRes.data.find(u => u.email === user?.email || u.nip === user?.nip || u.role === 'admin');
+            if (found?.user_id) {
+              targetUserId = found.user_id;
+            }
+          }
+        } catch {
+          // ignore lookup error
+        }
+      }
+
+      const payload = {
         name: formData.name.trim(),
         email: formData.email.trim(),
         nip: formData.nip.trim(),
         position: formData.position.trim(),
-        division: formData.division.trim(),
         role: 'admin'
       };
 
-      // 2. If user has user_id, update backend via userApi
-      if (user?.user_id) {
-        const payload = {
-          name: updatedUser.name,
-          email: updatedUser.email,
-          nip: updatedUser.nip,
-          position: updatedUser.position,
-          role: 'admin'
-        };
-        if (formData.password && formData.password.length >= 6) {
-          payload.password = formData.password;
-        }
-        await userApi.update(user.user_id, payload);
+      if (formData.password && formData.password.length >= 6) {
+        payload.password = formData.password;
       }
 
-      // 3. Update localStorage and notify app
-      localStorage.setItem('sikepo_user', JSON.stringify(updatedUser));
+      let backendUserData = null;
+      if (targetUserId) {
+        const updateRes = await userApi.update(targetUserId, payload);
+        if (updateRes && updateRes.data) {
+          backendUserData = updateRes.data;
+        }
+      }
+
+      // Prepare updated user object
+      const updatedUser = {
+        ...(user || {}),
+        ...(backendUserData || {}),
+        name: payload.name,
+        email: payload.email,
+        nip: payload.nip,
+        position: payload.position,
+        division: formData.division.trim(),
+        role: 'admin',
+        ...(targetUserId ? { user_id: targetUserId } : {})
+      };
+
+      // Update localStorage & notify app
+      setStoredUser(updatedUser);
       if (onUpdateUser) onUpdateUser(updatedUser);
 
-      setNotice('Profil Administrator berhasil disimpan dan disinkronkan.');
+      setNotice('Profil Administrator berhasil disimpan dan disinkronkan ke database.');
       setIsEditing(false);
       setTimeout(() => setNotice(''), 3500);
     } catch (err) {
       console.error('Update profile error:', err);
-      setError(err.message || 'Gagal menyimpan pembaruan profil ke backend');
+      setError(err.message || 'Gagal menyimpan pembaruan profil ke database');
     } finally {
       setSaving(false);
     }
@@ -181,13 +219,6 @@ export default function AdminProfile({ user, onUpdateUser, onSwitchRole, onNavig
                 <X size={14} /> Batal
               </button>
             )}
-
-            {/* Quick Switcher for Demo */}
-            <div style={{ background: '#F3F4F6', padding: '6px', borderRadius: '12px', display: 'flex', gap: '6px' }}>
-              <button type="button" className="role-switch-pill" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onSwitchRole('staff')}>Staff Lab</button>
-              <button type="button" className="role-switch-pill" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onSwitchRole('manager')}>Manajer</button>
-              <button type="button" className="role-switch-pill active" style={{ padding: '6px 12px', fontSize: '12px' }}>Admin</button>
-            </div>
           </div>
         </div>
 

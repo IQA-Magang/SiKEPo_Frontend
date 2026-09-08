@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import Captcha from './Captcha';
+import { authApi, setStoredUser } from '../utils/api';
 
 export default function LoginForm({ onNavigate, onOpenHelp }) {
   const [emailOrNip, setEmailOrNip] = useState('');
@@ -36,38 +37,20 @@ export default function LoginForm({ onNavigate, onOpenHelp }) {
     setIsLoading(true);
 
     try {
-      // Tahap 3: Kirim kredensial & recaptcha_token ke backend API
-      const response = await fetch('http://localhost:5000/api/users/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: emailOrNip.trim(),
-          password: password,
-          recaptcha_token: recaptchaToken,
-        }),
+      // Kirim kredensial & recaptcha_token ke backend API via authApi
+      const result = await authApi.login({
+        email: emailOrNip.trim(),
+        password: password,
+        recaptcha_token: recaptchaToken,
       });
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        setIsLoading(false);
-        setErrors((prev) => ({
-          ...prev,
-          general: result.message || 'Login gagal. Periksa kembali email dan password Anda.'
-        }));
-        resetCaptcha();
-        return;
-      }
-
-      // Tahap 4: Simpan token & profil user ke localStorage
+      // Simpan token & profil user
       if (result.data) {
         if (result.data.token) {
           localStorage.setItem('sikepo_token', result.data.token);
         }
         if (result.data.user) {
-          localStorage.setItem('sikepo_user', JSON.stringify(result.data.user));
+          setStoredUser(result.data.user);
         }
       }
 
@@ -77,7 +60,7 @@ export default function LoginForm({ onNavigate, onOpenHelp }) {
       setIsLoading(false);
       setErrors((prev) => ({
         ...prev,
-        general: 'Gagal terhubung ke server backend (port 5000). Pastikan server backend sedang aktif.'
+        general: err.message || 'Gagal terhubung ke server backend (port 5000). Pastikan server backend sedang aktif.'
       }));
       resetCaptcha();
     }
