@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Loader2, FileText } from 'lucide-react';
+import { CheckCircle2, Loader2, FileText, AlertCircle } from 'lucide-react';
 import Topbar from '../../components/layout/Topbar';
 import Sidebar from '../../components/layout/Sidebar';
 import EquipmentStepper from '../../components/equipment/EquipmentStepper';
 import EquipmentForm from '../../components/equipment/EquipmentForm';
 import EquipmentDocuments from '../../components/equipment/EquipmentDocuments';
+import { peralatanApi, getStoredUser } from '../../utils/api';
 
 function ConfirmRow({ label, value }) {
   return (
@@ -15,8 +16,6 @@ function ConfirmRow({ label, value }) {
   );
 }
 
-import { getStoredUser } from '../../utils/api';
-
 export default function EquipmentCreate({ onNavigate }) {
   const [user, setUser] = useState(getStoredUser);
   const [step, setStep] = useState(1);
@@ -24,6 +23,7 @@ export default function EquipmentCreate({ onNavigate }) {
   const [documents, setDocuments] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [apiError, setApiError] = useState('');
 
   useEffect(() => {
     const current = getStoredUser();
@@ -41,11 +41,22 @@ export default function EquipmentCreate({ onNavigate }) {
     return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!formData) return;
     setSaving(true);
-    // ponytail: simulate async save; replace with API call when backend ready
-    setTimeout(() => { setSaving(false); setSaved(true); }, 1500);
-    setTimeout(() => onNavigate('/alat-ukur'), 3000);
+    setApiError('');
+
+    try {
+      // Kirim data peralatan sesuai model database backend Go Fiber
+      await peralatanApi.create(formData);
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => onNavigate('/alat-ukur'), 2200);
+    } catch (err) {
+      console.error('Gagal menyimpan peralatan:', err);
+      setSaving(false);
+      setApiError(err.message || 'Gagal menyimpan peralatan ke database backend');
+    }
   };
 
   if (saved) {
@@ -57,7 +68,7 @@ export default function EquipmentCreate({ onNavigate }) {
           <div className="eq-success-state">
             <CheckCircle2 size={56} className="eq-success-icon" />
             <h2>Alat Berhasil Disimpan!</h2>
-            <p>Data alat ukur telah tersimpan. Mengalihkan ke daftar alat...</p>
+            <p>Data alat ukur telah tersimpan di database backend. Mengalihkan ke daftar alat...</p>
           </div>
         </main>
       </div>
@@ -66,14 +77,14 @@ export default function EquipmentCreate({ onNavigate }) {
 
   return (
     <div className="app-shell">
-      <Topbar user={user} onNavigate={onNavigate} title="Alat Ukur Baru" onUpdateUser={(u) => setUser(u)} />
+      <Topbar user={user} onNavigate={onNavigate} title="Tambah Peralatan Baru" onUpdateUser={(u) => setUser(u)} />
       <Sidebar activePath="/alat-ukur" onNavigate={onNavigate} />
 
       <main className="main-content">
         <div className="eq-page-header">
           <div>
-            <h1 className="eq-page-title">Alat Ukur Baru</h1>
-            <p className="eq-page-sub">Lengkapi informasi alat ukur yang akan ditambahkan.</p>
+            <h1 className="eq-page-title">Tambah Peralatan Baru</h1>
+            <p className="eq-page-sub">Lengkapi informasi peralatan yang akan ditambahkan ke sistem</p>
           </div>
         </div>
 
@@ -83,6 +94,7 @@ export default function EquipmentCreate({ onNavigate }) {
           <div style={{ marginTop: '32px' }}>
             {step === 1 && (
               <EquipmentForm
+                initialData={formData}
                 onNext={(data) => { setFormData(data); setStep(2); }}
                 onCancel={() => onNavigate('/alat-ukur')}
               />
@@ -101,27 +113,34 @@ export default function EquipmentCreate({ onNavigate }) {
               <div>
                 <h3 className="eq-confirm-title">Ringkasan Data Alat</h3>
 
+                {apiError && (
+                  <div className="error-banner" style={{ marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AlertCircle size={16} />
+                      <span>{apiError}</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="eq-confirm-section">
-                  <h4 className="eq-confirm-section-title">Informasi Alat</h4>
+                  <h4 className="eq-confirm-section-title">Informasi Alat (Tersinkronisasi Database)</h4>
                   <div className="eq-detail-rows">
-                    <ConfirmRow label="Nomor Aset"  value={formData?.assetNumber} />
-                    <ConfirmRow label="Nama Alat"   value={formData?.name} />
-                    <ConfirmRow label="Merek"        value={formData?.brand} />
-                    <ConfirmRow label="Tipe / Model" value={formData?.model} />
-                    <ConfirmRow label="Nomor Seri"  value={formData?.serialNumber} />
-                    <ConfirmRow label="Parameter"   value={formData?.parameter} />
-                    <ConfirmRow label="Rentang Ukur" value={formData?.measurementRange} />
-                    <ConfirmRow label="Resolusi"    value={formData?.resolution} />
-                    <ConfirmRow label="Akurasi"     value={formData?.accuracy} />
-                    <ConfirmRow label="Satuan"      value={formData?.unit} />
-                    <ConfirmRow label="Ruang"       value={formData?.room} />
-                    <ConfirmRow label="PIC"         value={formData?.pic} />
-                    <ConfirmRow label="Frekuensi"   value={formData?.frequency} />
+                    <ConfirmRow label="Nomor Aset"        value={formData?.nomor_aset} />
+                    <ConfirmRow label="Nama Peralatan"    value={formData?.nama_peralatan} />
+                    <ConfirmRow label="Merek"             value={formData?.merk} />
+                    <ConfirmRow label="Tipe / Model"      value={formData?.model} />
+                    <ConfirmRow label="Nomor Seri"        value={formData?.nomor_seri} />
+                    <ConfirmRow label="Jumlah"            value={formData?.jumlah} />
+                    <ConfirmRow label="Kategori"          value={formData?.kategori_peralatan} />
+                    <ConfirmRow label="Kondisi"           value={formData?.kondisi} />
+                    <ConfirmRow label="Status Kelayakan"  value={formData?.status_kelayakan} />
+                    <ConfirmRow label="Metode"            value={formData?.metode} />
+                    <ConfirmRow label="Jenis Pakai"       value={formData?.jenis_pakai} />
                   </div>
                 </div>
 
                 <div className="eq-confirm-section">
-                  <h4 className="eq-confirm-section-title">Dokumen ({documents.length})</h4>
+                  <h4 className="eq-confirm-section-title">Dokumen Pendukung ({documents.length})</h4>
                   {documents.length === 0
                     ? <p className="eq-empty-tab">Tidak ada dokumen dilampirkan.</p>
                     : documents.map((d, i) => (
@@ -137,9 +156,11 @@ export default function EquipmentCreate({ onNavigate }) {
                 </div>
 
                 <div className="eq-form-actions">
-                  <button className="eq-btn-cancel" onClick={() => setStep(2)}>← Kembali</button>
+                  <button className="eq-btn-cancel" onClick={() => setStep(2)} disabled={saving}>
+                    ← Kembali
+                  </button>
                   <button className="eq-btn-next" onClick={handleSave} disabled={saving}>
-                    {saving ? <><Loader2 size={15} className="eq-spinner" /> Menyimpan...</> : 'Simpan Alat ✓'}
+                    {saving ? <><Loader2 size={15} className="spin" /> Menyimpan ke Backend...</> : 'Simpan Alat ✓'}
                   </button>
                 </div>
               </div>

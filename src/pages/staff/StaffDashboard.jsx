@@ -1,102 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Plus,
-  Calendar,
-  Activity,
-  Layers,
-  Wrench,
-  Shield,
-  RotateCcw,
-  CheckCircle,
+  ArrowUpRight,
   Clock,
+  CheckCircle,
   CheckCircle2,
   AlertTriangle,
-  ArrowUpRight
+  Wrench,
+  RefreshCw
 } from 'lucide-react';
+import { peralatanApi, peminjamanApi, getStoredUser } from '../../utils/api';
 
-const categoryDistribution = [
-  { name: 'Optik & Transmisi', count: 112, percent: 37, color: '#E30613' },
-  { name: 'Pengukuran Frekuensi & RF', count: 84, percent: 28, color: '#111111' },
-  { name: 'Testing & Sertifikasi Ethernet', count: 65, percent: 21, color: '#4B5563' },
-  { name: 'Power Supply & Catu Daya', count: 41, percent: 14, color: '#9CA3AF' },
-];
-
-const chartBars = [
-  { label: 'Apr', pct: 85 },
-  { label: 'Mei', pct: 78 },
-  { label: 'Jun', pct: 92 },
-  { label: 'Jul', pct: 88 },
-  { label: 'Agu', pct: 80 },
-  { label: 'Sep', pct: 83, active: true },
-];
-
-const STATUS_ICON = { Dipinjam: Clock, Kembali: CheckCircle2, Terlambat: AlertTriangle };
-
-export default function StaffDashboard({ user, onNavigate, onSwitchRole, recentLoans, searchQuery }) {
+export default function StaffDashboard({ user, onNavigate, searchQuery }) {
+  const [stats, setStats] = useState({ totalPeralatan: 0, totalDipinjam: 0, totalRusak: 0, loading: true });
+  const [myLoans, setMyLoans] = useState([]);
   const [actionNotice, setActionNotice] = useState('');
 
-  // Staff state: Active personal borrowed equipment
-  const [staffLoans, setStaffLoans] = useState([
-    {
-      id: 'PMJ-089',
-      code: 'TTH-OTDR-014',
-      tool: 'OTDR EXFO FTB-1v2 Pro',
-      room: 'Lab Transmisi (R01)',
-      borrowDate: '06 Sep 2026',
-      dueDate: '10 Sep 2026 (Besok)',
-      purpose: 'Pengujian Redaman Kabel Fiber Core #12',
-      isReturned: false,
-    },
-    {
-      id: 'PMJ-088',
-      code: 'TTH-OSA-003',
-      tool: 'Optical Spectrum Analyzer Yokogawa',
-      room: 'Lab Optik (R02)',
-      borrowDate: '05 Sep 2026',
-      dueDate: '12 Sep 2026',
-      purpose: 'Pengukuran Spektrum Wavelength WDM',
-      isReturned: false,
-    },
-    {
-      id: 'PMJ-091',
-      code: 'TTH-FUS-021',
-      tool: 'Fusion Splicer Fujikura 90S',
-      room: 'Lab Transmisi (R01)',
-      borrowDate: '07 Sep 2026',
-      dueDate: '15 Sep 2026',
-      purpose: 'Penyambungan Patch Cord Sertifikasi',
-      isReturned: false,
-    },
-  ]);
+  const userName = user?.name || 'Staff';
 
-  const userName = user?.name || 'Siti Nurhaliza, S.T.';
-  const todayFormatted = new Date().toLocaleDateString('id-ID', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [eqRes, loanRes] = await Promise.all([
+          peralatanApi.getAll({ limit: 500 }),
+          peminjamanApi.getAll()
+        ]);
+
+        const allEq = eqRes?.data || [];
+        const allLoans = loanRes?.data || [];
+
+        const rusak = allEq.filter(e =>
+          e.kondisi === 'tidak_sesuai' || e.status_kelayakan === 'tidak_aktif'
+        ).length;
+
+        setStats({
+          totalPeralatan: allEq.length,
+          totalDipinjam: allLoans.filter(l => l.status === 'approved').length,
+          totalRusak: rusak,
+          loading: false
+        });
+        setMyLoans(allLoans.slice(0, 5));
+      } catch (err) {
+        console.warn('Staff dashboard fetch failed:', err);
+        setStats(s => ({ ...s, loading: false }));
+      }
+    };
+    fetchData();
+  }, []);
 
   const showNotice = (msg) => {
     setActionNotice(msg);
     setTimeout(() => setActionNotice(''), 3500);
   };
 
-  const handleReturnEquipment = (id, toolName) => {
-    setStaffLoans(prev => prev.map(item => item.id === id ? { ...item, isReturned: true } : item));
-    showNotice(`Alat "${toolName}" berhasil dikembalikan. Status tercatat di log peminjaman.`);
-  };
-
-  const filteredLoans = (recentLoans || []).filter(loan =>
-    [loan.tool, loan.borrower, loan.code].some(f => f.toLowerCase().includes((searchQuery || '').toLowerCase()))
-  );
-
-  const activeBorrowedCount = staffLoans.filter(l => !l.isReturned).length;
+  const filteredLoans = myLoans.filter(l => {
+    const q = (searchQuery || '').toLowerCase();
+    if (!q) return true;
+    return (l.peralatan?.nama_peralatan || '').toLowerCase().includes(q);
+  });
 
   return (
     <>
-      {/* Interactive Action Notice */}
       {actionNotice && (
         <div className="eq-confirm-banner" style={{ background: '#ECFDF5', borderColor: '#A7F3D0', color: '#065F46', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -106,328 +71,195 @@ export default function StaffDashboard({ user, onNavigate, onSwitchRole, recentL
         </div>
       )}
 
-      {/* HERO BANNER - STAFF */}
-      <section className="hero-banner">
-        <div className="hero-text-wrap">
-          <div className="hero-role-row">
-            <div className="date-chip">
-              <Calendar size={13} />
-              <span>{todayFormatted}</span>
-            </div>
-            <span className="role-tag-badge staff">
-              <Shield size={12} />
-              Staff Operasional Lab (PIC Alat)
-            </span>
-
-            {/* Quick Role Switcher Pill */}
-            <div className="role-switcher-banner" title="Pilih peran untuk menguji tampilan dashboard">
-              <span className="role-switcher-label">Peran:</span>
-              <button type="button" className="role-switch-pill active">Staff Lab</button>
-              <button type="button" className="role-switch-pill" onClick={() => onSwitchRole('manager')}>Manajer</button>
-              <button type="button" className="role-switch-pill" onClick={() => onSwitchRole('admin')}>Admin</button>
-            </div>
-          </div>
-
-          <h1>Selamat Bertugas, {userName}! 🔬</h1>
-          <p>
-            Portal Operasional Pengujian: Cari ketersediaan alat ukur, ajukan peminjaman pengujian, perpanjangan, serta pantau batas pengembalian alat secara real-time.
+      {/* Page Header */}
+      <div className="dashboard-page-header">
+        <div className="dashboard-title-wrap">
+          <h1>
+            <span>Dashboard Staff Laboratorium</span>
+            <span className="live-tag">Operasional</span>
+          </h1>
+          <p className="dashboard-subtitle">
+            Pusat operasional inventaris peralatan uji dan pencatatan sirkulasi peminjaman
           </p>
         </div>
-
-        <div className="hero-actions">
-          <button className="btn-hero-primary" onClick={() => onNavigate('/peminjaman')}>
-            <Plus size={16} /><span>Pinjam Alat</span>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="btn-hero-secondary"
+            style={{ color: '#111827', borderColor: '#E5E7EB', background: '#FFFFFF' }}
+            onClick={() => window.location.reload()}
+            title="Muat ulang data"
+          >
+            <RefreshCw size={15} />
+            <span>Segarkan</span>
           </button>
-          <button className="btn-hero-secondary" onClick={() => onNavigate('/alat-ukur')}>
-            <Wrench size={16} /><span>Cari Alat Siap Pakai</span>
+          <button className="btn-hero-primary" onClick={() => onNavigate('/peminjaman')}>
+            <Plus size={15} />
+            <span>Pinjam Alat</span>
           </button>
         </div>
-      </section>
+      </div>
 
-      {/* STATS GRID - STAFF */}
-      <section className="stats-grid" aria-label="Ringkasan status staf">
-        <article className="stat-card red">
+      {/* STATS GRID */}
+      <section className="stats-grid" aria-label="Ringkasan status staff">
+        <article className="stat-card black" style={{ cursor: 'pointer' }} onClick={() => onNavigate('/alat-ukur')}>
           <div className="stat-header">
-            <span className="stat-badge">Perlu Dikembalikan</span>
+            <span className="stat-badge">Inventaris</span>
+            <div className="stat-icon-wrapper"><Box size={20} /></div>
+          </div>
+          <div className="stat-body">
+            <strong className="stat-value">{stats.loading ? '—' : `${stats.totalPeralatan} Unit`}</strong>
+            <span className="stat-title">Total Peralatan Terdaftar</span>
+          </div>
+          <div className="stat-footer">
+            <span className="stat-sub">Klik untuk lihat semua peralatan</span>
+          </div>
+        </article>
+
+        <article className="stat-card red" style={{ cursor: 'pointer' }} onClick={() => onNavigate('/peminjaman')}>
+          <div className="stat-header">
+            <span className="stat-badge">Dipinjam</span>
             <div className="stat-icon-wrapper"><Clock size={20} /></div>
           </div>
           <div className="stat-body">
-            <strong className="stat-value">{activeBorrowedCount} Unit</strong>
-            <span className="stat-title">Alat Sedang Dipinjam</span>
+            <strong className="stat-value">{stats.loading ? '—' : `${stats.totalDipinjam} Unit`}</strong>
+            <span className="stat-title">Peralatan Sedang Dipinjam</span>
           </div>
           <div className="stat-footer">
-            <span className="stat-sub">Dalam pengujian aktif Anda</span>
+            <span className="stat-sub">Status: approved / aktif dipinjam</span>
           </div>
         </article>
 
         <article className="stat-card darkgray">
           <div className="stat-header">
-            <span className="stat-badge">Batas Pengembalian</span>
+            <span className="stat-badge">Alat Rusak</span>
             <div className="stat-icon-wrapper"><AlertTriangle size={20} /></div>
           </div>
           <div className="stat-body">
-            <strong className="stat-value">1 Unit Besok</strong>
-            <span className="stat-title">Jatuh Tempo Mendekati</span>
+            <strong className="stat-value">{stats.loading ? '—' : `${stats.totalRusak} Unit`}</strong>
+            <span className="stat-title">Total Alat Tidak Layak</span>
           </div>
           <div className="stat-footer">
-            <span className="stat-sub">TTH-OTDR-014 (Core #12)</span>
+            <span className="stat-sub">Kondisi tidak sesuai / tidak aktif</span>
           </div>
         </article>
 
-        <article className="stat-card black">
+        <article className="stat-card gray" style={{ cursor: 'pointer' }} onClick={() => onNavigate('/peminjaman')}>
           <div className="stat-header">
-            <span className="stat-badge">Tersedia di Rak</span>
-            <div className="stat-icon-wrapper"><CheckCircle2 size={20} /></div>
+            <span className="stat-badge">Ajukan Pinjam</span>
+            <div className="stat-icon-wrapper"><Wrench size={20} /></div>
           </div>
           <div className="stat-body">
-            <strong className="stat-value">250 Unit</strong>
-            <span className="stat-title">Alat Lab Siap Pakai</span>
+            <strong className="stat-value">+ Pinjam</strong>
+            <span className="stat-title">Ajukan Peminjaman Baru</span>
           </div>
           <div className="stat-footer">
-            <span className="stat-sub">Kondisi baik & terkalibrasi</span>
-          </div>
-        </article>
-
-        <article className="stat-card gray">
-          <div className="stat-header">
-            <span className="stat-badge">Histori Anda</span>
-            <div className="stat-icon-wrapper"><Box size={20} /></div>
-          </div>
-          <div className="stat-body">
-            <strong className="stat-value">14 Kali</strong>
-            <span className="stat-title">Riwayat Pengujian Saya</span>
-          </div>
-          <div className="stat-footer">
-            <span className="stat-sub">Total pengujian bulan ini</span>
+            <span className="stat-sub">Klik untuk halaman peminjaman</span>
           </div>
         </article>
       </section>
 
-      {/* STAFF PERSONAL BORROWED TOOLS */}
-      <section className="panel" style={{ marginBottom: '24px' }}>
-        <div className="panel-header">
-          <div>
-            <h2>Alat Laboratorium yang Sedang Anda Pinjam (Tugas Aktif)</h2>
-            <p className="panel-subtitle">Daftar peralatan pengujian di bawah tanggung jawab Anda saat ini</p>
+      {/* QUICK ACTIONS */}
+      <section className="admin-quick-grid">
+        <article className="admin-action-card">
+          <div className="admin-card-top">
+            <div className="admin-card-icon">
+              <Wrench size={20} />
+            </div>
+            <div className="admin-card-text">
+              <h3>Katalog Peralatan</h3>
+              <p>Lihat semua peralatan laboratorium yang tersedia dan siap untuk dipinjam.</p>
+            </div>
           </div>
-          <button className="btn-hero-primary" style={{ padding: '6px 14px', fontSize: '12px' }} onClick={() => onNavigate('/peminjaman')}>
-            <Plus size={14} /><span>Pinjam Alat Baru</span>
+          <button className="admin-card-action" onClick={() => onNavigate('/alat-ukur')}>
+            <span>Cari Peralatan</span>
+            <ArrowUpRight size={14} />
           </button>
-        </div>
-
-        <div className="table-responsive">
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>ID Pinjam & Kode</th>
-                <th>Nama Alat Pengujian</th>
-                <th>Lokasi Ruangan</th>
-                <th>Tenggat Pengembalian</th>
-                <th>Keperluan Pengujian</th>
-                <th>Aksi Cepat</th>
-              </tr>
-            </thead>
-            <tbody>
-              {staffLoans.map((loan) => (
-                <tr key={loan.id} style={loan.isReturned ? { opacity: 0.6 } : {}}>
-                  <td>
-                    <div className="table-id-cell">
-                      <span className="loan-id-badge">{loan.id}</span>
-                      <small className="tool-code">{loan.code}</small>
-                    </div>
-                  </td>
-                  <td>
-                    <strong className="tool-name-text" onClick={() => onNavigate('/alat-ukur')} style={{ cursor: 'pointer' }}>
-                      {loan.tool}
-                    </strong>
-                  </td>
-                  <td><span className="borrower-name">{loan.room}</span></td>
-                  <td>
-                    <span className="date-text" style={loan.dueDate.includes('Besok') ? { color: '#DC2626', fontWeight: 700 } : {}}>
-                      {loan.dueDate}
-                    </span>
-                  </td>
-                  <td><span style={{ fontSize: '12px', color: '#4B5563' }}>{loan.purpose}</span></td>
-                  <td>
-                    {!loan.isReturned ? (
-                      <button
-                        className="btn-table-action approve"
-                        onClick={() => handleReturnEquipment(loan.id, loan.tool)}
-                        title="Lakukan pengembalian alat ke rak laboratorium"
-                      >
-                        <RotateCcw size={13} />
-                        <span>Kembalikan</span>
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: '11.5px', color: '#059669', fontWeight: 600 }}>
-                        ✓ Dikembalikan
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Quick Lab Availability Catalog */}
-        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #F3F4F6' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#111827', margin: '0 0 4px 0' }}>
-            Kesiapan Alat per Laboratorium Pengujian
-          </h3>
-          <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 12px 0' }}>
-            Pilih laboratorium untuk memeriksa posisi rak dan mengambil alat untuk pengujian
-          </p>
-          <div className="staff-quick-grid">
-            <div className="staff-lab-card" onClick={() => onNavigate('/alat-ukur')} style={{ cursor: 'pointer' }}>
-              <div className="staff-lab-header">
-                <span className="staff-lab-name">Lab Optik (R01)</span>
-                <span className="staff-lab-count">94</span>
-              </div>
-              <span className="staff-lab-sub">Unit Siap Pakai (18 dipinjam)</span>
-            </div>
-            <div className="staff-lab-card" onClick={() => onNavigate('/alat-ukur')} style={{ cursor: 'pointer' }}>
-              <div className="staff-lab-header">
-                <span className="staff-lab-name">Lab Frekuensi & RF (R02)</span>
-                <span className="staff-lab-count">72</span>
-              </div>
-              <span className="staff-lab-sub">Unit Siap Pakai (12 dipinjam)</span>
-            </div>
-            <div className="staff-lab-card" onClick={() => onNavigate('/alat-ukur')} style={{ cursor: 'pointer' }}>
-              <div className="staff-lab-header">
-                <span className="staff-lab-name">Lab Ethernet (R03)</span>
-                <span className="staff-lab-count">55</span>
-              </div>
-              <span className="staff-lab-sub">Unit Siap Pakai (10 dipinjam)</span>
-            </div>
-            <div className="staff-lab-card" onClick={() => onNavigate('/alat-ukur')} style={{ cursor: 'pointer' }}>
-              <div className="staff-lab-header">
-                <span className="staff-lab-name">Lab Power Supply (G01)</span>
-                <span className="staff-lab-count">29</span>
-              </div>
-              <span className="staff-lab-sub">Unit Siap Pakai (12 dipinjam)</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SHARED ANALYTICS PANELS */}
-      <section className="dashboard-grid">
-        <article className="panel chart-panel">
-          <div className="panel-header">
-            <div>
-              <h2>Tren Ketersediaan Alat Laboratorium</h2>
-              <p className="panel-subtitle">Perbandingan status ketersediaan 6 bulan terakhir</p>
-            </div>
-            <span className="live-tag"><Activity size={12} /> Real-time</span>
-          </div>
-
-          <div className="chart-container">
-            <div className="chart-grid-background">
-              {['100%', '75%', '50%', '25%', '0%'].map(v => (
-                <span key={v} className="chart-y-axis">{v}</span>
-              ))}
-            </div>
-            <div className="chart-bars-group">
-              {chartBars.map(({ label, pct, active }) => (
-                <div key={label} className={`bar-column${active ? ' active' : ''}`}>
-                  <div className="bar-fill" style={{ height: `${pct}%` }}>
-                    <span className="bar-tooltip">{pct}% Tersedia</span>
-                  </div>
-                  <span className="bar-label">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="chart-legend-row">
-            {[['green', 'Tersedia (82.7%)'], ['purple', 'Dipinjam (11.6%)'], ['red', 'Perbaikan (5.7%)']].map(([cls, txt]) => (
-              <div key={cls} className="legend-item">
-                <span className={`legend-dot ${cls}`} /><span>{txt}</span>
-              </div>
-            ))}
-          </div>
         </article>
 
-        <article className="panel category-panel">
-          <div className="panel-header">
-            <div>
-              <h2>Distribusi Kategori Alat</h2>
-              <p className="panel-subtitle">Total 302 unit terdistribusi</p>
+        <article className="admin-action-card">
+          <div className="admin-card-top">
+            <div className="admin-card-icon blue">
+              <Plus size={20} />
             </div>
-            <Layers size={18} className="text-muted" />
+            <div className="admin-card-text">
+              <h3>Ajukan Peminjaman</h3>
+              <p>Buat pengajuan peminjaman alat baru untuk kebutuhan pengujian laboratorium.</p>
+            </div>
           </div>
-          <div className="category-list">
-            {categoryDistribution.map(({ name, count, percent, color }) => (
-              <div key={name} className="category-item">
-                <div className="category-info">
-                  <span className="category-name">{name}</span>
-                  <span className="category-count">{count} Unit ({percent}%)</span>
-                </div>
-                <div className="progress-bar-track">
-                  <div className="progress-bar-fill" style={{ width: `${percent}%`, backgroundColor: color }} />
-                </div>
-              </div>
-            ))}
+          <button className="admin-card-action" onClick={() => onNavigate('/peminjaman')}>
+            <span>Pinjam Alat</span>
+            <ArrowUpRight size={14} />
+          </button>
+        </article>
+
+        <article className="admin-action-card">
+          <div className="admin-card-top">
+            <div className="admin-card-icon purple">
+              <CheckCircle2 size={20} />
+            </div>
+            <div className="admin-card-text">
+              <h3>Verifikasi Peralatan</h3>
+              <p>Catat hasil pemeriksaan dan kalibrasi peralatan yang menjadi tanggung jawab Anda.</p>
+            </div>
           </div>
+          <button className="admin-card-action" onClick={() => onNavigate('/verifikasi')}>
+            <span>Buka Verifikasi</span>
+            <ArrowUpRight size={14} />
+          </button>
         </article>
       </section>
 
-      {/* LOANS MONITORING TABLE */}
+      {/* RECENT LOANS TABLE */}
       <section className="panel recent-loans-panel">
         <div className="panel-header">
           <div>
-            <h2>Histori Pengujian & Peminjaman Laboratorium</h2>
-            <p className="panel-subtitle">Daftar transaksi peminjaman alat laboratorium terkini</p>
+            <h2>Riwayat Peminjaman Terkini</h2>
+            <p className="panel-subtitle">5 transaksi peminjaman terbaru dari sistem</p>
           </div>
           <button className="btn-view-all" onClick={() => onNavigate('/peminjaman')}>
-            <span>Lihat Semua Transaksi</span><ArrowUpRight size={15} />
+            <span>Lihat Semua</span><ArrowUpRight size={15} />
           </button>
         </div>
-
-        <div className="table-responsive">
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>ID & Kode Inventaris</th>
-                <th>Perangkat / Alat</th>
-                <th>Peminjam & Unit</th>
-                <th>Tgl Pinjam</th>
-                <th>Tgl Kembali</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLoans.map((loan) => {
-                const StatusIcon = STATUS_ICON[loan.status];
-                return (
-                  <tr key={loan.id}>
+        {filteredLoans.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
+            {stats.loading ? 'Memuat data...' : 'Belum ada riwayat peminjaman.'}
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Peralatan</th>
+                  <th>Jumlah</th>
+                  <th>Status</th>
+                  <th>Tanggal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLoans.map((loan, idx) => (
+                  <tr key={loan.id || idx}>
                     <td>
-                      <div className="table-id-cell">
-                        <span className="loan-id-badge">{loan.id}</span>
-                        <small className="tool-code">{loan.code}</small>
-                      </div>
+                      <strong className="tool-name-text">{loan.peralatan?.nama_peralatan || `#${loan.peralatan_id}`}</strong>
+                      <br />
+                      <small style={{ color: '#6B7280' }}>{loan.catatan || ''}</small>
                     </td>
+                    <td>{loan.jumlah || 1} unit</td>
                     <td>
-                      <span className="tool-name-text" onClick={() => onNavigate('/alat-ukur')} style={{ cursor: 'pointer' }}>
-                        {loan.tool}
+                      <span className={`role-tag-badge ${loan.status === 'approved' ? 'admin' : loan.status === 'rejected' ? 'staff' : 'manager'}`}>
+                        {(loan.status || 'pending').toUpperCase()}
                       </span>
                     </td>
-                    <td><span className="borrower-name">{loan.borrower}</span></td>
-                    <td><span className="date-text">{loan.date}</span></td>
-                    <td><span className="date-text">{loan.returnDate}</span></td>
                     <td>
-                      <span className={`status-badge status-${loan.statusTone}`}>
-                        {StatusIcon && <StatusIcon size={12} />}
-                        {loan.status}
+                      <span className="date-text">
+                        {loan.created_at ? new Date(loan.created_at).toLocaleDateString('id-ID') : '-'}
                       </span>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </>
   );

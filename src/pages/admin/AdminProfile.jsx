@@ -21,14 +21,6 @@ import {
 } from 'lucide-react';
 import { userApi, setStoredUser } from '../../utils/api';
 
-const ADMIN_PERMISSIONS = [
-  { text: 'Kelola Master Data Alat Ukur (CRUD Penuh: Tambah, Edit, Hapus)', granted: true },
-  { text: 'Manajemen Akun Pengguna & Hak Akses Backend (/api/users)', granted: true },
-  { text: 'Konfigurasi Sistem & Log Audit Mutasi', granted: true },
-  { text: 'Otorisasi Verifikasi Kelayakan (TLKM13/P)', granted: false, note: 'Kewenangan Manajer Mutu' },
-  { text: 'Peminjaman Operasional Alat Lab', granted: true },
-];
-
 export default function AdminProfile({ user, onUpdateUser, onSwitchRole, onNavigate }) {
   const [isEditing, setIsEditing] = useState(false);
   const [notice, setNotice] = useState('');
@@ -257,9 +249,9 @@ export default function AdminProfile({ user, onUpdateUser, onSwitchRole, onNavig
       </section>
 
       {/* Profile Details or Edit Form */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '24px' }}>
-        {/* LEFT: Identitas Administrator */}
-        <section className="panel">
+      <div>
+        {/* Identitas Administrator */}
+        <section className="panel" style={{ maxWidth: '820px', margin: '0 auto' }}>
           <div className="panel-header">
             <div>
               <h2>Informasi Identitas Administrator</h2>
@@ -375,46 +367,6 @@ export default function AdminProfile({ user, onUpdateUser, onSwitchRole, onNavig
               </div>
             </form>
           )}
-        </section>
-
-        {/* RIGHT: Matriks Hak Akses Administrator */}
-        <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Matriks Hak Akses Administrator Sistem</h2>
-              <p className="panel-subtitle">Kewenangan pengelolaan sistem dan data inventaris laboratorium</p>
-            </div>
-            <span className="compliance-tag">SOP SiKEPo</span>
-          </div>
-
-          <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
-            <p style={{ fontSize: '12px', color: '#4B5563', lineHeight: '1.5', margin: 0 }}>
-              Sebagai Administrator Sistem, Anda memiliki hak akses penuh untuk memanajemen inventaris alat ukur, data master pengguna, serta pengaturan sistem dan keamanan aplikasi.
-            </p>
-          </div>
-
-          <div className="permission-matrix">
-            {ADMIN_PERMISSIONS.map((perm, idx) => (
-              <div key={idx} className={`permission-item ${perm.granted ? 'granted' : 'restricted'}`}>
-                <div className="perm-icon">
-                  {perm.granted ? <CheckCircle size={16} color="#059669" /> : <AlertCircle size={16} color="#9CA3AF" />}
-                </div>
-                <div className="perm-text">
-                  <span className="perm-label">{perm.text}</span>
-                  {perm.note && <small className="perm-note">({perm.note})</small>}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button className="btn-hero-primary" style={{ padding: '7px 14px', fontSize: '12px' }} onClick={() => onNavigate('/users')}>
-              <Users size={14} /> Kelola Pengguna Sistem
-            </button>
-            <button className="btn-hero-secondary" style={{ padding: '7px 14px', fontSize: '12px' }} onClick={() => onNavigate('/dashboard')}>
-              Ke Dashboard <ArrowRight size={13} />
-            </button>
-          </div>
         </section>
       </div>
     </>

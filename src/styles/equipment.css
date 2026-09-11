@@ -246,6 +246,19 @@
   gap: 24px 32px;
 }
 
+.eq-form-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .eq-form-row-2col {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
 .eq-field-group {
   display: flex;
   flex-direction: column;

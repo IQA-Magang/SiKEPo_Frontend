@@ -18,52 +18,69 @@ export default function EquipmentTable({ equipment, isAdmin, userRole, onDetail,
           <tr>
             <th>No</th>
             <th>Nomor Aset</th>
-            <th>Nama Alat</th>
+            <th>Nama Peralatan</th>
             <th>Kategori</th>
-            <th>Ruang</th>
-            <th>Status</th>
+            <th>Ruangan</th>
+            <th>Status Kelayakan</th>
             <th>Aksi</th>
           </tr>
         </thead>
         <tbody>
-          {equipment.map((eq, idx) => (
-            <tr key={eq.id}>
-              <td><span className="eq-row-num">{String(idx + 1).padStart(2, '0')}</span></td>
-              <td><span className="loan-id-badge">{eq.assetNumber}</span></td>
-              <td>
-                <div>
-                  <span className="tool-name-text">{eq.name}</span>
-                  <br />
-                  <small className="tool-code">{eq.brand} · {eq.model}</small>
-                </div>
-              </td>
-              <td><span className="eq-category-tag">{eq.category}</span></td>
-              <td><span className="eq-room-tag">{eq.room}</span></td>
-              <td><EquipmentStatusBadge status={eq.status} /></td>
-              <td>
-                <div className="eq-actions">
-                  <button className="eq-btn-action detail" onClick={() => onDetail(eq.id)} title="Detail">
-                    <Eye size={14} /> Detail
-                  </button>
-                  {eq.status === 'Tersedia' && (isAdmin || userRole === 'staff' || !userRole) && (
-                    <button className="eq-btn-action borrow" onClick={() => onBorrow(eq)} title="Pinjam Alat">
-                      <BookOpen size={14} /> Pinjam
+          {equipment.map((eq, idx) => {
+            const assetNo = eq.nomor_aset || eq.assetNumber || '-';
+            const name = eq.nama_peralatan || eq.name || '-';
+            const brand = eq.merk || eq.brand || '';
+            const model = eq.model || '';
+            const category = eq.kategori_peralatan || eq.category || 'Peralatan';
+            const roomName = eq.ruangan ? `${eq.ruangan.kode_ruangan} - ${eq.ruangan.nama_ruangan}` : (eq.room || '-');
+            const status = eq.status_kelayakan || eq.status || 'pending';
+            const canBorrow = (status === 'aktif' || status === 'Tersedia');
+
+            return (
+              <tr key={eq.id}>
+                <td><span className="eq-row-num">{String(idx + 1).padStart(2, '0')}</span></td>
+                <td><span className="loan-id-badge">{assetNo}</span></td>
+                <td>
+                  <div>
+                    <strong className="tool-name-text">{name}</strong>
+                    {(brand || model) && (
+                      <>
+                        <br />
+                        <small className="tool-code">{brand} {model ? `· ${model}` : ''}</small>
+                      </>
+                    )}
+                  </div>
+                </td>
+                <td><span className="eq-category-tag">{category}</span></td>
+                <td><span className="eq-room-tag">{roomName}</span></td>
+                <td><EquipmentStatusBadge status={status} /></td>
+                <td>
+                  <div className="eq-actions">
+                    <button className="eq-btn-action detail" onClick={() => onDetail(eq.id)} title="Detail Alat">
+                      <Eye size={14} /> Detail
                     </button>
-                  )}
-                  {isAdmin && (
-                    <>
-                      <button className="eq-btn-action edit" onClick={() => onEdit(eq.id)} title="Edit">
-                        <Pencil size={14} />
+                    {canBorrow && (isAdmin || userRole === 'staff' || !userRole) && (
+                      <button className="eq-btn-action borrow" onClick={() => onBorrow(eq)} title="Pinjam Alat">
+                        <BookOpen size={14} /> Pinjam
                       </button>
-                      <button className="eq-btn-action delete" onClick={() => onDelete(eq)} title="Hapus">
-                        <Trash2 size={14} />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
+                    )}
+                    {isAdmin && (
+                      <>
+                        {onEdit && (
+                          <button className="eq-btn-action edit" onClick={() => onEdit(eq.id)} title="Edit">
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                        <button className="eq-btn-action delete" onClick={() => onDelete(eq)} title="Hapus">
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

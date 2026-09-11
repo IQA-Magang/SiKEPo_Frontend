@@ -1,8 +1,7 @@
-# Panduan dan Dokumentasi Aplikasi SiKEPo
+# SiKEPo — Frontend Documentation
+### System of Knowing Equipment Position • Telkom Test House (TTH)
 
-Sistem Informasi Kepegawaian dan Penilaian Kinerja (SiKEPo) merupakan aplikasi berbasis web yang dirancang untuk memfasilitasi pengelolaan data kepegawaian, autentikasi berbasis hak akses, serta pemantauan dan pencatatan kinerja pegawai secara terstruktur dan terpadu.
-
-Aplikasi ini dibangun dengan arsitektur terpisah antara layanan pemrosesan data di sisi server dan tampilan antarmuka interaktif di sisi pengguna.
+Sistem Informasi Manajemen dan Pelacakan Posisi Peralatan Laboratorium (SiKEPo) merupakan aplikasi web modern untuk mengelola inventaris peralatan uji, pencatatan transaksi peminjaman, pelacakan posisi alat antar laboratorium/ruangan, serta otorisasi verifikasi mutu pengembalian alat.
 
 ---
 

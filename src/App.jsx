@@ -6,8 +6,14 @@ import EquipmentList from './pages/equipment/EquipmentList';
 import EquipmentCreate from './pages/equipment/EquipmentCreate';
 import EquipmentDetailPage from './pages/equipment/EquipmentDetailPage';
 import Peminjaman from './pages/Peminjaman';
+import Verifikasi from './pages/Verifikasi';
 import Profile from './pages/Profile';
+import Settings from './pages/Settings';
 import UserManagement from './pages/admin/UserManagement';
+import LabsManagement from './pages/admin/LabsManagement';
+import RuanganManagement from './pages/admin/RuanganManagement';
+import PicManagement from './pages/admin/PicManagement';
+import KategoriManagement from './pages/admin/KategoriManagement';
 
 const getPath = () => window.location.hash ? window.location.hash.replace('#', '') : '/login';
 
@@ -46,8 +52,14 @@ export default function App() {
   if (currentPath === '/alat-ukur/tambah')  return <EquipmentCreate onNavigate={navigate} />;
   if (currentPath === '/alat-ukur')         return <EquipmentList onNavigate={navigate} />;
   if (currentPath === '/peminjaman')        return <Peminjaman onNavigate={navigate} />;
-  if (currentPath === '/profile')           return <Profile onNavigate={navigate} />;
-  if (currentPath === '/users' || currentPath === '/admin/users') return <UserManagement onNavigate={navigate} />;
+  if (currentPath === '/verifikasi')        return <Verifikasi onNavigate={navigate} />;
+  if (currentPath === '/settings' || currentPath === '/pengaturan') return <Settings onNavigate={navigate} />;
+  if (currentPath === '/profile')           return <Settings onNavigate={navigate} initialTab="profile" />;
+  if (currentPath === '/users' || currentPath === '/admin/users') return <UserManagement onNavigate={navigate} initialTab="users" />;
+  if (currentPath === '/admin/labs')        return <LabsManagement onNavigate={navigate} />;
+  if (currentPath === '/admin/ruangan')     return <RuanganManagement onNavigate={navigate} />;
+  if (currentPath === '/admin/pic-management') return <UserManagement onNavigate={navigate} initialTab="pic" />;
+  if (currentPath === '/admin/kategori')       return <KategoriManagement onNavigate={navigate} />;
 
   // Dynamic: /alat-ukur/:id
   const detailMatch = currentPath.match(/^\/alat-ukur\/(\d+)$/);

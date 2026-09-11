@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
 import Topbar from '../../components/layout/Topbar';
 import Sidebar from '../../components/layout/Sidebar';
 import EquipmentFilters from '../../components/equipment/EquipmentFilters';
 import EquipmentTable from '../../components/equipment/EquipmentTable';
+import { peralatanApi, getStoredUser } from '../../utils/api';
 import { mockEquipment } from '../../data/mockEquipment';
-import { getStoredUser } from '../../utils/api';
 
 const EMPTY_FILTERS = { query: '', status: '', room: '', category: '' };
 
@@ -13,7 +13,10 @@ export default function EquipmentList({ onNavigate }) {
   const [user, setUser] = useState(getStoredUser);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [equipment, setEquipment] = useState(mockEquipment);
+  const [equipment, setEquipment] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState('');
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     const handleUserChanged = (e) => {
@@ -25,22 +28,67 @@ export default function EquipmentList({ onNavigate }) {
 
   const isAdmin = user?.role?.toLowerCase() === 'admin';
 
-  const filtered = useMemo(() => {
-    const q = filters.query.toLowerCase();
-    return equipment.filter(eq => {
-      if (filters.status && eq.status !== filters.status) return false;
-      if (filters.room && eq.room !== filters.room) return false;
-      if (filters.category && eq.category !== filters.category) return false;
-      if (!q) return true;
-      return [eq.name, eq.assetNumber, eq.serialNumber, eq.room, eq.category, eq.brand]
-        .some(f => f.toLowerCase().includes(q));
-    });
-  }, [equipment, filters]);
+  // Fetch from backend API
+  const fetchEquipment = async () => {
+    setLoading(true);
+    setApiError('');
+    try {
+      const res = await peralatanApi.getAll({
+        search: filters.query || undefined,
+        ruangan_id: filters.room || undefined,
+        status_kelayakan: filters.status || undefined,
+        limit: 100
+      });
 
-  const handleDelete = (eq) => {
+      if (res?.data && Array.isArray(res.data)) {
+        setEquipment(res.data);
+      } else {
+        setEquipment([]);
+      }
+    } catch (err) {
+      console.warn('Gagal memuat peralatan dari API backend, menggunakan fallback offline:', err);
+      setApiError(err.message || 'Gagal terhubung ke backend API');
+      // Fallback ke mock data jika backend belum dinyalakan
+      setEquipment(mockEquipment);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEquipment();
+  }, [filters.status, filters.room]);
+
+  const showNotice = (msg) => {
+    setNotice(msg);
+    setTimeout(() => setNotice(''), 3500);
+  };
+
+  // Local search filter if querying without re-triggering API immediately
+  const filtered = useMemo(() => {
+    const q = (filters.query || '').toLowerCase().trim();
+    if (!q) return equipment;
+    return equipment.filter(eq => {
+      const name = eq.nama_peralatan || eq.name || '';
+      const assetNo = eq.nomor_aset || eq.assetNumber || '';
+      const serial = eq.nomor_seri || eq.serialNumber || '';
+      const brand = eq.merk || eq.brand || '';
+      const model = eq.model || '';
+      const room = eq.ruangan?.nama_ruangan || eq.room || '';
+      return [name, assetNo, serial, brand, model, room].some(f => f.toLowerCase().includes(q));
+    });
+  }, [equipment, filters.query]);
+
+  const handleDelete = async (eq) => {
     if (deleteTarget?.id === eq.id) {
-      setEquipment(prev => prev.filter(e => e.id !== eq.id));
-      setDeleteTarget(null);
+      try {
+        await peralatanApi.delete(eq.id);
+        showNotice(`Peralatan "${eq.nama_peralatan || eq.name}" berhasil dihapus.`);
+        setDeleteTarget(null);
+        fetchEquipment();
+      } catch (err) {
+        alert(`Gagal menghapus peralatan: ${err.message}`);
+      }
     } else {
       setDeleteTarget(eq);
     }
@@ -52,23 +100,38 @@ export default function EquipmentList({ onNavigate }) {
       <Sidebar activePath="/alat-ukur" onNavigate={onNavigate} />
 
       <main className="main-content">
+        {notice && (
+          <div className="eq-confirm-banner" style={{ background: '#ECFDF5', borderColor: '#A7F3D0', color: '#065F46', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CheckCircle size={16} color="#059669" />
+              <span>{notice}</span>
+            </div>
+          </div>
+        )}
+
         {/* Page Header */}
         <div className="eq-page-header">
           <div>
-            <h1 className="eq-page-title">Daftar Alat Ukur</h1>
-            <p className="eq-page-sub">Kelola seluruh alat ukur laboratorium Telkom Test House</p>
+            <h1 className="eq-page-title">Daftar Peralatan</h1>
+            <p className="eq-page-sub">Kelola seluruh inventaris peralatan laboratorium Telkom Test House</p>
           </div>
-          {isAdmin && (
-            <button className="btn-hero-primary" onClick={() => onNavigate('/alat-ukur/tambah')}>
-              <Plus size={16} /><span>Tambah Alat</span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn-refresh" onClick={fetchEquipment} title="Perbarui data dari backend">
+              <RefreshCw size={15} className={loading ? 'spin' : ''} />
+              <span>Refresh</span>
             </button>
-          )}
+            {isAdmin && (
+              <button className="btn-hero-primary" onClick={() => onNavigate('/alat-ukur/tambah')}>
+                <Plus size={16} /><span>Tambah Peralatan</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Delete confirmation banner */}
         {deleteTarget && (
           <div className="eq-confirm-banner">
-            <span>Hapus <strong>{deleteTarget.name}</strong>? Tindakan ini tidak dapat dibatalkan.</span>
+            <span>Hapus <strong>{deleteTarget.nama_peralatan || deleteTarget.name}</strong> ({deleteTarget.nomor_aset || deleteTarget.assetNumber})? Tindakan ini tidak dapat dibatalkan.</span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button className="eq-btn-action delete" onClick={() => handleDelete(deleteTarget)}>Ya, Hapus</button>
               <button className="eq-btn-cancel" style={{ padding: '6px 14px' }} onClick={() => setDeleteTarget(null)}>Batal</button>
@@ -83,18 +146,29 @@ export default function EquipmentList({ onNavigate }) {
         <div className="panel" style={{ marginTop: '16px' }}>
           <div className="panel-header">
             <div>
-              <h2>Data Alat Ukur</h2>
-              <p className="panel-subtitle">{filtered.length} alat ditemukan</p>
+              <h2>Data Peralatan</h2>
+              <p className="panel-subtitle">
+                {loading ? 'Memuat data dari backend...' : `${filtered.length} peralatan ditemukan`}
+              </p>
             </div>
           </div>
+
+          {apiError && (
+            <div style={{ padding: '12px 18px', background: '#FEF2F2', borderBottom: '1px solid #FECACA', color: '#991B1B', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={16} />
+                <span>Backend offline atau database kosong. Menampilkan mode tinjau.</span>
+              </div>
+            </div>
+          )}
+
           <EquipmentTable
             equipment={filtered}
             isAdmin={isAdmin}
             userRole={user?.role?.toLowerCase()}
             onDetail={(id) => onNavigate(`/alat-ukur/${id}`)}
-            onEdit={(id) => onNavigate(`/alat-ukur/edit/${id}`)}
             onDelete={handleDelete}
-            onBorrow={(eq) => alert(`Pengajuan pinjam alat "${eq.name}" berhasil dicatat.`)}
+            onBorrow={(eq) => onNavigate('/peminjaman')}
           />
         </div>
       </main>

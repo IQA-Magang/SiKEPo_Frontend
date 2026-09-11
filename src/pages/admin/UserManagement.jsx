@@ -14,7 +14,9 @@ import {
   Mail,
   Hash,
   Award,
-  UserCheck
+  UserCheck,
+  Star,
+  StarOff
 } from 'lucide-react';
 import Topbar from '../../components/layout/Topbar';
 import Sidebar from '../../components/layout/Sidebar';
@@ -26,15 +28,22 @@ const EMPTY_FORM = {
   email: '',
   password: '',
   role: 'staff',
-  position: ''
+  position: '',
+  pic: false
 };
 
-export default function UserManagement({ onNavigate }) {
+export default function UserManagement({ onNavigate, initialTab = 'users', embedded = false }) {
   const [user, setUser] = useState(getStoredUser);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState('');
   const [notice, setNotice] = useState('');
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [updatingPic, setUpdatingPic] = useState(null);
+
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
 
   // Filter & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,7 +92,7 @@ export default function UserManagement({ onNavigate }) {
       }
     } catch (err) {
       console.error('Failed to fetch users:', err);
-      setApiError(err.message || 'Gagal terhubung ke backend API (/api/users)');
+      setApiError(err.message || 'Gagal terhubung ke backend API');
     } finally {
       setLoading(false);
     }
@@ -113,6 +122,43 @@ export default function UserManagement({ onNavigate }) {
     });
   }, [users, searchQuery, roleFilter]);
 
+  const staffList = useMemo(() => {
+    return users.filter(u => u.role?.toLowerCase() === 'staff');
+  }, [users]);
+
+  const filteredStaff = useMemo(() => {
+    return staffList.filter((u) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        (u.name && u.name.toLowerCase().includes(q)) ||
+        (u.nip && u.nip.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q)) ||
+        (u.position && u.position.toLowerCase().includes(q))
+      );
+    });
+  }, [staffList, searchQuery]);
+
+  const handleTogglePic = async (staffUser) => {
+    setUpdatingPic(staffUser.user_id);
+    try {
+      const newPicStatus = !staffUser.pic;
+      await userApi.update(staffUser.user_id, { ...staffUser, pic: newPicStatus });
+      setUsers(prev =>
+        prev.map(u => u.user_id === staffUser.user_id ? { ...u, pic: newPicStatus } : u)
+      );
+      showNotice(
+        newPicStatus
+          ? `${staffUser.name} berhasil ditetapkan sebagai Petugas PIC.`
+          : `Status PIC ${staffUser.name} berhasil dicabut.`
+      );
+    } catch (err) {
+      alert(`Gagal memperbarui status PIC: ${err.message}`);
+    } finally {
+      setUpdatingPic(null);
+    }
+  };
+
   // Open Create Modal
   const handleOpenCreate = () => {
     setFormData(EMPTY_FORM);
@@ -129,7 +175,8 @@ export default function UserManagement({ onNavigate }) {
       email: targetUser.email || '',
       password: '', // optional on update
       role: targetUser.role || 'staff',
-      position: targetUser.position || ''
+      position: targetUser.position || '',
+      pic: Boolean(targetUser.pic)
     });
     setFormError('');
     setModalMode('edit');
@@ -147,6 +194,7 @@ export default function UserManagement({ onNavigate }) {
       const cleanNip = formData.nip.trim();
       const cleanRole = (formData.role || 'staff').trim();
       const cleanPosition = formData.position.trim();
+      const isPic = Boolean(formData.pic);
 
       if (!cleanName || !cleanEmail || !cleanNip || !cleanPosition) {
         throw new Error('Semua field wajib diisi (NIP, Nama, Email, Peran, Jabatan)');
@@ -162,7 +210,8 @@ export default function UserManagement({ onNavigate }) {
           email: cleanEmail,
           password: formData.password,
           role: cleanRole,
-          position: cleanPosition
+          position: cleanPosition,
+          pic: isPic
         });
         showNotice(`User "${cleanName}" berhasil dibuat.`);
       } else if (modalMode === 'edit') {
@@ -175,7 +224,8 @@ export default function UserManagement({ onNavigate }) {
           name: cleanName,
           email: cleanEmail,
           role: cleanRole,
-          position: cleanPosition
+          position: cleanPosition,
+          pic: isPic
         };
 
         if (formData.password && formData.password.trim().length >= 6) {
@@ -241,19 +291,10 @@ export default function UserManagement({ onNavigate }) {
     }
   };
 
-  return (
-    <div className="app-shell">
-      <Topbar
-        user={user}
-        onNavigate={onNavigate}
-        title="Manajemen Pengguna"
-        onUpdateUser={(updated) => setUser(updated)}
-      />
-      <Sidebar activePath="/users" onNavigate={onNavigate} />
-
-      <main className="main-content">
-        {/* Notice Banner */}
-        {notice && (
+  const innerContent = (
+    <>
+      {/* Notice Banner */}
+      {notice && (
           <div className="eq-confirm-banner" style={{ background: '#ECFDF5', borderColor: '#A7F3D0', color: '#065F46', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <CheckCircle size={18} color="#059669" />
@@ -302,84 +343,132 @@ export default function UserManagement({ onNavigate }) {
           </div>
         )}
 
-        {/* Page Header */}
-        <div className="eq-page-header">
-          <div>
-            <h1 className="eq-page-title">Manajemen Akun Pengguna</h1>
-            <p className="eq-page-sub">
-              Kelola seluruh akun personel laboratorium Telkom Test House terhubung langsung ke database backend (`/api/users`)
-            </p>
-          </div>
-          <button className="btn-hero-primary" onClick={handleOpenCreate}>
-            <Plus size={16} />
-            <span>Tambah Pengguna Baru</span>
+        {/* Tab Navigation: Manajemen Pengguna & Penetapan PIC */}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '22px', borderBottom: '2px solid #E5E7EB', paddingBottom: '0px' }}>
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              fontSize: '13.5px',
+              fontWeight: 700,
+              border: 'none',
+              borderBottom: activeTab === 'users' ? '3px solid #E30613' : '3px solid transparent',
+              background: 'transparent',
+              color: activeTab === 'users' ? '#E30613' : '#6B7280',
+              cursor: 'pointer',
+              marginBottom: '-2px',
+              transition: 'all 0.2s ease'
+            }}
+            onClick={() => setActiveTab('users')}
+          >
+            <Users size={16} />
+            <span>Daftar Akun Pengguna ({users.length})</span>
+          </button>
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              fontSize: '13.5px',
+              fontWeight: 700,
+              border: 'none',
+              borderBottom: activeTab === 'pic' ? '3px solid #E30613' : '3px solid transparent',
+              background: 'transparent',
+              color: activeTab === 'pic' ? '#E30613' : '#6B7280',
+              cursor: 'pointer',
+              marginBottom: '-2px',
+              transition: 'all 0.2s ease'
+            }}
+            onClick={() => setActiveTab('pic')}
+          >
+            <UserCheck size={16} />
+            <span>Penetapan PIC Staff ({staffList.filter(u => u.pic).length})</span>
           </button>
         </div>
 
-        {/* Quick Summary Counts */}
-        <section className="stats-grid" style={{ marginBottom: '20px' }}>
-          <article className="stat-card black">
-            <div className="stat-header">
-              <span className="stat-badge">Database Aktif</span>
-              <div className="stat-icon-wrapper"><Users size={20} /></div>
+        {activeTab === 'users' ? (
+          <>
+            {/* Page Header */}
+            <div className="eq-page-header">
+              <div>
+                <h1 className="eq-page-title">Manajemen Akun Pengguna</h1>
+                <p className="eq-page-sub">
+                  Kelola seluruh akun personel laboratorium Telkom Test House terhubung langsung ke database backend
+                </p>
+              </div>
+              <button className="btn-hero-primary" onClick={handleOpenCreate}>
+                <Plus size={16} />
+                <span>Tambah Pengguna Baru</span>
+              </button>
             </div>
-            <div className="stat-body">
-              <strong className="stat-value">{users.length} Akun</strong>
-              <span className="stat-title">Total Pengguna Terdaftar</span>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-sub">Terdaftar di tabel users MySQL</span>
-            </div>
-          </article>
 
-          <article className="stat-card red">
-            <div className="stat-header">
-              <span className="stat-badge">Role Admin</span>
-              <div className="stat-icon-wrapper"><Shield size={20} /></div>
-            </div>
-            <div className="stat-body">
-              <strong className="stat-value">
-                {users.filter(u => u.role?.toLowerCase() === 'admin').length} Personel
-              </strong>
-              <span className="stat-title">Administrator Sistem</span>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-sub">Hak akses master data penuh</span>
-            </div>
-          </article>
+            {/* Quick Summary Counts */}
+            <section className="stats-grid" style={{ marginBottom: '20px' }}>
+              <article className="stat-card black">
+                <div className="stat-header">
+                  <span className="stat-badge">Database Aktif</span>
+                  <div className="stat-icon-wrapper"><Users size={20} /></div>
+                </div>
+                <div className="stat-body">
+                  <strong className="stat-value">{users.length} Akun</strong>
+                  <span className="stat-title">Total Pengguna Terdaftar</span>
+                </div>
+                <div className="stat-footer">
+                  <span className="stat-sub">Terdaftar di tabel users MySQL</span>
+                </div>
+              </article>
 
-          <article className="stat-card darkgray">
-            <div className="stat-header">
-              <span className="stat-badge">Role Manajer</span>
-              <div className="stat-icon-wrapper"><UserCheck size={20} /></div>
-            </div>
-            <div className="stat-body">
-              <strong className="stat-value">
-                {users.filter(u => u.role?.toLowerCase() === 'manager').length} Personel
-              </strong>
-              <span className="stat-title">Manajer Mutu & Lab</span>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-sub">Otorisasi verifikasi TLKM13/P</span>
-            </div>
-          </article>
+              <article className="stat-card red">
+                <div className="stat-header">
+                  <span className="stat-badge">Role Admin</span>
+                  <div className="stat-icon-wrapper"><Shield size={20} /></div>
+                </div>
+                <div className="stat-body">
+                  <strong className="stat-value">
+                    {users.filter(u => u.role?.toLowerCase() === 'admin').length} Personel
+                  </strong>
+                  <span className="stat-title">Administrator Sistem</span>
+                </div>
+                <div className="stat-footer">
+                  <span className="stat-sub">Hak akses master data penuh</span>
+                </div>
+              </article>
 
-          <article className="stat-card gray">
-            <div className="stat-header">
-              <span className="stat-badge">Role Staff</span>
-              <div className="stat-icon-wrapper"><Award size={20} /></div>
-            </div>
-            <div className="stat-body">
-              <strong className="stat-value">
-                {users.filter(u => u.role?.toLowerCase() === 'staff').length} Personel
-              </strong>
-              <span className="stat-title">Staff Pengujian Lab</span>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-sub">Operasional peminjaman alat</span>
-            </div>
-          </article>
-        </section>
+              <article className="stat-card darkgray">
+                <div className="stat-header">
+                  <span className="stat-badge">Role Manajer</span>
+                  <div className="stat-icon-wrapper"><UserCheck size={20} /></div>
+                </div>
+                <div className="stat-body">
+                  <strong className="stat-value">
+                    {users.filter(u => u.role?.toLowerCase() === 'manager').length} Personel
+                  </strong>
+                  <span className="stat-title">Manajer Mutu & Lab</span>
+                </div>
+                <div className="stat-footer">
+                  <span className="stat-sub">Otorisasi verifikasi TLKM13/P</span>
+                </div>
+              </article>
+
+              <article className="stat-card gray">
+                <div className="stat-header">
+                  <span className="stat-badge">Role Staff</span>
+                  <div className="stat-icon-wrapper"><Award size={20} /></div>
+                </div>
+                <div className="stat-body">
+                  <strong className="stat-value">
+                    {users.filter(u => u.role?.toLowerCase() === 'staff').length} Personel
+                  </strong>
+                  <span className="stat-title">Staff Pengujian Lab</span>
+                </div>
+                <div className="stat-footer">
+                  <span className="stat-sub">Operasional peminjaman alat</span>
+                </div>
+              </article>
+            </section>
 
         {/* Filters and Search */}
         <div className="eq-filter-card" style={{ marginBottom: '16px' }}>
@@ -406,8 +495,7 @@ export default function UserManagement({ onNavigate }) {
             </select>
 
             <button
-              className="btn-hero-secondary"
-              style={{ padding: '8px 14px', fontSize: '12px' }}
+              className="btn-refresh"
               onClick={fetchUsers}
               title="Perbarui data dari database"
             >
@@ -481,10 +569,17 @@ export default function UserManagement({ onNavigate }) {
                         </div>
                       </td>
                       <td>
-                        <span className={`role-tag-badge ${roleLower}`}>
-                          <Shield size={11} />
-                          {roleLower === 'admin' ? 'Admin' : roleLower === 'manager' ? 'Manajer' : 'Staff Lab'}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                          <span className={`role-tag-badge ${roleLower}`}>
+                            <Shield size={11} />
+                            {roleLower === 'admin' ? 'Admin' : roleLower === 'manager' ? 'Manajer' : 'Staff Lab'}
+                          </span>
+                          {u.pic && (
+                            <span style={{ fontSize: '10px', background: '#FEF3C7', color: '#92400E', borderRadius: '4px', padding: '1px 6px', fontWeight: 700, border: '1px solid #FDE68A' }}>
+                              PIC Lab / Alat
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <span className="borrower-name">{u.position || '-'}</span>
@@ -529,6 +624,190 @@ export default function UserManagement({ onNavigate }) {
             </table>
           </div>
         </div>
+          </>
+        ) : (
+          /* ====================================================
+             TAB PENETAPAN PIC STAFF
+             ==================================================== */
+          <>
+            {/* Page Header PIC */}
+            <div className="eq-page-header">
+              <div>
+                <h1 className="eq-page-title">Penetapan Petugas PIC</h1>
+                <p className="eq-page-sub">
+                  Tetapkan staff sebagai PIC (Person in Charge) penanggung jawab peralatan laboratorium.
+                  Hanya Staff dengan status PIC yang dapat dipilih saat menambahkan peralatan baru.
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Stats PIC */}
+            <section className="stats-grid" style={{ marginBottom: '20px' }}>
+              <article className="stat-card black">
+                <div className="stat-header">
+                  <span className="stat-badge">Total Staff</span>
+                  <div className="stat-icon-wrapper"><Users size={20} /></div>
+                </div>
+                <div className="stat-body">
+                  <strong className="stat-value">{staffList.length} Orang</strong>
+                  <span className="stat-title">Total Staff Laboratorium</span>
+                </div>
+                <div className="stat-footer">
+                  <span className="stat-sub">Personel penguji lab</span>
+                </div>
+              </article>
+
+              <article className="stat-card red">
+                <div className="stat-header">
+                  <span className="stat-badge">Sudah PIC</span>
+                  <div className="stat-icon-wrapper"><Star size={20} /></div>
+                </div>
+                <div className="stat-body">
+                  <strong className="stat-value">{staffList.filter(u => u.pic).length} Orang</strong>
+                  <span className="stat-title">Staff Berstatus PIC</span>
+                </div>
+                <div className="stat-footer">
+                  <span className="stat-sub">Dapat dipilih di form alat</span>
+                </div>
+              </article>
+
+              <article className="stat-card gray">
+                <div className="stat-header">
+                  <span className="stat-badge">Belum PIC</span>
+                  <div className="stat-icon-wrapper"><StarOff size={20} /></div>
+                </div>
+                <div className="stat-body">
+                  <strong className="stat-value">{staffList.filter(u => !u.pic).length} Orang</strong>
+                  <span className="stat-title">Staff Biasa</span>
+                </div>
+                <div className="stat-footer">
+                  <span className="stat-sub">Belum ditugaskan sebagai PIC</span>
+                </div>
+              </article>
+            </section>
+
+            {/* Filters and Search for PIC */}
+            <div className="eq-filter-card" style={{ marginBottom: '16px' }}>
+              <div className="eq-filter-search">
+                <Search size={16} className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Cari staff berdasarkan nama, NIP, email, atau jabatan..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <div className="eq-filter-selects">
+                <button
+                  className="btn-refresh"
+                  onClick={fetchUsers}
+                  title="Perbarui data dari database"
+                >
+                  <RefreshCw size={13} className={loading ? 'spin' : ''} />
+                  <span>Refresh</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Staff PIC Table */}
+            <div className="panel">
+              <div className="panel-header">
+                <div>
+                  <h2>Daftar Staff & Status Penetapan PIC</h2>
+                  <p className="panel-subtitle">
+                    Klik tombol aksi di kolom sebelah kanan untuk menetapkan atau mencabut status PIC staff
+                  </p>
+                </div>
+              </div>
+
+              <div className="table-responsive">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '60px' }}>No</th>
+                      <th>NIP</th>
+                      <th>Nama Staff</th>
+                      <th>Jabatan / Posisi</th>
+                      <th>Email</th>
+                      <th style={{ textAlign: 'center', width: '160px' }}>Status PIC</th>
+                      <th style={{ textAlign: 'center', width: '170px' }}>Aksi Penetapan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={7} className="text-center" style={{ padding: '32px' }}>
+                          <RefreshCw size={20} className="spin" style={{ display: 'inline', marginRight: '8px' }} />
+                          Memuat data staff...
+                        </td>
+                      </tr>
+                    ) : filteredStaff.map((s, idx) => (
+                      <tr key={s.user_id}>
+                        <td style={{ color: '#9CA3AF', fontSize: '12px' }}>{idx + 1}</td>
+                        <td>
+                          <code style={{ fontSize: '12px', background: '#F3F4F6', padding: '2px 6px', borderRadius: '4px' }}>
+                            {s.nip || '-'}
+                          </code>
+                        </td>
+                        <td>
+                          <strong style={{ fontSize: '13.5px', color: '#111827' }}>{s.name}</strong>
+                        </td>
+                        <td>{s.position || '-'}</td>
+                        <td style={{ color: '#6B7280', fontSize: '13px' }}>{s.email}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          {s.pic ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', borderRadius: '14px', fontSize: '11.5px', fontWeight: 700 }}>
+                              <Star size={12} fill="#059669" color="#059669" />
+                              <span>Petugas PIC</span>
+                            </span>
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB', borderRadius: '14px', fontSize: '11.5px', fontWeight: 500 }}>
+                              <span>Bukan PIC</span>
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {s.pic ? (
+                            <button
+                              className="eq-btn-action delete"
+                              style={{ padding: '6px 12px', fontSize: '12px' }}
+                              disabled={updatingPic === s.user_id}
+                              onClick={() => handleTogglePic(s)}
+                              title="Cabut status PIC staff ini"
+                            >
+                              <StarOff size={13} />
+                              <span>{updatingPic === s.user_id ? 'Proses...' : 'Cabut PIC'}</span>
+                            </button>
+                          ) : (
+                            <button
+                              className="btn-hero-primary"
+                              style={{ padding: '6px 14px', fontSize: '12px', background: '#059669', borderColor: '#059669' }}
+                              disabled={updatingPic === s.user_id}
+                              onClick={() => handleTogglePic(s)}
+                              title="Tetapkan staff ini sebagai PIC peralatan"
+                            >
+                              <Star size={13} />
+                              <span>{updatingPic === s.user_id ? 'Proses...' : 'Jadikan PIC'}</span>
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+
+                    {!loading && filteredStaff.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="text-center empty-table-cell">
+                          Tidak ada data staff laboratorium yang cocok.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Modal: Tambah / Edit Pengguna */}
         {modalMode && (
@@ -634,6 +913,18 @@ export default function UserManagement({ onNavigate }) {
                       />
                     </div>
                   </div>
+
+                  <div className="eq-form-group" style={{ marginTop: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#374151', fontWeight: 600 }}>
+                      <input
+                        type="checkbox"
+                        style={{ width: '16px', height: '16px', accentColor: '#E30613' }}
+                        checked={Boolean(formData.pic)}
+                        onChange={(e) => setFormData({ ...formData, pic: e.target.checked })}
+                      />
+                      <span>Tetapkan sebagai Petugas PIC (Penanggung Jawab Ruangan / Alat)</span>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="profile-modal-footer" style={{ display: 'flex', gap: '10px' }}>
@@ -657,6 +948,25 @@ export default function UserManagement({ onNavigate }) {
             </div>
           </div>
         )}
+    </>
+  );
+
+  if (embedded) {
+    return <div style={{ marginTop: '8px' }}>{innerContent}</div>;
+  }
+
+  return (
+    <div className="app-shell">
+      <Topbar
+        user={user}
+        onNavigate={onNavigate}
+        title="Manajemen Pengguna"
+        onUpdateUser={(updated) => setUser(updated)}
+      />
+      <Sidebar activePath="/users" onNavigate={onNavigate} />
+
+      <main className="main-content">
+        {innerContent}
       </main>
     </div>
   );

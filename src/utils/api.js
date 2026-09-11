@@ -122,3 +122,211 @@ export const userApi = {
       method: 'DELETE'
     })
 };
+
+// ========================================
+// LABS API (/api/v1/labs)
+// ========================================
+export const labsApi = {
+  // GET /api/v1/labs
+  getAll: () => fetchWithAuth('/api/v1/labs'),
+
+  // GET /api/v1/labs/:id
+  getById: (id) => fetchWithAuth(`/api/v1/labs/${id}`),
+
+  // POST /api/v1/labs (Admin only)
+  create: (data) =>
+    fetchWithAuth('/api/v1/labs', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  // PUT /api/v1/labs/:id (Admin only)
+  update: (id, data) =>
+    fetchWithAuth(`/api/v1/labs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+  // DELETE /api/v1/labs/:id (Admin only)
+  delete: (id) =>
+    fetchWithAuth(`/api/v1/labs/${id}`, {
+      method: 'DELETE'
+    })
+};
+
+// ========================================
+// RUANGAN API (/api/v1/ruangan)
+// ========================================
+export const ruanganApi = {
+  // GET /api/v1/ruangan
+  getAll: () => fetchWithAuth('/api/v1/ruangan'),
+
+  // GET /api/v1/ruangan/:id
+  getById: (id) => fetchWithAuth(`/api/v1/ruangan/${id}`),
+
+  // GET /api/v1/ruangan/labs/:labs_id
+  getByLabsId: (labsId) => fetchWithAuth(`/api/v1/ruangan/labs/${labsId}`),
+
+  // GET /api/v1/ruangan/pic/:pic_user_id
+  getByPicId: (picUserId) => fetchWithAuth(`/api/v1/ruangan/pic/${picUserId}`),
+
+  // POST /api/v1/ruangan (Admin only)
+  create: (data) =>
+    fetchWithAuth('/api/v1/ruangan', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  // PUT /api/v1/ruangan/:id (Admin only)
+  update: (id, data) =>
+    fetchWithAuth(`/api/v1/ruangan/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+  // DELETE /api/v1/ruangan/:id (Admin only)
+  delete: (id) =>
+    fetchWithAuth(`/api/v1/ruangan/${id}`, {
+      method: 'DELETE'
+    })
+};
+
+// ========================================
+// PERALATAN API (/api/v1/peralatan)
+// ========================================
+export const peralatanApi = {
+  // GET /api/v1/peralatan
+  getAll: (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.page) q.append('page', params.page);
+    if (params.limit) q.append('limit', params.limit);
+    if (params.search) q.append('search', params.search);
+    if (params.ruangan_id) q.append('ruangan_id', params.ruangan_id);
+    if (params.pic_id) q.append('pic_id', params.pic_id);
+    if (params.status_kelayakan) q.append('status_kelayakan', params.status_kelayakan);
+
+    const queryStr = q.toString();
+    return fetchWithAuth(`/api/v1/peralatan${queryStr ? `?${queryStr}` : ''}`);
+  },
+
+  // GET /api/v1/peralatan/:id
+  getById: (id) => fetchWithAuth(`/api/v1/peralatan/${id}`),
+
+  // POST /api/v1/peralatan
+  create: (data) =>
+    fetchWithAuth('/api/v1/peralatan', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  // PUT /api/v1/peralatan/:id
+  update: (id, data) =>
+    fetchWithAuth(`/api/v1/peralatan/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+  // DELETE /api/v1/peralatan/:id
+  delete: (id) =>
+    fetchWithAuth(`/api/v1/peralatan/${id}`, {
+      method: 'DELETE'
+    })
+};
+
+// ========================================
+// DETAIL PEMINJAMAN API (/api/detail-peminjaman)
+// ========================================
+export const peminjamanApi = {
+  // GET /api/detail-peminjaman
+  getAll: () => fetchWithAuth('/api/detail-peminjaman'),
+
+  // GET /api/detail-peminjaman/:id
+  getById: (id) => fetchWithAuth(`/api/detail-peminjaman/${id}`),
+
+  // GET /api/detail-peminjaman/peminjaman/:peminjaman_id
+  getByPeminjamanId: (peminjamanId) =>
+    fetchWithAuth(`/api/detail-peminjaman/peminjaman/${peminjamanId}`),
+
+  // POST /api/detail-peminjaman (Admin, Staff, Manager)
+  create: (data) =>
+    fetchWithAuth('/api/detail-peminjaman', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  // PUT /api/detail-peminjaman/:id (Admin, Staff, Manager)
+  update: (id, data) =>
+    fetchWithAuth(`/api/detail-peminjaman/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+  // PUT /api/detail-peminjaman/:id/approve (Manager, Staff)
+  approve: (id, note = '') =>
+    fetchWithAuth(`/api/detail-peminjaman/${id}/approve`, {
+      method: 'PUT',
+      body: JSON.stringify({ verification_note: note })
+    }),
+
+  // PUT /api/detail-peminjaman/:id/reject (Manager, Staff)
+  reject: (id, note = '') =>
+    fetchWithAuth(`/api/detail-peminjaman/${id}/reject`, {
+      method: 'PUT',
+      body: JSON.stringify({ verification_note: note })
+    }),
+
+  // PUT /api/detail-peminjaman/:id/kondisi-pinjam (Admin, Staff, Manager)
+  setKondisiPinjam: (id, { kondisi, catatan = '' }) =>
+    fetchWithAuth(`/api/detail-peminjaman/${id}/kondisi-pinjam`, {
+      method: 'PUT',
+      body: JSON.stringify({ kondisi, catatan })
+    }),
+
+  // PUT /api/detail-peminjaman/:id/kondisi-kembali (Admin, Staff, Manager)
+  setKondisiKembali: (id, { kondisi, catatan = '' }) =>
+    fetchWithAuth(`/api/detail-peminjaman/${id}/kondisi-kembali`, {
+      method: 'PUT',
+      body: JSON.stringify({ kondisi, catatan })
+    }),
+
+  // DELETE /api/detail-peminjaman/:id (Admin, Manager)
+  delete: (id) =>
+    fetchWithAuth(`/api/detail-peminjaman/${id}`, {
+      method: 'DELETE'
+    })
+};
+
+// ========================================
+// VERIFIKASI API (/api/verifikasi)
+// ========================================
+export const verifikasiApi = {
+  // GET /api/verifikasi
+  getAll: () => fetchWithAuth('/api/verifikasi'),
+
+  // GET /api/verifikasi/:id
+  getById: (id) => fetchWithAuth(`/api/verifikasi/${id}`),
+
+  // GET /api/verifikasi/peralatan/:peralatan_id
+  getByPeralatan: (peralatanId) =>
+    fetchWithAuth(`/api/verifikasi/peralatan/${peralatanId}`),
+
+  // POST /api/verifikasi (Staff PIC)
+  create: (data) =>
+    fetchWithAuth('/api/verifikasi', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  // PUT /api/verifikasi/:id/approve (Manager)
+  approve: (id) =>
+    fetchWithAuth(`/api/verifikasi/${id}/approve`, {
+      method: 'PUT'
+    }),
+
+  // DELETE /api/verifikasi/:id (Admin)
+  delete: (id) =>
+    fetchWithAuth(`/api/verifikasi/${id}`, {
+      method: 'DELETE'
+    })
+};
+

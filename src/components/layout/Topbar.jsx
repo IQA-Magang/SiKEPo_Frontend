@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, User, ChevronDown, LogOut, UserCheck, Shield, Users } from 'lucide-react';
+import { Search, Bell, User, ChevronDown, LogOut, Menu, Settings } from 'lucide-react';
 import tthLogo from '../../assets/logo/tth-logo.png';
-import ProfileModal from '../ProfileModal';
 import { getStoredUser, setStoredUser, userApi } from '../../utils/api';
 
 export default function Topbar({ user, onNavigate, title, searchValue, onSearchChange, searchPlaceholder, onUpdateUser }) {
   const [profileOpen, setProfileOpen] = useState(false);
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => user || getStoredUser());
   const profileRef = useRef(null);
 
@@ -97,15 +95,26 @@ export default function Topbar({ user, onNavigate, title, searchValue, onSearchC
 
   return (
     <header className="topbar">
-      <div
-        className="brand-wrap"
-        onClick={() => onNavigate && onNavigate('/dashboard')}
-        style={{ cursor: onNavigate ? 'pointer' : 'default' }}
-        title="Kembali ke Dashboard"
-      >
-        <img src={tthLogo} alt="Telkom Test House Logo" className="topbar-logo" />
-        <div className="brand-divider" />
-        <span className="brand-name">SiKEPo</span>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <button
+          className="topbar-hamburger"
+          onClick={() => window.dispatchEvent(new CustomEvent('sikepo_toggle_mobile_sidebar'))}
+          aria-label="Buka menu navigasi"
+          title="Buka Menu"
+        >
+          <Menu size={20} />
+        </button>
+
+        <div
+          className="brand-wrap"
+          onClick={() => onNavigate && onNavigate('/dashboard')}
+          style={{ cursor: onNavigate ? 'pointer' : 'default' }}
+          title="Kembali ke Dashboard"
+        >
+          <img src={tthLogo} alt="Telkom Test House Logo" className="topbar-logo" />
+          <div className="brand-divider" />
+          <span className="brand-name">SiKEPo</span>
+        </div>
       </div>
 
       {title ? (
@@ -142,40 +151,34 @@ export default function Topbar({ user, onNavigate, title, searchValue, onSearchC
           {profileOpen && (
             <div className="profile-dropdown-menu">
               <div className="dropdown-header">
-                <strong>{userName}</strong>
-                <p>{user?.email ?? 'admin@sikepo.test'}</p>
-                {user?.position && (
-                  <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 6px' }}>
-                    {user.position} {user.nip ? `• NIP: ${user.nip}` : ''}
-                  </p>
-                )}
+                <strong style={{ fontSize: '14px', color: '#111827', display: 'block' }}>{userName}</strong>
+                <p style={{ fontSize: '12px', color: '#6B7280', margin: '2px 0 8px', wordBreak: 'break-all' }}>
+                  {effectiveUser?.email || user?.email || 'admin@sikepo.test'}
+                </p>
                 <span className="role-chip">{userRole}</span>
               </div>
               <div className="dropdown-divider" />
-              <button className="dropdown-item profile-action-btn" onClick={() => { setProfileOpen(false); if (onNavigate) onNavigate('/profile'); }}>
-                <UserCheck size={15} /><span>Profil Personel</span>
+              <button
+                className="dropdown-item"
+                onClick={() => {
+                  setProfileOpen(false);
+                  if (onNavigate) onNavigate('/settings');
+                }}
+              >
+                <Settings size={16} />
+                <span>Pengaturan</span>
               </button>
-              {userRole.toLowerCase() === 'admin' && (
-                <button className="dropdown-item" onClick={() => { setProfileOpen(false); if (onNavigate) onNavigate('/users'); }}>
-                  <Users size={15} /><span>Manajemen Pengguna</span>
-                </button>
-              )}
-              <button className="dropdown-item" onClick={() => { setProfileOpen(false); setProfileModalOpen(true); }}>
-                <Shield size={15} /><span>Matriks Hak Akses (TLKM13/P)</span>
-              </button>
-              <button className="dropdown-item" onClick={handleLogout}>
-                <LogOut size={15} /><span>Keluar Aplikasi</span>
+              <button
+                className="dropdown-item text-red"
+                onClick={handleLogout}
+              >
+                <LogOut size={16} />
+                <span>Keluar Aplikasi</span>
               </button>
             </div>
           )}
         </div>
       </div>
-
-      <ProfileModal
-        isOpen={profileModalOpen}
-        onClose={() => setProfileModalOpen(false)}
-        user={effectiveUser}
-      />
     </header>
   );
 }
