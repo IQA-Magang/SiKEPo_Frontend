@@ -783,52 +783,100 @@
 
 /* Mobile Responsive adjustments */
 @media (max-width: 768px) {
+  /* Keep navigation visible on mobile */
   .topbar-hamburger {
-    display: flex;
+    display: none;
   }
 
-  /* Mobile Sidebar as Slide-out Drawer */
   .sidebar {
     position: fixed;
-    top: 0;
+    top: 60px;
     bottom: 0;
     left: 0;
-    width: 280px;
-    height: 100vh;
+    width: 238px;
+    height: auto;
     background: #FFFFFF;
     border-right: 1px solid #E5E7EB;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
-    z-index: 9995;
-    padding: 18px 16px;
+    box-shadow: 2px 0 14px rgba(17, 24, 39, 0.06);
+    z-index: 40;
+    padding: 20px 12px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-y: auto;
   }
 
-  .sidebar.sidebar-mobile-open {
-    transform: translateX(0);
-  }
-
   .sidebar-overlay {
-    display: block;
+    display: none;
   }
 
   .sidebar-mobile-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 14px;
-    margin-bottom: 12px;
-    border-bottom: 1px solid #F3F4F6;
+    display: none;
   }
 
-  /* Search wrap */
+  .sidebar-section-label,
+  .nav-label,
+  .sidebar-system-card,
+  .active-indicator {
+    display: block;
+  }
+
+  .sidebar-section-label {
+    padding-left: 10px;
+  }
+
+  .nav-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .active-indicator {
+    display: block;
+  }
+
+  .sidebar-close-btn {
+    display: none;
+  }
+
+  .sidebar-top {
+    gap: 10px;
+  }
+
+  .sidebar nav {
+    gap: 8px;
+  }
+
+  .nav-item {
+    padding: 11px 12px;
+  }
+
+  .nav-group-header {
+    padding: 10px 12px;
+  }
+
+  .nav-group-children {
+    margin-left: 12px;
+  }
+
+  .sidebar-system-card {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .system-card-desc {
+    font-size: 10.5px;
+  }
+
+  .system-card-ver {
+    font-size: 9.5px;
+  }
+
+  /* Search remains available without hiding the menu */
   .sidebar-search-wrap {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     position: relative;
     margin-bottom: 14px;
   }
@@ -856,14 +904,14 @@
     background: #FFFFFF;
   }
 
-  /* Main content takes full screen without bottom menu clipping */
+  /* Reserve space for the always-visible navigation */
   .main-content {
-    margin-left: 0 !important;
+    margin-left: 238px !important;
     margin-top: 64px !important;
     margin-bottom: 24px !important;
-    padding: 16px 14px !important;
-    width: 100% !important;
-    max-width: 100% !important;
+    padding: 16px 12px !important;
+    width: calc(100% - 238px) !important;
+    max-width: none !important;
   }
 }
 

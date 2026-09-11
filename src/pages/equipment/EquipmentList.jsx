@@ -167,6 +167,7 @@ export default function EquipmentList({ onNavigate }) {
             isAdmin={isAdmin}
             userRole={user?.role?.toLowerCase()}
             onDetail={(id) => onNavigate(`/alat-ukur/${id}`)}
+            onVerify={(id) => onNavigate(`/verifikasi?peralatan=${id}`)}
             onDelete={handleDelete}
             onBorrow={(eq) => onNavigate('/peminjaman')}
           />

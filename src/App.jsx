@@ -7,6 +7,7 @@ import EquipmentCreate from './pages/equipment/EquipmentCreate';
 import EquipmentDetailPage from './pages/equipment/EquipmentDetailPage';
 import Peminjaman from './pages/Peminjaman';
 import Verifikasi from './pages/Verifikasi';
+import VerificationCreate from './pages/VerificationCreate';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import UserManagement from './pages/admin/UserManagement';
@@ -52,6 +53,8 @@ export default function App() {
   if (currentPath === '/alat-ukur/tambah')  return <EquipmentCreate onNavigate={navigate} />;
   if (currentPath === '/alat-ukur')         return <EquipmentList onNavigate={navigate} />;
   if (currentPath === '/peminjaman')        return <Peminjaman onNavigate={navigate} />;
+  const verificationCreateMatch = currentPath.match(/^\/verifikasi\?peralatan=(\d+)$/);
+  if (verificationCreateMatch) return <VerificationCreate onNavigate={navigate} equipmentId={verificationCreateMatch[1]} />;
   if (currentPath === '/verifikasi')        return <Verifikasi onNavigate={navigate} />;
   if (currentPath === '/settings' || currentPath === '/pengaturan') return <Settings onNavigate={navigate} />;
   if (currentPath === '/profile')           return <Settings onNavigate={navigate} initialTab="profile" />;
