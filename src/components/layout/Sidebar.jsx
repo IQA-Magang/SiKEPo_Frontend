@@ -10,8 +10,7 @@ import {
   ChevronDown,
   MapPin,
   Tag,
-  X,
-  Search
+  X
 } from 'lucide-react';
 import { getStoredUser } from '../../utils/api';
 
@@ -45,7 +44,6 @@ function NavGroup({ label, icon: Icon, children, defaultOpen = false }) {
 
 export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMobileClose: _extClose }) {
   const [userRole, setUserRole] = useState(() => (getStoredUser()?.role || 'staff').toLowerCase());
-  const [search, setSearch] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -70,12 +68,10 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
   const navigate = (path) => {
     onNavigate(path);
     setMobileOpen(false);
-    setSearch('');
   };
 
   const NavItem = ({ label, path }) => {
     const isActive = activePath === path || (path !== '/dashboard' && activePath.startsWith(path + '/'));
-    if (search && !label.toLowerCase().includes(search.toLowerCase())) return null;
     return (
       <button
         className={`nav-item nav-child ${isActive ? 'active' : ''}`}
@@ -89,7 +85,6 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
 
   const NavTopItem = ({ label, icon: Icon, path }) => {
     const isActive = activePath === path;
-    if (search && !label.toLowerCase().includes(search.toLowerCase())) return null;
     return (
       <button
         className={`nav-item ${isActive ? 'active' : ''}`}
@@ -120,17 +115,6 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
           <button className="sidebar-close-btn" onClick={() => setMobileOpen(false)} aria-label="Tutup menu">
             <X size={20} />
           </button>
-        </div>
-
-        {/* Search box */}
-        <div className="sidebar-search-wrap">
-          <Search size={14} className="sidebar-search-icon" />
-          <input
-            className="sidebar-search-input"
-            placeholder="Cari menu..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
         </div>
 
         <div className="sidebar-top">

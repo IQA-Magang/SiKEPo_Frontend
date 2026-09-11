@@ -783,35 +783,55 @@
 
 /* Mobile Responsive adjustments */
 @media (max-width: 768px) {
-  /* Keep navigation visible on mobile */
+  /* Mobile navigation opens as an overlay drawer */
   .topbar-hamburger {
-    display: none;
+    display: flex;
   }
 
   .sidebar {
     position: fixed;
-    top: 60px;
+    top: 0;
     bottom: 0;
     left: 0;
-    width: 238px;
-    height: auto;
+    width: 280px;
+    height: 100vh;
     background: #FFFFFF;
     border-right: 1px solid #E5E7EB;
-    box-shadow: 2px 0 14px rgba(17, 24, 39, 0.06);
-    z-index: 40;
-    padding: 20px 12px;
+    box-shadow: 8px 0 24px rgba(17, 24, 39, 0.18);
+    z-index: 9995;
+    padding: 18px 16px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .sidebar.sidebar-mobile-open {
+    transform: translateX(0);
   }
 
   .sidebar-overlay {
-    display: none;
+    display: block;
   }
 
   .sidebar-mobile-header {
-    display: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 70px;
+    margin: -18px -16px 18px;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, #E30613 0%, #B8000A 100%);
+    border-bottom: 3px solid #7E0006;
+    box-shadow: 0 4px 14px rgba(184, 0, 10, 0.22);
+  }
+
+  .sidebar-brand {
+    color: #FFFFFF;
+    font-size: 21px;
+    letter-spacing: -0.4px;
   }
 
   .sidebar-section-label,
@@ -836,7 +856,16 @@
   }
 
   .sidebar-close-btn {
-    display: none;
+    display: flex;
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #FFFFFF;
+    background: rgba(0, 0, 0, 0.12);
+  }
+
+  .sidebar-close-btn:hover {
+    color: #FFFFFF;
+    border-color: #FFFFFF;
+    background: rgba(255, 255, 255, 0.2);
   }
 
   .sidebar-top {
@@ -845,6 +874,12 @@
 
   .sidebar nav {
     gap: 8px;
+  }
+
+  .sidebar-top > nav > .nav-item {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .nav-item {
@@ -872,46 +907,14 @@
     font-size: 9.5px;
   }
 
-  /* Search remains available without hiding the menu */
-  .sidebar-search-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: relative;
-    margin-bottom: 14px;
-  }
-
-  .sidebar-search-icon {
-    position: absolute;
-    left: 10px;
-    color: #9CA3AF;
-    pointer-events: none;
-  }
-
-  .sidebar-search-input {
-    width: 100%;
-    height: 36px;
-    padding: 0 12px 0 34px;
-    border: 1.5px solid #E5E7EB;
-    border-radius: 8px;
-    font-size: 12.5px;
-    background: #F9FAFB;
-    color: #111827;
-  }
-  .sidebar-search-input:focus {
-    outline: none;
-    border-color: var(--color-primary-red);
-    background: #FFFFFF;
-  }
-
-  /* Reserve space for the always-visible navigation */
+  /* Dashboard stays full-width behind the drawer */
   .main-content {
-    margin-left: 238px !important;
+    margin-left: 0 !important;
     margin-top: 64px !important;
     margin-bottom: 24px !important;
     padding: 16px 12px !important;
-    width: calc(100% - 238px) !important;
-    max-width: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }
 
