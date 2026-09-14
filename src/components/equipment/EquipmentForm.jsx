@@ -1,50 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { ruanganApi, userApi } from '../../utils/api';
+import { ruanganApi, userApi, kelompokAssetApi } from '../../utils/api';
 
-const BASE_KATEGORI_OPTIONS = [
-  { value: 'peralatan', label: 'Peralatan Utama' },
-  { value: 'Peralatan bantu', label: 'Peralatan Bantu' },
-  { value: 'referensi uji', label: 'Referensi Uji' },
-  { value: 'golden sample', label: 'Golden Sample' },
-  { value: 'Komponen pendukung', label: 'Komponen Pendukung' },
+const KATEGORI_OPTIONS = [
+  { id: 1, label: 'Alat Ukur (Sheet 1)', desc: 'Peralatan uji dengan parameter metrologi & kalibrasi' },
+  { id: 2, label: 'Alat Bantu (Sheet 2)', desc: 'Peralatan pendukung dengan pemeriksaan berkala' },
+  { id: 3, label: 'Artefak Acuan (Sheet 3)', desc: 'Standar referensi dengan karakterisasi acuan' },
+  { id: 4, label: 'Komponen Pendukung (Sheet 4)', desc: 'Material/komponen pendukung operasional' },
 ];
 
-const KONDISI_OPTIONS = [
-  { value: 'sesuai', label: 'Sesuai (Baik & Normal)' },
-  { value: 'tidak_sesuai', label: 'Tidak Sesuai (Rusak / Butuh Perbaikan)' },
-  { value: 'tidak_berlaku', label: 'Tidak Berlaku' },
-];
-
-const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending (Menunggu Verifikasi)' },
-  { value: 'aktif', label: 'Aktif (Siap Operasional)' },
-  { value: 'ditolak', label: 'Ditolak' },
-  { value: 'tidak_aktif', label: 'Tidak Aktif' },
-];
-
-const METODE_OPTIONS = [
-  { value: 'internal', label: 'Internal TTH' },
-  { value: 'eksternal', label: 'Eksternal (Pihak Ketiga)' },
-];
-
-const JENIS_PAKAI_OPTIONS = [
-  { value: 'tidak_habis_pakai', label: 'Tidak Habis Pakai' },
-  { value: 'habis_pakai', label: 'Habis Pakai' },
+const STATUS_ALAT_OPTIONS = [
+  { value: 'Aktif', label: 'Aktif (Siap Digunakan)' },
+  { value: 'Dipinjam', label: 'Dipinjam' },
+  { value: 'Dalam Kalibrasi', label: 'Dalam Kalibrasi' },
+  { value: 'Rusak', label: 'Rusak' },
+  { value: 'Dihapuskan', label: 'Dihapuskan' },
 ];
 
 const EMPTY_FORM = {
   nomor_aset: '',
   nama_peralatan: '',
-  merk: '',
-  model: '',
+  merek: '',
+  tipe_model: '',
   nomor_seri: '',
+  kategori_id: 1,
+  kelompok_aset_id: '',
   ruangan_id: '',
   pic_id: '',
-  kategori_peralatan: 'peralatan',
-  kondisi: 'sesuai',
-  status_kelayakan: 'pending',
-  metode: 'internal',
-  jenis_pakai: 'tidak_habis_pakai',
+  status_alat: 'Aktif',
+  keterangan: '',
+  foto: '',
+  // Detail spesifik kategori
+  parameter_rentang_ukur: '',
+  resolusi: '',
+  akurasi_spesifikasi: '',
+  satuan: '',
+  fungsi_kegunaan: ''
 };
 
 export default function EquipmentForm({ onNext, onCancel, initialData }) {
@@ -52,22 +42,24 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
   const [errors, setErrors] = useState({});
   const [ruanganList, setRuanganList] = useState([]);
   const [usersList, setUsersList] = useState([]);
+  const [kelompokAssetList, setKelompokAssetList] = useState([]);
   const [loadingLookups, setLoadingLookups] = useState(true);
-  const [kategoriOptions] = useState(BASE_KATEGORI_OPTIONS);
 
   useEffect(() => {
     let isMounted = true;
-    Promise.all([ruanganApi.getAll(), userApi.getAll()])
-      .then(([rRes, uRes]) => {
+    Promise.all([
+      ruanganApi.getAll().catch(() => ({ data: [] })),
+      userApi.getAll().catch(() => ({ data: [] })),
+      kelompokAssetApi.getAll().catch(() => ({ data: [] }))
+    ])
+      .then(([rRes, uRes, kRes]) => {
         if (!isMounted) return;
         if (rRes?.data) setRuanganList(rRes.data);
-        // PIC hanya Staff yang sudah ditetapkan sebagai PIC (pic=true), Admin tidak bisa jadi PIC
         if (uRes?.data) {
-          const picStaff = uRes.data.filter(u =>
-            u.role?.toLowerCase() === 'staff' && Boolean(u.pic)
-          );
-          setUsersList(picStaff);
+          // Tampilkan semua staff atau user yang bisa menjadi PIC
+          setUsersList(uRes.data);
         }
+        if (kRes?.data) setKelompokAssetList(kRes.data);
       })
       .catch((err) => console.warn('Failed to load form lookups:', err))
       .finally(() => {
@@ -77,35 +69,100 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
     return () => { isMounted = false; };
   }, []);
 
-
   const set = (key) => (e) => setData(prev => ({ ...prev, [key]: e.target.value }));
 
   const validate = () => {
     const errs = {};
     if (!data.nomor_aset?.trim()) errs.nomor_aset = 'Nomor aset wajib diisi.';
     if (!data.nama_peralatan?.trim()) errs.nama_peralatan = 'Nama peralatan wajib diisi.';
-    if (!data.nomor_seri?.trim()) errs.nomor_seri = 'Nomor seri wajib diisi untuk setiap unit alat.';
     if (!data.ruangan_id) errs.ruangan_id = 'Lokasi ruangan wajib dipilih.';
-    if (!data.kategori_peralatan) errs.kategori_peralatan = 'Kategori peralatan wajib dipilih.';
+    if (!data.kategori_id) errs.kategori_id = 'Kategori peralatan wajib dipilih (1-4).';
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
+  const buildCategoryDetail = (catId, formData) => {
+    switch (catId) {
+      case 1:
+        return {
+          parameter_rentang_ukur: formData.parameter_rentang_ukur || 'Rentang Standar',
+          resolusi: formData.resolusi || '0.01',
+          akurasi_spesifikasi: formData.akurasi_spesifikasi || '±0.01',
+          satuan: formData.satuan || 'Unit',
+          peranti_lunak_versi: 'v1.0',
+          metode_kelayakan: 'Kalibrasi Berkala',
+          no_sertifikat: 'CERT-' + Date.now(),
+          interval_bulan: 12,
+          fungsi_sbg_alat_standar: true,
+          status_kelayakan: 'Layak'
+        };
+      case 2:
+        return {
+          fungsi_kegunaan: formData.fungsi_kegunaan || 'Peralatan bantu operasional laboratorium',
+          peranti_lunak_versi: 'v1.0',
+          jenis_pemeriksaan_berkala: 'Pemeriksaan fungsi',
+          kriteria_pemeriksaan: 'Berfungsi normal',
+          interval_bulan: 6,
+          fungsi_sbg_alat_standar: false
+        };
+      case 3:
+        return {
+          jenis_deskripsi: 'Artefak acuan standar pengujian',
+          karakteristik_yang_diacu: 'Standar referensi',
+          nilai_spesifikasi_karakterisasi: 'Toleransi presisi',
+          metode_karakterisasi: 'Perbandingan langsung',
+          no_laporan_karakterisasi: 'LAP-' + Date.now(),
+          interval_bulan: 12,
+          kondisi_penyimpanan: 'Suhu 20°C ± 2°C'
+        };
+      case 4:
+        return {
+          sub_kategori: 'Komponen Pendukung',
+          deskripsi_spesifikasi: 'Komponen penunjang pengujian',
+          sumber_pemasok: 'Distributor Resmi',
+          grade_mutu: 'A',
+          satuan_kemasan: 'Unit',
+          kondisi_penyimpanan: 'Ruang penyimpanan alat',
+          status_ketersediaan: 'Tersedia'
+        };
+      default:
+        return {};
+    }
+  };
+
   const handleNext = () => {
     if (validate()) {
-      // Clean and cast data before sending to next step
-      const { jumlah: _jumlah, ...formWithoutQuantity } = data;
+      const catId = Number(data.kategori_id) || 1;
+      const kelompokId = Number(data.kelompok_aset_id) || (kelompokAssetList[0]?.id ? Number(kelompokAssetList[0].id) : 1);
+      const ruanganId = Number(data.ruangan_id) || (ruanganList[0]?.id ? Number(ruanganList[0].id) : 1);
+      const picId = Number(data.pic_id) || (usersList[0]?.user_id ? Number(usersList[0].user_id) : 1);
+
       const cleanPayload = {
-        ...formWithoutQuantity,
         nomor_aset: data.nomor_aset.trim(),
         nama_peralatan: data.nama_peralatan.trim(),
-        merk: data.merk.trim(),
-        model: data.model.trim(),
-        nomor_seri: data.nomor_seri.trim(),
-        ruangan_id: Number(data.ruangan_id),
-        pic_id: data.pic_id ? Number(data.pic_id) : null,
+        kategori_id: catId,
+        kelompok_aset_id: kelompokId,
+        ruangan_id: ruanganId,
+        pic_id: picId,
+        merek: (data.merek || data.merk || '').trim(),
+        tipe_model: (data.tipe_model || data.model || '').trim(),
+        nomor_seri: (data.nomor_seri || '').trim(),
+        foto: data.foto || '',
+        status_alat: data.status_alat || 'Aktif',
+        keterangan: (data.keterangan || '').trim(),
+        detail: buildCategoryDetail(catId, data),
+
+        // Kompatibilitas UI Frontend
+        merk: (data.merek || data.merk || '').trim(),
+        model: (data.tipe_model || data.model || '').trim(),
+        kondisi: 'sesuai',
+        status_kelayakan: 'aktif',
+        metode: 'internal',
+        jenis_pakai: 'tidak_habis_pakai',
+        kategori_peralatan: KATEGORI_OPTIONS.find(k => k.id === catId)?.label || 'Alat Ukur'
       };
+
       onNext(cleanPayload);
     }
   };
@@ -145,7 +202,7 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
             {errors.nama_peralatan && <span className="eq-field-error">{errors.nama_peralatan}</span>}
           </div>
 
-          {/* Merek & Model */}
+          {/* Merek & Tipe/Model */}
           <div className="eq-form-row-2col">
             <div className="eq-field-group">
               <label className="eq-field-label">Merek</label>
@@ -153,8 +210,8 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
                 className="eq-field-input"
                 type="text"
                 placeholder="Contoh: EXFO"
-                value={data.merk}
-                onChange={set('merk')}
+                value={data.merek || data.merk || ''}
+                onChange={(e) => setData({ ...data, merek: e.target.value, merk: e.target.value })}
               />
             </div>
             <div className="eq-field-group">
@@ -163,25 +220,22 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
                 className="eq-field-input"
                 type="text"
                 placeholder="Contoh: FTB-1v2 Pro"
-                value={data.model}
-                onChange={set('model')}
+                value={data.tipe_model || data.model || ''}
+                onChange={(e) => setData({ ...data, tipe_model: e.target.value, model: e.target.value })}
               />
             </div>
           </div>
 
-          {/* Nomor Seri: satu entri hanya untuk satu unit alat */}
+          {/* Nomor Seri */}
           <div className="eq-field-group">
-            <div className="eq-field-group">
-              <label className="eq-field-label">Nomor Seri <span className="eq-required">*</span></label>
-              <input
-                className={`eq-field-input ${errors.nomor_seri ? 'error' : ''}`}
-                type="text"
-                placeholder="Contoh: SN-8921820"
-                value={data.nomor_seri}
-                onChange={set('nomor_seri')}
-              />
-              {errors.nomor_seri && <span className="eq-field-error">{errors.nomor_seri}</span>}
-            </div>
+            <label className="eq-field-label">Nomor Seri</label>
+            <input
+              className="eq-field-input"
+              type="text"
+              placeholder="Contoh: SN-8921820"
+              value={data.nomor_seri}
+              onChange={set('nomor_seri')}
+            />
           </div>
 
           {/* Ruangan Penempatan */}
@@ -198,7 +252,7 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
               <option value="">-- {loadingLookups ? 'Memuat ruangan...' : 'Pilih Ruangan'} --</option>
               {ruanganList.map(r => (
                 <option key={r.id} value={r.id}>
-                  {r.kode_ruangan} - {r.nama_ruangan} {r.labs ? `(${r.labs.nama_labs})` : ''}
+                  {r.kode_ruangan} - {r.nama_ruangan} ({r.lantai_ruangan || 'Lantai 1'}{r.labs ? ` - ${r.labs.nama_labs}` : ''})
                 </option>
               ))}
             </select>
@@ -208,90 +262,61 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
 
         {/* KOLOM KANAN */}
         <div>
-          {/* Kelompok peralatan menggunakan field API kategori_peralatan */}
+          {/* Kategori ID (Sesuai Backend 1 - 4) */}
+          <div className="eq-field-group">
+            <label className="eq-field-label">
+              Kategori Peralatan (Klasifikasi Backend) <span className="eq-required">*</span>
+            </label>
+            <select
+              className={`eq-field-input ${errors.kategori_id ? 'error' : ''}`}
+              value={data.kategori_id}
+              onChange={(e) => setData({ ...data, kategori_id: Number(e.target.value) })}
+            >
+              {KATEGORI_OPTIONS.map(opt => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label} — {opt.desc}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Kelompok Aset */}
           <div className="eq-field-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <label className="eq-field-label" style={{ marginBottom: 0 }}>
-                Kelompok Peralatan <span className="eq-required">*</span>
+                Kelompok Aset
               </label>
               <a
-                href="#/admin/kelompok-peralatan"
+                href="#/admin/kelompok-aset"
                 style={{ fontSize: '11px', color: 'var(--color-primary-red)', textDecoration: 'none', fontWeight: 600 }}
               >
-                + Kelola Kelompok
+                + Kelola Kelompok Aset
               </a>
             </div>
             <select
-              className={`eq-field-input ${errors.kategori_peralatan ? 'error' : ''}`}
-              value={data.kategori_peralatan}
-              onChange={set('kategori_peralatan')}
+              className="eq-field-input"
+              value={data.kelompok_aset_id}
+              onChange={set('kelompok_aset_id')}
+              disabled={loadingLookups}
             >
-              {kategoriOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option value="">
+                {loadingLookups
+                  ? 'Memuat kelompok aset...'
+                  : kelompokAssetList.length === 0
+                    ? '-- Gunakan Kelompok Default (ID: 1) --'
+                    : '-- Pilih Kelompok Aset --'}
+              </option>
+              {kelompokAssetList.map(g => (
+                <option key={g.id} value={g.id}>
+                  [{g.kode}] {g.nama} {g.lab ? `(${g.lab.nama_labs})` : ''}
+                </option>
               ))}
             </select>
-            {errors.kategori_peralatan && <span className="eq-field-error">{errors.kategori_peralatan}</span>}
-          </div>
-
-          {/* Kondisi & Status Kelayakan (Enum Backend) */}
-          <div className="eq-form-row-2col">
-            <div className="eq-field-group">
-              <label className="eq-field-label">Kondisi Alat</label>
-              <select
-                className="eq-field-input"
-                value={data.kondisi}
-                onChange={set('kondisi')}
-              >
-                {KONDISI_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="eq-field-group">
-              <label className="eq-field-label">Status Kelayakan</label>
-              <select
-                className="eq-field-input"
-                value={data.status_kelayakan}
-                onChange={set('status_kelayakan')}
-              >
-                {STATUS_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Metode & Jenis Pakai (Enum Backend) */}
-          <div className="eq-form-row-2col">
-            <div className="eq-field-group">
-              <label className="eq-field-label">Metode Penggunaan</label>
-              <select
-                className="eq-field-input"
-                value={data.metode}
-                onChange={set('metode')}
-              >
-                {METODE_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="eq-field-group">
-              <label className="eq-field-label">Jenis Pakai</label>
-              <select
-                className="eq-field-input"
-                value={data.jenis_pakai}
-                onChange={set('jenis_pakai')}
-              >
-                {JENIS_PAKAI_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
           </div>
 
           {/* Petugas PIC */}
           <div className="eq-field-group">
-            <label className="eq-field-label">Petugas PIC Penanggung Jawab (Opsional)</label>
+            <label className="eq-field-label">Petugas PIC Penanggung Jawab</label>
             <select
               className="eq-field-input"
               value={data.pic_id}
@@ -299,26 +324,41 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
               disabled={loadingLookups}
             >
               <option value="">
-                {loadingLookups
-                  ? 'Memuat daftar PIC...'
-                  : usersList.length === 0
-                    ? 'Belum ada Staff PIC yang ditetapkan'
-                    : '-- Pilih Petugas PIC --'}
+                {loadingLookups ? 'Memuat daftar petugas...' : '-- Pilih Petugas PIC --'}
               </option>
               {usersList.map(u => (
                 <option key={u.user_id} value={u.user_id}>
-                  ★ {u.name} ({u.position || 'Staff'})
+                  {u.pic ? '★ [PIC] ' : ''}{u.name} ({u.role?.toUpperCase()} - {u.position || 'Staff'})
                 </option>
               ))}
             </select>
-            <span style={{ fontSize: '11px', color: '#6B7280', marginTop: '4px', display: 'block' }}>
-              Hanya staff yang ditetapkan sebagai PIC oleh Admin yang ditampilkan di sini.
-              {usersList.length === 0 && !loadingLookups && (
-                <> Tetapkan PIC di menu <strong>Pengaturan → Penetapan PIC</strong>.</>
-              )}
-            </span>
           </div>
 
+          {/* Status Alat (Backend Enum) */}
+          <div className="eq-field-group">
+            <label className="eq-field-label">Status Alat</label>
+            <select
+              className="eq-field-input"
+              value={data.status_alat}
+              onChange={set('status_alat')}
+            >
+              {STATUS_ALAT_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Keterangan */}
+          <div className="eq-field-group">
+            <label className="eq-field-label">Keterangan / Catatan</label>
+            <input
+              className="eq-field-input"
+              type="text"
+              placeholder="Contoh: Alat operasional pengujian serat optik"
+              value={data.keterangan}
+              onChange={set('keterangan')}
+            />
+          </div>
         </div>
       </div>
 

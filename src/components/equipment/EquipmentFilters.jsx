@@ -3,10 +3,11 @@ import { Search } from 'lucide-react';
 import { ruanganApi } from '../../utils/api';
 
 const STATUSES = [
-  { value: 'aktif', label: 'Aktif' },
-  { value: 'pending', label: 'Pending Verifikasi' },
-  { value: 'ditolak', label: 'Ditolak' },
-  { value: 'tidak_aktif', label: 'Tidak Aktif' },
+  { value: 'Aktif', label: 'Aktif' },
+  { value: 'Dipinjam', label: 'Dipinjam' },
+  { value: 'Dalam Kalibrasi', label: 'Dalam Kalibrasi' },
+  { value: 'Rusak', label: 'Rusak' },
+  { value: 'Dihapuskan', label: 'Dihapuskan' },
 ];
 
 export default function EquipmentFilters({ filters, onChange }) {

@@ -7,26 +7,41 @@ const DOCUMENT_CATEGORIES = ['Manual Book', 'Datasheet', 'Sertifikat Kalibrasi',
 
 export default function EquipmentDocuments({ documents, onChange, onNext, onBack, showActions = true }) {
   const [dragOver, setDragOver] = useState(false);
+  const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
   const handleFiles = (files) => {
     if (!files || !files.length) return;
     const valid = Array.from(files).filter(f => ALLOWED_TYPES.includes(f.type));
-    if (valid.length) {
-      onChange([
-        ...documents,
-        ...valid.map(f => ({
-          name: f.name,
-          type: f.type.split('/')[1].toUpperCase(),
-          kategori_dokumen: 'Dokumen Pendukung',
-          size: `${(f.size / 1024).toFixed(0)} KB`,
-          file: f,
-        })),
-      ]);
+    if (!valid.length) {
+      setError('File harus berupa PDF, JPG, JPEG, atau PNG.');
+      return;
     }
+    setError('');
+    onChange([
+      ...documents,
+      ...valid.map(f => ({
+        name: f.name,
+        type: f.type.split('/')[1].toUpperCase(),
+        kategori_dokumen: 'Dokumen Pendukung',
+        size: `${(f.size / 1024).toFixed(0)} KB`,
+        file: f,
+      })),
+    ]);
   };
 
-  const removeDoc = (idx) => onChange(documents.filter((_, i) => i !== idx));
+  const removeDoc = (idx) => {
+    onChange(documents.filter((_, i) => i !== idx));
+    setError('');
+  };
+
+  const handleNext = () => {
+    if (documents.length < 2) {
+      setError('Minimal 2 dokumen wajib diunggah sebelum melanjutkan.');
+      return;
+    }
+    onNext();
+  };
 
   const handleAreaClick = (e) => {
     // Avoid re-triggering if the user specifically clicked the label button directly
@@ -70,6 +85,8 @@ export default function EquipmentDocuments({ documents, onChange, onNext, onBack
         </label>
       </div>
 
+      {error && <p className="eq-field-error" role="alert">{error}</p>}
+
       {documents.length > 0 && (
         <div className="eq-doc-list">
           {documents.map((doc, idx) => (
@@ -104,7 +121,7 @@ export default function EquipmentDocuments({ documents, onChange, onNext, onBack
       {showActions && (
         <div className="eq-form-actions">
           <button type="button" className="eq-btn-cancel" onClick={onBack}>← Kembali</button>
-          <button type="button" className="eq-btn-next" onClick={onNext}>Simpan &amp; Lanjut →</button>
+          <button type="button" className="eq-btn-next" onClick={handleNext}>Simpan &amp; Lanjut →</button>
         </div>
       )}
     </div>

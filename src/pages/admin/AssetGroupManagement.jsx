@@ -72,28 +72,29 @@ export default function AssetGroupManagement({ onNavigate }) {
     setLoading(true);
     setApiError('');
     try {
-      const [gRes, lRes, uRes] = await Promise.all([
+      const [gRes, lRes, uRes] = await Promise.allSettled([
         kelompokAssetApi.getAll(),
         labsApi.getAll(),
         userApi.getAll()
       ]);
 
-      if (gRes && gRes.data) {
-        setGroupList(gRes.data);
+      if (gRes.status === 'fulfilled' && gRes.value?.data) {
+        setGroupList(gRes.value.data);
       } else {
         setGroupList([]);
+        if (gRes.status === 'rejected') console.warn('Kelompok asset fetch failed:', gRes.reason);
       }
 
-      if (lRes && lRes.data) {
-        setLabsList(lRes.data);
+      if (lRes.status === 'fulfilled' && lRes.value?.data) {
+        setLabsList(lRes.value.data);
       }
 
-      if (uRes && uRes.data) {
-        setUsersList(uRes.data);
+      if (uRes.status === 'fulfilled' && uRes.value?.data) {
+        setUsersList(uRes.value.data);
       }
     } catch (err) {
       console.error('Failed to fetch asset group data:', err);
-      setApiError(err.message || 'Gagal terhubung ke backend API (/api/v1/kelompok-asset)');
+      setApiError(err.message || 'Gagal terhubung ke backend API (/api/kelompok-asset)');
     } finally {
       setLoading(false);
     }

@@ -106,9 +106,7 @@ export default function KategoriManagement({ onNavigate }) {
     try {
       loadCategories();
       const res = await peralatanApi.getAll();
-      if (res?.data) {
-        setEquipmentList(res.data);
-      }
+      if (Array.isArray(res?.data)) setEquipmentList(res.data);
     } catch (err) {
       console.warn('Error loading equipment for categories:', err);
     } finally {

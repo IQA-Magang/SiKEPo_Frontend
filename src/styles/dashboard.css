@@ -306,6 +306,14 @@
   color: var(--color-primary-red);
 }
 
+.nav-item.disabled,
+.nav-item.disabled:hover {
+  color: #9CA3AF;
+  background: transparent;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 
 .sidebar-system-card {
   background: #111111;

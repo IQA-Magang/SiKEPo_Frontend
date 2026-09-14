@@ -168,6 +168,24 @@ export default function LoginForm({ onNavigate, onOpenHelp }) {
             Need help?
           </button>
         </div>
+
+        <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed #E5E7EB', textAlign: 'center' }}>
+          <span style={{ fontSize: '11.5px', color: '#6B7280' }}>
+            Akun Standar: <strong>admin@example.com</strong>
+          </span>
+          <button
+            type="button"
+            style={{ display: 'block', margin: '4px auto 0', background: 'none', border: 'none', color: '#DC2626', fontSize: '11.5px', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+            onClick={() => {
+              setEmailOrNip('admin@example.com');
+              setPassword('password123');
+              clearErrors('email');
+              clearErrors('password');
+            }}
+          >
+            Isi Kredensial Pengujian
+          </button>
+        </div>
       </form>
     </div>
   );

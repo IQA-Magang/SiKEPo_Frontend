@@ -16,7 +16,7 @@ import {
   ChevronRight,
   RefreshCw
 } from 'lucide-react';
-import { userApi, peralatanApi, peminjamanApi } from '../../utils/api';
+import { userApi, peralatanApi } from '../../utils/api';
 
 // Mini Calendar Component
 function MiniCalendar({ deadlines }) {
@@ -107,15 +107,13 @@ export default function AdminDashboard({ user, onNavigate, recentLoans, searchQu
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [eqRes, userRes, loanRes] = await Promise.all([
+        const [eqRes, userRes] = await Promise.allSettled([
           peralatanApi.getAll({ limit: 500 }),
-          userApi.getAll(),
-          peminjamanApi.getAll()
+          userApi.getAll()
         ]);
 
-        const allEq = eqRes?.data || [];
-        const allUsers = userRes?.data || [];
-        const allLoans = loanRes?.data || [];
+        const allEq = eqRes.status === 'fulfilled' && eqRes.value?.data ? eqRes.value.data : [];
+        const allUsers = userRes.status === 'fulfilled' && userRes.value?.data ? userRes.value.data : [];
 
         // Hitung total rusak/tidak layak
         const rusak = allEq.filter(e =>
@@ -143,12 +141,12 @@ export default function AdminDashboard({ user, onNavigate, recentLoans, searchQu
           totalPeralatan: allEq.length,
           totalPengguna: allUsers.length,
           totalRusak: rusak,
-          totalPeminjaman: allLoans.filter(l => l.status === 'pending').length,
+          totalPeminjaman: 0,
           loading: false
         });
         setCategoryDist(catList);
-        setAllLoansList(allLoans);
-        setLoans(allLoans.slice(0, 5));
+        setAllLoansList([]);
+        setLoans([]);
       } catch (err) {
         console.warn('Dashboard stats fetch failed:', err);
         setStats(s => ({ ...s, loading: false }));
@@ -229,22 +227,6 @@ export default function AdminDashboard({ user, onNavigate, recentLoans, searchQu
           </div>
         </article>
 
-        <article className="stat-card darkgray" style={{ cursor: 'pointer' }} onClick={() => onNavigate('/peminjaman')}>
-          <div className="stat-header">
-            <span className="stat-badge">Peminjaman</span>
-            <div className="stat-icon-wrapper"><Wrench size={20} /></div>
-          </div>
-          <div className="stat-body">
-            <strong className="stat-value">
-              {stats.loading ? '—' : `${stats.totalPeminjaman} Pending`}
-            </strong>
-            <span className="stat-title">Peminjaman Menunggu Approval</span>
-          </div>
-          <div className="stat-footer">
-            <span className="stat-sub">Klik untuk kelola peminjaman</span>
-          </div>
-        </article>
-
         <article className="stat-card gray">
           <div className="stat-header">
             <span className="stat-badge">Alat Rusak</span>
@@ -313,113 +295,6 @@ export default function AdminDashboard({ user, onNavigate, recentLoans, searchQu
         </article>
       </section>
 
-      {/* ANALYTICS + CALENDAR */}
-      <section className="dashboard-grid">
-        <article className="panel category-panel">
-          <div className="panel-header">
-            <div>
-              <h2>Distribusi Kategori Peralatan</h2>
-              <p className="panel-subtitle">
-                {stats.loading ? 'Memuat...' : `Total ${stats.totalPeralatan} unit terdistribusi`}
-              </p>
-            </div>
-            <Layers size={18} className="text-muted" />
-          </div>
-          {categoryDist.length > 0 ? (
-            <div className="category-list">
-              {categoryDist.map(({ name, count, percent, color }) => (
-                <div key={name} className="category-item">
-                  <div className="category-info">
-                    <span className="category-name">{name}</span>
-                    <span className="category-count">{count} Unit ({percent}%)</span>
-                  </div>
-                  <div className="progress-bar-track">
-                    <div className="progress-bar-fill" style={{ width: `${percent}%`, backgroundColor: color }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: '#9CA3AF', fontSize: '13px', padding: '16px 0' }}>
-              {stats.loading ? 'Memuat data kategori...' : 'Belum ada data peralatan.'}
-            </p>
-          )}
-        </article>
-
-        {/* Mini Calendar */}
-        <article className="panel" style={{ padding: '20px' }}>
-          <div className="panel-header" style={{ marginBottom: '12px' }}>
-            <div>
-              <h2>Tenggat Peminjaman</h2>
-              <p className="panel-subtitle">Kalender tanggal pengembalian alat</p>
-            </div>
-            <Calendar size={18} className="text-muted" />
-          </div>
-          <MiniCalendar deadlines={allLoansList} />
-          {loans.filter(l => l.status === 'pending').length > 0 && (
-            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: '#374151', margin: 0 }}>
-                Peminjaman Pending ({loans.filter(l => l.status === 'pending').length})
-              </p>
-              {loans.filter(l => l.status === 'pending').slice(0, 3).map((l, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#6B7280' }}>
-                  <Clock size={11} color="#E30613" />
-                  <span>{l.peralatan?.nama_peralatan || `Peralatan #${l.peralatan_id}`}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </article>
-      </section>
-
-      {/* RECENT LOANS TABLE */}
-      {filteredLoans.length > 0 && (
-        <section className="panel recent-loans-panel">
-          <div className="panel-header">
-            <div>
-              <h2>Aktivitas Peminjaman Terkini</h2>
-              <p className="panel-subtitle">5 transaksi peminjaman terbaru dari database</p>
-            </div>
-            <button className="btn-view-all" onClick={() => onNavigate('/peminjaman')}>
-              <span>Lihat Semua</span><ArrowUpRight size={15} />
-            </button>
-          </div>
-          <div className="table-responsive">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>Peralatan</th>
-                  <th>Jumlah</th>
-                  <th>Status</th>
-                  <th>Tanggal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLoans.map((loan, idx) => (
-                  <tr key={loan.id || idx}>
-                    <td>
-                      <strong className="tool-name-text">{loan.peralatan?.nama_peralatan || `#${loan.peralatan_id}`}</strong>
-                      <br />
-                      <small style={{ color: '#6B7280' }}>{loan.peralatan?.nomor_aset || ''}</small>
-                    </td>
-                    <td>{loan.jumlah || 1} unit</td>
-                    <td>
-                      <span className={`role-tag-badge ${loan.status === 'approved' ? 'admin' : loan.status === 'rejected' ? 'staff' : 'manager'}`}>
-                        {(loan.status || 'pending').toUpperCase()}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="date-text">
-                        {loan.created_at ? new Date(loan.created_at).toLocaleDateString('id-ID') : '-'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
     </>
   );
 }

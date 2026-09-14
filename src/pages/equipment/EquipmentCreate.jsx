@@ -5,7 +5,7 @@ import Sidebar from '../../components/layout/Sidebar';
 import EquipmentStepper from '../../components/equipment/EquipmentStepper';
 import EquipmentForm from '../../components/equipment/EquipmentForm';
 import EquipmentDocuments from '../../components/equipment/EquipmentDocuments';
-import { peralatanApi, getStoredUser } from '../../utils/api';
+import { peralatanApi, getStoredUser, cacheEquipment } from '../../utils/api';
 
 function ConfirmRow({ label, value }) {
   return (
@@ -47,12 +47,32 @@ export default function EquipmentCreate({ onNavigate }) {
     setApiError('');
 
     try {
-      // Kirim data peralatan sesuai model database backend Go Fiber
-      const response = await peralatanApi.create(formData);
-      const savedEquipment = response?.data || response;
+      // Kirim hanya field yang diterima CreatePeralatanRequest di backend.
+      const backendPayload = {
+        nomor_aset: formData.nomor_aset,
+        nama_peralatan: formData.nama_peralatan,
+        kategori_id: Number(formData.kategori_id),
+        kelompok_aset_id: Number(formData.kelompok_aset_id),
+        ruangan_id: Number(formData.ruangan_id),
+        pic_id: Number(formData.pic_id),
+        merek: formData.merek || '',
+        tipe_model: formData.tipe_model || '',
+        nomor_seri: formData.nomor_seri || '',
+        foto: formData.foto || '',
+        status_alat: formData.status_alat || 'Aktif',
+        keterangan: formData.keterangan || '',
+        detail: formData.detail || {}
+      };
+      const response = await peralatanApi.create(backendPayload);
+      // POST backend hanya mengembalikan status/message, jadi gunakan payload
+      // yang sudah diterima backend untuk memperbarui daftar pada browser ini.
+      const savedEquipment = response?.data && !Array.isArray(response.data)
+        ? { ...backendPayload, ...response.data }
+        : { ...backendPayload };
+      cacheEquipment(savedEquipment);
       const documentMetadata = documents.map(({ file: _file, ...document }) => document);
       const storedDocuments = JSON.parse(localStorage.getItem('sikepo_asset_documents') || '{}');
-      const keys = [formData.nomor_aset, savedEquipment?.id].filter(Boolean).map(String);
+      const keys = [backendPayload.nomor_aset, savedEquipment?.id].filter(Boolean).map(String);
       keys.forEach(key => { storedDocuments[key] = documentMetadata; });
       localStorage.setItem('sikepo_asset_documents', JSON.stringify(storedDocuments));
       setSaving(false);

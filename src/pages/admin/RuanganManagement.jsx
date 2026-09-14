@@ -19,6 +19,7 @@ import { ruanganApi, labsApi, userApi, getStoredUser } from '../../utils/api';
 const EMPTY_FORM = {
   nama_ruangan: '',
   kode_ruangan: '',
+  lantai_ruangan: 'Lantai 1',
   labs_id: '',
   pic_user_id: ''
 };
@@ -70,24 +71,25 @@ export default function RuanganManagement({ onNavigate }) {
     setLoading(true);
     setApiError('');
     try {
-      const [rRes, lRes, uRes] = await Promise.all([
+      const [rRes, lRes, uRes] = await Promise.allSettled([
         ruanganApi.getAll(),
         labsApi.getAll(),
         userApi.getAll()
       ]);
 
-      if (rRes && rRes.data) {
-        setRuanganList(rRes.data);
+      if (rRes.status === 'fulfilled' && rRes.value?.data) {
+        setRuanganList(rRes.value.data);
       } else {
         setRuanganList([]);
+        if (rRes.status === 'rejected') console.warn('Ruangan fetch failed:', rRes.reason);
       }
 
-      if (lRes && lRes.data) {
-        setLabsList(lRes.data);
+      if (lRes.status === 'fulfilled' && lRes.value?.data) {
+        setLabsList(lRes.value.data);
       }
 
-      if (uRes && uRes.data) {
-        setUsersList(uRes.data);
+      if (uRes.status === 'fulfilled' && uRes.value?.data) {
+        setUsersList(uRes.value.data);
       }
     } catch (err) {
       console.error('Failed to fetch ruangan data:', err);
@@ -134,6 +136,7 @@ export default function RuanganManagement({ onNavigate }) {
     setFormData({
       nama_ruangan: target.nama_ruangan || '',
       kode_ruangan: target.kode_ruangan || '',
+      lantai_ruangan: target.lantai_ruangan || 'Lantai 1',
       labs_id: target.labs_id ? String(target.labs_id) : '',
       pic_user_id: target.pic_user_id ? String(target.pic_user_id) : ''
     });
@@ -149,11 +152,16 @@ export default function RuanganManagement({ onNavigate }) {
     try {
       const cleanNama = formData.nama_ruangan.trim();
       const cleanKode = formData.kode_ruangan.trim();
+      const cleanLantai = (formData.lantai_ruangan || '').trim() || 'Lantai 1';
       const labsIdNum = formData.labs_id ? Number(formData.labs_id) : null;
       const picIdNum = formData.pic_user_id ? Number(formData.pic_user_id) : null;
 
       if (!cleanNama || !cleanKode) {
         throw new Error('Nama Ruangan dan Kode Ruangan wajib diisi');
+      }
+
+      if (!cleanLantai) {
+        throw new Error('Lantai Ruangan wajib diisi');
       }
 
       if (!labsIdNum) {
@@ -163,6 +171,7 @@ export default function RuanganManagement({ onNavigate }) {
       const payload = {
         nama_ruangan: cleanNama,
         kode_ruangan: cleanKode,
+        lantai_ruangan: cleanLantai,
         labs_id: labsIdNum,
         pic_user_id: picIdNum
       };
@@ -310,6 +319,7 @@ export default function RuanganManagement({ onNavigate }) {
                   <th>No</th>
                   <th>Kode Ruangan</th>
                   <th>Nama Ruangan</th>
+                  <th>Lantai</th>
                   <th>Laboratorium Induk</th>
                   <th>Petugas PIC</th>
                   <th>Tanggal Dibuat</th>
@@ -327,6 +337,11 @@ export default function RuanganManagement({ onNavigate }) {
                     </td>
                     <td>
                       <strong className="tool-name-text">{r.nama_ruangan}</strong>
+                    </td>
+                    <td>
+                      <span className="date-text" style={{ fontWeight: 600, color: '#374151' }}>
+                        {r.lantai_ruangan || 'Lantai 1'}
+                      </span>
                     </td>
                     <td>
                       {r.labs ? (
@@ -373,7 +388,7 @@ export default function RuanganManagement({ onNavigate }) {
                 ))}
                 {!loading && filteredRuangan.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: '#6B7280' }}>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '36px', color: '#6B7280' }}>
                       Belum ada data ruangan yang sesuai.
                     </td>
                   </tr>
@@ -428,6 +443,18 @@ export default function RuanganManagement({ onNavigate }) {
                     placeholder="Contoh: Ruang Uji Transmisi Serat Optik"
                     value={formData.nama_ruangan}
                     onChange={(e) => setFormData({ ...formData, nama_ruangan: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="eq-form-group">
+                  <label className="eq-form-label">Lantai Ruangan *</label>
+                  <input
+                    type="text"
+                    className="eq-form-input"
+                    placeholder="Contoh: Lantai 1 / Lantai 2 / Dasar"
+                    value={formData.lantai_ruangan}
+                    onChange={(e) => setFormData({ ...formData, lantai_ruangan: e.target.value })}
                     required
                   />
                 </div>

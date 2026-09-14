@@ -56,25 +56,26 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
     return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
   }, []);
 
-  const isManajemenAlatActive = ['/alat-ukur', '/peminjaman', '/verifikasi', '/peninjauan-peralatan', '/peralatan-usang', '/perbaikan'].some(
+  const isManajemenAlatActive = ['/alat-ukur'].some(
     p => activePath === p || activePath.startsWith(p + '/')
   );
   const isPengaturanActive = ['/admin/kelompok-peralatan', '/admin/kelompok-lab', '/admin/kelompok-aset', '/admin/kelompok-lokasi'].some(
     p => activePath === p
   );
-  const isPemeriksaanActive = activePath.startsWith('/pemeriksaan/');
-
   const navigate = (path) => {
     onNavigate(path);
     setMobileOpen(false);
   };
 
-  const NavItem = ({ label, path }) => {
+  const NavItem = ({ label, path, disabled = false }) => {
     const isActive = activePath === path || (path !== '/dashboard' && activePath.startsWith(path + '/'));
     return (
       <button
-        className={`nav-item nav-child ${isActive ? 'active' : ''}`}
-        onClick={() => navigate(path)}
+        className={`nav-item nav-child ${isActive ? 'active' : ''} ${disabled ? 'disabled' : ''}`}
+        onClick={() => !disabled && navigate(path)}
+        disabled={disabled}
+        aria-disabled={disabled}
+        title={disabled ? 'Belum tersedia pada backend' : undefined}
       >
         <span className="nav-label">{label}</span>
         {isActive && <div className="active-indicator" />}
@@ -124,24 +125,24 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
             {/* Manajemen alat dan tindak lanjut kondisi peralatan */}
             <NavGroup label="Manajemen Alat" icon={Wrench} defaultOpen={isManajemenAlatActive}>
               <NavItem label="Peralatan" path="/alat-ukur" />
-              <NavItem label="Peminjaman" path="/peminjaman" />
-              <NavItem label="Verifikasi" path="/verifikasi" />
-              <NavItem label="Peninjauan Peralatan" path="/peninjauan-peralatan" />
-              <NavItem label="Peralatan Usang" path="/peralatan-usang" />
-              <NavItem label="Perbaikan" path="/perbaikan" />
+              <NavItem label="Peminjaman" path="/peminjaman" disabled />
+              <NavItem label="Verifikasi" path="/verifikasi" disabled />
+              <NavItem label="Peninjauan Peralatan" path="/peninjauan-peralatan" disabled />
+              <NavItem label="Peralatan Usang" path="/peralatan-usang" disabled />
+              <NavItem label="Perbaikan" path="/perbaikan" disabled />
             </NavGroup>
 
-            <NavGroup label="Pemeriksaan Peralatan" icon={ShieldCheck} defaultOpen={isPemeriksaanActive}>
-              <NavItem label="Kalibrasi" path="/pemeriksaan/kalibrasi" />
-              <NavItem label="Verifikasi Fungsi" path="/pemeriksaan/verifikasi-fungsi" />
-              <NavItem label="Pengecekan Antara" path="/pemeriksaan/pengecekan-antara" />
-              <NavItem label="Pemeliharaan" path="/pemeriksaan/pemeliharaan" />
-              <NavItem label="Karakterisasi Ulang" path="/pemeriksaan/karakterisasi-ulang" />
+            <NavGroup label="Pemeriksaan Peralatan" icon={ShieldCheck}>
+              <NavItem label="Kalibrasi" path="/pemeriksaan/kalibrasi" disabled />
+              <NavItem label="Verifikasi Fungsi" path="/pemeriksaan/verifikasi-fungsi" disabled />
+              <NavItem label="Pengecekan Antara" path="/pemeriksaan/pengecekan-antara" disabled />
+              <NavItem label="Pemeliharaan" path="/pemeriksaan/pemeliharaan" disabled />
+              <NavItem label="Karakterisasi Ulang" path="/pemeriksaan/karakterisasi-ulang" disabled />
             </NavGroup>
 
             {/* Pengaturan master data — admin only */}
             {userRole === 'admin' && (
-              <NavGroup label="Pengaturan" icon={Settings2} defaultOpen={isPengaturanActive}>
+              <NavGroup label="Pengaturan Inventaris" icon={Settings2} defaultOpen={isPengaturanActive}>
                 <NavItem label="Kelompok Peralatan" path="/admin/kelompok-peralatan" />
                 <NavItem label="Kelompok Lab" path="/admin/kelompok-lab" />
                 <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" />

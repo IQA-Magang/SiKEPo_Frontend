@@ -4,8 +4,7 @@ import Topbar from '../../components/layout/Topbar';
 import Sidebar from '../../components/layout/Sidebar';
 import EquipmentFilters from '../../components/equipment/EquipmentFilters';
 import EquipmentTable from '../../components/equipment/EquipmentTable';
-import { peralatanApi, getStoredUser } from '../../utils/api';
-import { mockEquipment } from '../../data/mockEquipment';
+import { peralatanApi, getStoredUser, getCachedEquipment } from '../../utils/api';
 
 const EMPTY_FILTERS = { query: '', status: '', room: '', category: '' };
 
@@ -27,28 +26,25 @@ export default function EquipmentList({ onNavigate }) {
 
   const isAdmin = user?.role?.toLowerCase() === 'admin';
 
-  // Fetch from backend API
+  // Fetch from backend API, with cache fallback for newly created records.
   const fetchEquipment = async () => {
     setLoading(true);
     setApiError('');
     try {
-      const res = await peralatanApi.getAll({
+      const response = await peralatanApi.getAll({
         search: filters.query || undefined,
         ruangan_id: filters.room || undefined,
-        status_kelayakan: filters.status || undefined,
-        limit: 100
+        status_alat: filters.status || undefined
       });
-
-      if (res?.data && Array.isArray(res.data)) {
-        setEquipment(res.data);
+      if (Array.isArray(response?.data)) {
+        setEquipment(response.data);
       } else {
-        setEquipment([]);
+        setEquipment(getCachedEquipment());
       }
     } catch (err) {
-      console.warn('Gagal memuat peralatan dari API backend, menggunakan fallback offline:', err);
-      setApiError(err.message || 'Gagal terhubung ke backend API');
-      // Fallback ke mock data jika backend belum dinyalakan
-      setEquipment(mockEquipment);
+      console.warn('Gagal memuat peralatan dari backend:', err);
+      setEquipment(getCachedEquipment());
+      setApiError(err.message || 'Gagal memuat data peralatan dari backend.');
     } finally {
       setLoading(false);
     }
@@ -63,7 +59,7 @@ export default function EquipmentList({ onNavigate }) {
     setTimeout(() => setNotice(''), 3500);
   };
 
-  // Local search filter if querying without re-triggering API immediately
+  // Local search filter
   const filtered = useMemo(() => {
     const q = (filters.query || '').toLowerCase().trim();
     if (!q) return equipment;
@@ -71,8 +67,8 @@ export default function EquipmentList({ onNavigate }) {
       const name = eq.nama_peralatan || eq.name || '';
       const assetNo = eq.nomor_aset || eq.assetNumber || '';
       const serial = eq.nomor_seri || eq.serialNumber || '';
-      const brand = eq.merk || eq.brand || '';
-      const model = eq.model || '';
+      const brand = eq.merk || eq.merek || eq.brand || '';
+      const model = eq.tipe_model || eq.model || '';
       const room = eq.ruangan?.nama_ruangan || eq.room || '';
       return [name, assetNo, serial, brand, model, room].some(f => f.toLowerCase().includes(q));
     });
@@ -127,20 +123,14 @@ export default function EquipmentList({ onNavigate }) {
           </div>
 
           {apiError && (
-            <div style={{ padding: '12px 18px', background: '#FEF2F2', borderBottom: '1px solid #FECACA', color: '#991B1B', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertCircle size={16} />
-                <span>Backend offline atau database kosong. Menampilkan mode tinjau.</span>
-              </div>
+            <div style={{ padding: '12px 18px', background: '#FEF2F2', borderBottom: '1px solid #FECACA', color: '#991B1B', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={16} />
+                <span>{apiError}</span>
             </div>
           )}
 
           <EquipmentTable
             equipment={filtered}
-            isAdmin={isAdmin}
-            userRole={user?.role?.toLowerCase()}
-            onDetail={(id) => onNavigate(`/alat-ukur/${id}`)}
-            onVerify={(id) => onNavigate(`/verifikasi?peralatan=${id}`)}
           />
         </div>
       </main>

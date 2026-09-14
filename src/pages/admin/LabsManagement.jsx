@@ -68,19 +68,20 @@ export default function LabsManagement({ onNavigate }) {
     setLoading(true);
     setApiError('');
     try {
-      const [labsRes, usersRes] = await Promise.all([
+      const [labsRes, usersRes] = await Promise.allSettled([
         labsApi.getAll(),
         userApi.getAll()
       ]);
 
-      if (labsRes && labsRes.data) {
-        setLabs(labsRes.data);
+      if (labsRes.status === 'fulfilled' && labsRes.value?.data) {
+        setLabs(labsRes.value.data);
       } else {
         setLabs([]);
+        if (labsRes.status === 'rejected') console.warn('Labs fetch failed:', labsRes.reason);
       }
 
-      if (usersRes && usersRes.data) {
-        setManagers(usersRes.data);
+      if (usersRes.status === 'fulfilled' && usersRes.value?.data) {
+        setManagers(usersRes.value.data);
       }
     } catch (err) {
       console.error('Failed to fetch labs:', err);

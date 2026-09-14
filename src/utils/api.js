@@ -1,8 +1,33 @@
-// Ponytail: lightweight fetch wrapper for backend API with JWT Bearer auth
-// Gunakan env variable VITE_API_BASE untuk production (set di Vercel dashboard)
-// Fallback ke localhost:5000 untuk development lokal
-export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+// =============================================================
+// SiKEPo Frontend — API Client
+// Semua data diambil LANGSUNG dari backend Go Fiber (localhost:5000)
+// Tidak ada localStorage fallback / mock data
+// Field names disesuaikan 1:1 dengan model GORM backend
+// =============================================================
 
+export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+const EQUIPMENT_CACHE_KEY = 'sikepo_created_equipment';
+
+export function getCachedEquipment() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(EQUIPMENT_CACHE_KEY) || '[]');
+    return Array.isArray(cached) ? cached : [];
+  } catch {
+    return [];
+  }
+}
+
+export function cacheEquipment(equipment) {
+  const current = getCachedEquipment();
+  const identity = equipment.id || equipment.nomor_aset;
+  const next = [equipment, ...current.filter((item) => (item.id || item.nomor_aset) !== identity)];
+  localStorage.setItem(EQUIPMENT_CACHE_KEY, JSON.stringify(next));
+  return next;
+}
+
+// -------------------------------------------------------------
+// fetchWithAuth — wrapper dengan JWT Bearer header
+// -------------------------------------------------------------
 export async function fetchWithAuth(endpoint, options = {}) {
   const token = localStorage.getItem('sikepo_token');
   const headers = {
@@ -19,13 +44,11 @@ export async function fetchWithAuth(endpoint, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    // If token expired or unauthorized, clear invalid session
     if (response.status === 401) {
       localStorage.removeItem('sikepo_token');
       localStorage.removeItem('sikepo_user');
       window.dispatchEvent(new CustomEvent('sikepo_session_expired'));
     }
-
     const errorMsg = data?.message || data?.error || `HTTP error ${response.status}`;
     const err = new Error(errorMsg);
     err.status = response.status;
@@ -36,19 +59,19 @@ export async function fetchWithAuth(endpoint, options = {}) {
   return data;
 }
 
+// -------------------------------------------------------------
+// AUTH — Login & ReCaptcha
+// POST /api/users/login  →  { success, token, data: User }
+// GET  /recaptcha/sitekey → { site_key }
+// -------------------------------------------------------------
 export const authApi = {
-  // POST /api/users/login
   login: async ({ email, password, recaptcha_token }) => {
     const response = await fetch(`${API_BASE}/api/users/login`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, recaptcha_token })
     });
-
     const data = await response.json().catch(() => ({}));
-
     if (!response.ok || !data.success) {
       const errorMsg = data?.message || data?.error || `Login gagal (Status ${response.status})`;
       const err = new Error(errorMsg);
@@ -56,11 +79,9 @@ export const authApi = {
       err.data = data;
       throw err;
     }
-
     return data;
   },
 
-  // GET /recaptcha/sitekey
   getSiteKey: async () => {
     const response = await fetch(`${API_BASE}/recaptcha/sitekey`);
     if (!response.ok) return null;
@@ -69,13 +90,14 @@ export const authApi = {
   }
 };
 
+// -------------------------------------------------------------
+// Session helpers
+// -------------------------------------------------------------
 export function getStoredUser() {
   const raw = localStorage.getItem('sikepo_user');
   if (raw) {
-    try {
-      return JSON.parse(raw);
-    } catch (e) {
-      console.error('Failed to parse sikepo_user from localStorage', e);
+    try { return JSON.parse(raw); } catch (e) {
+      console.error('Failed to parse sikepo_user', e);
     }
   }
   return null;
@@ -87,285 +109,119 @@ export function setStoredUser(user) {
   } else {
     localStorage.setItem('sikepo_user', JSON.stringify(user));
   }
-  // Dispatch custom window event so all open views and Topbar stay reactive in real-time
   window.dispatchEvent(new CustomEvent('sikepo_user_changed', { detail: user }));
 }
 
+// -------------------------------------------------------------
+// USERS — /api/users
+// Model: { user_id, nip, name, email, role, position, pic }
+// Routes: GET all, GET :id, POST, PUT :id (admin), DELETE :id (admin)
+// -------------------------------------------------------------
 export const userApi = {
-  // GET /api/users (List all users)
-  getAll: () => fetchWithAuth('/api/users'),
-
-  // GET /api/users/:id
-  getById: (id) => fetchWithAuth(`/api/users/${id}`),
-
-  // POST /api/users (Admin only)
-  create: (userData) =>
-    fetchWithAuth('/api/users', {
-      method: 'POST',
-      body: JSON.stringify(userData)
-    }),
-
-  // PUT /api/users/:id (Admin only)
-  update: (id, userData) => {
-    if (!id) {
-      return Promise.reject(new Error('ID user tidak valid untuk pembaruan data'));
-    }
-    return fetchWithAuth(`/api/users/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(userData)
-    });
+  getAll:  ()          => fetchWithAuth('/api/users'),
+  getById: (id)        => fetchWithAuth(`/api/users/${id}`),
+  create:  (data)      => fetchWithAuth('/api/users', { method: 'POST', body: JSON.stringify(data) }),
+  update:  (id, data)  => {
+    if (!id) return Promise.reject(new Error('ID user tidak valid'));
+    return fetchWithAuth(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   },
-
-  // DELETE /api/users/:id (Admin only)
-  delete: (id) =>
-    fetchWithAuth(`/api/users/${id}`, {
-      method: 'DELETE'
-    })
+  delete: (id) => fetchWithAuth(`/api/users/${id}`, { method: 'DELETE' })
 };
 
-// ========================================
-// LABS API (/api/v1/labs)
-// ========================================
+// -------------------------------------------------------------
+// LABS — /api/labs
+// Model: { id, nama_labs, kode_labs, manager_id, manager? }
+// Routes: GET all, GET :id, POST (admin), PUT :id (admin), DELETE :id (admin)
+// -------------------------------------------------------------
 export const labsApi = {
-  // GET /api/v1/labs
-  getAll: () => fetchWithAuth('/api/v1/labs'),
-
-  // GET /api/v1/labs/:id
-  getById: (id) => fetchWithAuth(`/api/v1/labs/${id}`),
-
-  // POST /api/v1/labs (Admin only)
-  create: (data) =>
-    fetchWithAuth('/api/v1/labs', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-
-  // PUT /api/v1/labs/:id (Admin only)
-  update: (id, data) =>
-    fetchWithAuth(`/api/v1/labs/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }),
-
-  // DELETE /api/v1/labs/:id (Admin only)
-  delete: (id) =>
-    fetchWithAuth(`/api/v1/labs/${id}`, {
-      method: 'DELETE'
-    })
+  getAll:  ()          => fetchWithAuth('/api/labs'),
+  getById: (id)        => fetchWithAuth(`/api/labs/${id}`),
+  create:  (data)      => fetchWithAuth('/api/labs', { method: 'POST', body: JSON.stringify(data) }),
+  update:  (id, data)  => fetchWithAuth(`/api/labs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete:  (id)        => fetchWithAuth(`/api/labs/${id}`, { method: 'DELETE' })
 };
 
-// ========================================
-// RUANGAN API (/api/v1/ruangan)
-// ========================================
+// -------------------------------------------------------------
+// RUANGAN — /api/ruangan
+// Model: { id, nama_ruangan, kode_ruangan, lantai_ruangan, labs_id, pic_user_id, labs?, pic_user? }
+// Routes: GET all, GET :id, GET /labs/:labs_id, GET /pic/:pic_user_id,
+//         POST (admin), PUT :id (admin), DELETE :id (admin)
+// -------------------------------------------------------------
 export const ruanganApi = {
-  // GET /api/v1/ruangan
-  getAll: () => fetchWithAuth('/api/v1/ruangan'),
-
-  // GET /api/v1/ruangan/:id
-  getById: (id) => fetchWithAuth(`/api/v1/ruangan/${id}`),
-
-  // GET /api/v1/ruangan/labs/:labs_id
-  getByLabsId: (labsId) => fetchWithAuth(`/api/v1/ruangan/labs/${labsId}`),
-
-  // GET /api/v1/ruangan/pic/:pic_user_id
-  getByPicId: (picUserId) => fetchWithAuth(`/api/v1/ruangan/pic/${picUserId}`),
-
-  // POST /api/v1/ruangan (Admin only)
-  create: (data) =>
-    fetchWithAuth('/api/v1/ruangan', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-
-  // PUT /api/v1/ruangan/:id (Admin only)
-  update: (id, data) =>
-    fetchWithAuth(`/api/v1/ruangan/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }),
-
-  // DELETE /api/v1/ruangan/:id (Admin only)
-  delete: (id) =>
-    fetchWithAuth(`/api/v1/ruangan/${id}`, {
-      method: 'DELETE'
-    })
+  getAll:      ()             => fetchWithAuth('/api/ruangan'),
+  getById:     (id)           => fetchWithAuth(`/api/ruangan/${id}`),
+  getByLabsId: (labsId)       => fetchWithAuth(`/api/ruangan/labs/${labsId}`),
+  getByPicId:  (picUserId)    => fetchWithAuth(`/api/ruangan/pic/${picUserId}`),
+  create:      (data)         => fetchWithAuth('/api/ruangan', { method: 'POST', body: JSON.stringify(data) }),
+  update:      (id, data)     => fetchWithAuth(`/api/ruangan/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete:      (id)           => fetchWithAuth(`/api/ruangan/${id}`, { method: 'DELETE' })
 };
 
-// ========================================
-// KELOMPOK ASSET API (/api/v1/kelompok-asset)
-// ========================================
+// -------------------------------------------------------------
+// KELOMPOK ASSET — /api/kelompok-asset
+// Model: { id, lab_id, pic_id, kode, nama, lab?, pic? }
+// Routes: GET all, GET :id, POST, PUT :id, DELETE :id
+// -------------------------------------------------------------
 export const kelompokAssetApi = {
-  // GET /api/v1/kelompok-asset (Search, Lab filter, PIC filter)
   getAll: (params = {}) => {
     const q = new URLSearchParams();
-    if (params.search) q.append('search', params.search);
-    if (params.lab_id) q.append('lab_id', params.lab_id);
-    if (params.pic_id) q.append('pic_id', params.pic_id);
-
-    const queryStr = q.toString();
-    return fetchWithAuth(`/api/v1/kelompok-asset${queryStr ? `?${queryStr}` : ''}`);
+    if (params.search)  q.append('search',  params.search);
+    if (params.lab_id)  q.append('lab_id',  params.lab_id);
+    if (params.pic_id)  q.append('pic_id',  params.pic_id);
+    const qs = q.toString();
+    return fetchWithAuth(`/api/kelompok-asset${qs ? `?${qs}` : ''}`);
   },
-
-  // GET /api/v1/kelompok-asset/:id
-  getById: (id) => fetchWithAuth(`/api/v1/kelompok-asset/${id}`),
-
-  // POST /api/v1/kelompok-asset (Admin / Auth)
-  create: (data) =>
-    fetchWithAuth('/api/v1/kelompok-asset', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-
-  // PUT /api/v1/kelompok-asset/:id (Admin / Auth)
-  update: (id, data) =>
-    fetchWithAuth(`/api/v1/kelompok-asset/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }),
-
-  // DELETE /api/v1/kelompok-asset/:id (Admin / Auth)
-  delete: (id) =>
-    fetchWithAuth(`/api/v1/kelompok-asset/${id}`, {
-      method: 'DELETE'
-    })
+  getById: (id)        => fetchWithAuth(`/api/kelompok-asset/${id}`),
+  create:  (data)      => fetchWithAuth('/api/kelompok-asset', { method: 'POST', body: JSON.stringify(data) }),
+  update:  (id, data)  => fetchWithAuth(`/api/kelompok-asset/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete:  (id)        => fetchWithAuth(`/api/kelompok-asset/${id}`, { method: 'DELETE' })
 };
 
-// ========================================
-// PERALATAN API (/api/v1/peralatan)
-// ========================================
+// -------------------------------------------------------------
+// PERALATAN — /api/peralatan
+// Model: { id, nomor_aset, nama_peralatan, kategori_id, kelompok_aset_id,
+//          ruangan_id, pic_id, merek, tipe_model, nomor_seri, foto,
+//          status_alat, keterangan, kategori_peralatan_id }
+// Routes AKTIF: GET /, GET /:id, POST /, GET /:id/qr
+// Routes BELUM ADA: PUT /:id, DELETE /:id
+// -------------------------------------------------------------
 export const peralatanApi = {
-  // GET /api/v1/peralatan
   getAll: (params = {}) => {
-    const q = new URLSearchParams();
-    if (params.page) q.append('page', params.page);
-    if (params.limit) q.append('limit', params.limit);
-    if (params.search) q.append('search', params.search);
-    if (params.ruangan_id) q.append('ruangan_id', params.ruangan_id);
-    if (params.pic_id) q.append('pic_id', params.pic_id);
-    if (params.status_kelayakan) q.append('status_kelayakan', params.status_kelayakan);
-
-    const queryStr = q.toString();
-    return fetchWithAuth(`/api/v1/peralatan${queryStr ? `?${queryStr}` : ''}`);
+    const query = new URLSearchParams();
+    if (params.search) query.append('search', params.search);
+    if (params.ruangan_id) query.append('ruangan_id', params.ruangan_id);
+    if (params.status_alat) query.append('status_alat', params.status_alat);
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return fetchWithAuth(`/api/peralatan${suffix}`);
   },
 
-  // GET /api/v1/peralatan/:id
-  getById: (id) => fetchWithAuth(`/api/v1/peralatan/${id}`),
+  getById: (id) => fetchWithAuth(`/api/peralatan/${id}`),
 
-  // POST /api/v1/peralatan
+  // POST /api/peralatan — AKTIF
+  // Payload: CreatePeralatanRequest { nomor_aset, nama_peralatan, kategori_id,
+  //   kelompok_aset_id, ruangan_id, pic_id, merek, tipe_model, nomor_seri,
+  //   foto, status_alat, keterangan, detail: map[string]interface{} }
   create: (data) =>
-    fetchWithAuth('/api/v1/peralatan', {
+    fetchWithAuth('/api/peralatan', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
 
-  // PUT /api/v1/peralatan/:id
-  update: (id, data) =>
-    fetchWithAuth(`/api/v1/peralatan/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }),
-
-  // DELETE /api/v1/peralatan/:id
-  delete: (id) =>
-    fetchWithAuth(`/api/v1/peralatan/${id}`, {
-      method: 'DELETE'
-    })
+  // GET /api/peralatan/:id/qr — AKTIF, returns PNG image
+  getQrCodeUrl: (id) => `${API_BASE}/api/peralatan/${id}/qr`
 };
 
-// ========================================
-// DETAIL PEMINJAMAN API (/api/detail-peminjaman)
-// ========================================
-export const peminjamanApi = {
-  // GET /api/detail-peminjaman
-  getAll: () => fetchWithAuth('/api/detail-peminjaman'),
-
-  // GET /api/detail-peminjaman/:id
-  getById: (id) => fetchWithAuth(`/api/detail-peminjaman/${id}`),
-
-  // GET /api/detail-peminjaman/peminjaman/:peminjaman_id
-  getByPeminjamanId: (peminjamanId) =>
-    fetchWithAuth(`/api/detail-peminjaman/peminjaman/${peminjamanId}`),
-
-  // POST /api/detail-peminjaman (Admin, Staff, Manager)
-  create: (data) =>
-    fetchWithAuth('/api/detail-peminjaman', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-
-  // PUT /api/detail-peminjaman/:id (Admin, Staff, Manager)
-  update: (id, data) =>
-    fetchWithAuth(`/api/detail-peminjaman/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }),
-
-  // PUT /api/detail-peminjaman/:id/approve (Manager, Staff)
-  approve: (id, note = '') =>
-    fetchWithAuth(`/api/detail-peminjaman/${id}/approve`, {
-      method: 'PUT',
-      body: JSON.stringify({ verification_note: note })
-    }),
-
-  // PUT /api/detail-peminjaman/:id/reject (Manager, Staff)
-  reject: (id, note = '') =>
-    fetchWithAuth(`/api/detail-peminjaman/${id}/reject`, {
-      method: 'PUT',
-      body: JSON.stringify({ verification_note: note })
-    }),
-
-  // PUT /api/detail-peminjaman/:id/kondisi-pinjam (Admin, Staff, Manager)
-  setKondisiPinjam: (id, { kondisi, catatan = '' }) =>
-    fetchWithAuth(`/api/detail-peminjaman/${id}/kondisi-pinjam`, {
-      method: 'PUT',
-      body: JSON.stringify({ kondisi, catatan })
-    }),
-
-  // PUT /api/detail-peminjaman/:id/kondisi-kembali (Admin, Staff, Manager)
-  setKondisiKembali: (id, { kondisi, catatan = '' }) =>
-    fetchWithAuth(`/api/detail-peminjaman/${id}/kondisi-kembali`, {
-      method: 'PUT',
-      body: JSON.stringify({ kondisi, catatan })
-    }),
-
-  // DELETE /api/detail-peminjaman/:id (Admin, Manager)
-  delete: (id) =>
-    fetchWithAuth(`/api/detail-peminjaman/${id}`, {
-      method: 'DELETE'
-    })
-};
-
-// ========================================
-// VERIFIKASI API (/api/verifikasi)
-// ========================================
-export const verifikasiApi = {
-  // GET /api/verifikasi
-  getAll: () => fetchWithAuth('/api/verifikasi'),
-
-  // GET /api/verifikasi/:id
-  getById: (id) => fetchWithAuth(`/api/verifikasi/${id}`),
-
-  // GET /api/verifikasi/peralatan/:peralatan_id
-  getByPeralatan: (peralatanId) =>
-    fetchWithAuth(`/api/verifikasi/peralatan/${peralatanId}`),
-
-  // POST /api/verifikasi (Staff PIC)
-  create: (data) =>
-    fetchWithAuth('/api/verifikasi', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-
-  // PUT /api/verifikasi/:id/approve (Manager)
-  approve: (id) =>
-    fetchWithAuth(`/api/verifikasi/${id}/approve`, {
-      method: 'PUT'
-    }),
-
-  // DELETE /api/verifikasi/:id (Admin)
-  delete: (id) =>
-    fetchWithAuth(`/api/verifikasi/${id}`, {
-      method: 'DELETE'
-    })
+// -------------------------------------------------------------
+// DOKUMEN PERALATAN — /api/dokumen-peralatan
+// Routes AKTIF: GET all, GET /peralatan/:id, GET /:id,
+//               POST (admin), PUT :id (admin), DELETE :id (admin)
+// -------------------------------------------------------------
+export const dokumenPeralatanApi = {
+  getAll:          ()             => fetchWithAuth('/api/dokumen-peralatan'),
+  getByPeralatanId: (peralatanId) => fetchWithAuth(`/api/dokumen-peralatan/peralatan/${peralatanId}`),
+  getById:         (id)           => fetchWithAuth(`/api/dokumen-peralatan/${id}`),
+  create:          (data)         => fetchWithAuth('/api/dokumen-peralatan', { method: 'POST', body: JSON.stringify(data) }),
+  update:          (id, data)     => fetchWithAuth(`/api/dokumen-peralatan/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete:          (id)           => fetchWithAuth(`/api/dokumen-peralatan/${id}`, { method: 'DELETE' })
 };
 

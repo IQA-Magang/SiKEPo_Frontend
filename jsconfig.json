@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "forceConsistentCasingInFileNames": false,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "target": "ESNext",
+    "baseUrl": "."
+  },
+  "include": ["src/**/*"]
+}

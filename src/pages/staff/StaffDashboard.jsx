@@ -9,7 +9,7 @@ import {
   Wrench,
   RefreshCw
 } from 'lucide-react';
-import { peralatanApi, getStoredUser } from '../../utils/api';
+import { getCachedEquipment } from '../../utils/api';
 
 export default function StaffDashboard({ user, onNavigate, searchQuery }) {
   const [stats, setStats] = useState({ totalPeralatan: 0, totalRusak: 0, loading: true });
@@ -20,9 +20,7 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const eqRes = await peralatanApi.getAll({ limit: 500 });
-
-        const allEq = eqRes?.data || [];
+        const allEq = getCachedEquipment();
 
         const rusak = allEq.filter(e =>
           e.kondisi === 'tidak_sesuai' || e.status_kelayakan === 'tidak_aktif'
@@ -78,10 +76,6 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
             <RefreshCw size={15} />
             <span>Segarkan</span>
           </button>
-          <button className="btn-hero-primary" onClick={() => onNavigate('/peninjauan-peralatan')}>
-            <Plus size={15} />
-            <span>Tinjau Peralatan</span>
-          </button>
         </div>
       </div>
 
@@ -101,20 +95,6 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
           </div>
         </article>
 
-        <article className="stat-card red" style={{ cursor: 'pointer' }} onClick={() => onNavigate('/peninjauan-peralatan')}>
-          <div className="stat-header">
-            <span className="stat-badge">Peninjauan</span>
-            <div className="stat-icon-wrapper"><CheckCircle size={20} /></div>
-          </div>
-          <div className="stat-body">
-            <strong className="stat-value">Buka</strong>
-            <span className="stat-title">Tinjau status peralatan</span>
-          </div>
-          <div className="stat-footer">
-            <span className="stat-sub">Pending atau perlu tindak lanjut</span>
-          </div>
-        </article>
-
         <article className="stat-card darkgray">
           <div className="stat-header">
             <span className="stat-badge">Alat Rusak</span>
@@ -129,19 +109,6 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
           </div>
         </article>
 
-        <article className="stat-card gray" style={{ cursor: 'pointer' }} onClick={() => onNavigate('/perbaikan')}>
-          <div className="stat-header">
-            <span className="stat-badge">Perbaikan</span>
-            <div className="stat-icon-wrapper"><Wrench size={20} /></div>
-          </div>
-          <div className="stat-body">
-            <strong className="stat-value">Buka</strong>
-            <span className="stat-title">Peralatan membutuhkan perbaikan</span>
-          </div>
-          <div className="stat-footer">
-            <span className="stat-sub">Kondisi tidak sesuai atau ditolak</span>
-          </div>
-        </article>
       </section>
 
       {/* QUICK ACTIONS */}
@@ -162,37 +129,6 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
           </button>
         </article>
 
-        <article className="admin-action-card">
-          <div className="admin-card-top">
-            <div className="admin-card-icon blue">
-              <Plus size={20} />
-            </div>
-            <div className="admin-card-text">
-              <h3>Peninjauan Peralatan</h3>
-              <p>Tinjau alat yang menunggu keputusan kelayakan atau tindak lanjut.</p>
-            </div>
-          </div>
-          <button className="admin-card-action" onClick={() => onNavigate('/peninjauan-peralatan')}>
-            <span>Buka Peninjauan</span>
-            <ArrowUpRight size={14} />
-          </button>
-        </article>
-
-        <article className="admin-action-card">
-          <div className="admin-card-top">
-            <div className="admin-card-icon purple">
-              <CheckCircle2 size={20} />
-            </div>
-            <div className="admin-card-text">
-              <h3>Verifikasi Peralatan</h3>
-              <p>Catat hasil pemeriksaan dan kalibrasi peralatan yang menjadi tanggung jawab Anda.</p>
-            </div>
-          </div>
-          <button className="admin-card-action" onClick={() => onNavigate('/verifikasi')}>
-            <span>Buka Verifikasi</span>
-            <ArrowUpRight size={14} />
-          </button>
-        </article>
       </section>
 
     </>
