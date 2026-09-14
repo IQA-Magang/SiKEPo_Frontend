@@ -53,23 +53,7 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
   const [ruanganList, setRuanganList] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [loadingLookups, setLoadingLookups] = useState(true);
-  const [kategoriOptions, setKategoriOptions] = useState(BASE_KATEGORI_OPTIONS);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('sikepo_custom_categories');
-      if (stored) {
-        const custom = JSON.parse(stored);
-        const customOpts = custom.map(c => ({
-          value: c.value,
-          label: `${c.nama} (Kustom)`
-        }));
-        setKategoriOptions([...BASE_KATEGORI_OPTIONS, ...customOpts]);
-      }
-    } catch (e) {
-      console.warn('Gagal memuat kategori custom:', e);
-    }
-  }, []);
+  const [kategoriOptions] = useState(BASE_KATEGORI_OPTIONS);
 
   useEffect(() => {
     let isMounted = true;

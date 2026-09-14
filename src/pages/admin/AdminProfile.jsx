@@ -78,8 +78,9 @@ export default function AdminProfile({ user, onUpdateUser, onSwitchRole, onNavig
         name: formData.name.trim(),
         email: formData.email.trim(),
         nip: formData.nip.trim(),
-        position: formData.position.trim(),
-        role: 'admin'
+        position: formData.position.trim() || user?.position || 'Administrator',
+        role: 'admin',
+        pic: Boolean(user?.pic)
       };
 
       if (formData.password && formData.password.length >= 6) {

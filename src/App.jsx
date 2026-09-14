@@ -17,6 +17,7 @@ import PicManagement from './pages/admin/PicManagement';
 import KategoriManagement from './pages/admin/KategoriManagement';
 import AssetGroupManagement from './pages/admin/AssetGroupManagement';
 import InspectionManagement from './pages/InspectionManagement';
+import Peminjaman from './pages/Peminjaman';
 
 const getPath = () => window.location.hash ? window.location.hash.replace('#', '') : '/login';
 
@@ -54,6 +55,7 @@ export default function App() {
   if (currentPath === '/dashboard')         return <Dashboard onNavigate={navigate} />;
   if (currentPath === '/alat-ukur/tambah')  return <EquipmentCreate onNavigate={navigate} />;
   if (currentPath === '/alat-ukur')         return <EquipmentList onNavigate={navigate} />;
+  if (currentPath === '/peminjaman')        return <Peminjaman onNavigate={navigate} />;
   const verificationCreateMatch = currentPath.match(/^\/verifikasi\?peralatan=(\d+)$/);
   if (verificationCreateMatch) return <VerificationCreate onNavigate={navigate} equipmentId={verificationCreateMatch[1]} />;
   if (currentPath === '/verifikasi')        return <Verifikasi onNavigate={navigate} />;

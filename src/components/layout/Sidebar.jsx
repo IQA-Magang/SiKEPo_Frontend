@@ -56,7 +56,7 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
     return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
   }, []);
 
-  const isManajemenAlatActive = ['/alat-ukur', '/verifikasi', '/peninjauan-peralatan', '/peralatan-usang', '/perbaikan'].some(
+  const isManajemenAlatActive = ['/alat-ukur', '/peminjaman', '/verifikasi', '/peninjauan-peralatan', '/peralatan-usang', '/perbaikan'].some(
     p => activePath === p || activePath.startsWith(p + '/')
   );
   const isPengaturanActive = ['/admin/kelompok-peralatan', '/admin/kelompok-lab', '/admin/kelompok-aset', '/admin/kelompok-lokasi'].some(
@@ -124,6 +124,7 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
             {/* Manajemen alat dan tindak lanjut kondisi peralatan */}
             <NavGroup label="Manajemen Alat" icon={Wrench} defaultOpen={isManajemenAlatActive}>
               <NavItem label="Peralatan" path="/alat-ukur" />
+              <NavItem label="Peminjaman" path="/peminjaman" />
               <NavItem label="Verifikasi" path="/verifikasi" />
               <NavItem label="Peninjauan Peralatan" path="/peninjauan-peralatan" />
               <NavItem label="Peralatan Usang" path="/peralatan-usang" />

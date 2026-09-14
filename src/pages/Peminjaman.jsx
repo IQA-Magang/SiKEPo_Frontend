@@ -46,8 +46,36 @@ export default function Peminjaman({ onNavigate }) {
 
   // Modal Catat Kondisi
   const [kondisiModal, setKondisiModal] = useState(null); // { type: 'pinjam'|'kembali', loan }
-  const [kondisiInput, setKondisiInput] = useState('Baik dan lengkap sesuai spesifikasi');
+  const [kondisiInput, setKondisiInput] = useState('baik');
   const [catatanKondisi, setCatatanKondisi] = useState('');
+
+  // Helper render kondisi badge sesuai enum backend: 'baik', 'rusak_ringan', 'rusak_berat'
+  const renderKondisiBadge = (kondisi, fallback = 'Belum dicatat') => {
+    if (!kondisi) return <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{fallback}</span>;
+    const k = String(kondisi).toLowerCase();
+    if (k === 'baik') {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' }}>
+          Baik
+        </span>
+      );
+    }
+    if (k === 'rusak_ringan') {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, background: '#FFFBEB', color: '#92400E', border: '1px solid #FDE68A' }}>
+          Rusak Ringan
+        </span>
+      );
+    }
+    if (k === 'rusak_berat') {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }}>
+          Rusak Berat
+        </span>
+      );
+    }
+    return <span style={{ fontSize: '12px', color: '#374151' }}>{kondisi}</span>;
+  };
 
   useEffect(() => {
     const handleUserChanged = (e) => {
@@ -110,6 +138,24 @@ export default function Peminjaman({ onNavigate }) {
       return [toolName, assetNo, pid, note].some((f) => f.toLowerCase().includes(q));
     });
   }, [loans, searchQuery, statusFilter]);
+
+  // Validasi peralatan yang dapat dipinjam sesuai aturan backend (status_kelayakan == 'aktif' dan kondisi != 'tidak_sesuai')
+  const borrowableEquipment = useMemo(() => {
+    return activeEquipment.map((eq) => {
+      const isAktif = (eq.status_kelayakan || '').toLowerCase() === 'aktif';
+      const isSesuai = (eq.kondisi || '').toLowerCase() !== 'tidak_sesuai';
+      const canBorrow = isAktif && isSesuai;
+      let reason = 'Siap Dipinjam';
+      if (!isAktif) reason = 'Status Belum Aktif';
+      else if (!isSesuai) reason = 'Kondisi Tidak Sesuai / Rusak';
+
+      return {
+        ...eq,
+        canBorrow,
+        reason
+      };
+    });
+  }, [activeEquipment]);
 
   // Create Peminjaman
   const handleCreateLoan = async (e) => {
@@ -405,42 +451,42 @@ export default function Peminjaman({ onNavigate }) {
                         )}
                       </td>
                       <td>
-                        <span style={{ fontSize: '12px', color: l.kondisi_saat_pinjam ? '#111827' : '#9CA3AF' }}>
-                          {l.kondisi_saat_pinjam || 'Belum dicatat'}
-                        </span>
-                        {(role === 'staff' || isAdminOrManager) && (
-                          <button
-                            className="eq-btn-action edit"
-                            style={{ display: 'inline-flex', padding: '2px 6px', fontSize: '10px', marginLeft: '6px' }}
-                            onClick={() => {
-                              setKondisiInput(l.kondisi_saat_pinjam || 'Baik dan lengkap');
-                              setCatatanKondisi('');
-                              setKondisiModal({ type: 'pinjam', loan: l });
-                            }}
-                            title="Catat kondisi serah terima pinjam"
-                          >
-                            Ubah
-                          </button>
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {renderKondisiBadge(l.kondisi_saat_pinjam, 'Belum dicatat')}
+                          {(role === 'staff' || isAdminOrManager) && (
+                            <button
+                              className="eq-btn-action edit"
+                              style={{ display: 'inline-flex', padding: '2px 6px', fontSize: '10px' }}
+                              onClick={() => {
+                                setKondisiInput(l.kondisi_saat_pinjam || 'baik');
+                                setCatatanKondisi('');
+                                setKondisiModal({ type: 'pinjam', loan: l });
+                              }}
+                              title="Catat kondisi serah terima pinjam"
+                            >
+                              Ubah
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td>
-                        <span style={{ fontSize: '12px', color: l.kondisi_saat_kembali ? '#111827' : '#9CA3AF' }}>
-                          {l.kondisi_saat_kembali || 'Belum kembali'}
-                        </span>
-                        {(role === 'staff' || isAdminOrManager) && (
-                          <button
-                            className="eq-btn-action edit"
-                            style={{ display: 'inline-flex', padding: '2px 6px', fontSize: '10px', marginLeft: '6px' }}
-                            onClick={() => {
-                              setKondisiInput(l.kondisi_saat_kembali || 'Baik dan lengkap');
-                              setCatatanKondisi('');
-                              setKondisiModal({ type: 'kembali', loan: l });
-                            }}
-                            title="Catat kondisi saat dikembalikan"
-                          >
-                            Ubah
-                          </button>
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {renderKondisiBadge(l.kondisi_saat_kembali, 'Belum kembali')}
+                          {(role === 'staff' || isAdminOrManager) && (
+                            <button
+                              className="eq-btn-action edit"
+                              style={{ display: 'inline-flex', padding: '2px 6px', fontSize: '10px' }}
+                              onClick={() => {
+                                setKondisiInput(l.kondisi_saat_kembali || 'baik');
+                                setCatatanKondisi('');
+                                setKondisiModal({ type: 'kembali', loan: l });
+                              }}
+                              title="Catat kondisi saat dikembalikan"
+                            >
+                              Ubah
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <div className="eq-actions">
@@ -536,9 +582,9 @@ export default function Peminjaman({ onNavigate }) {
                     required
                   >
                     <option value="">-- Pilih Alat Yang Ingin Dipinjam --</option>
-                    {activeEquipment.map((eq) => (
-                      <option key={eq.id} value={eq.id}>
-                        {eq.nomor_aset || eq.assetNumber} - {eq.nama_peralatan || eq.name} ({eq.status_kelayakan || eq.status})
+                    {borrowableEquipment.map((eq) => (
+                      <option key={eq.id} value={eq.id} disabled={!eq.canBorrow}>
+                        {eq.nomor_aset || eq.assetNumber} - {eq.nama_peralatan || eq.name} ({eq.canBorrow ? 'Siap Pinjam' : eq.reason})
                       </option>
                     ))}
                   </select>
@@ -614,10 +660,9 @@ export default function Peminjaman({ onNavigate }) {
                   value={kondisiInput}
                   onChange={(e) => setKondisiInput(e.target.value)}
                 >
-                  <option value="Baik dan lengkap sesuai spesifikasi">Baik dan lengkap sesuai spesifikasi</option>
-                  <option value="Ada goresan ringan pada bodi">Ada goresan ringan pada bodi</option>
-                  <option value="Aksesoris tidak lengkap">Aksesoris tidak lengkap</option>
-                  <option value="Perlu perbaikan / kalibrasi">Perlu perbaikan / kalibrasi</option>
+                  <option value="baik">Baik (Lengkap & Berfungsi Normal)</option>
+                  <option value="rusak_ringan">Rusak Ringan (Cacat minor / goresan, masih beroperasi)</option>
+                  <option value="rusak_berat">Rusak Berat (Tidak berfungsi / butuh perbaikan)</option>
                 </select>
               </div>
 
