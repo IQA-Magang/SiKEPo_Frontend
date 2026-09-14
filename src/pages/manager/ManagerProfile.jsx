@@ -72,8 +72,9 @@ export default function ManagerProfile({ user, onUpdateUser, onSwitchRole, onNav
           name: updatedUser.name,
           email: updatedUser.email,
           nip: updatedUser.nip,
-          position: updatedUser.position,
-          role: 'manager'
+          position: updatedUser.position || 'Manager',
+          role: 'manager',
+          pic: Boolean(user?.pic)
         });
       } catch (err) {
         // Backend only allows role admin to update /api/users/:id. Keep client session updated.
