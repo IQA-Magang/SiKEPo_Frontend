@@ -36,8 +36,8 @@ export default function EquipmentDocuments({ documents, onChange, onNext, onBack
   };
 
   const handleNext = () => {
-    if (documents.length < 2) {
-      setError('Minimal 2 dokumen wajib diunggah sebelum melanjutkan.');
+    if (documents.length < 1) {
+      setError('Minimal 1 dokumen wajib diunggah sebelum melanjutkan.');
       return;
     }
     onNext();

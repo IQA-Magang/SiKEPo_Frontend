@@ -123,7 +123,9 @@ export default function AdminDashboard({ user, onNavigate, recentLoans, searchQu
         // Distribusi kategori
         const catMap = {};
         allEq.forEach(e => {
-          const cat = e.kategori_peralatan || 'Lainnya';
+          const cat = typeof e.kategori_peralatan === 'object'
+            ? (e.kategori_peralatan?.nama_kategori || 'Lainnya')
+            : (e.kategori_peralatan || 'Lainnya');
           catMap[cat] = (catMap[cat] || 0) + 1;
         });
         const total = allEq.length || 1;

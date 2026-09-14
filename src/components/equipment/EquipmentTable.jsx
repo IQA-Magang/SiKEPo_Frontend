@@ -29,7 +29,7 @@ export default function EquipmentTable({ equipment }) {
             const name = eq.nama_peralatan || eq.name || '-';
             const brand = eq.merk || eq.brand || '';
             const model = eq.tipe_model || eq.model || '';
-            const category = eq.kategori_peralatan?.nama_kategori || eq.kategori_peralatan || eq.category || 'Peralatan';
+            const category = eq.kelompok_asset ? `[${eq.kelompok_asset.kode}] ${eq.kelompok_asset.nama}` : (eq.kategori_peralatan?.nama_kategori || eq.kategori_peralatan || eq.category || 'Peralatan');
             const roomName = eq.ruangan ? `${eq.ruangan.kode_ruangan} - ${eq.ruangan.nama_ruangan}` : (eq.room || '-');
             const status = eq.status_alat || eq.status_kelayakan || eq.status || 'Aktif';
 

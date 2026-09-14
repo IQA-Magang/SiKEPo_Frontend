@@ -279,7 +279,7 @@ export default function AssetGroupManagement({ onNavigate }) {
               <RefreshCw size={15} />
               <span>Segarkan</span>
             </button>
-            <button className="btn-hero-primary" onClick={handleOpenCreate}>
+            <button type="button" className="btn-hero-primary" onClick={(e) => { e.preventDefault(); handleOpenCreate(); }}>
               <Plus size={15} />
               <span>Tambah Kelompok</span>
             </button>
