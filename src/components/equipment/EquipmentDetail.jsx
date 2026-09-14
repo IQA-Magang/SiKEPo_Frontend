@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ClipboardList, BookOpen, FileText, ShieldCheck, MapPin,
+  ClipboardList, FileText, ShieldCheck, MapPin,
   Package, Check, AlertCircle, CheckCircle, Plus, X, Award
 } from 'lucide-react';
 import EquipmentStatusBadge from './EquipmentStatusBadge';
+import EquipmentDocuments from './EquipmentDocuments';
 import { verifikasiApi } from '../../utils/api';
 
 const TABS = [
   { id: 'info',     label: 'Informasi',       icon: ClipboardList },
   { id: 'verify',   label: 'Verifikasi Mutu', icon: ShieldCheck },
-  { id: 'borrow',   label: 'Peminjaman',      icon: BookOpen },
   { id: 'docs',     label: 'Dokumen',         icon: FileText },
 ];
 
@@ -38,6 +38,7 @@ export default function EquipmentDetail({ equipment, user, onNavigate }) {
   const [verifikasiList, setVerifikasiList] = useState([]);
   const [loadingVerif, setLoadingVerif] = useState(false);
   const [verifyNotice, setVerifyNotice] = useState('');
+  const [documents, setDocuments] = useState([]);
 
   // Modal Verifikasi Baru (Staff PIC)
   const [showVerifModal, setShowVerifModal] = useState(false);
@@ -78,6 +79,28 @@ export default function EquipmentDetail({ equipment, user, onNavigate }) {
       fetchVerifikasi();
     }
   }, [activeTab, equipment.id]);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('sikepo_asset_documents') || '{}');
+      setDocuments(stored[String(equipment.id)] || stored[String(equipment.nomor_aset || '')] || []);
+    } catch (_) {
+      setDocuments([]);
+    }
+  }, [equipment.id, equipment.nomor_aset]);
+
+  const handleDocumentsChange = (nextDocuments) => {
+    const metadata = nextDocuments.map(({ file: _file, ...document }) => document);
+    setDocuments(nextDocuments);
+    try {
+      const stored = JSON.parse(localStorage.getItem('sikepo_asset_documents') || '{}');
+      stored[String(equipment.id)] = metadata;
+      if (equipment.nomor_aset) stored[String(equipment.nomor_aset)] = metadata;
+      localStorage.setItem('sikepo_asset_documents', JSON.stringify(stored));
+    } catch (_) {
+      // Keep the current list available even if browser storage is unavailable.
+    }
+  };
 
   const showToast = (msg) => {
     setVerifyNotice(msg);
@@ -123,7 +146,6 @@ export default function EquipmentDetail({ equipment, user, onNavigate }) {
   const brand = equipment.merk || equipment.brand || '-';
   const model = equipment.model || '-';
   const serial = equipment.nomor_seri || equipment.serialNumber || '-';
-  const count = equipment.jumlah || 1;
   const category = equipment.kategori_peralatan || equipment.category || 'Peralatan';
   const condition = equipment.kondisi || 'sesuai';
   const status = equipment.status_kelayakan || equipment.status || 'pending';
@@ -178,8 +200,7 @@ export default function EquipmentDetail({ equipment, user, onNavigate }) {
               <Row label="Merek"             value={brand} />
               <Row label="Tipe / Model"      value={model} />
               <Row label="Nomor Seri"        value={serial} />
-              <Row label="Jumlah Unit"       value={`${count} Unit`} />
-              <Row label="Kategori"          value={category} />
+              <Row label="Kelompok Peralatan" value={category} />
               <Row label="Kondisi Fisik"     value={condition === 'sesuai' ? 'Sesuai (Normal)' : condition} />
               <Row label="Status Kelayakan"  value={status.toUpperCase()} />
               <Row label="Metode"            value={method === 'internal' ? 'Internal TTH' : 'Eksternal'} />
@@ -264,30 +285,12 @@ export default function EquipmentDetail({ equipment, user, onNavigate }) {
           </div>
         )}
 
-        {activeTab === 'borrow' && (
-          <div className="panel">
-            <div className="panel-header">
-              <div><h2>Peminjaman</h2><p className="panel-subtitle">Status transaksi peminjaman alat</p></div>
-            </div>
-            <p className="eq-empty-tab">
-              Peralatan ini berstatus <strong>{status}</strong>. Untuk mengajukan peminjaman atau melihat mutasi, silakan gunakan menu <strong>Peminjaman Alat</strong>.
-            </p>
-            {onNavigate && (
-              <div style={{ marginTop: '14px' }}>
-                <button className="btn-hero-secondary" onClick={() => onNavigate('/peminjaman')}>
-                  Buka Menu Peminjaman →
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
         {activeTab === 'docs' && (
           <div className="panel">
             <div className="panel-header">
               <div><h2>Dokumen Alat</h2><p className="panel-subtitle">Daftar dokumen & arsip digital</p></div>
             </div>
-            <p className="eq-empty-tab">Belum ada dokumen yang tersimpan di sistem.</p>
+            <EquipmentDocuments documents={documents} onChange={handleDocumentsChange} showActions={false} />
           </div>
         )}
       </div>

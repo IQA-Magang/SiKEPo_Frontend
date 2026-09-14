@@ -3,8 +3,9 @@ import { Upload, FileText, X } from 'lucide-react';
 
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 const ALLOWED_EXT = '.pdf, .jpg, .jpeg, .png';
+const DOCUMENT_CATEGORIES = ['Manual Book', 'Datasheet', 'Sertifikat Kalibrasi', 'Dokumen Pendukung'];
 
-export default function EquipmentDocuments({ documents, onChange, onNext, onBack }) {
+export default function EquipmentDocuments({ documents, onChange, onNext, onBack, showActions = true }) {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -17,6 +18,7 @@ export default function EquipmentDocuments({ documents, onChange, onNext, onBack
         ...valid.map(f => ({
           name: f.name,
           type: f.type.split('/')[1].toUpperCase(),
+          kategori_dokumen: 'Dokumen Pendukung',
           size: `${(f.size / 1024).toFixed(0)} KB`,
           file: f,
         })),
@@ -75,8 +77,16 @@ export default function EquipmentDocuments({ documents, onChange, onNext, onBack
               <FileText size={18} className="eq-doc-icon" />
               <div className="eq-doc-info">
                 <span className="eq-doc-name" title={doc.name}>{doc.name}</span>
-                <span className="eq-doc-meta">{doc.type} · {doc.size}</span>
+                <span className="eq-doc-meta">{doc.kategori_dokumen || 'Dokumen Pendukung'} · {doc.type} · {doc.size}</span>
               </div>
+              <select
+                className="eq-filter-select"
+                value={doc.kategori_dokumen || 'Dokumen Pendukung'}
+                onChange={(e) => onChange(documents.map((item, itemIndex) => itemIndex === idx ? { ...item, kategori_dokumen: e.target.value } : item))}
+                aria-label={`Jenis dokumen ${doc.name}`}
+              >
+                {DOCUMENT_CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}
+              </select>
               <button
                 type="button"
                 className="eq-doc-remove"
@@ -91,10 +101,12 @@ export default function EquipmentDocuments({ documents, onChange, onNext, onBack
         </div>
       )}
 
-      <div className="eq-form-actions">
-        <button type="button" className="eq-btn-cancel" onClick={onBack}>← Kembali</button>
-        <button type="button" className="eq-btn-next" onClick={onNext}>Simpan &amp; Lanjut →</button>
-      </div>
+      {showActions && (
+        <div className="eq-form-actions">
+          <button type="button" className="eq-btn-cancel" onClick={onBack}>← Kembali</button>
+          <button type="button" className="eq-btn-next" onClick={onNext}>Simpan &amp; Lanjut →</button>
+        </div>
+      )}
     </div>
   );
 }

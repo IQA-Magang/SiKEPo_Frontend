@@ -363,10 +363,7 @@ export default function StaffProfile({ user, onUpdateUser, onSwitchRole, onNavig
             ))}
           </div>
 
-          <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button className="btn-hero-primary" style={{ padding: '7px 14px', fontSize: '12px' }} onClick={() => onNavigate('/peminjaman')}>
-              Ajukan Peminjaman
-            </button>
+          <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #F3F4F6', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
             <button className="btn-hero-secondary" style={{ padding: '7px 14px', fontSize: '12px' }} onClick={() => onNavigate('/dashboard')}>
               Ke Dashboard <ArrowRight size={13} />
             </button>

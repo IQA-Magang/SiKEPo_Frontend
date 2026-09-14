@@ -141,7 +141,7 @@ export default function KategoriManagement({ onNavigate }) {
 
     const trimmedName = newCatName.trim();
     if (!trimmedName) {
-      setModalError('Nama kategori wajib diisi.');
+      setModalError('Nama kelompok wajib diisi.');
       return;
     }
 
@@ -151,7 +151,7 @@ export default function KategoriManagement({ onNavigate }) {
     );
 
     if (exists) {
-      setModalError('Kategori dengan nama tersebut sudah ada.');
+      setModalError('Kelompok dengan nama tersebut sudah ada.');
       return;
     }
 
@@ -159,7 +159,7 @@ export default function KategoriManagement({ onNavigate }) {
       id: 'cat-custom-' + Date.now(),
       nama: trimmedName,
       value: trimmedName.toLowerCase().replace(/\s+/g, '_'),
-      deskripsi: newCatDesc.trim() || 'Kategori kustom ditambahkan oleh Admin.',
+      deskripsi: newCatDesc.trim() || 'Kelompok kustom ditambahkan oleh Admin.',
       isSystem: false,
       createdAt: new Date().toISOString()
     };
@@ -174,14 +174,14 @@ export default function KategoriManagement({ onNavigate }) {
       setIsModalOpen(false);
       setNewCatName('');
       setNewCatDesc('');
-      showToast(`Kategori "${trimmedName}" berhasil disimpan secara lokal.`);
+      showToast(`Kelompok "${trimmedName}" berhasil disimpan secara lokal.`);
     } catch (err) {
       setModalError('Gagal menyimpan kategori: ' + err.message);
     }
   };
 
   const handleDeleteCategory = (catId, catName) => {
-    if (!confirm(`Hapus kategori kustom "${catName}"?`)) return;
+    if (!confirm(`Hapus kelompok kustom "${catName}"?`)) return;
 
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -190,7 +190,7 @@ export default function KategoriManagement({ onNavigate }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(customList));
 
       loadCategories();
-      showToast(`Kategori "${catName}" berhasil dihapus.`);
+      showToast(`Kelompok "${catName}" berhasil dihapus.`);
     } catch (err) {
       alert('Gagal menghapus kategori: ' + err.message);
     }
@@ -207,10 +207,10 @@ export default function KategoriManagement({ onNavigate }) {
       <Topbar
         user={user}
         onNavigate={onNavigate}
-        title="Kategori Peralatan"
+        title="Kelompok Peralatan"
         onUpdateUser={(u) => setUser(u)}
       />
-      <Sidebar activePath="/admin/kategori" onNavigate={onNavigate} />
+      <Sidebar activePath="/admin/kelompok-peralatan" onNavigate={onNavigate} />
 
       <main className="main-content">
         {/* Toast */}
@@ -243,10 +243,10 @@ export default function KategoriManagement({ onNavigate }) {
           <div>
             <h1 className="eq-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Tag size={22} style={{ color: 'var(--color-primary-red)' }} />
-              <span>Kelola Kategori Peralatan</span>
+              <span>Kelola Kelompok Peralatan</span>
             </h1>
             <p className="eq-page-sub">
-              Struktur klasifikasi dan kategori inventaris peralatan laboratorium Telkom Test House
+              Struktur klasifikasi dan kelompok inventaris peralatan laboratorium Telkom Test House
             </p>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -256,7 +256,7 @@ export default function KategoriManagement({ onNavigate }) {
             </button>
             <button className="btn-hero-primary" onClick={() => setIsModalOpen(true)}>
               <Plus size={15} />
-              <span>Tambah Kategori</span>
+              <span>Tambah Kelompok</span>
             </button>
           </div>
         </div>
@@ -279,7 +279,7 @@ export default function KategoriManagement({ onNavigate }) {
             <strong style={{ color: 'var(--color-text-primary)', fontSize: '14px', display: 'block', marginBottom: '4px' }}>
               Catatan Arsitektur Sistem Backend:
             </strong>
-            Saat ini backend Go memvalidasi kategori peralatan melalui <strong>Enum Baku (5 Kategori Sistem)</strong>:
+            Saat ini backend Go memvalidasi kelompok peralatan melalui <strong>Enum Baku (5 Kelompok Sistem)</strong>:
             <code style={{ background: '#f1f1f1', padding: '2px 6px', borderRadius: '4px', margin: '0 4px', fontSize: '12px' }}>
               peralatan, Peralatan bantu, referensi uji, golden sample, Komponen pendukung
             </code>.
@@ -299,7 +299,7 @@ export default function KategoriManagement({ onNavigate }) {
             </div>
             <div className="stat-info">
               <div className="stat-value">{categories.length}</div>
-              <div className="stat-label">Total Kategori Terdaftar</div>
+              <div className="stat-label">Total Kelompok Terdaftar</div>
             </div>
           </div>
 
@@ -309,7 +309,7 @@ export default function KategoriManagement({ onNavigate }) {
             </div>
             <div className="stat-info">
               <div className="stat-value">{DEFAULT_CATEGORIES.length}</div>
-              <div className="stat-label">Kategori Baku Sistem (Backend)</div>
+              <div className="stat-label">Kelompok Baku Sistem (Backend)</div>
             </div>
           </div>
 
@@ -319,7 +319,7 @@ export default function KategoriManagement({ onNavigate }) {
             </div>
             <div className="stat-info">
               <div className="stat-value">{categories.length - DEFAULT_CATEGORIES.length}</div>
-              <div className="stat-label">Kategori Kustom Baru</div>
+              <div className="stat-label">Kelompok Kustom Baru</div>
             </div>
           </div>
 
@@ -340,7 +340,7 @@ export default function KategoriManagement({ onNavigate }) {
             <Search size={18} style={{ color: '#9CA3AF' }} />
             <input
               type="text"
-              placeholder="Cari kategori berdasarkan nama atau kata kunci..."
+              placeholder="Cari kelompok berdasarkan nama atau kata kunci..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -369,7 +369,7 @@ export default function KategoriManagement({ onNavigate }) {
             <thead>
               <tr>
                 <th>No</th>
-                <th>Nama Kategori</th>
+                <th>Nama Kelompok</th>
                 <th>Nilai Sistem (Key API)</th>
                 <th>Deskripsi</th>
                 <th>Status Integrasi</th>
@@ -381,7 +381,7 @@ export default function KategoriManagement({ onNavigate }) {
               {filteredCategories.length === 0 ? (
                 <tr>
                   <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#9CA3AF' }}>
-                    Tidak ada kategori yang sesuai dengan pencarian.
+                    Tidak ada kelompok yang sesuai dengan pencarian.
                   </td>
                 </tr>
               ) : (
@@ -466,7 +466,7 @@ export default function KategoriManagement({ onNavigate }) {
                             onClick={() => handleDeleteCategory(cat.id, cat.nama)}
                             className="btn-icon"
                             style={{ color: '#DC2626', padding: '6px' }}
-                            title="Hapus Kategori Kustom"
+                            title="Hapus Kelompok Kustom"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -481,14 +481,14 @@ export default function KategoriManagement({ onNavigate }) {
           </div>
         </div>
 
-        {/* Modal Tambah Kategori */}
+        {/* Modal Tambah Kelompok */}
         {isModalOpen && (
           <div className="modal-backdrop">
             <div className="modal-card" style={{ maxWidth: '480px' }}>
               <div className="modal-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Tag size={20} style={{ color: 'var(--color-primary-red)' }} />
-                  <h3 className="modal-title">Tambah Kategori Peralatan</h3>
+                  <h3 className="modal-title">Tambah Kelompok Peralatan</h3>
                 </div>
                 <button className="modal-close" onClick={() => setIsModalOpen(false)}>
                   <X size={18} />
@@ -517,7 +517,7 @@ export default function KategoriManagement({ onNavigate }) {
 
                   <div>
                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
-                      Nama Kategori <span style={{ color: '#DC2626' }}>*</span>
+                      Nama Kelompok <span style={{ color: '#DC2626' }}>*</span>
                     </label>
                     <input
                       type="text"
@@ -532,11 +532,11 @@ export default function KategoriManagement({ onNavigate }) {
 
                   <div>
                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
-                      Deskripsi Kategori (Opsional)
+                      Deskripsi Kelompok (Opsional)
                     </label>
                     <textarea
                       className="eq-field-input"
-                      placeholder="Jelaskan fungsi atau jenis alat dalam kategori ini..."
+                      placeholder="Jelaskan fungsi atau jenis alat dalam kelompok ini..."
                       rows="3"
                       value={newCatDesc}
                       onChange={(e) => setNewCatDesc(e.target.value)}
@@ -555,7 +555,7 @@ export default function KategoriManagement({ onNavigate }) {
                       lineHeight: '1.5'
                     }}
                   >
-                    <strong>Perhatian:</strong> Kategori yang ditambahkan di sini disimpan pada konfigurasi frontend.
+                    <strong>Perhatian:</strong> Kelompok yang ditambahkan di sini disimpan pada konfigurasi frontend.
                     Untuk mengizinkan backend menerima kategori ini pada penambahan alat, minta tim backend untuk mendaftarkan nama ini pada enum validator.
                   </div>
                 </div>
@@ -569,7 +569,7 @@ export default function KategoriManagement({ onNavigate }) {
                     Batal
                   </button>
                   <button type="submit" className="btn-primary">
-                    Simpan Kategori
+                    Simpan Kelompok
                   </button>
                 </div>
               </form>

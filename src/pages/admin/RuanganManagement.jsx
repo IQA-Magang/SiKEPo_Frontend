@@ -210,7 +210,7 @@ export default function RuanganManagement({ onNavigate }) {
         onUpdateUser={(u) => setUser(u)}
       />
 
-      <Sidebar activePath="/admin/ruangan" onNavigate={onNavigate} />
+      <Sidebar activePath="/admin/kelompok-lokasi" onNavigate={onNavigate} />
 
       <main className="main-content">
         {notice && (

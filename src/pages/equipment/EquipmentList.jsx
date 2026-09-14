@@ -12,7 +12,6 @@ const EMPTY_FILTERS = { query: '', status: '', room: '', category: '' };
 export default function EquipmentList({ onNavigate }) {
   const [user, setUser] = useState(getStoredUser);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [deleteTarget, setDeleteTarget] = useState(null);
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState('');
@@ -79,21 +78,6 @@ export default function EquipmentList({ onNavigate }) {
     });
   }, [equipment, filters.query]);
 
-  const handleDelete = async (eq) => {
-    if (deleteTarget?.id === eq.id) {
-      try {
-        await peralatanApi.delete(eq.id);
-        showNotice(`Peralatan "${eq.nama_peralatan || eq.name}" berhasil dihapus.`);
-        setDeleteTarget(null);
-        fetchEquipment();
-      } catch (err) {
-        alert(`Gagal menghapus peralatan: ${err.message}`);
-      }
-    } else {
-      setDeleteTarget(eq);
-    }
-  };
-
   return (
     <div className="app-shell">
       <Topbar user={user} onNavigate={onNavigate} title="Daftar Alat Ukur" onUpdateUser={(u) => setUser(u)} />
@@ -128,17 +112,6 @@ export default function EquipmentList({ onNavigate }) {
           </div>
         </div>
 
-        {/* Delete confirmation banner */}
-        {deleteTarget && (
-          <div className="eq-confirm-banner">
-            <span>Hapus <strong>{deleteTarget.nama_peralatan || deleteTarget.name}</strong> ({deleteTarget.nomor_aset || deleteTarget.assetNumber})? Tindakan ini tidak dapat dibatalkan.</span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="eq-btn-action delete" onClick={() => handleDelete(deleteTarget)}>Ya, Hapus</button>
-              <button className="eq-btn-cancel" style={{ padding: '6px 14px' }} onClick={() => setDeleteTarget(null)}>Batal</button>
-            </div>
-          </div>
-        )}
-
         {/* Filters */}
         <EquipmentFilters filters={filters} onChange={setFilters} />
 
@@ -168,8 +141,6 @@ export default function EquipmentList({ onNavigate }) {
             userRole={user?.role?.toLowerCase()}
             onDetail={(id) => onNavigate(`/alat-ukur/${id}`)}
             onVerify={(id) => onNavigate(`/verifikasi?peralatan=${id}`)}
-            onDelete={handleDelete}
-            onBorrow={(eq) => onNavigate('/peminjaman')}
           />
         </div>
       </main>

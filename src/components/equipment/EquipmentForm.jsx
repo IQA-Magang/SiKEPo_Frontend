@@ -32,15 +32,12 @@ const JENIS_PAKAI_OPTIONS = [
   { value: 'habis_pakai', label: 'Habis Pakai' },
 ];
 
-const REQUIRED = ['nomor_aset', 'nama_peralatan', 'ruangan_id', 'kategori_peralatan'];
-
 const EMPTY_FORM = {
   nomor_aset: '',
   nama_peralatan: '',
   merk: '',
   model: '',
   nomor_seri: '',
-  jumlah: 1,
   ruangan_id: '',
   pic_id: '',
   kategori_peralatan: 'peralatan',
@@ -103,9 +100,9 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
     const errs = {};
     if (!data.nomor_aset?.trim()) errs.nomor_aset = 'Nomor aset wajib diisi.';
     if (!data.nama_peralatan?.trim()) errs.nama_peralatan = 'Nama peralatan wajib diisi.';
+    if (!data.nomor_seri?.trim()) errs.nomor_seri = 'Nomor seri wajib diisi untuk setiap unit alat.';
     if (!data.ruangan_id) errs.ruangan_id = 'Lokasi ruangan wajib dipilih.';
     if (!data.kategori_peralatan) errs.kategori_peralatan = 'Kategori peralatan wajib dipilih.';
-    if (Number(data.jumlah) < 1) errs.jumlah = 'Jumlah alat minimal 1.';
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -114,14 +111,14 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
   const handleNext = () => {
     if (validate()) {
       // Clean and cast data before sending to next step
+      const { jumlah: _jumlah, ...formWithoutQuantity } = data;
       const cleanPayload = {
-        ...data,
+        ...formWithoutQuantity,
         nomor_aset: data.nomor_aset.trim(),
         nama_peralatan: data.nama_peralatan.trim(),
         merk: data.merk.trim(),
         model: data.model.trim(),
         nomor_seri: data.nomor_seri.trim(),
-        jumlah: Number(data.jumlah) || 1,
         ruangan_id: Number(data.ruangan_id),
         pic_id: data.pic_id ? Number(data.pic_id) : null,
       };
@@ -188,28 +185,18 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
             </div>
           </div>
 
-          {/* Nomor Seri & Jumlah */}
-          <div className="eq-form-row-2col">
+          {/* Nomor Seri: satu entri hanya untuk satu unit alat */}
+          <div className="eq-field-group">
             <div className="eq-field-group">
-              <label className="eq-field-label">Nomor Seri</label>
+              <label className="eq-field-label">Nomor Seri <span className="eq-required">*</span></label>
               <input
-                className="eq-field-input"
+                className={`eq-field-input ${errors.nomor_seri ? 'error' : ''}`}
                 type="text"
                 placeholder="Contoh: SN-8921820"
                 value={data.nomor_seri}
                 onChange={set('nomor_seri')}
               />
-            </div>
-            <div className="eq-field-group">
-              <label className="eq-field-label">Jumlah</label>
-              <input
-                className={`eq-field-input ${errors.jumlah ? 'error' : ''}`}
-                type="number"
-                min="1"
-                value={data.jumlah}
-                onChange={set('jumlah')}
-              />
-              {errors.jumlah && <span className="eq-field-error">{errors.jumlah}</span>}
+              {errors.nomor_seri && <span className="eq-field-error">{errors.nomor_seri}</span>}
             </div>
           </div>
 
@@ -237,17 +224,17 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
 
         {/* KOLOM KANAN */}
         <div>
-          {/* Kategori Peralatan (Enum Backend) */}
+          {/* Kelompok peralatan menggunakan field API kategori_peralatan */}
           <div className="eq-field-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <label className="eq-field-label" style={{ marginBottom: 0 }}>
-                Kategori Peralatan <span className="eq-required">*</span>
+                Kelompok Peralatan <span className="eq-required">*</span>
               </label>
               <a
-                href="#/admin/kategori"
+                href="#/admin/kelompok-peralatan"
                 style={{ fontSize: '11px', color: 'var(--color-primary-red)', textDecoration: 'none', fontWeight: 600 }}
               >
-                + Kelola Kategori
+                + Kelola Kelompok
               </a>
             </div>
             <select

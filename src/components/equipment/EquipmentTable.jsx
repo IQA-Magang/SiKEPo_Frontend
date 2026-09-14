@@ -1,8 +1,8 @@
 import React from 'react';
-import { Eye, Pencil, Trash2, BookOpen, ClipboardCheck } from 'lucide-react';
+import { Eye, Pencil, ClipboardCheck } from 'lucide-react';
 import EquipmentStatusBadge from './EquipmentStatusBadge';
 
-export default function EquipmentTable({ equipment, isAdmin, userRole, onDetail, onEdit, onDelete, onBorrow, onVerify }) {
+export default function EquipmentTable({ equipment, isAdmin, userRole, onDetail, onEdit, onVerify }) {
   if (equipment.length === 0) {
     return (
       <div className="eq-empty">
@@ -19,7 +19,7 @@ export default function EquipmentTable({ equipment, isAdmin, userRole, onDetail,
             <th>No</th>
             <th>Nomor Aset</th>
             <th>Nama Peralatan</th>
-            <th>Kategori</th>
+            <th>Kelompok Peralatan</th>
             <th>Ruangan</th>
             <th>Status Kelayakan</th>
             <th>Aksi</th>
@@ -34,7 +34,6 @@ export default function EquipmentTable({ equipment, isAdmin, userRole, onDetail,
             const category = eq.kategori_peralatan || eq.category || 'Peralatan';
             const roomName = eq.ruangan ? `${eq.ruangan.kode_ruangan} - ${eq.ruangan.nama_ruangan}` : (eq.room || '-');
             const status = eq.status_kelayakan || eq.status || 'pending';
-            const canBorrow = (status === 'aktif' || status === 'Tersedia');
 
             return (
               <tr key={eq.id}>
@@ -64,11 +63,6 @@ export default function EquipmentTable({ equipment, isAdmin, userRole, onDetail,
                         <ClipboardCheck size={14} /> Verifikasi
                       </button>
                     )}
-                    {canBorrow && (isAdmin || userRole === 'staff' || !userRole) && (
-                      <button className="eq-btn-action borrow" onClick={() => onBorrow(eq)} title="Pinjam Alat">
-                        <BookOpen size={14} /> Pinjam
-                      </button>
-                    )}
                     {isAdmin && (
                       <>
                         {onEdit && (
@@ -76,9 +70,6 @@ export default function EquipmentTable({ equipment, isAdmin, userRole, onDetail,
                             <Pencil size={14} />
                           </button>
                         )}
-                        <button className="eq-btn-action delete" onClick={() => onDelete(eq)} title="Hapus">
-                          <Trash2 size={14} />
-                        </button>
                       </>
                     )}
                   </div>

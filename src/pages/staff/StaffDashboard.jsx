@@ -3,18 +3,16 @@ import {
   Box,
   Plus,
   ArrowUpRight,
-  Clock,
   CheckCircle,
   CheckCircle2,
   AlertTriangle,
   Wrench,
   RefreshCw
 } from 'lucide-react';
-import { peralatanApi, peminjamanApi, getStoredUser } from '../../utils/api';
+import { peralatanApi, getStoredUser } from '../../utils/api';
 
 export default function StaffDashboard({ user, onNavigate, searchQuery }) {
-  const [stats, setStats] = useState({ totalPeralatan: 0, totalDipinjam: 0, totalRusak: 0, loading: true });
-  const [myLoans, setMyLoans] = useState([]);
+  const [stats, setStats] = useState({ totalPeralatan: 0, totalRusak: 0, loading: true });
   const [actionNotice, setActionNotice] = useState('');
 
   const userName = user?.name || 'Staff';
@@ -22,13 +20,9 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [eqRes, loanRes] = await Promise.all([
-          peralatanApi.getAll({ limit: 500 }),
-          peminjamanApi.getAll()
-        ]);
+        const eqRes = await peralatanApi.getAll({ limit: 500 });
 
         const allEq = eqRes?.data || [];
-        const allLoans = loanRes?.data || [];
 
         const rusak = allEq.filter(e =>
           e.kondisi === 'tidak_sesuai' || e.status_kelayakan === 'tidak_aktif'
@@ -36,11 +30,9 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
 
         setStats({
           totalPeralatan: allEq.length,
-          totalDipinjam: allLoans.filter(l => l.status === 'approved').length,
           totalRusak: rusak,
           loading: false
         });
-        setMyLoans(allLoans.slice(0, 5));
       } catch (err) {
         console.warn('Staff dashboard fetch failed:', err);
         setStats(s => ({ ...s, loading: false }));
@@ -53,12 +45,6 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
     setActionNotice(msg);
     setTimeout(() => setActionNotice(''), 3500);
   };
-
-  const filteredLoans = myLoans.filter(l => {
-    const q = (searchQuery || '').toLowerCase();
-    if (!q) return true;
-    return (l.peralatan?.nama_peralatan || '').toLowerCase().includes(q);
-  });
 
   return (
     <>
@@ -79,7 +65,7 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
             <span className="live-tag">Operasional</span>
           </h1>
           <p className="dashboard-subtitle">
-            Pusat operasional inventaris peralatan uji dan pencatatan sirkulasi peminjaman
+            Pusat operasional inventaris dan kelayakan peralatan uji
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -92,9 +78,9 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
             <RefreshCw size={15} />
             <span>Segarkan</span>
           </button>
-          <button className="btn-hero-primary" onClick={() => onNavigate('/peminjaman')}>
+          <button className="btn-hero-primary" onClick={() => onNavigate('/peninjauan-peralatan')}>
             <Plus size={15} />
-            <span>Pinjam Alat</span>
+            <span>Tinjau Peralatan</span>
           </button>
         </div>
       </div>
@@ -115,17 +101,17 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
           </div>
         </article>
 
-        <article className="stat-card red" style={{ cursor: 'pointer' }} onClick={() => onNavigate('/peminjaman')}>
+        <article className="stat-card red" style={{ cursor: 'pointer' }} onClick={() => onNavigate('/peninjauan-peralatan')}>
           <div className="stat-header">
-            <span className="stat-badge">Dipinjam</span>
-            <div className="stat-icon-wrapper"><Clock size={20} /></div>
+            <span className="stat-badge">Peninjauan</span>
+            <div className="stat-icon-wrapper"><CheckCircle size={20} /></div>
           </div>
           <div className="stat-body">
-            <strong className="stat-value">{stats.loading ? '—' : `${stats.totalDipinjam} Unit`}</strong>
-            <span className="stat-title">Peralatan Sedang Dipinjam</span>
+            <strong className="stat-value">Buka</strong>
+            <span className="stat-title">Tinjau status peralatan</span>
           </div>
           <div className="stat-footer">
-            <span className="stat-sub">Status: approved / aktif dipinjam</span>
+            <span className="stat-sub">Pending atau perlu tindak lanjut</span>
           </div>
         </article>
 
@@ -143,17 +129,17 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
           </div>
         </article>
 
-        <article className="stat-card gray" style={{ cursor: 'pointer' }} onClick={() => onNavigate('/peminjaman')}>
+        <article className="stat-card gray" style={{ cursor: 'pointer' }} onClick={() => onNavigate('/perbaikan')}>
           <div className="stat-header">
-            <span className="stat-badge">Ajukan Pinjam</span>
+            <span className="stat-badge">Perbaikan</span>
             <div className="stat-icon-wrapper"><Wrench size={20} /></div>
           </div>
           <div className="stat-body">
-            <strong className="stat-value">+ Pinjam</strong>
-            <span className="stat-title">Ajukan Peminjaman Baru</span>
+            <strong className="stat-value">Buka</strong>
+            <span className="stat-title">Peralatan membutuhkan perbaikan</span>
           </div>
           <div className="stat-footer">
-            <span className="stat-sub">Klik untuk halaman peminjaman</span>
+            <span className="stat-sub">Kondisi tidak sesuai atau ditolak</span>
           </div>
         </article>
       </section>
@@ -167,7 +153,7 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
             </div>
             <div className="admin-card-text">
               <h3>Katalog Peralatan</h3>
-              <p>Lihat semua peralatan laboratorium yang tersedia dan siap untuk dipinjam.</p>
+              <p>Lihat seluruh inventaris peralatan laboratorium.</p>
             </div>
           </div>
           <button className="admin-card-action" onClick={() => onNavigate('/alat-ukur')}>
@@ -182,12 +168,12 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
               <Plus size={20} />
             </div>
             <div className="admin-card-text">
-              <h3>Ajukan Peminjaman</h3>
-              <p>Buat pengajuan peminjaman alat baru untuk kebutuhan pengujian laboratorium.</p>
+              <h3>Peninjauan Peralatan</h3>
+              <p>Tinjau alat yang menunggu keputusan kelayakan atau tindak lanjut.</p>
             </div>
           </div>
-          <button className="admin-card-action" onClick={() => onNavigate('/peminjaman')}>
-            <span>Pinjam Alat</span>
+          <button className="admin-card-action" onClick={() => onNavigate('/peninjauan-peralatan')}>
+            <span>Buka Peninjauan</span>
             <ArrowUpRight size={14} />
           </button>
         </article>
@@ -209,58 +195,6 @@ export default function StaffDashboard({ user, onNavigate, searchQuery }) {
         </article>
       </section>
 
-      {/* RECENT LOANS TABLE */}
-      <section className="panel recent-loans-panel">
-        <div className="panel-header">
-          <div>
-            <h2>Riwayat Peminjaman Terkini</h2>
-            <p className="panel-subtitle">5 transaksi peminjaman terbaru dari sistem</p>
-          </div>
-          <button className="btn-view-all" onClick={() => onNavigate('/peminjaman')}>
-            <span>Lihat Semua</span><ArrowUpRight size={15} />
-          </button>
-        </div>
-        {filteredLoans.length === 0 ? (
-          <div style={{ padding: '24px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
-            {stats.loading ? 'Memuat data...' : 'Belum ada riwayat peminjaman.'}
-          </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>Peralatan</th>
-                  <th>Jumlah</th>
-                  <th>Status</th>
-                  <th>Tanggal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLoans.map((loan, idx) => (
-                  <tr key={loan.id || idx}>
-                    <td>
-                      <strong className="tool-name-text">{loan.peralatan?.nama_peralatan || `#${loan.peralatan_id}`}</strong>
-                      <br />
-                      <small style={{ color: '#6B7280' }}>{loan.catatan || ''}</small>
-                    </td>
-                    <td>{loan.jumlah || 1} unit</td>
-                    <td>
-                      <span className={`role-tag-badge ${loan.status === 'approved' ? 'admin' : loan.status === 'rejected' ? 'staff' : 'manager'}`}>
-                        {(loan.status || 'pending').toUpperCase()}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="date-text">
-                        {loan.created_at ? new Date(loan.created_at).toLocaleDateString('id-ID') : '-'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
     </>
   );
 }

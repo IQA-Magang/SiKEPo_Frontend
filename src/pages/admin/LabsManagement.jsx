@@ -192,7 +192,7 @@ export default function LabsManagement({ onNavigate }) {
         onUpdateUser={(u) => setUser(u)}
       />
 
-      <Sidebar activePath="/admin/labs" onNavigate={onNavigate} />
+      <Sidebar activePath="/admin/kelompok-lab" onNavigate={onNavigate} />
 
       <main className="main-content">
         {/* Toast Notice */}

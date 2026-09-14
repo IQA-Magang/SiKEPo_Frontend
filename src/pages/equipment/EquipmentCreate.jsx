@@ -48,7 +48,13 @@ export default function EquipmentCreate({ onNavigate }) {
 
     try {
       // Kirim data peralatan sesuai model database backend Go Fiber
-      await peralatanApi.create(formData);
+      const response = await peralatanApi.create(formData);
+      const savedEquipment = response?.data || response;
+      const documentMetadata = documents.map(({ file: _file, ...document }) => document);
+      const storedDocuments = JSON.parse(localStorage.getItem('sikepo_asset_documents') || '{}');
+      const keys = [formData.nomor_aset, savedEquipment?.id].filter(Boolean).map(String);
+      keys.forEach(key => { storedDocuments[key] = documentMetadata; });
+      localStorage.setItem('sikepo_asset_documents', JSON.stringify(storedDocuments));
       setSaving(false);
       setSaved(true);
       setTimeout(() => onNavigate('/alat-ukur'), 2200);
@@ -130,8 +136,7 @@ export default function EquipmentCreate({ onNavigate }) {
                     <ConfirmRow label="Merek"             value={formData?.merk} />
                     <ConfirmRow label="Tipe / Model"      value={formData?.model} />
                     <ConfirmRow label="Nomor Seri"        value={formData?.nomor_seri} />
-                    <ConfirmRow label="Jumlah"            value={formData?.jumlah} />
-                    <ConfirmRow label="Kategori"          value={formData?.kategori_peralatan} />
+                    <ConfirmRow label="Kelompok Peralatan" value={formData?.kategori_peralatan} />
                     <ConfirmRow label="Kondisi"           value={formData?.kondisi} />
                     <ConfirmRow label="Status Kelayakan"  value={formData?.status_kelayakan} />
                     <ConfirmRow label="Metode"            value={formData?.metode} />

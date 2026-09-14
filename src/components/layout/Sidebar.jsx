@@ -2,14 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Wrench,
-  ArrowRightLeft,
   ShieldCheck,
   Building2,
-  Layers,
-  ClipboardCheck,
+  Settings2,
   ChevronDown,
-  MapPin,
-  Tag,
   X
 } from 'lucide-react';
 import { getStoredUser } from '../../utils/api';
@@ -60,10 +56,13 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
     return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
   }, []);
 
-  const isManajemenAlatActive = ['/alat-ukur', '/peminjaman', '/verifikasi', '/admin/kategori'].some(
+  const isManajemenAlatActive = ['/alat-ukur', '/verifikasi', '/peninjauan-peralatan', '/peralatan-usang', '/perbaikan'].some(
     p => activePath === p || activePath.startsWith(p + '/')
   );
-  const isLokasiActive = ['/admin/labs', '/admin/ruangan'].some(p => activePath === p);
+  const isPengaturanActive = ['/admin/kelompok-peralatan', '/admin/kelompok-lab', '/admin/kelompok-aset', '/admin/kelompok-lokasi'].some(
+    p => activePath === p
+  );
+  const isPemeriksaanActive = activePath.startsWith('/pemeriksaan/');
 
   const navigate = (path) => {
     onNavigate(path);
@@ -122,21 +121,30 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
           <nav aria-label="Navigasi utama">
             <NavTopItem label="Dashboard" icon={LayoutDashboard} path="/dashboard" />
 
-            {/* Manajemen Alat — Kategori masuk di sini untuk admin */}
+            {/* Manajemen alat dan tindak lanjut kondisi peralatan */}
             <NavGroup label="Manajemen Alat" icon={Wrench} defaultOpen={isManajemenAlatActive}>
               <NavItem label="Peralatan" path="/alat-ukur" />
-              <NavItem label="Peminjaman" path="/peminjaman" />
               <NavItem label="Verifikasi" path="/verifikasi" />
-              {userRole === 'admin' && (
-                <NavItem label="Kategori Peralatan" path="/admin/kategori" />
-              )}
+              <NavItem label="Peninjauan Peralatan" path="/peninjauan-peralatan" />
+              <NavItem label="Peralatan Usang" path="/peralatan-usang" />
+              <NavItem label="Perbaikan" path="/perbaikan" />
             </NavGroup>
 
-            {/* Lokasi — admin only */}
+            <NavGroup label="Pemeriksaan Peralatan" icon={ShieldCheck} defaultOpen={isPemeriksaanActive}>
+              <NavItem label="Kalibrasi" path="/pemeriksaan/kalibrasi" />
+              <NavItem label="Verifikasi Fungsi" path="/pemeriksaan/verifikasi-fungsi" />
+              <NavItem label="Pengecekan Antara" path="/pemeriksaan/pengecekan-antara" />
+              <NavItem label="Pemeliharaan" path="/pemeriksaan/pemeliharaan" />
+              <NavItem label="Karakterisasi Ulang" path="/pemeriksaan/karakterisasi-ulang" />
+            </NavGroup>
+
+            {/* Pengaturan master data — admin only */}
             {userRole === 'admin' && (
-              <NavGroup label="Lokasi" icon={MapPin} defaultOpen={isLokasiActive}>
-                <NavItem label="Laboratorium" path="/admin/labs" />
-                <NavItem label="Ruangan" path="/admin/ruangan" />
+              <NavGroup label="Pengaturan" icon={Settings2} defaultOpen={isPengaturanActive}>
+                <NavItem label="Kelompok Peralatan" path="/admin/kelompok-peralatan" />
+                <NavItem label="Kelompok Lab" path="/admin/kelompok-lab" />
+                <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" />
+                <NavItem label="Kelompok Lokasi" path="/admin/kelompok-lokasi" />
               </NavGroup>
             )}
           </nav>
