@@ -192,6 +192,45 @@ export const ruanganApi = {
 };
 
 // ========================================
+// KELOMPOK ASSET API (/api/v1/kelompok-asset)
+// ========================================
+export const kelompokAssetApi = {
+  // GET /api/v1/kelompok-asset (Search, Lab filter, PIC filter)
+  getAll: (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.search) q.append('search', params.search);
+    if (params.lab_id) q.append('lab_id', params.lab_id);
+    if (params.pic_id) q.append('pic_id', params.pic_id);
+
+    const queryStr = q.toString();
+    return fetchWithAuth(`/api/v1/kelompok-asset${queryStr ? `?${queryStr}` : ''}`);
+  },
+
+  // GET /api/v1/kelompok-asset/:id
+  getById: (id) => fetchWithAuth(`/api/v1/kelompok-asset/${id}`),
+
+  // POST /api/v1/kelompok-asset (Admin / Auth)
+  create: (data) =>
+    fetchWithAuth('/api/v1/kelompok-asset', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  // PUT /api/v1/kelompok-asset/:id (Admin / Auth)
+  update: (id, data) =>
+    fetchWithAuth(`/api/v1/kelompok-asset/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+  // DELETE /api/v1/kelompok-asset/:id (Admin / Auth)
+  delete: (id) =>
+    fetchWithAuth(`/api/v1/kelompok-asset/${id}`, {
+      method: 'DELETE'
+    })
+};
+
+// ========================================
 // PERALATAN API (/api/v1/peralatan)
 // ========================================
 export const peralatanApi = {

@@ -71,8 +71,9 @@ export default function StaffProfile({ user, onUpdateUser, onSwitchRole, onNavig
           name: updatedUser.name,
           email: updatedUser.email,
           nip: updatedUser.nip,
-          position: updatedUser.position,
-          role: 'staff'
+          position: updatedUser.position || 'Staff',
+          role: 'staff',
+          pic: Boolean(user?.pic)
         });
       } catch (err) {
         // Backend only allows role admin to update /api/users/:id. Keep client session updated.
