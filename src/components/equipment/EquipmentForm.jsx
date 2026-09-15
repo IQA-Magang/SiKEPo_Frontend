@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Camera, Upload } from 'lucide-react';
 import { ruanganApi, userApi, kelompokAssetApi, peralatanApi } from '../../utils/api';
 
 const KATEGORI_OPTIONS = [
-  { id: 1, label: 'Alat Ukur (Sheet 1)', desc: 'Peralatan uji dengan parameter metrologi & kalibrasi' },
-  { id: 2, label: 'Alat Bantu (Sheet 2)', desc: 'Peralatan pendukung dengan pemeriksaan berkala' },
-  { id: 3, label: 'Artefak Acuan (Sheet 3)', desc: 'Standar referensi dengan karakterisasi acuan' },
-  { id: 4, label: 'Komponen Pendukung (Sheet 4)', desc: 'Material/komponen pendukung operasional' },
+ { id: 1, label: 'Alat Ukur', desc: 'Peralatan uji dengan parameter metrologi & kalibrasi' },
+  { id: 2, label: 'Alat Bantu', desc: 'Peralatan pendukung dengan pemeriksaan berkala' },
+  { id: 3, label: 'Artefak Acuan', desc: 'Standar referensi dengan karakterisasi acuan' },
+  { id: 4, label: 'Komponen Pendukung', desc: 'Material/komponen pendukung operasional' },
 ];
 
 const STATUS_ALAT_OPTIONS = [
@@ -17,7 +18,7 @@ const STATUS_ALAT_OPTIONS = [
 ];
 
 const EMPTY_FORM = {
-  nomor_aset: 'AST-005',
+  nomor_aset: '',
   nama_peralatan: '',
   merek: '',
   tipe_model: '',
@@ -38,7 +39,10 @@ const EMPTY_FORM = {
 };
 
 export default function EquipmentForm({ onNext, onCancel, initialData }) {
-  const [data, setData] = useState(initialData || EMPTY_FORM);
+  const [data, setData] = useState(() => {
+    if (initialData && initialData.nomor_aset) return initialData;
+    return { ...EMPTY_FORM, nomor_aset: '' };
+  });
   const [errors, setErrors] = useState({});
   const [ruanganList, setRuanganList] = useState([]);
   const [usersList, setUsersList] = useState([]);
@@ -74,19 +78,21 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
     setLoadingNomorAset(true);
     try {
       const res = await peralatanApi.getNextNomorAset(kelompokId);
-      if (res?.next_nomor_aset) {
+      const nextCode =
+        res?.next_nomor_aset ||
+        res?.data?.next_nomor_aset ||
+        res?.nomor_aset ||
+        res?.data?.nomor_aset ||
+        (typeof res?.data === 'string' ? res.data : null);
+
+      if (nextCode) {
         setData(prev => ({
           ...prev,
-          nomor_aset: res.next_nomor_aset
+          nomor_aset: nextCode
         }));
-      } else if (!data.nomor_aset) {
-        setData(prev => ({ ...prev, nomor_aset: 'AST-005' }));
       }
     } catch (err) {
-      console.warn('Gagal mengambil nomor aset otomatis:', err);
-      if (!data.nomor_aset) {
-        setData(prev => ({ ...prev, nomor_aset: 'AST-005' }));
-      }
+      console.warn('Gagal mengambil nomor aset otomatis dari backend:', err);
     } finally {
       setLoadingNomorAset(false);
     }
@@ -102,10 +108,6 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
 
   const validate = () => {
     const errs = {};
-    // Jika nomor_aset belum terisi, otomatis isi dari backend/default
-    if (!data.nomor_aset?.trim()) {
-      data.nomor_aset = 'AST-005';
-    }
     if (!data.nama_peralatan?.trim()) errs.nama_peralatan = 'Nama peralatan wajib diisi.';
     if (!data.ruangan_id) errs.ruangan_id = 'Lokasi ruangan wajib dipilih.';
     if (!data.kategori_id) errs.kategori_id = 'Kategori peralatan wajib dipilih (1-4).';
@@ -171,7 +173,7 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
       const picId = Number(data.pic_id) || (usersList[0]?.user_id ? Number(usersList[0].user_id) : 1);
 
       const cleanPayload = {
-        nomor_aset: data.nomor_aset.trim(),
+        nomor_aset: (data.nomor_aset || '').trim(),
         nama_peralatan: data.nama_peralatan.trim(),
         kategori_id: catId,
         kelompok_aset_id: kelompokId,
@@ -211,17 +213,27 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
                 Nomor Aset <span className="eq-required">*</span>
               </label>
               <span style={{ fontSize: '11px', color: '#059669', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
-                {loadingNomorAset ? 'Memuat nomor aset...' : '✓ Otomatis dari Backend'}
+                {loadingNomorAset ? 'Memuat Kode...' : '🔒 Otomatis dari Backend'}
               </span>
             </div>
             <input
-              className={`eq-field-input ${errors.nomor_aset ? 'error' : ''}`}
+              className="eq-field-input"
               type="text"
-              placeholder="Contoh: AST-005 (Otomatis dari backend)"
-              value={data.nomor_aset}
-              onChange={set('nomor_aset')}
+              readOnly
+              style={{
+                background: '#F3F4F6',
+                color: '#111827',
+                fontWeight: 700,
+                fontSize: '14px',
+                cursor: 'not-allowed',
+                border: '1.5px solid #D1D5DB'
+              }}
+              placeholder={loadingNomorAset ? 'Memuat nomor aset dari backend...' : 'Otomatis dari backend'}
+              value={data.nomor_aset || (loadingNomorAset ? 'Memuat...' : '')}
             />
-            {errors.nomor_aset && <span className="eq-field-error">{errors.nomor_aset}</span>}
+            <small style={{ fontSize: '11.5px', color: '#6B7280', marginTop: '4px', display: 'block' }}>
+              Nomor aset di-generate otomatis oleh sistem backend dan tidak perlu diketik manual.
+            </small>
           </div>
 
           {/* Nama Peralatan */}
@@ -395,6 +407,60 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
               value={data.keterangan}
               onChange={set('keterangan')}
             />
+          </div>
+
+          {/* Foto / Gambar Peralatan */}
+          <div className="eq-field-group">
+            <label className="eq-field-label">Foto / Gambar Peralatan</label>
+            <div style={{ display: 'flex', gap: '14px', alignItems: 'center', background: '#F9FAFB', padding: '12px 16px', borderRadius: '10px', border: '1px solid #E5E7EB' }}>
+              {data.foto ? (
+                <div style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #D1D5DB', flexShrink: 0 }}>
+                  <img src={data.foto} alt="Preview Peralatan" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <button
+                    type="button"
+                    onClick={() => setData(prev => ({ ...prev, foto: '' }))}
+                    style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.65)', color: '#fff', border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    title="Hapus foto"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div style={{ width: '70px', height: '70px', borderRadius: '8px', background: '#FFFFFF', border: '1.5px dashed #D1D5DB', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', flexShrink: 0 }}>
+                  <Camera size={20} />
+                  <span style={{ fontSize: '9px', marginTop: '2px', fontWeight: 600 }}>Foto</span>
+                </div>
+              )}
+              <div style={{ flex: 1 }}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  id="foto-upload-input"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setData(prev => ({ ...prev, foto: reader.result }));
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('foto-upload-input').click()}
+                  style={{ padding: '7px 14px', fontSize: '12.5px', fontWeight: 600, color: '#374151', background: '#FFFFFF', border: '1px solid #D1D5DB', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                >
+                  <Upload size={14} color="var(--color-primary-red)" />
+                  <span>{data.foto ? 'Ganti Foto Peralatan' : 'Unggah Foto Peralatan'}</span>
+                </button>
+                <small style={{ fontSize: '11px', color: '#6B7280', marginTop: '4px', display: 'block' }}>
+                  Format gambar: JPG, PNG, WEBP (Otomatis disimpan ke backend)
+                </small>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -72,7 +72,7 @@ export default function EquipmentCreate({ onNavigate }) {
       cacheEquipment(savedEquipment);
       const documentMetadata = documents.map(({ file: _file, ...document }) => document);
       const storedDocuments = JSON.parse(localStorage.getItem('sikepo_asset_documents') || '{}');
-      const keys = [backendPayload.nomor_aset, savedEquipment?.id].filter(Boolean).map(String);
+      const keys = [backendPayload.nomor_aset, savedEquipment?.nomor_aset, savedEquipment?.id].filter(Boolean).map(String);
       keys.forEach(key => { storedDocuments[key] = documentMetadata; });
       localStorage.setItem('sikepo_asset_documents', JSON.stringify(storedDocuments));
       setSaving(false);

@@ -16,22 +16,36 @@ export default function EquipmentDetailPage({ equipmentId, onNavigate }) {
 
     const loadEquipment = async () => {
       try {
+        // Coba panggil GET /api/peralatan/:id dari backend
+        if (equipmentId) {
+          try {
+            const byIdRes = await peralatanApi.getById(equipmentId);
+            const eqData = byIdRes?.data || (byIdRes?.id ? byIdRes : null);
+            if (eqData && eqData.id && isMounted) {
+              setEquipment(eqData);
+              return;
+            }
+          } catch (_) {
+            // Ignore error and try getAll fallback
+          }
+        }
+
         const response = await peralatanApi.getAll();
         const list = Array.isArray(response?.data) ? response.data : [];
-        const found = list.find((item) => String(item.id) === String(equipmentId));
+        const found = list.find((item) => String(item.id) === String(equipmentId) || String(item.nomor_aset) === String(equipmentId));
         if (found) {
           if (isMounted) setEquipment(found);
           return;
         }
 
-        const cached = getCachedEquipment().find((item) => String(item.id) === String(equipmentId));
+        const cached = getCachedEquipment().find((item) => String(item.id) === String(equipmentId) || String(item.nomor_aset) === String(equipmentId));
         if (cached && isMounted) {
           setEquipment(cached);
         } else if (isMounted) {
           setError('Data detail peralatan tidak ditemukan.');
         }
       } catch (err) {
-        const cached = getCachedEquipment().find((item) => String(item.id) === String(equipmentId));
+        const cached = getCachedEquipment().find((item) => String(item.id) === String(equipmentId) || String(item.nomor_aset) === String(equipmentId));
         if (isMounted && cached) {
           setEquipment(cached);
         } else if (isMounted) {

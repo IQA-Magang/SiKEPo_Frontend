@@ -25,6 +25,27 @@ export function cacheEquipment(equipment) {
   return next;
 }
 
+export function formatPhotoUrl(foto) {
+  if (!foto) return null;
+  if (typeof foto !== 'string') return null;
+  const clean = foto.trim();
+  if (!clean || clean === 'null' || clean === 'undefined' || clean === 'none' || clean === '-') return null;
+
+  if (clean.startsWith('data:image/')) {
+    return clean;
+  }
+  if (clean.startsWith('http://') || clean.startsWith('https://')) {
+    return clean;
+  }
+  // Base64 string tanpa header prefix data:image/
+  if (/^[A-Za-z0-9+/=]{80,}$/.test(clean)) {
+    return `data:image/png;base64,${clean}`;
+  }
+
+  const normalizedPath = clean.startsWith('/') ? clean : `/${clean}`;
+  return `${API_BASE}${normalizedPath}`;
+}
+
 // -------------------------------------------------------------
 // fetchWithAuth — wrapper dengan JWT Bearer header
 // -------------------------------------------------------------
