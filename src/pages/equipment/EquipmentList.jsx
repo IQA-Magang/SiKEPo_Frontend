@@ -1,142 +1,227 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
-import Topbar from '../../components/layout/Topbar';
-import Sidebar from '../../components/layout/Sidebar';
-import EquipmentFilters from '../../components/equipment/EquipmentFilters';
-import EquipmentTable from '../../components/equipment/EquipmentTable';
-import { peralatanApi, getStoredUser, getCachedEquipment } from '../../utils/api';
+import React, { useState, useEffect } from 'react';
+import { Package, Search, Plus, QrCode, ChevronRight, RefreshCw } from 'lucide-react';
+import { peralatanApi, KATEGORI_OPTIONS, formatPhotoUrl } from '../../utils/api.js';
+import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
-const EMPTY_FILTERS = { query: '', status: '', room: '', category: '' };
-
+// ------------------------------------------------------------------
+// Daftar Peralatan
+// ------------------------------------------------------------------
 export default function EquipmentList({ onNavigate }) {
-  const [user, setUser] = useState(getStoredUser);
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [equipment, setEquipment] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState('');
-  const [notice, setNotice] = useState('');
+  const canCreate = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD);
+  const [list, setList]         = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState('');
+  const [filterKat, setFilterKat] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
-  useEffect(() => {
-    const handleUserChanged = (e) => {
-      if (e.detail) setUser(e.detail);
-    };
-    window.addEventListener('sikepo_user_changed', handleUserChanged);
-    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
-  const isAdmin = user?.role?.toLowerCase() === 'admin';
-
-  // Fetch from backend API, with cache fallback for newly created records.
-  const fetchEquipment = async () => {
+  async function loadData() {
     setLoading(true);
-    setApiError('');
     try {
-      const response = await peralatanApi.getAll({
-        search: filters.query || undefined,
-        ruangan_id: filters.room || undefined,
-        status_alat: filters.status || undefined
-      });
-      if (Array.isArray(response?.data)) {
-        setEquipment(response.data);
-      } else {
-        setEquipment(getCachedEquipment());
-      }
+      const res = await peralatanApi.getAll();
+      setList(res.data || []);
     } catch (err) {
-      console.warn('Gagal memuat peralatan dari backend:', err);
-      setEquipment(getCachedEquipment());
-      setApiError(err.message || 'Gagal memuat data peralatan dari backend.');
+      console.error('Gagal memuat peralatan:', err);
     } finally {
       setLoading(false);
     }
+  }
+
+  // Filter
+  const filtered = list.filter((p) => {
+    const q = search.toLowerCase();
+    const matchQ =
+      !q ||
+      p.nama_peralatan?.toLowerCase().includes(q) ||
+      p.nomor_aset?.toLowerCase().includes(q) ||
+      p.merek?.toLowerCase().includes(q);
+    const matchKat = !filterKat || String(p.kategori_peralatan_id) === filterKat;
+    const matchStatus = !filterStatus || p.status_alat === filterStatus;
+    return matchQ && matchKat && matchStatus;
+  });
+
+  const statusOptions = ['Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak', 'Dihapuskan'];
+
+  const statusClass = {
+    'Aktif':           'badge-aktif',
+    'Dipinjam':        'badge-dipinjam',
+    'Dalam Kalibrasi': 'badge-kalibrasi',
+    'Rusak':           'badge-rusak',
+    'Dihapuskan':      'badge-dihapuskan',
   };
 
-  useEffect(() => {
-    fetchEquipment();
-  }, [filters.status, filters.room]);
-
-  const showNotice = (msg) => {
-    setNotice(msg);
-    setTimeout(() => setNotice(''), 3500);
+  const kategoriLabel = {
+    1: 'Alat Ukur', 2: 'Alat Bantu', 3: 'Artefak Acuan', 4: 'Komponen Pendukung'
   };
-
-  // Local search filter
-  const filtered = useMemo(() => {
-    const q = (filters.query || '').toLowerCase().trim();
-    if (!q) return equipment;
-    return equipment.filter(eq => {
-      const name = eq.nama_peralatan || eq.name || '';
-      const assetNo = eq.nomor_aset || eq.assetNumber || '';
-      const serial = eq.nomor_seri || eq.serialNumber || '';
-      const brand = eq.merk || eq.merek || eq.brand || '';
-      const model = eq.tipe_model || eq.model || '';
-      const room = eq.ruangan?.nama_ruangan || eq.room || '';
-      return [name, assetNo, serial, brand, model, room].some(f => f.toLowerCase().includes(q));
-    });
-  }, [equipment, filters.query]);
 
   return (
-    <div className="app-shell">
-      <Topbar user={user} onNavigate={onNavigate} title="Daftar Alat Ukur" onUpdateUser={(u) => setUser(u)} />
-      <Sidebar activePath="/alat-ukur" onNavigate={onNavigate} />
-
-      <main className="main-content">
-        {notice && (
-          <div className="eq-confirm-banner" style={{ background: '#ECFDF5', borderColor: '#A7F3D0', color: '#065F46', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CheckCircle size={16} color="#059669" />
-              <span>{notice}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Page Header */}
-        <div className="eq-page-header">
-          <div>
-            <h1 className="eq-page-title">Daftar Peralatan</h1>
-            <p className="eq-page-sub">Kelola seluruh inventaris peralatan laboratorium Telkom Test House</p>
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn-refresh" onClick={fetchEquipment} title="Perbarui data dari backend">
-              <RefreshCw size={15} className={loading ? 'spin' : ''} />
-              <span>Refresh</span>
-            </button>
-            {isAdmin && (
-              <button className="btn-hero-primary" onClick={() => onNavigate('/alat-ukur/tambah')}>
-                <Plus size={16} /><span>Tambah Peralatan</span>
-              </button>
-            )}
-          </div>
+    <div className="page-container fade-in-up">
+      {/* Header */}
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
+        <div>
+          <h1 className="page-title">Inventaris Peralatan</h1>
+          <p className="page-subtitle">
+            {loading ? 'Memuat...' : `${filtered.length} dari ${list.length} peralatan`}
+          </p>
         </div>
+        {canCreate && <button
+          className="btn btn-primary"
+          onClick={() => onNavigate('/peralatan/tambah')}
+          id="btn-tambah-peralatan"
+        >
+          <Plus size={16} /> Tambah Peralatan
+        </button>}
+      </div>
 
-        {/* Filters */}
-        <EquipmentFilters filters={filters} onChange={setFilters} />
-
-        {/* Table */}
-        <div className="panel" style={{ marginTop: '16px' }}>
-          <div className="panel-header">
-            <div>
-              <h2>Data Peralatan</h2>
-              <p className="panel-subtitle">
-                {loading ? 'Memuat data dari backend...' : `${filtered.length} peralatan ditemukan`}
-              </p>
-            </div>
-          </div>
-
-          {apiError && (
-            <div style={{ padding: '12px 18px', background: '#FEF2F2', borderBottom: '1px solid #FECACA', color: '#991B1B', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertCircle size={16} />
-                <span>{apiError}</span>
-            </div>
-          )}
-
-          <EquipmentTable
-            equipment={filtered}
-            onSelect={(selected) => {
-              if (selected.id) onNavigate(`/alat-ukur/detail/${selected.id}`);
-            }}
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 'var(--sp-3)', marginBottom: 'var(--sp-5)', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="search-bar" style={{ flex: 1, minWidth: 240 }}>
+          <Search className="search-icon" />
+          <input
+            id="input-search-peralatan"
+            className="form-input"
+            type="text"
+            placeholder="Cari nama, nomor aset, merek..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-      </main>
+
+        <select
+          id="select-filter-kategori"
+          className="form-select"
+          value={filterKat}
+          onChange={(e) => setFilterKat(e.target.value)}
+          style={{ width: 'auto', minWidth: 180 }}
+        >
+          <option value="">Semua Kategori</option>
+          {KATEGORI_OPTIONS.map((k) => (
+            <option key={k.id} value={String(k.id)}>{k.label}</option>
+          ))}
+        </select>
+
+        <select
+          id="select-filter-status"
+          className="form-select"
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          style={{ width: 'auto', minWidth: 160 }}
+        >
+          <option value="">Semua Status</option>
+          {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        <button
+          className="btn btn-secondary btn-icon"
+          onClick={loadData}
+          title="Refresh"
+          id="btn-refresh-peralatan"
+        >
+          <RefreshCw size={16} />
+        </button>
+      </div>
+
+      {/* Tabel */}
+      {loading ? (
+        <div className="card" style={{ padding: 'var(--sp-6)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+          {[...Array(6)].map((_, i) => <div key={i} className="skeleton" style={{ height: 52 }} />)}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><Package size={32} /></div>
+          <p className="empty-state-title">Tidak ada peralatan ditemukan</p>
+          <p className="empty-state-desc">Coba ubah filter atau tambah peralatan baru.</p>
+          {canCreate && <button className="btn btn-primary" onClick={() => onNavigate('/peralatan/tambah')} style={{ marginTop: 'var(--sp-2)' }}>
+            <Plus size={16} /> Tambah Peralatan Pertama
+          </button>}
+        </div>
+      ) : (
+        <div className="table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Foto</th>
+                <th>Nama Peralatan</th>
+                <th>No. Aset</th>
+                <th>Kategori</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((p, i) => {
+                const photoUrl = formatPhotoUrl(p.foto);
+                return (
+                  <tr key={p.id}>
+                    <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{i + 1}</td>
+                    <td style={{ width: 56 }}>
+                      {photoUrl ? (
+                        <img
+                          src={photoUrl}
+                          alt={p.nama_peralatan}
+                          style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 'var(--radius-md)', border: '1px solid var(--clr-dark-200)' }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: 40, height: 40, borderRadius: 'var(--radius-md)',
+                          background: 'var(--clr-dark-100)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <Package size={16} style={{ color: 'var(--clr-dark-400)' }} />
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 'var(--fw-medium)', color: 'var(--clr-dark-900)' }}>{p.nama_peralatan}</div>
+                      {p.merek && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-400)' }}>{p.merek}{p.tipe_model ? ` — ${p.tipe_model}` : ''}</div>}
+                    </td>
+                    <td>
+                      <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
+                        {p.nomor_aset}
+                      </code>
+                    </td>
+                    <td>
+                      <span className="badge badge-blue">
+                        {kategoriLabel[p.kategori_peralatan_id] || `Kat-${p.kategori_peralatan_id}`}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge ${statusClass[p.status_alat] || 'badge-gray'}`}>
+                        <span className="badge-dot" />
+                        {p.status_alat}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => onNavigate(`/peralatan/detail/${p.id}`)}
+                          title="Detail"
+                          id={`btn-detail-${p.id}`}
+                        >
+                          <ChevronRight size={14} /> Detail
+                        </button>
+                        <a
+                          href={peralatanApi.getQRCodeUrl(p.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-ghost btn-sm"
+                          title="Lihat QR Code"
+                          id={`btn-qr-${p.id}`}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}
+                        >
+                          <QrCode size={14} />
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

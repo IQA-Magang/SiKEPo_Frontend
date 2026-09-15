@@ -1,0 +1,572 @@
+/* ==========================================================================
+   SiKEPo Layout — Telkom Red & Clean White Sidebar Design System
+   ========================================================================== */
+
+/* ---- APP SHELL ---- */
+.app-shell {
+  min-height: 100vh;
+  background-color: #F4F5F8;
+  color: #111111;
+  display: flex;
+}
+
+/* ---- TOPBAR (Telkom Red Vibrant Gradient) ---- */
+.topbar {
+  height: 70px;
+  background: linear-gradient(135deg, #E30613 0%, #B8000A 100%);
+  border-bottom: 3px solid #7E0006;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  box-shadow: 0 4px 20px rgba(184, 0, 10, 0.25);
+}
+
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-tth-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.topbar-tth-sub {
+  font-size: 8px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 0.3px;
+  margin-top: -2px;
+  text-transform: uppercase;
+}
+
+.brand-divider {
+  height: 24px;
+  width: 1px;
+  background-color: rgba(255, 255, 255, 0.35);
+}
+
+.brand-name {
+  font-family: var(--font-display, sans-serif);
+  font-size: 20px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.4px;
+}
+
+/* Topbar Center Search */
+.topbar-search {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 20px;
+}
+
+.topbar-search .search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+}
+
+.topbar-search input {
+  width: 100%;
+  height: 42px;
+  background-color: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 9999px;
+  padding: 0 20px 0 44px;
+  font-size: 13.5px;
+  color: #FFFFFF;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.topbar-search input:focus {
+  background-color: rgba(0, 0, 0, 0.35);
+  border-color: #FFFFFF;
+  box-shadow: 0 0 0 3.5px rgba(255, 255, 255, 0.25);
+}
+
+.topbar-search input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Topbar Right Icons & Profile */
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.icon-badge-button {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.18);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.icon-badge-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: #FFFFFF;
+}
+
+.notification-dot {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  background-color: #FFFFFF;
+  border-radius: 50%;
+  border: 2px solid #E30613;
+}
+
+.profile-wrapper {
+  position: relative;
+}
+
+.profile-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  padding: 6px 14px 6px 8px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-button:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #FFFFFF;
+}
+
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  color: #E30613;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+.user-name-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.user-role-badge {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+}
+
+.chevron-icon {
+  color: rgba(255, 255, 255, 0.75);
+  transition: transform 0.2s ease;
+}
+
+.chevron-icon.open {
+  transform: rotate(180deg);
+}
+
+/* Profile Dropdown Menu */
+.profile-dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: 52px;
+  width: 240px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  animation: fadeIn 0.15s ease;
+}
+
+.dropdown-header strong {
+  display: block;
+  font-size: 14px;
+  color: #111111;
+  font-weight: 700;
+}
+
+.dropdown-header p {
+  font-size: 12px;
+  color: #6B7280;
+  margin: 2px 0 8px 0;
+  word-break: break-all;
+}
+
+.role-chip {
+  display: inline-block;
+  background: #FEF2F2;
+  color: #E30613;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid #FCA5A5;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #F3F4F6;
+  margin: 10px 0;
+}
+
+.dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover {
+  background: #F9FAFB;
+}
+
+.dropdown-item.text-red {
+  color: #DC2626;
+}
+
+.dropdown-item.text-red:hover {
+  background: #FEF2F2;
+}
+
+/* ---- SIDEBAR (Clean White with Red Highlights) ---- */
+.sidebar {
+  position: fixed;
+  top: 70px;
+  bottom: 0;
+  left: 0;
+  width: 260px;
+  background: #FFFFFF;
+  border-right: 1px solid #E5E7EB;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 40;
+  overflow-y: auto;
+  transition: transform 0.25s ease-in-out;
+}
+
+.sidebar-top {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-section-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #6B7280;
+  letter-spacing: 0.8px;
+  margin-bottom: 4px;
+  padding-left: 12px;
+  text-transform: uppercase;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-item {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.nav-item:hover {
+  background: #F3F4F6;
+  color: #E30613;
+}
+
+.nav-item.active {
+  background: #FEF2F2;
+  color: #E30613;
+  font-weight: 700;
+}
+
+.nav-icon-svg {
+  color: #6B7280;
+  transition: color 0.2s ease;
+}
+
+.nav-item:hover .nav-icon-svg,
+.nav-item.active .nav-icon-svg {
+  color: #E30613;
+}
+
+.active-indicator {
+  position: absolute;
+  right: 14px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #E30613;
+}
+
+/* Collapsible Nav Group */
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.nav-group-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: #6B7280;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 4px;
+}
+
+.nav-group-header:hover {
+  background: #F9FAFB;
+  color: #374151;
+}
+
+.nav-group-icon {
+  color: #9CA3AF;
+}
+
+.nav-group-label {
+  flex: 1;
+  text-align: left;
+}
+
+.nav-group-chevron {
+  color: #9CA3AF;
+  flex-shrink: 0;
+}
+
+.nav-group-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 10px;
+  margin-top: 2px;
+  border-left: 2px solid #E5E7EB;
+  margin-left: 16px;
+  margin-right: 4px;
+}
+
+.nav-item.nav-child {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4B5563;
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  gap: 0;
+}
+
+.nav-item.nav-child.active {
+  background: #FEF2F2;
+  color: #E30613;
+  font-weight: 700;
+}
+
+.nav-item.nav-child:hover {
+  background: #F3F4F6;
+  color: #E30613;
+}
+
+.nav-item.disabled,
+.nav-item.disabled:hover {
+  color: #9CA3AF;
+  background: transparent;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+/* Sidebar System Card */
+.sidebar-system-card {
+  background: #111111;
+  color: #FFFFFF;
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid #27272A;
+  margin-top: 20px;
+}
+
+.system-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #FFFFFF;
+  margin-bottom: 4px;
+}
+
+.text-red {
+  color: #E30613;
+}
+
+.system-card-desc {
+  font-size: 11.5px;
+  color: #9CA3AF;
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.system-card-ver {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #6B7280;
+  letter-spacing: 0.2px;
+}
+
+/* Mobile Header in Sidebar */
+.sidebar-mobile-header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #E5E7EB;
+  margin-bottom: 12px;
+}
+
+.sidebar-close-btn {
+  background: transparent;
+  border: none;
+  color: #6B7280;
+  cursor: pointer;
+  padding: 4px;
+}
+
+/* Topbar Hamburger */
+.topbar-hamburger {
+  display: none;
+  background: transparent;
+  border: none;
+  color: #FFFFFF;
+  cursor: pointer;
+  padding: 6px;
+  margin-right: 12px;
+  border-radius: 6px;
+}
+
+.topbar-hamburger:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ---- MAIN CONTENT ---- */
+.main-content {
+  margin-left: 260px;
+  margin-top: 70px;
+  padding: 32px 36px 60px;
+  width: calc(100% - 260px);
+  min-height: calc(100vh - 70px);
+  background-color: #F4F5F8;
+  box-sizing: border-box;
+}
+
+.page-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 1024px) {
+  .sidebar {
+    transform: translateX(-100%);
+    top: 0;
+    z-index: 100;
+  }
+
+  .sidebar.sidebar-mobile-open {
+    transform: translateX(0);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.25);
+  }
+
+  .sidebar-mobile-header {
+    display: flex;
+  }
+
+  .topbar-hamburger {
+    display: block;
+  }
+
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+    padding: 24px 16px;
+  }
+
+  .topbar-search {
+    display: none;
+  }
+}

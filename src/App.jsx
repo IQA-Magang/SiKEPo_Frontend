@@ -1,73 +1,138 @@
 import React, { useState, useEffect } from 'react';
-import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import Dashboard from './pages/Dashboard';
-import EquipmentList from './pages/equipment/EquipmentList';
-import EquipmentCreate from './pages/equipment/EquipmentCreate';
-import EquipmentDetailPage from './pages/equipment/EquipmentDetailPage';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-import UserManagement from './pages/admin/UserManagement';
-import LabsManagement from './pages/admin/LabsManagement';
-import RuanganManagement from './pages/admin/RuanganManagement';
-import PicManagement from './pages/admin/PicManagement';
-import KategoriManagement from './pages/admin/KategoriManagement';
-import AssetGroupManagement from './pages/admin/AssetGroupManagement';
+import Sidebar from './components/layout/Sidebar.jsx';
+import Topbar from './components/layout/Topbar.jsx';
 
-const getPath = () => window.location.hash ? window.location.hash.replace('#', '') : '/login';
+// Pages
+import Login from './pages/Login.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import EquipmentList from './pages/equipment/EquipmentList.jsx';
+import EquipmentDetail from './pages/equipment/EquipmentDetail.jsx';
+import EquipmentCreate from './pages/equipment/EquipmentCreate.jsx';
+import UserManagement from './pages/admin/UserManagement.jsx';
+import LabsManagement from './pages/admin/LabsManagement.jsx';
+import RuanganManagement from './pages/admin/RuanganManagement.jsx';
+import AssetGroupManagement from './pages/admin/AssetGroupManagement.jsx';
+import CategoryManagement from './pages/admin/CategoryManagement.jsx';
+import Settings from './pages/Settings.jsx';
+import { ACCESS, ACTIONS, can } from './utils/permissions.js';
+
+// Helper: ambil path dari hash
+function getPathFromHash() {
+  const hash = window.location.hash;
+  if (!hash || hash === '#') return '/dashboard';
+  const clean = hash.startsWith('#') ? hash.slice(1) : hash;
+  return clean.startsWith('/') ? clean : `/${clean}`;
+}
 
 export default function App() {
-  const [currentPath, setCurrentPath] = useState(getPath);
+  const [currentPath, setCurrentPath] = useState(getPathFromHash);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [token, setToken] = useState(() => localStorage.getItem('sikepo_token'));
 
+  // Sinkronisasi navigasi berbasis hash
   useEffect(() => {
-    const onHash = () => setCurrentPath(getPath());
-    window.addEventListener('hashchange', onHash);
+    function handleHashChange() {
+      const p = getPathFromHash();
+      setCurrentPath(p);
+      setSidebarOpen(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
-    const onSessionExpired = () => {
+    function handleSessionExpired() {
+      setToken(null);
       navigate('/login');
-    };
-    window.addEventListener('sikepo_session_expired', onSessionExpired);
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('sikepo_session_expired', handleSessionExpired);
 
     return () => {
-      window.removeEventListener('hashchange', onHash);
-      window.removeEventListener('sikepo_session_expired', onSessionExpired);
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('sikepo_session_expired', handleSessionExpired);
     };
   }, []);
 
-  const navigate = (path) => { window.location.hash = path; setCurrentPath(path); };
+  // Auth Guard
+  useEffect(() => {
+    const currentToken = localStorage.getItem('sikepo_token');
+    setToken(currentToken);
 
-  // ponytail: minimal auth guard based on backend JWT token
-  const isAuth = Boolean(localStorage.getItem('sikepo_token'));
-  if (!isAuth && currentPath !== '/forgot-password' && currentPath !== '/login') {
+    if (!currentToken && currentPath !== '/login') {
+      window.location.hash = '/login';
+    } else if (currentToken && currentPath === '/login') {
+      window.location.hash = '/dashboard';
+    }
+  }, [currentPath]);
+
+  function navigate(path) {
+    window.location.hash = path;
+  }
+
+  // Jika halaman Login, render tanpa AppShell
+  if (currentPath === '/login' || !token) {
     return <Login onNavigate={navigate} />;
   }
-  if (isAuth && currentPath === '/login') {
-    return <Dashboard onNavigate={navigate} />;
+
+  // Route Resolver
+  function renderContent() {
+    // 1. Equipment Detail with dynamic ID: /peralatan/detail/:id
+    if (currentPath.startsWith('/peralatan/detail/')) {
+      const parts = currentPath.split('/');
+      const id = parts[parts.length - 1];
+      return <EquipmentDetail equipmentId={id} onNavigate={navigate} />;
+    }
+
+    switch (currentPath) {
+      case '/dashboard':
+        return <Dashboard onNavigate={navigate} />;
+      case '/peralatan':
+        return <EquipmentList onNavigate={navigate} />;
+      case '/peralatan/tambah':
+        return can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD) ? <EquipmentCreate onNavigate={navigate} /> : <EquipmentList onNavigate={navigate} />;
+      case '/admin/users':
+        return <UserManagement onNavigate={navigate} />;
+      case '/admin/labs':
+        return <LabsManagement onNavigate={navigate} />;
+      case '/admin/ruangan':
+        return <RuanganManagement onNavigate={navigate} />;
+      case '/admin/kelompok-aset':
+        return <AssetGroupManagement onNavigate={navigate} />;
+      case '/admin/kategori':
+        return <CategoryManagement onNavigate={navigate} />;
+      case '/settings':
+        return <Settings onNavigate={navigate} />;
+      default:
+        return <Dashboard onNavigate={navigate} />;
+    }
   }
 
-  // Route matching — order matters: specific before wildcard
-  if (currentPath === '/forgot-password')   return <ForgotPassword onNavigate={navigate} />;
-  if (currentPath === '/dashboard')         return <Dashboard onNavigate={navigate} />;
-  if (currentPath === '/alat-ukur/tambah')  return <EquipmentCreate onNavigate={navigate} />;
-  if (currentPath.startsWith('/alat-ukur/detail/')) {
-    const equipmentId = currentPath.split('/').pop();
-    return <EquipmentDetailPage equipmentId={equipmentId} onNavigate={navigate} />;
-  }
-  if (currentPath === '/alat-ukur')         return <EquipmentList onNavigate={navigate} />;
-  if (currentPath === '/settings' || currentPath === '/pengaturan') return <Settings onNavigate={navigate} />;
-  if (currentPath === '/profile')           return <Settings onNavigate={navigate} initialTab="profile" />;
-  if (currentPath === '/users' || currentPath === '/admin/users') return <UserManagement onNavigate={navigate} initialTab="users" />;
-  if (currentPath === '/admin/labs' || currentPath === '/admin/kelompok-lab') {
-    return <LabsManagement onNavigate={navigate} />;
-  }
-  if (currentPath === '/admin/ruangan' || currentPath === '/admin/kelompok-lokasi') {
-    return <RuanganManagement onNavigate={navigate} />;
-  }
-  if (currentPath === '/admin/pic-management') return <UserManagement onNavigate={navigate} initialTab="pic" />;
-  if (currentPath === '/admin/kelompok-aset') return <AssetGroupManagement onNavigate={navigate} />;
-  if (currentPath === '/admin/kelompok-peralatan' || currentPath === '/admin/kategori') {
-    return <KategoriManagement onNavigate={navigate} />;
-  }
+  return (
+    <div className="app-shell">
+      {/* Mobile Drawer Overlay */}
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
 
-  return <Login onNavigate={navigate} />;
+      {/* Sidebar Navigasi Berbasis Role */}
+      <Sidebar
+        currentPath={currentPath}
+        onNavigate={navigate}
+        onClose={() => setSidebarOpen(false)}
+        open={sidebarOpen}
+      />
+
+      {/* Topbar Header */}
+      <Topbar
+        currentPath={currentPath}
+        onNavigate={navigate}
+        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+      />
+
+      {/* Konten Halaman Utama */}
+      <main className="main-content" id="main-view">
+        {renderContent()}
+      </main>
+    </div>
+  );
 }

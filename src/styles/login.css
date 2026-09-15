@@ -1,9 +1,7 @@
 /* ==========================================================================
-   LOGIN: page layout, wave, login card, form, forgot password, help modal,
-   and responsive breakpoints for login pages.
+   LOGIN: page layout, wave, login card, form, help modal, and responsive
    ========================================================================== */
 
-/* Page Layout */
 .login-page-container {
   position: relative;
   min-height: 100vh;
@@ -15,8 +13,8 @@
   align-items: center;
   overflow-x: hidden;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  background-color: var(--color-background);
+  background-color: #F8F8F8;
+  box-sizing: border-box;
 }
 
 /* Wave Backgrounds */
@@ -35,8 +33,8 @@
 .wave-top-left {
   top: 0;
   left: 0;
-  width: 22vw;
-  max-width: 280px;
+  width: 24vw;
+  max-width: 320px;
   height: auto;
 }
 
@@ -57,7 +55,7 @@
   min-height: 100dvh;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.1fr 1fr;
   align-items: center;
   padding: 30px 24px;
 }
@@ -67,8 +65,8 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-end;
-  padding: 20px 45px 20px 20px;
+  align-items: center;
+  padding: 20px;
   position: relative;
   z-index: 5;
 }
@@ -83,7 +81,7 @@
 
 .sikepo-branding {
   text-align: center;
-  margin-bottom: 22px;
+  margin-bottom: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -91,35 +89,28 @@
   z-index: 5;
 }
 
-.sikepo-header-logo-img {
-  height: 52px;
-  width: auto;
-  max-width: 220px;
-  object-fit: contain;
-  margin-bottom: 8px;
-  display: block;
-}
-
 .sikepo-tagline {
   font-size: 24px;
   font-weight: 800;
   color: #111111;
   line-height: 1.25;
-  font-family: var(--font-heading);
-  letter-spacing: -0.2px;
+  font-family: var(--font-display, sans-serif);
+  letter-spacing: -0.3px;
   text-align: center;
+  margin-top: 10px;
 }
 
 /* Login Card */
 .login-card {
-  background: var(--color-white);
+  background: #FFFFFF;
   border-radius: 28px;
   padding: 36px 36px 28px 36px;
   width: 100%;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.08), 0 5px 15px rgba(0, 0, 0, 0.03);
   position: relative;
   z-index: 5;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
 }
 
 .form-group {
@@ -129,9 +120,9 @@
 }
 
 .input-label {
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--color-black);
+  color: #111111;
   margin-bottom: 7px;
 }
 
@@ -146,80 +137,79 @@
   width: 100%;
   height: 48px;
   border-radius: 9999px;
-  border: 1.5px solid var(--color-input-border);
+  border: 1.5px solid #E30613;
   padding: 0 22px;
-  font-size: 15px;
-  font-family: var(--font-sans);
-  color: var(--color-black);
-  background-color: var(--color-white);
+  font-size: 14px;
+  font-family: inherit;
+  color: #111111;
+  background-color: #FFFFFF;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 }
 
-.pill-input::placeholder { color: #9CA3AF; font-weight: 400; }
-
 .pill-input:focus {
-  border-color: var(--color-dark-red);
-  box-shadow: 0 0 0 4px rgba(227, 6, 19, 0.12);
+  border-color: #B8000A;
+  box-shadow: 0 0 0 3px rgba(227, 6, 19, 0.15);
 }
 
 .pill-input.input-error {
-  border-color: #DC2626 !important;
+  border-color: #DC2626;
   background-color: #FEF2F2;
 }
 
 .toggle-password-btn {
   position: absolute;
-  right: 20px;
-  background: transparent;
+  right: 16px;
+  background: none;
   border: none;
+  color: #6B7280;
   cursor: pointer;
-  color: #374151;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 4px;
-  transition: color 0.2s ease;
 }
 
-.toggle-password-btn:hover { color: var(--color-primary-red); }
+.toggle-password-btn:hover {
+  color: #111111;
+}
 
-/* Error & Banner */
 .error-text {
-  font-size: 13px;
   color: #DC2626;
-  font-weight: 600;
-  margin-top: 6px;
-  margin-left: 12px;
+  font-size: 12px;
+  margin-top: 5px;
+  padding-left: 12px;
+  font-weight: 500;
 }
 
 .error-banner {
-  background-color: #FEF2F2;
-  border: 1px solid #FCA5A5;
+  background-color: #FEE2E2;
+  border: 1px solid #F87171;
   color: #991B1B;
-  padding: 12px 18px;
-  border-radius: 16px;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 20px;
-  text-align: center;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  line-height: 1.4;
 }
 
-/* Google reCAPTCHA v2 Checkbox */
+/* Captcha wrapper */
 .captcha-form-group {
-  margin-bottom: 18px;
+  margin-top: 4px;
+  margin-bottom: 20px;
 }
 
 .recaptcha-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
   min-height: 78px;
-  background: #FAFAFA;
-  border: 1.5px solid #E5E7EB;
-  border-radius: 16px;
-  padding: 8px 6px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  padding: 4px;
+  overflow: hidden;
 }
 
 .recaptcha-wrapper.recaptcha-has-error {
@@ -227,356 +217,117 @@
   background-color: #FEF2F2;
 }
 
-.recaptcha-wrapper.recaptcha-disabled {
-  opacity: 0.65;
-  pointer-events: none;
-}
-
-.recaptcha-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  overflow: hidden;
-}
-
 .recaptcha-skeleton {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 10px;
-  height: 76px;
-  width: 100%;
-  max-width: 304px;
+  font-size: 12.5px;
   color: #6B7280;
-  font-size: 13.5px;
-  font-weight: 500;
+  padding: 12px;
 }
 
 .spinner-mini {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #E5E7EB;
-  border-top-color: var(--color-primary-red, #E30613);
+  width: 16px;
+  height: 16px;
+  border: 2px solid #D1D5DB;
+  border-top-color: #E30613;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
-.recaptcha-error-notice {
-  color: #DC2626;
-  font-size: 13px;
-  font-weight: 500;
-  text-align: center;
-  padding: 8px;
-}
-
-/* Buttons */
+/* Submit Button */
 .btn-masuk {
   width: 100%;
   height: 48px;
-  border-radius: 9999px;
-  background: var(--color-primary-red);
-  color: var(--color-white);
+  background-color: #E30613;
+  color: #FFFFFF;
   border: none;
-  font-size: 16px;
+  border-radius: 9999px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  margin-top: 6px;
-  transition: background-color 0.25s ease, transform 0.15s ease, box-shadow 0.25s ease;
-  box-shadow: var(--shadow-btn);
+  box-shadow: 0 8px 24px rgba(227, 6, 19, 0.4);
+  transition: background-color 0.2s, transform 0.15s, box-shadow 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-top: 8px;
 }
 
-.btn-masuk:hover:not(:disabled) { background-color: var(--color-dark-red); transform: translateY(-1px); }
-.btn-masuk:active:not(:disabled) { transform: translateY(1px); }
-.btn-masuk:disabled { opacity: 0.75; cursor: not-allowed; }
-
-.loading-state { display: flex; align-items: center; gap: 10px; }
-
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2.5px solid rgba(255, 255, 255, 0.4);
-  border-top-color: #FFFFFF;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+.btn-masuk:hover:not(:disabled) {
+  background-color: #B8000A;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(227, 6, 19, 0.5);
 }
 
-/* Card Links */
+.btn-masuk:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-masuk:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .form-links {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 20px;
-  padding: 0 4px;
+  margin-top: 18px;
+  font-size: 13px;
 }
 
 .link-item {
-  font-size: 15px;
-  font-weight: 500;
   color: #4B5563;
   text-decoration: none;
-  transition: color 0.2s ease;
+  font-weight: 600;
+  transition: color 0.15s;
 }
 
-.link-item:hover { color: var(--color-primary-red); text-decoration: underline; }
+.link-item:hover {
+  color: #E30613;
+}
 
-.btn-link { background: transparent; border: none; cursor: pointer; font-family: inherit; }
+.btn-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
 
-/* Right Column */
+/* Right Column: Giant Telkom Test House Logo */
 .login-right-col {
   display: flex;
-  flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
-  padding: 20px 20px 20px 45px;
+  align-items: center;
+  padding: 40px;
   position: relative;
   z-index: 5;
 }
 
 .tth-branding-wrapper {
   display: flex;
-  justify-content: flex-start;
+  flex-direction: column;
   align-items: center;
-  width: 100%;
+  text-align: center;
   max-width: 480px;
 }
 
-.tth-branding-container { display: flex; justify-content: flex-start; align-items: center; width: 100%; }
-
-.tth-logo-img {
-  width: 100%;
-  max-width: 460px;
-  height: auto;
-  object-fit: contain;
-  display: block;
-}
-
-/* Forgot Password */
-.forgot-card { text-align: left; }
-.forgot-heading { font-size: 24px; font-weight: 800; color: var(--color-black); margin-bottom: 8px; }
-.forgot-subtext { font-size: 14px; color: var(--color-gray); margin-bottom: 24px; line-height: 1.5; }
-.btn-kirim { margin-top: 14px; }
-.back-link-wrapper { justify-content: center; margin-top: 24px; }
-.link-back { display: flex; align-items: center; gap: 8px; font-weight: 600; }
-
-.info-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  background-color: #ECFDF5;
-  border: 1px solid #A7F3D0;
-  color: #065F46;
-  padding: 16px;
-  border-radius: 16px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.5;
-  margin-bottom: 20px;
-}
-
-/* Help Modal */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(17, 17, 17, 0.5);
-  backdrop-filter: blur(4px);
-  z-index: 999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  animation: fadeIn 0.25s ease;
-}
-
-.modal-content {
-  background: var(--color-white);
-  border-radius: 24px;
-  width: 100%;
-  max-width: 440px;
-  padding: 32px;
-  position: relative;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
-  animation: scaleUp 0.25s ease;
-}
-
-.modal-close-btn {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: #F3F4F6;
-  border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #4B5563;
-  transition: background-color 0.2s ease;
-}
-
-.modal-close-btn:hover { background-color: #E5E7EB; color: var(--color-primary-red); }
-.modal-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
-.modal-icon-wrapper { width: 48px; height: 48px; border-radius: 50%; background: #FEF2F2; display: flex; align-items: center; justify-content: center; }
-.modal-header h3 { font-size: 20px; font-weight: 800; color: var(--color-black); }
-.modal-body { font-size: 15px; color: #4B5563; line-height: 1.6; margin-bottom: 24px; }
-.modal-footer { display: flex; justify-content: flex-end; }
-
-.btn-modal-close {
-  background: var(--color-primary-red);
-  color: var(--color-white);
-  border: none;
-  padding: 10px 24px;
-  border-radius: 9999px;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.btn-modal-close:hover { background-color: var(--color-dark-red); }
-
 /* Responsive */
-@media (max-width: 1200px) {
-  .login-left-col { padding-right: 20px; }
-  .login-right-col { padding-left: 20px; }
-  .tth-logo-img { max-width: 360px; }
-}
-
-@media (max-width: 992px) {
+@media (max-width: 900px) {
   .login-content-grid {
-    grid-template-columns: 1fr 1fr;
-    padding: 30px 16px;
+    grid-template-columns: 1fr;
+    gap: 30px;
+    padding: 40px 16px;
   }
-  .login-left-col, .login-right-col { padding: 16px; }
-  .tth-branding-wrapper { justify-content: center; }
-  .tth-logo-img { max-width: 290px; }
-  .sikepo-tagline { font-size: 20px; }
-  .login-card { padding: 32px 28px 24px; }
-}
 
-@media (max-width: 860px) {
-  /* Mobile Single Column: Focus cleanly on branding and login card */
-  .login-content-grid {
-    grid-template-columns: 100%;
-    min-height: 100vh;
-    min-height: 100dvh;
-    padding: 24px 16px 70px 16px;
-    justify-content: center;
-    align-content: center;
-  }
-  /* Hide redundant secondary logo on mobile */
-  .login-right-col {
-    display: none !important;
-  }
   .login-left-col {
     align-items: center;
-    justify-content: center;
     padding: 0;
-    width: 100%;
-    margin: auto 0;
-  }
-  .login-left-wrapper {
-    max-width: 440px;
-    margin: 0 auto;
-    width: 100%;
-  }
-  .sikepo-header-logo-img { height: 44px; }
-  .sikepo-tagline { font-size: 19px; }
-  .login-card {
-    padding: 28px 22px;
-    border-radius: 22px;
-  }
-  /* Prevent iOS Safari auto-zoom on input focus */
-  .pill-input {
-    font-size: 16px;
-    height: 48px;
-  }
-  .wave-top-left { width: 32vw; max-width: 160px; }
-  .wave-bottom { height: 110px; }
-}
-
-@media (max-width: 480px) {
-  .login-content-grid {
-    padding: 20px 12px 65px 12px;
-  }
-  .sikepo-branding { margin-bottom: 16px; }
-  .sikepo-header-logo-img { height: 38px; }
-  .sikepo-tagline { font-size: 16.5px; line-height: 1.3; }
-
-  .login-card {
-    padding: 22px 16px;
-    border-radius: 20px;
   }
 
-  .form-group { margin-bottom: 14px; }
-  .captcha-form-group { margin-bottom: 14px; }
-
-  .input-label { font-size: 13.5px; margin-bottom: 6px; }
-
-  .pill-input {
-    height: 46px;
-    font-size: 16px;
-    padding: 0 18px;
+  .login-right-col {
+    display: none;
   }
-
-  /* Captcha compact card */
-  .recaptcha-wrapper {
-    padding: 6px 4px;
-    min-height: 74px;
-  }
-  .recaptcha-container > div {
-    transform-origin: center center;
-  }
-
-  .btn-masuk {
-    height: 46px;
-    font-size: 15.5px;
-    margin-top: 4px;
-  }
-
-  .form-links {
-    margin-top: 16px;
-    font-size: 13.5px;
-  }
-
-  .modal-content {
-    padding: 24px 18px;
-    border-radius: 20px;
-  }
-}
-
-@media (max-width: 360px) {
-  .login-card {
-    padding: 18px 12px;
-    border-radius: 16px;
-  }
-  .sikepo-tagline { font-size: 15px; }
-  .recaptcha-container > div {
-    transform: scale(0.85);
-    transform-origin: center center;
-  }
-  .form-links {
-    flex-direction: column;
-    gap: 8px;
-    align-items: center;
-  }
-}
-
-/* Compact layout for small viewport heights (laptops or landscape mobile) */
-@media (max-height: 720px) and (min-width: 861px) {
-  .login-content-grid { padding: 16px 20px; }
-  .sikepo-branding { margin-bottom: 14px; }
-  .sikepo-header-logo-img { height: 40px; margin-bottom: 4px; }
-  .sikepo-tagline { font-size: 19px; }
-  .login-card { padding: 26px 30px 20px; }
-  .form-group { margin-bottom: 12px; }
-  .captcha-form-group { margin-bottom: 12px; }
-  .pill-input { height: 44px; }
-  .btn-masuk { height: 44px; font-size: 15px; }
-  .form-links { margin-top: 14px; }
 }

@@ -1,550 +1,481 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Layers,
-  Plus,
-  Search,
-  Pencil,
-  Trash2,
-  X,
-  CheckCircle,
-  AlertCircle,
-  RefreshCw,
-  UserCheck,
-  Building2
-} from 'lucide-react';
-import Topbar from '../../components/layout/Topbar';
-import Sidebar from '../../components/layout/Sidebar';
-import { ruanganApi, labsApi, userApi, getStoredUser } from '../../utils/api';
+import React, { useState, useEffect } from 'react';
+import { DoorOpen, Plus, Pencil, Trash2, X, RefreshCw, Building2, Shield, Layers } from 'lucide-react';
+import { ruanganApi, labsApi, usersApi } from '../../utils/api.js';
+import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
 const EMPTY_FORM = {
   nama_ruangan: '',
   kode_ruangan: '',
   lantai_ruangan: 'Lantai 1',
   labs_id: '',
-  pic_user_id: ''
+  pic_user_id: '',
 };
 
 export default function RuanganManagement({ onNavigate }) {
-  const [user, setUser] = useState(getStoredUser);
+  const canAdd = can(ACCESS.MASTER_EQUIPMENT, ACTIONS.ADD);
+  const canEdit = can(ACCESS.MASTER_EQUIPMENT, ACTIONS.EDIT);
+  const canDelete = can(ACCESS.MASTER_EQUIPMENT, ACTIONS.DELETE);
   const [ruanganList, setRuanganList] = useState([]);
-  const [labsList, setLabsList] = useState([]);
-  const [usersList, setUsersList] = useState([]);
+  const [labs, setLabs] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState('');
-  const [notice, setNotice] = useState('');
-
-  // Filter & Search
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterLabId, setFilterLabId] = useState('');
-
-  // Modal State
-  const [modalMode, setModalMode] = useState(null); // 'create' | 'edit' | null
-  const [formData, setFormData] = useState(EMPTY_FORM);
-  const [selectedRuanganId, setSelectedRuanganId] = useState(null);
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
-
-  // Delete State
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  const [modal, setModal] = useState(null); // null | { mode: 'create'|'edit', id }
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState(null);
+  const [search, setSearch] = useState('');
+  const [filterLab, setFilterLab] = useState('');
 
   useEffect(() => {
-    const current = getStoredUser();
-    if (current) {
-      setUser(current);
-      if (current.role?.toLowerCase() !== 'admin') {
-        onNavigate('/dashboard');
-      }
-    } else {
-      onNavigate('/login');
-    }
-
-    const handleUserChanged = (e) => {
-      if (e.detail) setUser(e.detail);
-    };
-    window.addEventListener('sikepo_user_changed', handleUserChanged);
-    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
+    loadData();
   }, []);
 
-  const fetchData = async () => {
+  async function loadData() {
     setLoading(true);
-    setApiError('');
     try {
-      const [rRes, lRes, uRes] = await Promise.allSettled([
+      const [ruanganRes, labsRes, usersRes] = await Promise.allSettled([
         ruanganApi.getAll(),
         labsApi.getAll(),
-        userApi.getAll()
+        usersApi.getAll(),
       ]);
 
-      if (rRes.status === 'fulfilled' && rRes.value?.data) {
-        setRuanganList(rRes.value.data);
+      if (ruanganRes.status === 'fulfilled') {
+        setRuanganList(ruanganRes.value.data || []);
       } else {
-        setRuanganList([]);
-        if (rRes.status === 'rejected') console.warn('Ruangan fetch failed:', rRes.reason);
+        setError(ruanganRes.reason?.message || 'Gagal memuat ruangan');
       }
 
-      if (lRes.status === 'fulfilled' && lRes.value?.data) {
-        setLabsList(lRes.value.data);
+      if (labsRes.status === 'fulfilled') {
+        setLabs(labsRes.value.data || []);
       }
 
-      if (uRes.status === 'fulfilled' && uRes.value?.data) {
-        setUsersList(uRes.value.data);
+      if (usersRes.status === 'fulfilled') {
+        setUsers(usersRes.value.data || []);
       }
     } catch (err) {
-      console.error('Failed to fetch ruangan data:', err);
-      setApiError(err.message || 'Gagal terhubung ke backend API');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  function openCreate() {
+    setForm(EMPTY_FORM);
+    setError('');
+    setModal({ mode: 'create' });
+  }
 
-  const showNotice = (msg) => {
-    setNotice(msg);
-    setTimeout(() => setNotice(''), 3500);
-  };
-
-  const filteredRuangan = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    return ruanganList.filter((item) => {
-      if (filterLabId && String(item.labs_id) !== String(filterLabId)) {
-        return false;
-      }
-      if (!q) return true;
-      return (
-        item.nama_ruangan?.toLowerCase().includes(q) ||
-        item.kode_ruangan?.toLowerCase().includes(q) ||
-        item.labs?.nama_labs?.toLowerCase().includes(q) ||
-        item.pic_user?.name?.toLowerCase().includes(q)
-      );
+  function openEdit(item) {
+    setForm({
+      nama_ruangan: item.nama_ruangan || '',
+      kode_ruangan: item.kode_ruangan || '',
+      lantai_ruangan: item.lantai_ruangan || 'Lantai 1',
+      labs_id: item.labs_id ? String(item.labs_id) : '',
+      pic_user_id: item.pic_user_id ? String(item.pic_user_id) : '',
     });
-  }, [ruanganList, searchQuery, filterLabId]);
+    setError('');
+    setModal({ mode: 'edit', id: item.id });
+  }
 
-  const handleOpenCreate = () => {
-    setFormData(EMPTY_FORM);
-    setSelectedRuanganId(null);
-    setFormError('');
-    setModalMode('create');
-  };
+  async function handleSave() {
+    if (!form.nama_ruangan.trim() || !form.kode_ruangan.trim() || !form.lantai_ruangan.trim()) {
+      setError('Kode Ruangan, Nama Ruangan, dan Lantai wajib diisi.');
+      return;
+    }
 
-  const handleOpenEdit = (target) => {
-    setSelectedRuanganId(target.id);
-    setFormData({
-      nama_ruangan: target.nama_ruangan || '',
-      kode_ruangan: target.kode_ruangan || '',
-      lantai_ruangan: target.lantai_ruangan || 'Lantai 1',
-      labs_id: target.labs_id ? String(target.labs_id) : '',
-      pic_user_id: target.pic_user_id ? String(target.pic_user_id) : ''
-    });
-    setFormError('');
-    setModalMode('edit');
-  };
-
-  const handleSubmitForm = async (e) => {
-    e.preventDefault();
-    setFormError('');
-    setFormSubmitting(true);
+    setSaving(true);
+    setError('');
 
     try {
-      const cleanNama = formData.nama_ruangan.trim();
-      const cleanKode = formData.kode_ruangan.trim();
-      const cleanLantai = (formData.lantai_ruangan || '').trim() || 'Lantai 1';
-      const labsIdNum = formData.labs_id ? Number(formData.labs_id) : null;
-      const picIdNum = formData.pic_user_id ? Number(formData.pic_user_id) : null;
-
-      if (!cleanNama || !cleanKode) {
-        throw new Error('Nama Ruangan dan Kode Ruangan wajib diisi');
-      }
-
-      if (!cleanLantai) {
-        throw new Error('Lantai Ruangan wajib diisi');
-      }
-
-      if (!labsIdNum) {
-        throw new Error('Laboratorium Induk wajib dipilih');
-      }
-
       const payload = {
-        nama_ruangan: cleanNama,
-        kode_ruangan: cleanKode,
-        lantai_ruangan: cleanLantai,
-        labs_id: labsIdNum,
-        pic_user_id: picIdNum
+        nama_ruangan: form.nama_ruangan.trim(),
+        kode_ruangan: form.kode_ruangan.trim().toUpperCase(),
+        lantai_ruangan: form.lantai_ruangan.trim(),
+        labs_id: form.labs_id ? Number(form.labs_id) : null,
+        pic_user_id: form.pic_user_id ? Number(form.pic_user_id) : null,
       };
 
-      if (modalMode === 'create') {
+      if (modal.mode === 'create') {
         await ruanganApi.create(payload);
-        showNotice(`Ruangan "${cleanNama}" berhasil dibuat.`);
-      } else if (modalMode === 'edit') {
-        await ruanganApi.update(selectedRuanganId, payload);
-        showNotice(`Ruangan "${cleanNama}" berhasil diperbarui.`);
+      } else {
+        await ruanganApi.update(modal.id, payload);
       }
 
-      setModalMode(null);
-      fetchData();
+      setModal(null);
+      await loadData();
     } catch (err) {
-      setFormError(err.message || 'Terjadi kesalahan saat menyimpan ruangan');
+      setError(err.message || 'Gagal menyimpan ruangan.');
     } finally {
-      setFormSubmitting(false);
+      setSaving(false);
     }
-  };
+  }
 
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
-
-    setDeleting(true);
-    setDeleteError('');
+  async function handleDelete(id) {
+    if (!window.confirm('Yakin ingin menghapus ruangan uji ini?')) return;
+    setDeleting(id);
     try {
-      await ruanganApi.delete(deleteTarget.id);
-      showNotice(`Ruangan "${deleteTarget.nama_ruangan}" berhasil dihapus.`);
-      setDeleteTarget(null);
-      fetchData();
+      await ruanganApi.delete(id);
+      setRuanganList((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
-      setDeleteError(err.message || 'Gagal menghapus ruangan');
+      alert(err.message || 'Gagal menghapus ruangan.');
     } finally {
-      setDeleting(false);
+      setDeleting(null);
     }
-  };
+  }
+
+  const filtered = ruanganList.filter((r) => {
+    const q = search.toLowerCase();
+    const matchQ =
+      !q ||
+      r.nama_ruangan?.toLowerCase().includes(q) ||
+      r.kode_ruangan?.toLowerCase().includes(q) ||
+      r.lantai_ruangan?.toLowerCase().includes(q) ||
+      r.labs?.nama_labs?.toLowerCase().includes(q) ||
+      r.pic_user?.name?.toLowerCase().includes(q);
+
+    const matchLab = !filterLab || String(r.labs_id) === filterLab;
+
+    return matchQ && matchLab;
+  });
 
   return (
-    <div className="app-shell">
-      <Topbar
-        user={user}
-        onNavigate={onNavigate}
-        title="Manajemen Ruangan"
-        onUpdateUser={(u) => setUser(u)}
-      />
+    <div className="page-container fade-in-up">
+      {/* Header */}
+      <div
+        className="page-header"
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 'var(--sp-3)',
+        }}
+      >
+        <div>
+          <h1 className="page-title">Ruangan Pengujian</h1>
+          <p className="page-subtitle">
+            Daftar ruangan uji dan alokasi laboratorium ({filtered.length} terdaftar)
+          </p>
+        </div>
+        {canAdd && <button className="btn btn-primary" onClick={openCreate} id="btn-tambah-ruangan">
+          <Plus size={16} /> Tambah Ruangan
+        </button>}
+      </div>
 
-      <Sidebar activePath="/admin/kelompok-lokasi" onNavigate={onNavigate} />
-
-      <main className="main-content">
-        {notice && (
-          <div
-            className="eq-confirm-banner"
-            style={{
-              background: '#ECFDF5',
-              borderColor: '#A7F3D0',
-              color: '#065F46',
-              marginBottom: '16px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CheckCircle size={16} color="#059669" />
-              <span>{notice}</span>
-            </div>
-          </div>
-        )}
-
-        <div className="eq-page-header">
-          <div>
-            <h1 className="eq-page-title">Manajemen Ruangan</h1>
-            <p className="eq-page-sub">
-              Master data lokasi ruangan dan penempatan Peralatan
-            </p>
-          </div>
-          <button className="btn-hero-primary" onClick={handleOpenCreate}>
-            <Plus size={16} />
-            <span>Tambah Ruangan</span>
-          </button>
+      {/* Filter Bar */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 'var(--sp-3)',
+          marginBottom: 'var(--sp-5)',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        <div className="search-bar" style={{ flex: 1, minWidth: 240 }}>
+          <DoorOpen className="search-icon" style={{ width: 16, height: 16 }} />
+          <input
+            id="input-search-ruangan"
+            className="form-input"
+            type="text"
+            placeholder="Cari kode, nama ruangan, PIC..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
-        {/* Filters and Search */}
-        <div className="eq-filter-card" style={{ marginBottom: '16px' }}>
-          <div className="eq-filter-search">
-            <Search size={16} className="search-icon" />
-            <input
-              type="text"
-              placeholder="Cari berdasarkan nama ruangan, kode, atau PIC..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+        <select
+          id="select-filter-lab"
+          className="form-select"
+          value={filterLab}
+          onChange={(e) => setFilterLab(e.target.value)}
+          style={{ width: 'auto', minWidth: 180 }}
+        >
+          <option value="">Semua Laboratorium</option>
+          {labs.map((l) => (
+            <option key={l.id} value={String(l.id)}>
+              {l.nama_labs} ({l.kode_labs})
+            </option>
+          ))}
+        </select>
 
-          <div className="eq-filter-selects">
-            <select
-              className="eq-select"
-              value={filterLabId}
-              onChange={(e) => setFilterLabId(e.target.value)}
-            >
-              <option value="">Semua Laboratorium</option>
-              {labsList.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.nama_labs} ({l.kode_labs})
-                </option>
-              ))}
-            </select>
+        <button
+          className="btn btn-secondary btn-icon"
+          onClick={loadData}
+          id="btn-refresh-ruangan"
+          title="Segarkan data"
+        >
+          <RefreshCw size={16} />
+        </button>
+      </div>
 
-            <button
-              className="btn-refresh"
-              onClick={fetchData}
-              title="Perbarui data"
-            >
-              <RefreshCw size={13} className={loading ? 'spin' : ''} />
-              <span>Refresh</span>
-            </button>
-          </div>
+      {/* Table */}
+      {loading ? (
+        <div
+          className="card"
+          style={{
+            padding: 'var(--sp-6)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--sp-3)',
+          }}
+        >
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="skeleton" style={{ height: 52 }} />
+          ))}
         </div>
-
-        {/* Table Panel */}
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Daftar Ruangan</h2>
-              <p className="panel-subtitle">
-                {loading ? 'Memuat data dari backend...' : `${filteredRuangan.length} ruangan ditemukan`}
-              </p>
-            </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <DoorOpen size={32} />
           </div>
+          <p className="empty-state-title">Tidak ada ruangan ditemukan</p>
+          {canAdd && <button className="btn btn-primary" onClick={openCreate}>
+            <Plus size={16} /> Tambah Ruangan
+          </button>}
+        </div>
+      ) : (
+        <div className="table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ width: 130 }}>Kode Ruangan</th>
+                <th>Nama Ruangan</th>
+                <th>Laboratorium</th>
+                <th>Lantai</th>
+                <th>PIC Ruangan</th>
+                <th style={{ width: 120 }}>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => {
+                const labObj = r.labs || labs.find((l) => l.id === r.labs_id);
+                const picObj = r.pic_user || users.find((u) => u.user_id === r.pic_user_id);
 
-          {apiError && (
-            <div style={{ padding: '14px 20px', background: '#FEF2F2', borderBottom: '1px solid #FECACA', color: '#991B1B', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertCircle size={18} />
-                <span>{apiError}</span>
-              </div>
-              <button className="btn-hero-secondary" style={{ padding: '4px 10px', fontSize: '11.5px' }} onClick={fetchData}>
-                Coba Lagi
-              </button>
-            </div>
-          )}
-
-          <div className="table-responsive">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>No</th>
-                  <th>Kode Ruangan</th>
-                  <th>Nama Ruangan</th>
-                  <th>Lantai</th>
-                  <th>Laboratorium Induk</th>
-                  <th>Petugas PIC</th>
-                  <th>Tanggal Dibuat</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRuangan.map((r, idx) => (
-                  <tr key={r.id || idx}>
-                    <td><span className="eq-row-num">{String(idx + 1).padStart(2, '0')}</span></td>
+                return (
+                  <tr key={r.id}>
                     <td>
-                      <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#111827' }}>
+                      <code
+                        style={{
+                          fontSize: 'var(--text-xs)',
+                          background: 'var(--clr-dark-100)',
+                          padding: '2px 6px',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'var(--clr-primary-700)',
+                          fontWeight: 'var(--fw-bold)',
+                        }}
+                      >
                         {r.kode_ruangan}
-                      </span>
+                      </code>
                     </td>
+                    <td style={{ fontWeight: 'var(--fw-semibold)' }}>{r.nama_ruangan}</td>
                     <td>
-                      <strong className="tool-name-text">{r.nama_ruangan}</strong>
-                    </td>
-                    <td>
-                      <span className="date-text" style={{ fontWeight: 600, color: '#374151' }}>
-                        {r.lantai_ruangan || 'Lantai 1'}
-                      </span>
-                    </td>
-                    <td>
-                      {r.labs ? (
-                        <span className="borrower-name">{r.labs.nama_labs}</span>
+                      {labObj ? (
+                        <span className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Building2 size={12} />
+                          {labObj.nama_labs}
+                        </span>
                       ) : (
-                        <span style={{ color: '#9CA3AF' }}>-</span>
+                        <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)' }}>
+                          -
+                        </span>
                       )}
                     </td>
                     <td>
-                      {r.pic_user ? (
-                        <div>
-                          <strong style={{ color: '#111827', fontSize: '13px' }}>{r.pic_user.name}</strong>
-                          <br />
-                          <small style={{ color: '#6B7280' }}>{r.pic_user.position || 'Staff'}</small>
+                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Layers size={12} />
+                        {r.lantai_ruangan}
+                      </span>
+                    </td>
+                    <td>
+                      {picObj ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+                          <div
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: '50%',
+                              background: 'var(--clr-primary-100)',
+                              color: 'var(--clr-primary-700)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 10,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {picObj.name ? picObj.name[0].toUpperCase() : 'U'}
+                          </div>
+                          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>
+                            {picObj.name}
+                          </span>
                         </div>
                       ) : (
-                        <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>Belum Ditugaskan</span>
+                        <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)', fontStyle: 'italic' }}>
+                          Belum ada PIC
+                        </span>
                       )}
                     </td>
                     <td>
-                      <span className="date-text">
-                        {r.created_at ? new Date(r.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="eq-actions">
-                        <button
-                          className="eq-btn-action edit"
-                          onClick={() => handleOpenEdit(r)}
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {canEdit && <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => openEdit(r)}
+                          id={`btn-edit-ruangan-${r.id}`}
                           title="Edit Ruangan"
                         >
                           <Pencil size={13} />
-                        </button>
-                        <button
-                          className="eq-btn-action delete"
-                          onClick={() => { setDeleteError(''); setDeleteTarget(r); }}
+                        </button>}
+                        {canDelete && <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(r.id)}
+                          disabled={deleting === r.id}
+                          id={`btn-hapus-ruangan-${r.id}`}
                           title="Hapus Ruangan"
                         >
                           <Trash2 size={13} />
-                        </button>
+                        </button>}
                       </div>
                     </td>
                   </tr>
-                ))}
-                {!loading && filteredRuangan.length === 0 && (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '36px', color: '#6B7280' }}>
-                      Belum ada data ruangan yang sesuai.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </main>
-
-      {/* MODAL CREATE / EDIT */}
-      {modalMode && (
-        <div className="profile-modal-overlay">
-          <div className="profile-modal" style={{ maxWidth: '480px' }}>
-            <div className="profile-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Layers size={20} className="text-red" />
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
-                  {modalMode === 'create' ? 'Tambah Ruangan Baru' : 'Ubah Data Ruangan'}
-                </h3>
-              </div>
-              <button className="profile-modal-close" onClick={() => setModalMode(null)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitForm}>
-              <div className="profile-modal-body" style={{ padding: '20px' }}>
-                {formError && (
-                  <div className="error-banner" style={{ marginBottom: '14px' }}>
-                    {formError}
-                  </div>
-                )}
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">Kode Ruangan *</label>
-                  <input
-                    type="text"
-                    className="eq-form-input"
-                    placeholder="Contoh: R-101"
-                    value={formData.kode_ruangan}
-                    onChange={(e) => setFormData({ ...formData, kode_ruangan: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">Nama Ruangan *</label>
-                  <input
-                    type="text"
-                    className="eq-form-input"
-                    placeholder="Contoh: Ruang Uji Transmisi Serat Optik"
-                    value={formData.nama_ruangan}
-                    onChange={(e) => setFormData({ ...formData, nama_ruangan: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">Lantai Ruangan *</label>
-                  <input
-                    type="text"
-                    className="eq-form-input"
-                    placeholder="Contoh: Lantai 1 / Lantai 2 / Dasar"
-                    value={formData.lantai_ruangan}
-                    onChange={(e) => setFormData({ ...formData, lantai_ruangan: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">
-                    Laboratorium Induk <span style={{ color: '#DC2626' }}>*</span>
-                  </label>
-                  <select
-                    className="eq-form-input"
-                    value={formData.labs_id}
-                    onChange={(e) => setFormData({ ...formData, labs_id: e.target.value })}
-                    required
-                  >
-                    <option value="">-- Pilih Laboratorium --</option>
-                    {labsList.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.nama_labs} ({l.kode_labs})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">Petugas PIC Ruangan (Opsional)</label>
-                  <select
-                    className="eq-form-input"
-                    value={formData.pic_user_id}
-                    onChange={(e) => setFormData({ ...formData, pic_user_id: e.target.value })}
-                  >
-                    <option value="">-- Pilih Petugas PIC --</option>
-                    {usersList.map((u) => (
-                      <option key={u.user_id} value={u.user_id}>
-                        {u.name} {u.pic ? '★ [PIC]' : ''} ({u.role ? u.role.toUpperCase() : 'USER'} - {u.position || 'Personel'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="profile-modal-footer" style={{ display: 'flex', gap: '10px', padding: '16px 20px' }}>
-                <button
-                  type="button"
-                  className="eq-btn-cancel"
-                  onClick={() => setModalMode(null)}
-                  disabled={formSubmitting}
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="btn-hero-primary"
-                  disabled={formSubmitting}
-                >
-                  {formSubmitting ? 'Menyimpan...' : modalMode === 'create' ? 'Buat Ruangan' : 'Simpan Perubahan'}
-                </button>
-              </div>
-            </form>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* MODAL CONFIRM DELETE */}
-      {deleteTarget && (
-        <div className="profile-modal-overlay">
-          <div className="profile-modal" style={{ maxWidth: '420px' }}>
-            <div className="profile-modal-header">
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#DC2626' }}>
-                Konfirmasi Hapus Ruangan
-              </h3>
-              <button className="profile-modal-close" onClick={() => setDeleteTarget(null)}>
+      {/* Modal Ruangan */}
+      {modal && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => e.target === e.currentTarget && setModal(null)}
+        >
+          <div className="modal" id="modal-ruangan">
+            <div className="modal-header">
+              <h2 className="modal-title">
+                {modal.mode === 'create' ? 'Tambah Ruangan Uji' : 'Edit Ruangan Uji'}
+              </h2>
+              <button className="modal-close" onClick={() => setModal(null)}>
                 <X size={18} />
               </button>
             </div>
-            <div className="profile-modal-body" style={{ padding: '20px' }}>
-              {deleteError && (
-                <div className="error-banner" style={{ marginBottom: '14px' }}>
-                  {deleteError}
+            <div className="modal-body">
+              {error && (
+                <div className="alert alert-error" style={{ marginBottom: 'var(--sp-4)' }}>
+                  {error}
                 </div>
               )}
-              <p style={{ fontSize: '13.5px', color: '#374151', lineHeight: '1.5' }}>
-                Apakah Anda yakin ingin menghapus ruangan <strong>"{deleteTarget.nama_ruangan}"</strong> ({deleteTarget.kode_ruangan})?
-              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+                <div className="form-grid-2">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="modal-kode-ruangan">
+                      Kode Ruangan <span className="required">*</span>
+                    </label>
+                    <input
+                      id="modal-kode-ruangan"
+                      className="form-input"
+                      placeholder="Contoh: R-101, R-EMC-01"
+                      value={form.kode_ruangan}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, kode_ruangan: e.target.value.toUpperCase() }))
+                      }
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="modal-lantai-ruangan">
+                      Lantai <span className="required">*</span>
+                    </label>
+                    <input
+                      id="modal-lantai-ruangan"
+                      className="form-input"
+                      placeholder="Contoh: Lantai 1, Lantai 2, Basement"
+                      value={form.lantai_ruangan}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, lantai_ruangan: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="modal-nama-ruangan">
+                    Nama Ruangan <span className="required">*</span>
+                  </label>
+                  <input
+                    id="modal-nama-ruangan"
+                    className="form-input"
+                    placeholder="Contoh: Ruang Uji Anechoic Chamber RF"
+                    value={form.nama_ruangan}
+                    onChange={(e) => setForm((p) => ({ ...p, nama_ruangan: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-grid-2">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="modal-lab-select">
+                      Laboratorium Terkait
+                    </label>
+                    <select
+                      id="modal-lab-select"
+                      className="form-select"
+                      value={form.labs_id}
+                      onChange={(e) => setForm((p) => ({ ...p, labs_id: e.target.value }))}
+                    >
+                      <option value="">-- Pilih Laboratorium --</option>
+                      {labs.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.nama_labs} ({l.kode_labs})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="modal-pic-select">
+                      PIC Ruangan
+                    </label>
+                    <select
+                      id="modal-pic-select"
+                      className="form-select"
+                      value={form.pic_user_id}
+                      onChange={(e) => setForm((p) => ({ ...p, pic_user_id: e.target.value }))}
+                    >
+                      <option value="">-- Pilih PIC Ruangan --</option>
+                      {users.map((u) => (
+                        <option key={u.user_id} value={u.user_id}>
+                          {u.name} {u.pic ? '(PIC)' : ''} - {u.role}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="profile-modal-footer" style={{ display: 'flex', gap: '10px', padding: '16px 20px' }}>
-              <button className="eq-btn-cancel" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setModal(null)}
+                id="btn-batal-ruangan"
+              >
                 Batal
               </button>
-              <button className="eq-btn-action delete" style={{ padding: '8px 16px' }} onClick={handleConfirmDelete} disabled={deleting}>
-                {deleting ? 'Menghapus...' : 'Ya, Hapus Ruangan'}
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={saving}
+                id="btn-simpan-ruangan"
+              >
+                {saving ? (
+                  <>
+                    <div className="spinner" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  'Simpan'
+                )}
               </button>
             </div>
           </div>

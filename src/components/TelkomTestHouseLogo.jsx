@@ -4,11 +4,7 @@ import tthLogo from '../assets/logo/tth-logo.png';
 export default function TelkomTestHouseLogo() {
   return (
     <div className="tth-branding-wrapper">
-      <img
-        src={tthLogo}
-        alt="Telkom Test House Logo"
-        className="tth-logo-img"
-      />
+      <img src={tthLogo} alt="Telkom Test House" style={{ maxWidth: '100%', height: 'auto' }} />
     </div>
   );
 }

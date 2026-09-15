@@ -1,369 +1,411 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  Settings as SettingsIcon,
-  UserCheck,
-  Users,
-  LogOut,
-  Shield
+  User, Shield, KeyRound, Check, AlertCircle,
+  Building, Server, LogOut, CheckCircle2, Users, FileText
 } from 'lucide-react';
-import Topbar from '../components/layout/Topbar';
-import Sidebar from '../components/layout/Sidebar';
-import AdminProfile from './admin/AdminProfile';
-import ManagerProfile from './manager/ManagerProfile';
-import StaffProfile from './staff/StaffProfile';
-import UserManagement from './admin/UserManagement';
-import { getStoredUser, setStoredUser, userApi } from '../utils/api';
+import { getCurrentUser, usersApi, authApi, API_BASE } from '../utils/api.js';
+import UserManagement from './admin/UserManagement.jsx';
 
-export default function Settings({ onNavigate, initialTab = 'profile' }) {
-  const [user, setUser] = useState(getStoredUser);
-  const [activeTab, setActiveTab] = useState(initialTab);
-
-  useEffect(() => {
-    if (initialTab) setActiveTab(initialTab);
-  }, [initialTab]);
-
-  useEffect(() => {
-    // Sync active user from database on mount
-    const syncUser = async () => {
-      try {
-        if (user?.user_id) {
-          const res = await userApi.getById(user.user_id);
-          if (res?.data) {
-            const fresh = { ...user, ...res.data };
-            setUser(fresh);
-            setStoredUser(fresh);
-            return;
-          }
-        }
-        const listRes = await userApi.getAll();
-        if (listRes?.data?.length && (user?.email || user?.nip)) {
-          const found = listRes.data.find(u =>
-            (user.email && u.email === user.email) ||
-            (user.nip && u.nip === user.nip)
-          );
-          if (found) {
-            const fresh = { ...user, ...found };
-            setUser(fresh);
-            setStoredUser(fresh);
-          }
-        }
-      } catch {
-        // ignore offline errors
-      }
-    };
-    syncUser();
-
-    const handleUserChanged = (e) => {
-      if (e.detail) setUser(e.detail);
-    };
-    window.addEventListener('sikepo_user_changed', handleUserChanged);
-    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
-  }, []);
-
-  const handleUpdateUser = (updated) => {
-    setUser(updated);
-    setStoredUser(updated);
-  };
-
-  const handleLogout = () => {
-    setStoredUser(null);
-    localStorage.removeItem('sikepo_token');
-    onNavigate('/login');
-  };
-
+export default function Settings({ onNavigate }) {
+  const user = getCurrentUser();
   const role = (user?.role || 'staff').toLowerCase();
-  const isAdmin = role === 'admin';
+
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'users' | 'system'
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState('');
+
+  const initials = user?.name
+    ? user.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+    : 'U';
+
+  const canViewUsers = role === 'admin' || role === 'manager';
+
+  async function handleChangePassword(e) {
+    e.preventDefault();
+    setPwdError('');
+    setPwdSuccess('');
+
+    if (!password) {
+      setPwdError('Password baru tidak boleh kosong.');
+      return;
+    }
+    if (password.length < 6) {
+      setPwdError('Password minimal 6 karakter.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setPwdError('Konfirmasi password tidak cocok.');
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      if (!user?.user_id) {
+        throw new Error('Data pengguna tidak ditemukan. Silakan login ulang.');
+      }
+
+      await usersApi.update(user.user_id, {
+        nip: user.nip,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        position: user.position,
+        pic: Boolean(user.pic),
+        password: password,
+      });
+
+      setPwdSuccess('Password berhasil diperbarui!');
+      setPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPwdError(err.message || 'Gagal mengubah password.');
+    } finally {
+      setSavingPassword(false);
+    }
+  }
+
+  function handleLogout() {
+    authApi.logout();
+    onNavigate('/login');
+  }
 
   return (
-    <div className="app-shell">
-      <Topbar
-        user={user}
-        onNavigate={onNavigate}
-        title="Pengaturan Sistem & Akun"
-        onUpdateUser={handleUpdateUser}
-      />
-      <Sidebar activePath="/settings" onNavigate={onNavigate} />
+    <div className="page-container fade-in-up">
+      <div className="page-header" style={{ marginBottom: '20px' }}>
+        <h1 className="page-title">Pengaturan Sistem & Akun</h1>
+        <p className="page-subtitle">
+          Kelola profil pengguna, kredensial, hak akses, dan status koneksi sistem
+        </p>
+      </div>
 
-      <main className="main-content">
-        {/* Page Header */}
-        <div className="eq-page-header" style={{ marginBottom: '18px' }}>
-          <div>
-            <h1 className="eq-page-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <SettingsIcon size={24} style={{ color: 'var(--color-primary-red)' }} />
-              <span>Pengaturan Aplikasi</span>
-            </h1>
-            <p className="eq-page-sub">
-              Pusat konfigurasi profil personel, manajemen pengguna sistem, dan sesi keamanan akun
-            </p>
-          </div>
-        </div>
-
-        {/* Tab Navigation: Profil, Manajemen Pengguna, Logout */}
-        <div
+      {/* Tabs */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '8px',
+          borderBottom: '2px solid #E5E7EB',
+          marginBottom: '28px',
+          overflowX: 'auto',
+        }}
+      >
+        <button
+          onClick={() => setActiveTab('profile')}
           style={{
-            display: 'flex',
+            padding: '10px 18px',
+            fontSize: '14px',
+            fontWeight: 700,
+            border: 'none',
+            background: 'none',
+            cursor: 'pointer',
+            color: activeTab === 'profile' ? '#E30613' : '#6B7280',
+            borderBottom: activeTab === 'profile' ? '3px solid #E30613' : '3px solid transparent',
+            marginBottom: '-2px',
+            display: 'inline-flex',
+            alignItems: 'center',
             gap: '8px',
-            marginBottom: '22px',
-            borderBottom: '2px solid #E5E7EB',
-            paddingBottom: '0px',
-            flexWrap: 'wrap'
           }}
+          id="tab-btn-profile"
         >
-          <button
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              fontSize: '13.5px',
-              fontWeight: 700,
-              border: 'none',
-              borderBottom: activeTab === 'profile' ? '3px solid #E30613' : '3px solid transparent',
-              background: 'transparent',
-              color: activeTab === 'profile' ? '#E30613' : '#6B7280',
-              cursor: 'pointer',
-              marginBottom: '-2px',
-              transition: 'all 0.2s ease'
-            }}
-            onClick={() => setActiveTab('profile')}
-            id="tab-settings-profile"
-          >
-            <UserCheck size={16} />
-            <span>Profil Personel</span>
-          </button>
+          <User size={16} /> Profil & Akun
+        </button>
 
+        {canViewUsers && (
           <button
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              fontSize: '13.5px',
-              fontWeight: 700,
-              border: 'none',
-              borderBottom: activeTab === 'users' ? '3px solid #E30613' : '3px solid transparent',
-              background: 'transparent',
-              color: activeTab === 'users' ? '#E30613' : '#6B7280',
-              cursor: 'pointer',
-              marginBottom: '-2px',
-              transition: 'all 0.2s ease'
-            }}
             onClick={() => setActiveTab('users')}
-            id="tab-settings-users"
-          >
-            <Users size={16} />
-            <span>Manajemen Pengguna</span>
-            {isAdmin && (
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 800,
-                  padding: '2px 6px',
-                  borderRadius: '10px',
-                  background: '#FEF2F2',
-                  color: '#E30613',
-                  border: '1px solid #FECDD3'
-                }}
-              >
-                ADMIN
-              </span>
-            )}
-          </button>
-
-          <button
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              fontSize: '13.5px',
+              padding: '10px 18px',
+              fontSize: '14px',
               fontWeight: 700,
               border: 'none',
-              borderBottom: activeTab === 'logout' ? '3px solid #E30613' : '3px solid transparent',
-              background: 'transparent',
-              color: activeTab === 'logout' ? '#E30613' : '#6B7280',
+              background: 'none',
               cursor: 'pointer',
+              color: activeTab === 'users' ? '#E30613' : '#6B7280',
+              borderBottom: activeTab === 'users' ? '3px solid #E30613' : '3px solid transparent',
               marginBottom: '-2px',
-              transition: 'all 0.2s ease'
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
             }}
-            onClick={() => setActiveTab('logout')}
-            id="tab-settings-logout"
+            id="tab-btn-users"
           >
-            <LogOut size={16} />
-            <span>Keluar Aplikasi</span>
+            <Users size={16} /> Manajemen Pengguna {role === 'manager' ? '(Lihat)' : ''}
           </button>
-        </div>
-
-        {/* Tab 1: Profile */}
-        {activeTab === 'profile' && (
-          <div className="settings-tab-pane">
-            {role === 'manager' ? (
-              <ManagerProfile
-                user={user}
-                onUpdateUser={handleUpdateUser}
-                onNavigate={onNavigate}
-              />
-            ) : role === 'staff' ? (
-              <StaffProfile
-                user={user}
-                onUpdateUser={handleUpdateUser}
-                onNavigate={onNavigate}
-              />
-            ) : (
-              <AdminProfile
-                user={user}
-                onUpdateUser={handleUpdateUser}
-                onNavigate={onNavigate}
-              />
-            )}
-          </div>
         )}
 
-        {/* Tab 2: Manajemen Pengguna */}
-        {activeTab === 'users' && (
-          <div className="settings-tab-pane">
-            {isAdmin ? (
-              <UserManagement
-                onNavigate={onNavigate}
-                embedded={true}
-                initialTab="users"
-              />
-            ) : (
-              <div
-                className="panel"
-                style={{ maxWidth: '640px', margin: '30px auto', textAlign: 'center', padding: '36px 24px' }}
-              >
-                <div
-                  style={{
-                    width: '54px',
-                    height: '54px',
-                    borderRadius: '50%',
-                    background: '#FEF2F2',
-                    color: '#E30613',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 16px'
-                  }}
-                >
-                  <Shield size={26} />
-                </div>
-                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#111827', margin: '0 0 8px' }}>
-                  Akses Terbatas: Khusus Administrator
-                </h3>
-                <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, margin: '0 0 20px' }}>
-                  Menu Manajemen Pengguna dan Penetapan PIC memerlukan hak akses Administrator Sistem. Akun Anda saat ini memiliki peran <strong>{role.toUpperCase()}</strong>.
-                </p>
-                <button
-                  className="btn-hero-primary"
-                  onClick={() => setActiveTab('profile')}
-                >
-                  Kembali ke Profil
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+        <button
+          onClick={() => setActiveTab('system')}
+          style={{
+            padding: '10px 18px',
+            fontSize: '14px',
+            fontWeight: 700,
+            border: 'none',
+            background: 'none',
+            cursor: 'pointer',
+            color: activeTab === 'system' ? '#E30613' : '#6B7280',
+            borderBottom: activeTab === 'system' ? '3px solid #E30613' : '3px solid transparent',
+            marginBottom: '-2px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+          id="tab-btn-system"
+        >
+          <Server size={16} /> Status Sistem & Matriks Akses
+        </button>
+      </div>
 
-        {/* Tab 3: Keluar Aplikasi (Logout) */}
-        {activeTab === 'logout' && (
-          <div className="settings-tab-pane">
-            <div
-              className="panel"
-              style={{
-                maxWidth: '560px',
-                margin: '24px auto',
-                padding: '32px 28px',
-                border: '1px solid #E5E7EB',
-                borderRadius: '16px',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
-                <div
-                  style={{
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '50%',
-                    background: '#FEF2F2',
-                    color: '#E30613',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <LogOut size={24} />
-                </div>
-                <div>
-                  <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#111827', margin: '0 0 4px' }}>
-                    Konfirmasi Keluar Aplikasi
-                  </h2>
-                  <p style={{ fontSize: '12.5px', color: '#6B7280', margin: 0 }}>
-                    Akhiri sesi kerja akun Anda pada perangkat ini
-                  </p>
-                </div>
-              </div>
-
-              {/* Sesi Detail Card */}
+      {/* Tab 1: Profile & Password */}
+      {activeTab === 'profile' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--sp-6)' }}>
+          {/* Profile Card */}
+          <div className="card" style={{ padding: 'var(--sp-6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)', marginBottom: 'var(--sp-6)' }}>
               <div
                 style={{
-                  background: '#F9FAFB',
-                  border: '1px solid #E5E7EB',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  marginBottom: '22px'
+                  width: 64,
+                  height: 64,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #E30613, #B8000A)',
+                  color: '#fff',
+                  fontSize: 'var(--text-xl)',
+                  fontWeight: 'var(--fw-bold)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 14px rgba(227, 6, 19, 0.3)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                  <div className="avatar-circle" style={{ width: '36px', height: '36px', background: '#E30613', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '14px', borderRadius: '50%' }}>
-                    {(user?.name || 'A').charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <strong style={{ fontSize: '14px', color: '#111827', display: 'block' }}>{user?.name || 'Administrator'}</strong>
-                    <span style={{ fontSize: '12px', color: '#6B7280' }}>{user?.email || 'admin@sikepo.test'}</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px', paddingTop: '10px', borderTop: '1px solid #E5E7EB' }}>
-                  <div>
-                    <span style={{ color: '#9CA3AF', display: 'block' }}>Peran / Role:</span>
-                    <strong style={{ color: '#111827', textTransform: 'uppercase' }}>{role}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#9CA3AF', display: 'block' }}>NIP Personel:</span>
-                    <strong style={{ color: '#111827' }}>{user?.nip || '-'}</strong>
-                  </div>
+                {initials}
+              </div>
+              <div>
+                <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--fw-bold)', color: 'var(--clr-dark-900)' }}>
+                  {user?.name || 'Nama Pengguna'}
+                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginTop: 4 }}>
+                  <span className={`badge ${user?.role === 'admin' ? 'badge-role-admin' : user?.role === 'manager' ? 'badge-role-manager' : 'badge-role-staff'}`}>
+                    {user?.role?.toUpperCase() || 'STAFF'}
+                  </span>
+                  {user?.pic && <span className="badge badge-green">PIC ALAT</span>}
                 </div>
               </div>
+            </div>
 
-              <p style={{ fontSize: '13px', color: '#4B5563', lineHeight: 1.5, marginBottom: '24px' }}>
-                Dengan keluar dari sistem, token autentikasi sesi peramban Anda akan dihapus secara aman. Anda perlu memasukkan kredensial login kembali saat ingin mengakses SiKEPo.
-              </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', borderTop: '1px solid var(--clr-dark-100)', paddingTop: 'var(--sp-4)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)' }}>
+                <span style={{ color: 'var(--clr-dark-500)' }}>Nomor Induk Pegawai (NIP)</span>
+                <span style={{ fontWeight: 'var(--fw-semibold)', color: 'var(--clr-dark-800)' }}>{user?.nip || '-'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)' }}>
+                <span style={{ color: 'var(--clr-dark-500)' }}>Email Resmi</span>
+                <span style={{ fontWeight: 'var(--fw-semibold)', color: 'var(--clr-dark-800)' }}>{user?.email || '-'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)' }}>
+                <span style={{ color: 'var(--clr-dark-500)' }}>Jabatan</span>
+                <span style={{ fontWeight: 'var(--fw-semibold)', color: 'var(--clr-dark-800)' }}>{user?.position || '-'}</span>
+              </div>
+            </div>
 
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  className="eq-btn-cancel"
-                  style={{ padding: '9px 18px' }}
-                  onClick={() => setActiveTab('profile')}
-                >
-                  Batal
-                </button>
-                <button
-                  type="button"
-                  className="btn-hero-primary"
-                  style={{ padding: '9px 20px', background: '#DC2626', borderColor: '#DC2626' }}
-                  onClick={handleLogout}
-                  id="btn-confirm-logout"
-                >
-                  <LogOut size={15} />
-                  <span>Ya, Keluar Sekarang</span>
-                </button>
+            <div style={{ marginTop: 'var(--sp-6)', paddingTop: 'var(--sp-4)', borderTop: '1px solid var(--clr-dark-100)' }}>
+              <button
+                className="btn btn-outline"
+                onClick={handleLogout}
+                style={{ width: '100%', borderColor: 'var(--clr-error-500)', color: 'var(--clr-error-600)' }}
+                id="btn-settings-logout"
+              >
+                <LogOut size={16} /> Keluar dari Aplikasi
+              </button>
+            </div>
+          </div>
+
+          {/* Change Password Card */}
+          <div className="card" style={{ padding: 'var(--sp-6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-4)' }}>
+              <KeyRound size={20} style={{ color: '#E30613' }} />
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)' }}>
+                Ganti Kata Sandi
+              </h3>
+            </div>
+
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 'var(--sp-4)' }}>
+              Pastikan kata sandi baru Anda unik, kuat, dan minimal terdiri dari 6 karakter.
+            </p>
+
+            {pwdError && (
+              <div className="alert alert-error" style={{ marginBottom: 'var(--sp-3)', fontSize: 'var(--text-xs)' }}>
+                <AlertCircle size={14} /> {pwdError}
+              </div>
+            )}
+
+            {pwdSuccess && (
+              <div className="alert alert-success" style={{ marginBottom: 'var(--sp-3)', fontSize: 'var(--text-xs)' }}>
+                <CheckCircle2 size={14} /> {pwdSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="input-new-password">
+                  Password Baru
+                </label>
+                <input
+                  id="input-new-password"
+                  type="password"
+                  className="form-input"
+                  placeholder="Minimal 6 karakter"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="input-confirm-password">
+                  Konfirmasi Password Baru
+                </label>
+                <input
+                  id="input-confirm-password"
+                  type="password"
+                  className="form-input"
+                  placeholder="Ulangi password baru"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={savingPassword}
+                id="btn-simpan-password"
+                style={{ alignSelf: 'flex-start' }}
+              >
+                {savingPassword ? (
+                  <>
+                    <div className="spinner" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} /> Simpan Password
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: Manajemen Pengguna (Admin: Full, Manager: View Only) */}
+      {activeTab === 'users' && canViewUsers && (
+        <div style={{ marginTop: '10px' }}>
+          <UserManagement onNavigate={onNavigate} viewOnly={role !== 'admin'} />
+        </div>
+      )}
+
+      {/* Tab 3: System Status & Access Matrix */}
+      {activeTab === 'system' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="card" style={{ padding: 'var(--sp-6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-4)' }}>
+              <Server size={20} style={{ color: '#E30613' }} />
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)' }}>
+                Status Sistem & Konfigurasi Backend
+              </h3>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--sp-4)' }}>
+              <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 4 }}>Backend API Endpoint</div>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold)', fontFamily: 'monospace' }}>{API_BASE}</div>
+              </div>
+
+              <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 4 }}>Standar Kepatuhan</div>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold)', color: '#E30613' }}>ISO/IEC 17025:2017</div>
+              </div>
+
+              <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 4 }}>Organisasi Lab</div>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold)' }}>Telkom Test House (TTH)</div>
+              </div>
+
+              <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 4 }}>Versi Frontend</div>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold)' }}>SiKEPo v2.0 (React 18 + Vite)</div>
               </div>
             </div>
           </div>
-        )}
-      </main>
+
+          {/* Akses Fitur Berdasarkan Modul Card */}
+          <div className="card" style={{ padding: 'var(--sp-6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-4)' }}>
+              <Shield size={20} style={{ color: '#E30613' }} />
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)' }}>
+                Matriks Hak Akses Modul SiKEPo
+              </h3>
+            </div>
+
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 'var(--sp-4)' }}>
+              Pemetaan wewenang operasional antara <strong>Staff Lab (Personel TTH)</strong>, <strong>Manager Lab</strong>, dan <strong>Administrator</strong> sesuai prosedur ISO/IEC 17025 Telkom Test House.
+            </p>
+
+            <div className="table-wrapper">
+              <table className="data-table" style={{ fontSize: '13px' }}>
+                <thead>
+                  <tr>
+                    <th>Modul / Fitur</th>
+                    <th>Staff Lab</th>
+                    <th>Manager Lab</th>
+                    <th>Administrator</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Data Master (Peralatan, Lab)</strong></td>
+                    <td><span className="badge badge-gray">Lihat</span></td>
+                    <td><span className="badge badge-gray">Lihat</span></td>
+                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Input Alat Ukur Baru & Status</strong></td>
+                    <td><span style={{ color: '#9CA3AF' }}>–</span></td>
+                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
+                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Peminjaman & Pengembalian</strong></td>
+                    <td><span className="badge badge-blue">Tambah & Ubah</span></td>
+                    <td><span className="badge badge-blue">Tambah & Ubah</span></td>
+                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Tracking Lokasi & Histori</strong></td>
+                    <td><span className="badge badge-gray">Lihat</span></td>
+                    <td><span className="badge badge-gray">Lihat</span></td>
+                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Laporan & Dokumen Kalibrasi</strong></td>
+                    <td><span className="badge badge-gray">Unduh / Lihat</span></td>
+                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
+                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Manajemen Pengguna</strong></td>
+                    <td><span style={{ color: '#9CA3AF' }}>–</span></td>
+                    <td><span className="badge badge-gray">Lihat di Pengaturan</span></td>
+                    <td><span className="badge badge-green">Penuh di Pengaturan</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

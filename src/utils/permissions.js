@@ -1,0 +1,78 @@
+import { getCurrentUser } from './api.js';
+
+export const ACCESS = {
+  MASTER_EQUIPMENT: 'master_equipment',
+  MASTER_LAB: 'master_lab',
+  MASTER_USER_PIC: 'master_user_pic',
+  INPUT_EQUIPMENT: 'input_equipment',
+  EQUIPMENT_USAGE: 'equipment_usage',
+  EQUIPMENT_ELIGIBILITY: 'equipment_eligibility',
+  LOAN_REQUEST: 'loan_request',
+  RETURN_PROCESS: 'return_process',
+  DIGITAL_CHECK_FORM: 'digital_check_form',
+  LOCATION_TRACKING: 'location_tracking',
+  LOAN_HISTORY: 'loan_history',
+  LOCATION_HISTORY: 'location_history',
+  REPORTS: 'reports',
+  CALIBRATION_DOCUMENTS: 'calibration_documents',
+  QR_CODE: 'qr_code',
+  SYSTEM_SETTINGS: 'system_settings',
+};
+
+export const ACTIONS = {
+  ADD: 'add',
+  EDIT: 'edit',
+  DELETE: 'delete',
+  VIEW: 'view',
+};
+
+const VIEW = [ACTIONS.VIEW];
+const CRUD = Object.values(ACTIONS);
+const ADD_EDIT_VIEW = [ACTIONS.ADD, ACTIONS.EDIT, ACTIONS.VIEW];
+
+// Matriks mengikuti dokumen hak akses: staff = Personel TTH.
+const ROLE_PERMISSIONS = {
+  staff: {
+    [ACCESS.MASTER_EQUIPMENT]: VIEW,
+    [ACCESS.MASTER_LAB]: VIEW,
+    [ACCESS.MASTER_USER_PIC]: VIEW,
+    [ACCESS.LOAN_REQUEST]: ADD_EDIT_VIEW,
+    [ACCESS.RETURN_PROCESS]: ADD_EDIT_VIEW,
+    [ACCESS.DIGITAL_CHECK_FORM]: ADD_EDIT_VIEW,
+    [ACCESS.LOCATION_TRACKING]: VIEW,
+    [ACCESS.LOAN_HISTORY]: VIEW,
+    [ACCESS.LOCATION_HISTORY]: VIEW,
+    [ACCESS.REPORTS]: VIEW,
+    [ACCESS.QR_CODE]: VIEW,
+  },
+  manager: {
+    [ACCESS.MASTER_EQUIPMENT]: VIEW,
+    [ACCESS.MASTER_LAB]: VIEW,
+    [ACCESS.MASTER_USER_PIC]: VIEW,
+    [ACCESS.INPUT_EQUIPMENT]: CRUD,
+    [ACCESS.EQUIPMENT_USAGE]: CRUD,
+    [ACCESS.EQUIPMENT_ELIGIBILITY]: CRUD,
+    [ACCESS.LOAN_REQUEST]: ADD_EDIT_VIEW,
+    [ACCESS.RETURN_PROCESS]: ADD_EDIT_VIEW,
+    [ACCESS.DIGITAL_CHECK_FORM]: ADD_EDIT_VIEW,
+    [ACCESS.LOCATION_TRACKING]: CRUD,
+    [ACCESS.LOAN_HISTORY]: VIEW,
+    [ACCESS.LOCATION_HISTORY]: VIEW,
+    [ACCESS.REPORTS]: VIEW,
+    [ACCESS.CALIBRATION_DOCUMENTS]: CRUD,
+    [ACCESS.QR_CODE]: VIEW,
+  },
+  admin: Object.fromEntries(Object.values(ACCESS).map((feature) => [feature, CRUD])),
+};
+
+export function getUserRole(user = getCurrentUser()) {
+  return (user?.role || 'staff').toLowerCase();
+}
+
+export function can(feature, action = ACTIONS.VIEW, user = getCurrentUser()) {
+  return ROLE_PERMISSIONS[getUserRole(user)]?.[feature]?.includes(action) || false;
+}
+
+export function canAny(feature, actions, user = getCurrentUser()) {
+  return actions.some((action) => can(feature, action, user));
+}

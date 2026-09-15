@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   LayoutDashboard,
   Wrench,
   ShieldCheck,
-  Building2,
   Settings2,
   ChevronDown,
+  Settings,
   X
 } from 'lucide-react';
-import { getStoredUser } from '../../utils/api';
+import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
-function NavGroup({ label, icon: Icon, children, defaultOpen = false }) {
+function NavGroup({ label, icon: Icon, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
+
   return (
     <div className="nav-group">
       <button
@@ -26,56 +27,51 @@ function NavGroup({ label, icon: Icon, children, defaultOpen = false }) {
         <ChevronDown
           size={13}
           className="nav-group-chevron"
-          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
+          style={{
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease',
+          }}
         />
       </button>
-      {open && (
-        <div className="nav-group-children">
-          {children}
-        </div>
-      )}
+      {open && <div className="nav-group-children">{children}</div>}
     </div>
   );
 }
 
-export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMobileClose: _extClose }) {
-  const [userRole, setUserRole] = useState(() => (getStoredUser()?.role || 'staff').toLowerCase());
-  const [mobileOpen, setMobileOpen] = useState(false);
+export default function Sidebar({ currentPath, onNavigate, onClose, open: mobileOpen }) {
+  const canView = (feature) => can(feature, ACTIONS.VIEW);
 
-  useEffect(() => {
-    const handleToggle = () => setMobileOpen(prev => !prev);
-    window.addEventListener('sikepo_toggle_mobile_sidebar', handleToggle);
-    return () => window.removeEventListener('sikepo_toggle_mobile_sidebar', handleToggle);
-  }, []);
+  const isManajemenAlatActive =
+    currentPath === '/peralatan' ||
+    currentPath.startsWith('/peralatan/') ||
+    ['/peminjaman', '/verifikasi', '/peninjauan-peralatan', '/peralatan-usang', '/perbaikan'].includes(currentPath);
 
-  useEffect(() => {
-    const handleUserChanged = (e) => {
-      if (e.detail?.role) setUserRole(e.detail.role.toLowerCase());
-    };
-    window.addEventListener('sikepo_user_changed', handleUserChanged);
-    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
-  }, []);
+  const isPengaturanActive = [
+    '/admin/kategori',
+    '/admin/labs',
+    '/admin/kelompok-aset',
+    '/admin/ruangan',
+    '/admin/users',
+  ].includes(currentPath);
 
-  const isManajemenAlatActive = ['/alat-ukur'].some(
-    p => activePath === p || activePath.startsWith(p + '/')
-  );
-  const isPengaturanActive = ['/admin/kelompok-peralatan', '/admin/kelompok-lab', '/admin/kelompok-aset', '/admin/kelompok-lokasi'].some(
-    p => activePath === p
-  );
-  const navigate = (path) => {
+  function navigate(path) {
     onNavigate(path);
-    setMobileOpen(false);
-  };
+    if (onClose) onClose();
+  }
 
-  const NavItem = ({ label, path, disabled = false }) => {
-    const isActive = activePath === path || (path !== '/dashboard' && activePath.startsWith(path + '/'));
+  const NavItem = ({ label, path, feature, disabled = false }) => {
+    if (feature && !canView(feature)) return null;
+
+    const isActive =
+      currentPath === path || (path !== '/dashboard' && currentPath.startsWith(path + '/'));
+
     return (
       <button
         className={`nav-item nav-child ${isActive ? 'active' : ''} ${disabled ? 'disabled' : ''}`}
         onClick={() => !disabled && navigate(path)}
         disabled={disabled}
         aria-disabled={disabled}
-        title={disabled ? 'Belum tersedia pada backend' : undefined}
+        title={disabled ? 'Modul dalam pengembangan' : undefined}
       >
         <span className="nav-label">{label}</span>
         {isActive && <div className="active-indicator" />}
@@ -84,7 +80,7 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
   };
 
   const NavTopItem = ({ label, icon: Icon, path }) => {
-    const isActive = activePath === path;
+    const isActive = currentPath === path;
     return (
       <button
         className={`nav-item ${isActive ? 'active' : ''}`}
@@ -99,20 +95,11 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
 
   return (
     <>
-      {/* Overlay untuk mobile */}
-      {mobileOpen && (
-        <div
-          className="sidebar-overlay"
-          onClick={() => setMobileOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      <aside className={`sidebar${mobileOpen ? ' sidebar-mobile-open' : ''}`}>
-        {/* Header mobile dengan tombol tutup */}
+      <aside className={`sidebar ${mobileOpen ? 'sidebar-mobile-open' : ''}`}>
+        {/* Mobile Header with close button */}
         <div className="sidebar-mobile-header">
           <span className="sidebar-brand">SiKEPo</span>
-          <button className="sidebar-close-btn" onClick={() => setMobileOpen(false)} aria-label="Tutup menu">
+          <button className="sidebar-close-btn" onClick={onClose} aria-label="Tutup menu">
             <X size={20} />
           </button>
         </div>
@@ -122,36 +109,50 @@ export default function Sidebar({ activePath, onNavigate, mobileOpen: _ext, onMo
           <nav aria-label="Navigasi utama">
             <NavTopItem label="Dashboard" icon={LayoutDashboard} path="/dashboard" />
 
-            {/* Manajemen alat dan tindak lanjut kondisi peralatan */}
-            <NavGroup label="Manajemen Alat" icon={Wrench} defaultOpen={isManajemenAlatActive}>
-              <NavItem label="Peralatan" path="/alat-ukur" />
-              <NavItem label="Peminjaman" path="/peminjaman" disabled />
-              <NavItem label="Verifikasi" path="/verifikasi" disabled />
-              <NavItem label="Peninjauan Peralatan" path="/peninjauan-peralatan" disabled />
-              <NavItem label="Peralatan Usang" path="/peralatan-usang" disabled />
-              <NavItem label="Perbaikan" path="/perbaikan" disabled />
+            {/* MANAJEMEN ALAT */}
+            <NavGroup
+              label="MANAJEMEN ALAT"
+              icon={Wrench}
+              defaultOpen={isManajemenAlatActive}
+            >
+              <NavItem label="Peralatan" path="/peralatan" feature={ACCESS.MASTER_EQUIPMENT} />
+              <NavItem label="Peminjaman" path="/peminjaman" feature={ACCESS.LOAN_REQUEST} disabled />
+              <NavItem label="Verifikasi" path="/verifikasi" feature={ACCESS.DIGITAL_CHECK_FORM} disabled />
+              <NavItem label="Peninjauan Peralatan" path="/peninjauan-peralatan" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />
+              <NavItem label="Peralatan Usang" path="/peralatan-usang" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />
+              <NavItem label="Perbaikan" path="/perbaikan" feature={ACCESS.EQUIPMENT_USAGE} disabled />
             </NavGroup>
 
-            <NavGroup label="Pemeriksaan Peralatan" icon={ShieldCheck}>
-              <NavItem label="Kalibrasi" path="/pemeriksaan/kalibrasi" disabled />
-              <NavItem label="Verifikasi Fungsi" path="/pemeriksaan/verifikasi-fungsi" disabled />
-              <NavItem label="Pengecekan Antara" path="/pemeriksaan/pengecekan-antara" disabled />
-              <NavItem label="Pemeliharaan" path="/pemeriksaan/pemeliharaan" disabled />
-              <NavItem label="Karakterisasi Ulang" path="/pemeriksaan/karakterisasi-ulang" disabled />
+            {/* PEMERIKSAAN PERALATAN */}
+            <NavGroup label="PEMERIKSAAN PERALATAN" icon={ShieldCheck} defaultOpen={false}>
+              <NavItem label="Kalibrasi" path="/pemeriksaan/kalibrasi" feature={ACCESS.CALIBRATION_DOCUMENTS} disabled />
+              <NavItem label="Verifikasi Fungsi" path="/pemeriksaan/verifikasi-fungsi" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />
+              <NavItem label="Pengecekan Antara" path="/pemeriksaan/pengecekan-antara" feature={ACCESS.DIGITAL_CHECK_FORM} disabled />
+              <NavItem label="Pemeliharaan" path="/pemeriksaan/pemeliharaan" feature={ACCESS.EQUIPMENT_USAGE} disabled />
+              <NavItem label="Karakterisasi Ulang" path="/pemeriksaan/karakterisasi-ulang" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />
             </NavGroup>
 
-            {/* Pengaturan master data — admin only */}
-            {userRole === 'admin' && (
-              <NavGroup label="Pengaturan Inventaris" icon={Settings2} defaultOpen={isPengaturanActive}>
-                <NavItem label="Kelompok Peralatan" path="/admin/kelompok-peralatan" />
-                <NavItem label="Kelompok Lab" path="/admin/kelompok-lab" />
-                <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" />
-                <NavItem label="Kelompok Lokasi" path="/admin/kelompok-lokasi" />
-              </NavGroup>
-            )}
+            {/* PENGATURAN INVENTARIS */}
+            <NavGroup
+              label="PENGATURAN INVENTARIS"
+              icon={Settings2}
+              defaultOpen={isPengaturanActive}
+            >
+              <NavItem label="Kelompok Peralatan" path="/admin/kategori" feature={ACCESS.MASTER_EQUIPMENT} />
+              <NavItem label="Kelompok Lab" path="/admin/labs" feature={ACCESS.MASTER_LAB} />
+              <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" feature={ACCESS.MASTER_EQUIPMENT} />
+              <NavItem label="Kelompok Lokasi" path="/admin/ruangan" feature={ACCESS.MASTER_EQUIPMENT} />
+              <NavItem label="Manajemen User / PIC" path="/admin/users" feature={ACCESS.MASTER_USER_PIC} />
+            </NavGroup>
+
+            {/* Pengaturan Akun */}
+            <div style={{ marginTop: '12px' }}>
+              <NavTopItem label="Pengaturan Akun" icon={Settings} path="/settings" />
+            </div>
           </nav>
         </div>
 
+        {/* Bottom System Card */}
         <div className="sidebar-system-card">
           <div className="system-card-header">
             <ShieldCheck size={16} className="text-red" />

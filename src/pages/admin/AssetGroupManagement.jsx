@@ -1,678 +1,466 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Archive,
-  Plus,
-  Search,
-  Pencil,
-  Trash2,
-  X,
-  CheckCircle,
-  AlertCircle,
-  RefreshCw,
-  Building2,
-  UserCheck,
-  FolderTree,
-  FileSpreadsheet
-} from 'lucide-react';
-import Topbar from '../../components/layout/Topbar';
-import Sidebar from '../../components/layout/Sidebar';
-import { kelompokAssetApi, labsApi, userApi, getStoredUser } from '../../utils/api';
+import React, { useState, useEffect } from 'react';
+import { FolderKanban, Plus, Pencil, Trash2, X, RefreshCw, Building2, Shield } from 'lucide-react';
+import { kelompokAssetApi, labsApi, usersApi } from '../../utils/api.js';
+import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
 const EMPTY_FORM = {
   kode: '',
   nama: '',
   lab_id: '',
-  pic_id: ''
+  pic_id: '',
 };
 
 export default function AssetGroupManagement({ onNavigate }) {
-  const [user, setUser] = useState(getStoredUser);
-  const [groupList, setGroupList] = useState([]);
-  const [labsList, setLabsList] = useState([]);
-  const [usersList, setUsersList] = useState([]);
+  const canAdd = can(ACCESS.MASTER_EQUIPMENT, ACTIONS.ADD);
+  const canEdit = can(ACCESS.MASTER_EQUIPMENT, ACTIONS.EDIT);
+  const canDelete = can(ACCESS.MASTER_EQUIPMENT, ACTIONS.DELETE);
+  const [assetGroups, setAssetGroups] = useState([]);
+  const [labs, setLabs] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState('');
-  const [notice, setNotice] = useState('');
-
-  // Filter & Search
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterLabId, setFilterLabId] = useState('');
-
-  // Modal State
-  const [modalMode, setModalMode] = useState(null); // 'create' | 'edit' | null
-  const [formData, setFormData] = useState(EMPTY_FORM);
-  const [selectedGroupId, setSelectedGroupId] = useState(null);
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
-
-  // Delete State
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  const [modal, setModal] = useState(null); // null | { mode: 'create'|'edit', id }
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState(null);
+  const [search, setSearch] = useState('');
+  const [filterLab, setFilterLab] = useState('');
 
   useEffect(() => {
-    const current = getStoredUser();
-    if (current) {
-      setUser(current);
-      if (current.role?.toLowerCase() !== 'admin') {
-        onNavigate('/dashboard');
-      }
-    } else {
-      onNavigate('/login');
-    }
+    loadData();
+  }, []);
 
-    const handleUserChanged = (e) => {
-      if (e.detail) setUser(e.detail);
-    };
-    window.addEventListener('sikepo_user_changed', handleUserChanged);
-    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
-  }, [onNavigate]);
-
-  const fetchData = async () => {
+  async function loadData() {
     setLoading(true);
-    setApiError('');
     try {
-      const [gRes, lRes, uRes] = await Promise.allSettled([
+      const [groupsRes, labsRes, usersRes] = await Promise.allSettled([
         kelompokAssetApi.getAll(),
         labsApi.getAll(),
-        userApi.getAll()
+        usersApi.getAll(),
       ]);
 
-      if (gRes.status === 'fulfilled' && gRes.value?.data) {
-        setGroupList(gRes.value.data);
+      if (groupsRes.status === 'fulfilled') {
+        setAssetGroups(groupsRes.value.data || []);
       } else {
-        setGroupList([]);
-        if (gRes.status === 'rejected') console.warn('Kelompok asset fetch failed:', gRes.reason);
+        setError(groupsRes.reason?.message || 'Gagal memuat kelompok aset');
       }
 
-      if (lRes.status === 'fulfilled' && lRes.value?.data) {
-        setLabsList(lRes.value.data);
+      if (labsRes.status === 'fulfilled') {
+        setLabs(labsRes.value.data || []);
       }
 
-      if (uRes.status === 'fulfilled' && uRes.value?.data) {
-        setUsersList(uRes.value.data);
+      if (usersRes.status === 'fulfilled') {
+        setUsers(usersRes.value.data || []);
       }
     } catch (err) {
-      console.error('Failed to fetch asset group data:', err);
-      setApiError(err.message || 'Gagal terhubung ke backend API (/api/kelompok-asset)');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  function openCreate() {
+    setForm(EMPTY_FORM);
+    setError('');
+    setModal({ mode: 'create' });
+  }
 
-  const showNotice = (msg) => {
-    setNotice(msg);
-    setTimeout(() => setNotice(''), 3500);
-  };
-
-  // Filter PIC candidates (Staff users, prioritize PIC flag)
-  const picCandidates = useMemo(() => {
-    return usersList.filter(
-      (u) => u.role?.toLowerCase() === 'staff' || Boolean(u.pic)
-    );
-  }, [usersList]);
-
-  // Client-side search and filtering
-  const filteredGroups = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    return groupList.filter((item) => {
-      if (filterLabId && String(item.lab_id) !== String(filterLabId)) {
-        return false;
-      }
-      if (!q) return true;
-      const kode = item.kode || '';
-      const nama = item.nama || '';
-      const labName = item.lab?.nama_labs || '';
-      const picName = item.pic?.name || '';
-      return [kode, nama, labName, picName].some((f) => f.toLowerCase().includes(q));
+  function openEdit(item) {
+    setForm({
+      kode: item.kode || '',
+      nama: item.nama || '',
+      lab_id: item.lab_id ? String(item.lab_id) : '',
+      pic_id: item.pic_id ? String(item.pic_id) : '',
     });
-  }, [groupList, searchQuery, filterLabId]);
+    setError('');
+    setModal({ mode: 'edit', id: item.id });
+  }
 
-  // Open Create Modal
-  const handleOpenCreate = () => {
-    setFormData(EMPTY_FORM);
-    setFormError('');
-    setModalMode('create');
-  };
+  async function handleSave() {
+    if (!form.kode.trim() || !form.nama.trim()) {
+      setError('Kode dan Nama Kelompok Aset wajib diisi.');
+      return;
+    }
+    if (!form.lab_id) {
+      setError('Laboratorium wajib dipilih.');
+      return;
+    }
+    if (!form.pic_id) {
+      setError('PIC wajib dipilih.');
+      return;
+    }
 
-  // Open Edit Modal
-  const handleOpenEdit = (group) => {
-    setSelectedGroupId(group.id);
-    setFormData({
-      kode: group.kode || '',
-      nama: group.nama || '',
-      lab_id: group.lab_id || '',
-      pic_id: group.pic_id || ''
-    });
-    setFormError('');
-    setModalMode('edit');
-  };
-
-  const handleCloseModal = () => {
-    setModalMode(null);
-    setSelectedGroupId(null);
-    setFormData(EMPTY_FORM);
-    setFormError('');
-  };
-
-  // Submit Form (Create / Edit)
-  const handleSubmitForm = async (e) => {
-    e.preventDefault();
-    setFormError('');
-    setFormSubmitting(true);
+    setSaving(true);
+    setError('');
 
     try {
-      const cleanKode = formData.kode.trim();
-      const cleanNama = formData.nama.trim();
-      const cleanLabId = Number(formData.lab_id);
-      const cleanPicId = Number(formData.pic_id);
-
-      if (!cleanKode) throw new Error('Kode kelompok aset wajib diisi');
-      if (!cleanNama) throw new Error('Nama kelompok aset wajib diisi');
-      if (!cleanLabId) throw new Error('Laboratorium wajib dipilih');
-      if (!cleanPicId) throw new Error('Petugas PIC wajib dipilih');
-
       const payload = {
-        kode: cleanKode,
-        nama: cleanNama,
-        lab_id: cleanLabId,
-        pic_id: cleanPicId
+        kode: form.kode.trim().toUpperCase(),
+        nama: form.nama.trim(),
+        lab_id: Number(form.lab_id),
+        pic_id: Number(form.pic_id),
       };
 
-      if (modalMode === 'create') {
+      if (modal.mode === 'create') {
         await kelompokAssetApi.create(payload);
-        showNotice(`Kelompok aset "${cleanNama}" berhasil dibuat.`);
-      } else if (modalMode === 'edit') {
-        await kelompokAssetApi.update(selectedGroupId, payload);
-        showNotice(`Kelompok aset "${cleanNama}" berhasil diperbarui.`);
+      } else {
+        await kelompokAssetApi.update(modal.id, payload);
       }
 
-      handleCloseModal();
-      fetchData();
+      setModal(null);
+      await loadData();
     } catch (err) {
-      setFormError(err.message || 'Gagal menyimpan kelompok aset');
+      setError(err.message || 'Gagal menyimpan kelompok aset.');
     } finally {
-      setFormSubmitting(false);
+      setSaving(false);
     }
-  };
+  }
 
-  // Delete Action
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    setDeleteError('');
-
+  async function handleDelete(id) {
+    if (!window.confirm('Yakin ingin menghapus kelompok aset ini?')) return;
+    setDeleting(id);
     try {
-      await kelompokAssetApi.delete(deleteTarget.id);
-      showNotice(`Kelompok aset "${deleteTarget.nama}" berhasil dihapus.`);
-      setDeleteTarget(null);
-      fetchData();
+      await kelompokAssetApi.delete(id);
+      setAssetGroups((prev) => prev.filter((g) => g.id !== id));
     } catch (err) {
-      setDeleteError(err.message || 'Gagal menghapus kelompok aset');
+      alert(err.message || 'Gagal menghapus kelompok aset.');
     } finally {
-      setDeleting(false);
+      setDeleting(null);
     }
-  };
+  }
+
+  const filtered = assetGroups.filter((g) => {
+    const q = search.toLowerCase();
+    const matchQ =
+      !q ||
+      g.nama?.toLowerCase().includes(q) ||
+      g.kode?.toLowerCase().includes(q) ||
+      g.lab?.nama_labs?.toLowerCase().includes(q) ||
+      g.pic?.name?.toLowerCase().includes(q);
+
+    const matchLab = !filterLab || String(g.lab_id) === filterLab;
+
+    return matchQ && matchLab;
+  });
 
   return (
-    <div className="app-shell">
-      <Topbar
-        user={user}
-        onNavigate={onNavigate}
-        title="Kelompok Aset"
-        onUpdateUser={setUser}
-      />
-      <Sidebar activePath="/admin/kelompok-aset" onNavigate={onNavigate} />
+    <div className="page-container fade-in-up">
+      {/* Header */}
+      <div
+        className="page-header"
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 'var(--sp-3)',
+        }}
+      >
+        <div>
+          <h1 className="page-title">Kelompok Aset Peralatan</h1>
+          <p className="page-subtitle">
+            Klasifikasi pengelompokan aset laboratorium ({filtered.length} terdaftar)
+          </p>
+        </div>
+        {canAdd && <button className="btn btn-primary" onClick={openCreate} id="btn-tambah-kelompok-aset">
+          <Plus size={16} /> Tambah Kelompok Aset
+        </button>}
+      </div>
 
-      <main className="main-content">
-        {notice && (
-          <div
-            className="eq-confirm-banner"
-            style={{
-              background: '#ECFDF5',
-              borderColor: '#A7F3D0',
-              color: '#065F46',
-              marginBottom: '16px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CheckCircle size={16} color="#059669" />
-              <span>{notice}</span>
-            </div>
-          </div>
-        )}
-
-        {apiError && (
-          <div
-            className="eq-confirm-banner"
-            style={{
-              background: '#FEF2F2',
-              borderColor: '#FECACA',
-              color: '#991B1B',
-              marginBottom: '16px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertCircle size={16} color="#DC2626" />
-              <span>{apiError}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Page Header */}
-        <div className="eq-page-header">
-          <div>
-            <h1 className="eq-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Archive size={22} style={{ color: 'var(--color-primary-red)' }} />
-              <span>Kelompok Aset Laboratorium</span>
-            </h1>
-            <p className="eq-page-sub">
-              Pengelompokan aset inventaris peralatan, penugasan PIC, dan keterkaitan laboratorium Telkom Test House
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button className="btn-hero-secondary" onClick={fetchData} title="Muat ulang data">
-              <RefreshCw size={15} />
-              <span>Segarkan</span>
-            </button>
-            <button type="button" className="btn-hero-primary" onClick={(e) => { e.preventDefault(); handleOpenCreate(); }}>
-              <Plus size={15} />
-              <span>Tambah Kelompok</span>
-            </button>
-          </div>
+      {/* Filter Bar */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 'var(--sp-3)',
+          marginBottom: 'var(--sp-5)',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        <div className="search-bar" style={{ flex: 1, minWidth: 240 }}>
+          <FolderKanban className="search-icon" style={{ width: 16, height: 16 }} />
+          <input
+            id="input-search-kelompok-aset"
+            className="form-input"
+            type="text"
+            placeholder="Cari kode, nama kelompok aset, PIC..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
-        {/* Stats Grid */}
-        <section className="stats-grid" style={{ marginBottom: '20px' }}>
-          <article className="stat-card black">
-            <div className="stat-header">
-              <span className="stat-badge">Kelompok Aset</span>
-              <div className="stat-icon-wrapper"><Archive size={20} /></div>
-            </div>
-            <div className="stat-body">
-              <strong className="stat-value">{loading ? '—' : groupList.length}</strong>
-              <span className="stat-title">Total Kelompok Terdaftar</span>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-sub">Sesuai basis data backend</span>
-            </div>
-          </article>
+        <select
+          id="select-filter-lab-aset"
+          className="form-select"
+          value={filterLab}
+          onChange={(e) => setFilterLab(e.target.value)}
+          style={{ width: 'auto', minWidth: 180 }}
+        >
+          <option value="">Semua Laboratorium</option>
+          {labs.map((l) => (
+            <option key={l.id} value={String(l.id)}>
+              {l.nama_labs} ({l.kode_labs})
+            </option>
+          ))}
+        </select>
 
-          <article className="stat-card darkgray">
-            <div className="stat-header">
-              <span className="stat-badge">Laboratorium</span>
-              <div className="stat-icon-wrapper"><Building2 size={20} /></div>
-            </div>
-            <div className="stat-body">
-              <strong className="stat-value">{loading ? '—' : labsList.length}</strong>
-              <span className="stat-title">Lab Terhubung</span>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-sub">Induk pengelolaan peralatan</span>
-            </div>
-          </article>
+        <button
+          className="btn btn-secondary btn-icon"
+          onClick={loadData}
+          id="btn-refresh-kelompok-aset"
+          title="Segarkan data"
+        >
+          <RefreshCw size={16} />
+        </button>
+      </div>
 
-          <article className="stat-card gray">
-            <div className="stat-header">
-              <span className="stat-badge">Personel PIC</span>
-              <div className="stat-icon-wrapper"><UserCheck size={20} /></div>
-            </div>
-            <div className="stat-body">
-              <strong className="stat-value">{loading ? '—' : picCandidates.length}</strong>
-              <span className="stat-title">PIC Siap Ditugaskan</span>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-sub">Staf pemegang tanggung jawab</span>
-            </div>
-          </article>
-        </section>
-
-        {/* Panel Konten Utama */}
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Daftar Kelompok Aset</h2>
-              <p className="panel-subtitle">
-                {filteredGroups.length} data ditampilkan dari total {groupList.length} kelompok
-              </p>
-            </div>
-
-            {/* Filter dan Search Controls */}
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div className="eq-search-wrapper" style={{ minWidth: '220px' }}>
-                <Search size={15} className="eq-search-icon" />
-                <input
-                  type="text"
-                  className="eq-search-input"
-                  placeholder="Cari kode, nama, PIC..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-
-              <select
-                className="eq-form-input"
-                style={{ width: 'auto', padding: '7px 12px', fontSize: '13px' }}
-                value={filterLabId}
-                onChange={(e) => setFilterLabId(e.target.value)}
-              >
-                <option value="">Semua Laboratorium</option>
-                {labsList.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.nama_labs} ({l.kode_labs})
-                  </option>
-                ))}
-              </select>
-            </div>
+      {/* Table */}
+      {loading ? (
+        <div
+          className="card"
+          style={{
+            padding: 'var(--sp-6)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--sp-3)',
+          }}
+        >
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="skeleton" style={{ height: 52 }} />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <FolderKanban size={32} />
           </div>
+          <p className="empty-state-title">Tidak ada kelompok aset ditemukan</p>
+          {canAdd && <button className="btn btn-primary" onClick={openCreate}>
+            <Plus size={16} /> Tambah Kelompok Aset
+          </button>}
+        </div>
+      ) : (
+        <div className="table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ width: 130 }}>Kode Kelompok</th>
+                <th>Nama Kelompok Aset</th>
+                <th>Laboratorium</th>
+                <th>PIC Aset</th>
+                <th style={{ width: 120 }}>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((g) => {
+                const labObj = g.lab || labs.find((l) => l.id === g.lab_id);
+                const picObj = g.pic || users.find((u) => u.user_id === g.pic_id);
 
-          {loading ? (
-            <div className="eq-empty" style={{ padding: '40px' }}>
-              <RefreshCw size={24} className="spin text-muted" style={{ margin: '0 auto 12px' }} />
-              <p>Memuat data kelompok aset dari database...</p>
-            </div>
-          ) : filteredGroups.length === 0 ? (
-            <div className="eq-empty">
-              <FolderTree size={36} color="#9CA3AF" style={{ marginBottom: '10px' }} />
-              <p style={{ fontWeight: 600, color: '#374151', margin: '0 0 4px' }}>
-                {groupList.length === 0 ? 'Belum Ada Kelompok Aset' : 'Tidak Ada Data yang Cocok'}
-              </p>
-              <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
-                {groupList.length === 0
-                  ? 'Klik tombol "Tambah Kelompok" untuk mendaftarkan kelompok aset baru.'
-                  : 'Coba ubah kata kunci pencarian atau filter laboratorium Anda.'}
-              </p>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '50px' }}>No</th>
-                    <th>Kode Kelompok</th>
-                    <th>Nama Kelompok Aset</th>
-                    <th>Laboratorium</th>
-                    <th>Petugas PIC</th>
-                    <th>Dibuat Pada</th>
-                    <th style={{ textAlign: 'center', width: '100px' }}>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredGroups.map((group, idx) => (
-                    <tr key={group.id || idx}>
-                      <td>
-                        <span className="eq-row-num">{String(idx + 1).padStart(2, '0')}</span>
-                      </td>
-                      <td>
-                        <span
-                          className="loan-id-badge"
-                          style={{
-                            fontWeight: 700,
-                            letterSpacing: '0.5px',
-                            background: '#F3F4F6',
-                            color: '#1F2937'
-                          }}
-                        >
-                          {group.kode}
+                return (
+                  <tr key={g.id}>
+                    <td>
+                      <code
+                        style={{
+                          fontSize: 'var(--text-xs)',
+                          background: 'var(--clr-dark-100)',
+                          padding: '2px 6px',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'var(--clr-primary-700)',
+                          fontWeight: 'var(--fw-bold)',
+                        }}
+                      >
+                        {g.kode}
+                      </code>
+                    </td>
+                    <td style={{ fontWeight: 'var(--fw-semibold)' }}>{g.nama}</td>
+                    <td>
+                      {labObj ? (
+                        <span className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Building2 size={12} />
+                          {labObj.nama_labs}
                         </span>
-                      </td>
-                      <td>
-                        <strong className="tool-name-text" style={{ fontSize: '13.5px' }}>
-                          {group.nama}
-                        </strong>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Building2 size={14} color="#6B7280" />
-                          <span style={{ fontSize: '13px', fontWeight: 500, color: '#374151' }}>
-                            {group.lab?.nama_labs || `Lab #${group.lab_id}`}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <UserCheck size={14} color="#2563EB" />
-                          <span style={{ fontSize: '13px', fontWeight: 500, color: '#1E40AF' }}>
-                            {group.pic?.name || `PIC #${group.pic_id}`}
-                          </span>
-                        </div>
-                        {group.pic?.nip && (
-                          <div style={{ fontSize: '11px', color: '#6B7280', paddingLeft: '20px' }}>
-                            NIP: {group.pic.nip}
+                      ) : (
+                        <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)' }}>
+                          -
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {picObj ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+                          <div
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: '50%',
+                              background: 'var(--clr-primary-100)',
+                              color: 'var(--clr-primary-700)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 10,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {picObj.name ? picObj.name[0].toUpperCase() : 'P'}
                           </div>
-                        )}
-                      </td>
-                      <td>
-                        <span style={{ fontSize: '12px', color: '#6B7280' }}>
-                          {group.created_at
-                            ? new Date(group.created_at).toLocaleDateString('id-ID', {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric'
-                              })
-                            : '-'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div className="eq-actions" style={{ justifyContent: 'center' }}>
-                          <button
-                            className="eq-btn-action edit"
-                            onClick={() => handleOpenEdit(group)}
-                            title="Edit Kelompok Aset"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            className="eq-btn-action delete"
-                            onClick={() => setDeleteTarget(group)}
-                            title="Hapus Kelompok Aset"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>
+                            {picObj.name}
+                          </span>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* MODAL CREATE / EDIT */}
-      {modalMode && (
-        <div className="profile-modal-overlay">
-          <div className="profile-modal" style={{ maxWidth: '480px' }}>
-            <div className="profile-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Archive size={20} className="text-red" />
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
-                  {modalMode === 'create' ? 'Tambah Kelompok Aset Baru' : 'Edit Kelompok Aset'}
-                </h3>
-              </div>
-              <button className="profile-modal-close" onClick={handleCloseModal}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitForm}>
-              <div className="profile-modal-body" style={{ padding: '20px' }}>
-                {formError && (
-                  <div
-                    className="eq-confirm-banner"
-                    style={{
-                      background: '#FEF2F2',
-                      borderColor: '#FECACA',
-                      color: '#991B1B',
-                      marginBottom: '16px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <AlertCircle size={15} color="#DC2626" />
-                      <span style={{ fontSize: '13px' }}>{formError}</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">
-                    Kode Kelompok Aset <span className="eq-required">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="eq-form-input"
-                    placeholder="Contoh: OPT-FIBER atau TEL-TX"
-                    value={formData.kode}
-                    onChange={(e) => setFormData({ ...formData, kode: e.target.value })}
-                    required
-                  />
-                  <small style={{ fontSize: '11px', color: '#6B7280', marginTop: '3px', display: 'block' }}>
-                    Kode unik pengelompokan pada laboratorium terkait
-                  </small>
-                </div>
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">
-                    Nama Kelompok Aset <span className="eq-required">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="eq-form-input"
-                    placeholder="Contoh: Kelompok Alat Uji Serat Optik"
-                    value={formData.nama}
-                    onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">
-                    Pilih Laboratorium <span className="eq-required">*</span>
-                  </label>
-                  <select
-                    className="eq-form-input"
-                    value={formData.lab_id}
-                    onChange={(e) => setFormData({ ...formData, lab_id: e.target.value })}
-                    required
-                  >
-                    <option value="">-- Pilih Laboratorium --</option>
-                    {labsList.map((lab) => (
-                      <option key={lab.id} value={lab.id}>
-                        {lab.nama_labs} ({lab.kode_labs})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">
-                    Pilih Petugas PIC <span className="eq-required">*</span>
-                  </label>
-                  <select
-                    className="eq-form-input"
-                    value={formData.pic_id}
-                    onChange={(e) => setFormData({ ...formData, pic_id: e.target.value })}
-                    required
-                  >
-                    <option value="">-- Pilih Personel PIC --</option>
-                    {picCandidates.map((staff) => (
-                      <option key={staff.user_id} value={staff.user_id}>
-                        {staff.name} {staff.nip ? `(NIP: ${staff.nip})` : ''} - {staff.position || 'Staff'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div
-                className="profile-modal-footer"
-                style={{ display: 'flex', gap: '10px', padding: '16px 20px', borderTop: '1px solid #E5E7EB' }}
-              >
-                <button
-                  type="button"
-                  className="eq-btn-cancel"
-                  onClick={handleCloseModal}
-                  disabled={formSubmitting}
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="btn-hero-primary"
-                  disabled={formSubmitting}
-                >
-                  {formSubmitting ? 'Menyimpan...' : modalMode === 'create' ? 'Buat Kelompok' : 'Simpan Perubahan'}
-                </button>
-              </div>
-            </form>
-          </div>
+                      ) : (
+                        <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)', fontStyle: 'italic' }}>
+                          Belum ditentukan
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {canEdit && <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => openEdit(g)}
+                          id={`btn-edit-kelompok-aset-${g.id}`}
+                          title="Edit Kelompok Aset"
+                        >
+                          <Pencil size={13} />
+                        </button>}
+                        {canDelete && <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(g.id)}
+                          disabled={deleting === g.id}
+                          id={`btn-hapus-kelompok-aset-${g.id}`}
+                          title="Hapus Kelompok Aset"
+                        >
+                          <Trash2 size={13} />
+                        </button>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* MODAL DELETE CONFIRMATION */}
-      {deleteTarget && (
-        <div className="profile-modal-overlay">
-          <div className="profile-modal" style={{ maxWidth: '420px' }}>
-            <div className="profile-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Trash2 size={20} color="#DC2626" />
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#991B1B' }}>
-                  Konfirmasi Hapus
-                </h3>
-              </div>
-              <button className="profile-modal-close" onClick={() => setDeleteTarget(null)}>
+      {/* Modal Kelompok Aset */}
+      {modal && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => e.target === e.currentTarget && setModal(null)}
+        >
+          <div className="modal" id="modal-kelompok-aset">
+            <div className="modal-header">
+              <h2 className="modal-title">
+                {modal.mode === 'create'
+                  ? 'Tambah Kelompok Aset'
+                  : 'Edit Kelompok Aset'}
+              </h2>
+              <button className="modal-close" onClick={() => setModal(null)}>
                 <X size={18} />
               </button>
             </div>
-
-            <div className="profile-modal-body" style={{ padding: '20px' }}>
-              {deleteError && (
-                <div
-                  className="eq-confirm-banner"
-                  style={{
-                    background: '#FEF2F2',
-                    borderColor: '#FECACA',
-                    color: '#991B1B',
-                    marginBottom: '12px'
-                  }}
-                >
-                  <span>{deleteError}</span>
+            <div className="modal-body">
+              {error && (
+                <div className="alert alert-error" style={{ marginBottom: 'var(--sp-4)' }}>
+                  {error}
                 </div>
               )}
-              <p style={{ margin: 0, fontSize: '14px', color: '#374151', lineHeight: 1.5 }}>
-                Apakah Anda yakin ingin menghapus kelompok aset <strong>"{deleteTarget.nama}"</strong> (Kode:{' '}
-                <code>{deleteTarget.kode}</code>)?
-              </p>
-              <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#6B7280' }}>
-                Tindakan ini tidak dapat dibatalkan.
-              </p>
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="modal-kode-aset">
+                    Kode Kelompok Aset <span className="required">*</span>
+                  </label>
+                  <input
+                    id="modal-kode-aset"
+                    className="form-input"
+                    placeholder="Contoh: KA-RF-01, KA-CAL-02"
+                    value={form.kode}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, kode: e.target.value.toUpperCase() }))
+                    }
+                  />
+                  <div className="form-hint">
+                    Kode ini digunakan sebagai referensi penomoran aset ISO/IEC 17025.
+                  </div>
+                </div>
 
-            <div
-              className="profile-modal-footer"
-              style={{ display: 'flex', gap: '10px', padding: '16px 20px', borderTop: '1px solid #E5E7EB' }}
-            >
-              <button
-                type="button"
-                className="eq-btn-cancel"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="modal-nama-aset">
+                    Nama Kelompok Aset <span className="required">*</span>
+                  </label>
+                  <input
+                    id="modal-nama-aset"
+                    className="form-input"
+                    placeholder="Contoh: Spectrum Analyzer & Signal Generator Group"
+                    value={form.nama}
+                    onChange={(e) => setForm((p) => ({ ...p, nama: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-grid-2">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="modal-lab-aset-select">
+                      Laboratorium Terkait <span className="required">*</span>
+                    </label>
+                    <select
+                      id="modal-lab-aset-select"
+                      className="form-select"
+                      value={form.lab_id}
+                      onChange={(e) => setForm((p) => ({ ...p, lab_id: e.target.value }))}
+                    >
+                      <option value="">-- Pilih Laboratorium --</option>
+                      {labs.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.nama_labs} ({l.kode_labs})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="modal-pic-aset-select">
+                      PIC Kelompok Aset <span className="required">*</span>
+                    </label>
+                    <select
+                      id="modal-pic-aset-select"
+                      className="form-select"
+                      value={form.pic_id}
+                      onChange={(e) => setForm((p) => ({ ...p, pic_id: e.target.value }))}
+                    >
+                      <option value="">-- Pilih PIC Aset --</option>
+                      {users.map((u) => (
+                        <option key={u.user_id} value={u.user_id}>
+                          {u.name} {u.pic ? '(PIC)' : ''} - {u.role}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+                        {canDelete && <button
+                className="btn btn-secondary"
+                onClick={() => setModal(null)}
+                id="btn-batal-kelompok-aset"
               >
                 Batal
-              </button>
+                        </button>}
               <button
-                type="button"
-                className="btn-hero-primary"
-                style={{ background: '#DC2626', borderColor: '#DC2626' }}
-                onClick={handleConfirmDelete}
-                disabled={deleting}
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={saving}
+                id="btn-simpan-kelompok-aset"
               >
-                {deleting ? 'Menghapus...' : 'Ya, Hapus Kelompok'}
+                {saving ? (
+                  <>
+                    <div className="spinner" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  'Simpan'
+                )}
               </button>
             </div>
           </div>

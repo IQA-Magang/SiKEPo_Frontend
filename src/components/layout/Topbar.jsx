@@ -1,146 +1,103 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, User, ChevronDown, LogOut, Menu, Settings } from 'lucide-react';
-import tthLogo from '../../assets/logo/tth-logo.png';
-import { getStoredUser, setStoredUser, userApi } from '../../utils/api';
+import { Search, Bell, User, ChevronDown, LogOut, Menu, Settings, ShieldCheck } from 'lucide-react';
+import { getCurrentUser, authApi } from '../../utils/api.js';
+import NotificationBell from '../NotificationBell.jsx';
 
-export default function Topbar({ user, onNavigate, title, searchValue, onSearchChange, searchPlaceholder, onUpdateUser }) {
+export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSearch }) {
   const [profileOpen, setProfileOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState(() => user || getStoredUser());
+  const [user, setUser] = useState(getCurrentUser);
+  const [searchVal, setSearchVal] = useState('');
   const profileRef = useRef(null);
 
-  // Sync when prop user changes
   useEffect(() => {
-    if (user) {
-      setCurrentUser(user);
-    }
-  }, [user]);
+    setUser(getCurrentUser());
+  }, [currentPath]);
 
-  // Sync from backend database on mount to ensure live real name & role
-  useEffect(() => {
-    const syncRealUser = async () => {
-      try {
-        const stored = getStoredUser();
-        if (stored?.user_id) {
-          const res = await userApi.getById(stored.user_id);
-          if (res?.data && res.data.name && res.data.name !== stored.name) {
-            const fresh = { ...stored, ...res.data };
-            setCurrentUser(fresh);
-            setStoredUser(fresh);
-            return;
-          }
-        }
-
-        // Fallback: match by email/nip in backend list
-        if (stored?.email || stored?.nip) {
-          const listRes = await userApi.getAll();
-          if (listRes?.data?.length) {
-            const match = listRes.data.find(u =>
-              (stored.email && u.email === stored.email) ||
-              (stored.nip && u.nip === stored.nip)
-            );
-            if (match && (match.name !== stored.name || match.role !== stored.role)) {
-              const fresh = { ...stored, ...match };
-              setCurrentUser(fresh);
-              setStoredUser(fresh);
-            }
-          }
-        }
-      } catch (err) {
-        // Ignore offline error
-      }
-    };
-
-    syncRealUser();
-  }, []);
-
-  // Sync when custom event sikepo_user_changed is triggered anywhere in the app
-  useEffect(() => {
-    const handleUserChanged = (e) => {
-      if (e.detail) {
-        setCurrentUser(e.detail);
-      }
-    };
-    window.addEventListener('sikepo_user_changed', handleUserChanged);
-    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
-  }, []);
-
+  // Handle outside click for profile dropdown
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) {
         setProfileOpen(false);
       }
     };
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setProfileOpen(false);
-    };
     if (profileOpen) {
       document.addEventListener('mousedown', handleOutsideClick);
-      document.addEventListener('keydown', handleKeyDown);
     }
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [profileOpen]);
 
-  const handleLogout = () => {
-    setStoredUser(null);
-    localStorage.removeItem('sikepo_token');
+  function handleLogout() {
+    authApi.logout();
     onNavigate('/login');
-  };
+  }
 
-  const effectiveUser = currentUser || user;
-  const userName = effectiveUser?.name || 'Administrator';
-  const userRole = effectiveUser?.role ? (effectiveUser.role.charAt(0).toUpperCase() + effectiveUser.role.slice(1).toLowerCase()) : 'Admin';
+  function handleSearchChange(e) {
+    setSearchVal(e.target.value);
+    if (onSearch) onSearch(e.target.value);
+  }
+
+  const userName = user?.name || 'Administrator';
+  const rawRole = user?.role || 'admin';
+  const userRole = rawRole.charAt(0).toUpperCase() + rawRole.slice(1).toLowerCase();
 
   return (
     <header className="topbar">
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <button
           className="topbar-hamburger"
-          onClick={() => window.dispatchEvent(new CustomEvent('sikepo_toggle_mobile_sidebar'))}
+          onClick={onToggleSidebar}
           aria-label="Buka menu navigasi"
           title="Buka Menu"
         >
-          <Menu size={20} />
+          <Menu size={22} />
         </button>
 
         <div
           className="brand-wrap"
-          onClick={() => onNavigate && onNavigate('/dashboard')}
-          style={{ cursor: onNavigate ? 'pointer' : 'default' }}
+          onClick={() => onNavigate('/dashboard')}
+          style={{ cursor: 'pointer' }}
           title="Kembali ke Dashboard"
         >
-          <img src={tthLogo} alt="Telkom Test House Logo" className="topbar-logo" />
+          {/* TTH Logo SVG */}
+          <div className="topbar-tth-logo">
+            <svg width="42" height="30" viewBox="0 0 70 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 25C15 15 25 35 35 25C45 15 55 35 65 25" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" />
+              <text x="35" y="44" fill="#FFFFFF" fontSize="13" fontWeight="800" textAnchor="middle" fontFamily="var(--font-sans)">tth</text>
+            </svg>
+            <div className="topbar-tth-sub">Telkom Test House</div>
+          </div>
+
           <div className="brand-divider" />
           <span className="brand-name">SiKEPo</span>
         </div>
       </div>
 
-      {title ? (
-        <span className="topbar-page-title">{title}</span>
-      ) : (
-        <div className="topbar-search">
-          <Search size={16} className="search-icon" />
-          <input
-            type="text"
-            placeholder={searchPlaceholder || "Cari alat, kode inventaris, atau peminjam..."}
-            value={searchValue ?? ''}
-            onChange={onSearchChange}
-            readOnly={!onSearchChange}
-          />
-        </div>
-      )}
+      {/* Center Search Pill */}
+      <div className="topbar-search">
+        <Search size={16} className="search-icon" />
+        <input
+          type="text"
+          placeholder="Cari alat, kode inventaris, atau peminjam..."
+          value={searchVal}
+          onChange={handleSearchChange}
+        />
+      </div>
 
+      {/* Topbar Right */}
       <div className="topbar-right">
-        <button className="icon-badge-button" title="Notifikasi">
-          <Bell size={18} />
-          <span className="notification-dot" />
-        </button>
+        {/* Live Notification Bell */}
+        <NotificationBell onNavigate={onNavigate} />
 
         <div className="profile-wrapper" ref={profileRef}>
-          <button className="profile-button" onClick={() => setProfileOpen(!profileOpen)} aria-expanded={profileOpen}>
-            <div className="avatar-circle"><User size={15} /></div>
+          <button
+            className="profile-button"
+            onClick={() => setProfileOpen(!profileOpen)}
+            aria-expanded={profileOpen}
+            id="btn-topbar-profile"
+          >
+            <div className="avatar-circle">
+              <User size={15} />
+            </div>
             <div className="user-meta">
               <span className="user-name-text">{userName}</span>
               <span className="user-role-badge">{userRole}</span>
@@ -151,10 +108,8 @@ export default function Topbar({ user, onNavigate, title, searchValue, onSearchC
           {profileOpen && (
             <div className="profile-dropdown-menu">
               <div className="dropdown-header">
-                <strong style={{ fontSize: '14px', color: '#111827', display: 'block' }}>{userName}</strong>
-                <p style={{ fontSize: '12px', color: '#6B7280', margin: '2px 0 8px', wordBreak: 'break-all' }}>
-                  {effectiveUser?.email || user?.email || 'admin@sikepo.test'}
-                </p>
+                <strong>{userName}</strong>
+                <p>{user?.email || 'admin@sikepo.tth'}</p>
                 <span className="role-chip">{userRole}</span>
               </div>
               <div className="dropdown-divider" />
@@ -162,8 +117,9 @@ export default function Topbar({ user, onNavigate, title, searchValue, onSearchC
                 className="dropdown-item"
                 onClick={() => {
                   setProfileOpen(false);
-                  if (onNavigate) onNavigate('/settings');
+                  onNavigate('/settings');
                 }}
+                id="btn-dropdown-settings"
               >
                 <Settings size={16} />
                 <span>Pengaturan</span>
@@ -171,6 +127,7 @@ export default function Topbar({ user, onNavigate, title, searchValue, onSearchC
               <button
                 className="dropdown-item text-red"
                 onClick={handleLogout}
+                id="btn-dropdown-logout"
               >
                 <LogOut size={16} />
                 <span>Keluar Aplikasi</span>

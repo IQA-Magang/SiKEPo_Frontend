@@ -1,501 +1,400 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Building2,
-  Plus,
-  Search,
-  Pencil,
-  Trash2,
-  Shield,
-  X,
-  CheckCircle,
-  AlertCircle,
-  RefreshCw,
-  UserCheck
-} from 'lucide-react';
-import Topbar from '../../components/layout/Topbar';
-import Sidebar from '../../components/layout/Sidebar';
-import { labsApi, userApi, getStoredUser } from '../../utils/api';
+import React, { useState, useEffect } from 'react';
+import { Building2, Plus, Pencil, Trash2, X, RefreshCw, UserCheck, Shield } from 'lucide-react';
+import { labsApi, usersApi } from '../../utils/api.js';
+import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
-const EMPTY_FORM = {
-  nama_labs: '',
-  kode_labs: '',
-  manager_id: ''
-};
+const EMPTY_FORM = { nama_labs: '', kode_labs: '', manager_id: '' };
 
 export default function LabsManagement({ onNavigate }) {
-  const [user, setUser] = useState(getStoredUser);
+  const canAdd = can(ACCESS.MASTER_LAB, ACTIONS.ADD);
+  const canEdit = can(ACCESS.MASTER_LAB, ACTIONS.EDIT);
+  const canDelete = can(ACCESS.MASTER_LAB, ACTIONS.DELETE);
   const [labs, setLabs] = useState([]);
   const [managers, setManagers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState('');
-  const [notice, setNotice] = useState('');
-
-  // Search & Filter
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Modal State
-  const [modalMode, setModalMode] = useState(null); // 'create' | 'edit' | null
-  const [formData, setFormData] = useState(EMPTY_FORM);
-  const [selectedLabId, setSelectedLabId] = useState(null);
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
-
-  // Delete State
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  const [modal, setModal] = useState(null); // null | { mode: 'create'|'edit', id }
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    const current = getStoredUser();
-    if (current) {
-      setUser(current);
-      if (current.role?.toLowerCase() !== 'admin') {
-        onNavigate('/dashboard');
-      }
-    } else {
-      onNavigate('/login');
-    }
-
-    const handleUserChanged = (e) => {
-      if (e.detail) setUser(e.detail);
-    };
-    window.addEventListener('sikepo_user_changed', handleUserChanged);
-    return () => window.removeEventListener('sikepo_user_changed', handleUserChanged);
+    loadData();
   }, []);
 
-  // Fetch Labs & Manager Users
-  const fetchData = async () => {
+  async function loadData() {
     setLoading(true);
-    setApiError('');
     try {
       const [labsRes, usersRes] = await Promise.allSettled([
         labsApi.getAll(),
-        userApi.getAll()
+        usersApi.getAll(),
       ]);
 
-      if (labsRes.status === 'fulfilled' && labsRes.value?.data) {
-        setLabs(labsRes.value.data);
+      if (labsRes.status === 'fulfilled') {
+        setLabs(labsRes.value.data || []);
       } else {
-        setLabs([]);
-        if (labsRes.status === 'rejected') console.warn('Labs fetch failed:', labsRes.reason);
+        setError(labsRes.reason?.message || 'Gagal memuat data laboratorium');
       }
 
-      if (usersRes.status === 'fulfilled' && usersRes.value?.data) {
-        setManagers(usersRes.value.data);
+      if (usersRes.status === 'fulfilled') {
+        const allUsers = usersRes.value.data || [];
+        // Filter users who are managers or have managerial roles
+        const mgrs = allUsers.filter((u) => u.role === 'manager' || u.role === 'admin');
+        setManagers(mgrs.length > 0 ? mgrs : allUsers);
       }
     } catch (err) {
-      console.error('Failed to fetch labs:', err);
-      setApiError(err.message || 'Gagal terhubung ke backend API');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  function openCreate() {
+    setForm(EMPTY_FORM);
+    setError('');
+    setModal({ mode: 'create' });
+  }
 
-  const showNotice = (msg) => {
-    setNotice(msg);
-    setTimeout(() => setNotice(''), 3500);
-  };
-
-  const filteredLabs = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    return labs.filter((item) => {
-      if (!q) return true;
-      return (
-        item.nama_labs?.toLowerCase().includes(q) ||
-        item.kode_labs?.toLowerCase().includes(q) ||
-        item.manager?.name?.toLowerCase().includes(q)
-      );
+  function openEdit(lab) {
+    setForm({
+      nama_labs: lab.nama_labs || '',
+      kode_labs: lab.kode_labs || '',
+      manager_id: lab.manager_id ? String(lab.manager_id) : '',
     });
-  }, [labs, searchQuery]);
+    setError('');
+    setModal({ mode: 'edit', id: lab.id });
+  }
 
-  const handleOpenCreate = () => {
-    setFormData(EMPTY_FORM);
-    setSelectedLabId(null);
-    setFormError('');
-    setModalMode('create');
-  };
+  async function handleSave() {
+    if (!form.nama_labs.trim() || !form.kode_labs.trim()) {
+      setError('Kode Lab dan Nama Lab wajib diisi.');
+      return;
+    }
 
-  const handleOpenEdit = (target) => {
-    setSelectedLabId(target.id);
-    setFormData({
-      nama_labs: target.nama_labs || '',
-      kode_labs: target.kode_labs || '',
-      manager_id: target.manager_id ? String(target.manager_id) : ''
-    });
-    setFormError('');
-    setModalMode('edit');
-  };
-
-  const handleSubmitForm = async (e) => {
-    e.preventDefault();
-    setFormError('');
-    setFormSubmitting(true);
+    setSaving(true);
+    setError('');
 
     try {
-      const cleanNama = formData.nama_labs.trim();
-      const cleanKode = formData.kode_labs.trim();
-      const managerIdNum = formData.manager_id ? Number(formData.manager_id) : null;
-
-      if (!cleanNama || !cleanKode) {
-        throw new Error('Nama Laboratorium dan Kode Lab wajib diisi');
-      }
-
       const payload = {
-        nama_labs: cleanNama,
-        kode_labs: cleanKode,
-        manager_id: managerIdNum
+        nama_labs: form.nama_labs.trim(),
+        kode_labs: form.kode_labs.trim().toUpperCase(),
+        manager_id: form.manager_id ? Number(form.manager_id) : null,
       };
 
-      if (modalMode === 'create') {
+      if (modal.mode === 'create') {
         await labsApi.create(payload);
-        showNotice(`Lab "${cleanNama}" berhasil dibuat.`);
-      } else if (modalMode === 'edit') {
-        await labsApi.update(selectedLabId, payload);
-        showNotice(`Lab "${cleanNama}" berhasil diperbarui.`);
+      } else {
+        await labsApi.update(modal.id, payload);
       }
 
-      setModalMode(null);
-      fetchData();
+      setModal(null);
+      await loadData();
     } catch (err) {
-      setFormError(err.message || 'Terjadi kesalahan saat menyimpan lab');
+      setError(err.message || 'Gagal menyimpan laboratorium.');
     } finally {
-      setFormSubmitting(false);
+      setSaving(false);
     }
-  };
+  }
 
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
-
-    setDeleting(true);
-    setDeleteError('');
+  async function handleDelete(id) {
+    if (!window.confirm('Yakin ingin menghapus laboratorium ini?')) return;
+    setDeleting(id);
     try {
-      await labsApi.delete(deleteTarget.id);
-      showNotice(`Lab "${deleteTarget.nama_labs}" berhasil dihapus.`);
-      setDeleteTarget(null);
-      fetchData();
+      await labsApi.delete(id);
+      setLabs((prev) => prev.filter((item) => item.id !== id));
     } catch (err) {
-      setDeleteError(err.message || 'Gagal menghapus lab');
+      alert(err.message || 'Gagal menghapus laboratorium.');
     } finally {
-      setDeleting(false);
+      setDeleting(null);
     }
-  };
+  }
+
+  const filtered = labs.filter((lab) => {
+    const q = search.toLowerCase();
+    return (
+      !q ||
+      lab.nama_labs?.toLowerCase().includes(q) ||
+      lab.kode_labs?.toLowerCase().includes(q) ||
+      lab.manager?.name?.toLowerCase().includes(q)
+    );
+  });
 
   return (
-    <div className="app-shell">
-      <Topbar
-        user={user}
-        onNavigate={onNavigate}
-        title="Manajemen Laboratorium"
-        onUpdateUser={(u) => setUser(u)}
-      />
-
-      <Sidebar activePath="/admin/kelompok-lab" onNavigate={onNavigate} />
-
-      <main className="main-content">
-        {/* Toast Notice */}
-        {notice && (
-          <div
-            className="eq-confirm-banner"
-            style={{
-              background: '#ECFDF5',
-              borderColor: '#A7F3D0',
-              color: '#065F46',
-              marginBottom: '16px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CheckCircle size={16} color="#059669" />
-              <span>{notice}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Page Header */}
-        <div className="eq-page-header">
-          <div>
-            <h1 className="eq-page-title">Manajemen Laboratorium</h1>
-            <p className="eq-page-sub">
-              Master data unit laboratorium Telkom Test House (/api/v1/labs)
-            </p>
-          </div>
-          <button className="btn-hero-primary" onClick={handleOpenCreate}>
-            <Plus size={16} />
-            <span>Tambah Lab</span>
-          </button>
+    <div className="page-container fade-in-up">
+      {/* Header */}
+      <div
+        className="page-header"
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 'var(--sp-3)',
+        }}
+      >
+        <div>
+          <h1 className="page-title">Laboratorium Pengujian</h1>
+          <p className="page-subtitle">
+            Kelola laboratorium uji Telkom Test House ({filtered.length} terdaftar)
+          </p>
         </div>
+        {canAdd && <button className="btn btn-primary" onClick={openCreate} id="btn-tambah-lab">
+          <Plus size={16} /> Tambah Lab
+        </button>}
+      </div>
 
-        {/* Stats Grid */}
-        <section className="stats-grid" style={{ marginBottom: '20px' }}>
-          <article className="stat-card black">
-            <div className="stat-header">
-              <span className="stat-badge">Total Unit</span>
-              <div className="stat-icon-wrapper"><Building2 size={20} /></div>
-            </div>
-            <div className="stat-body">
-              <strong className="stat-value">{labs.length} Lab</strong>
-              <span className="stat-title">Laboratorium Terdaftar</span>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-sub">Tercatat di sistem SiKEPo</span>
-            </div>
-          </article>
-
-          <article className="stat-card red">
-            <div className="stat-header">
-              <span className="stat-badge">Dengan Manajer</span>
-              <div className="stat-icon-wrapper"><UserCheck size={20} /></div>
-            </div>
-            <div className="stat-body">
-              <strong className="stat-value">
-                {labs.filter((l) => Boolean(l.manager_id)).length} Lab
-              </strong>
-              <span className="stat-title">Memiliki PIC Manajer</span>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-sub">Pejabat pengesah verifikasi</span>
-            </div>
-          </article>
-        </section>
-
-        {/* Filter and Search */}
-        <div className="eq-filter-card" style={{ marginBottom: '16px' }}>
-          <div className="eq-filter-search">
-            <Search size={16} className="search-icon" />
-            <input
-              type="text"
-              placeholder="Cari berdasarkan nama lab, kode lab, atau manajer..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          <div className="eq-filter-selects">
-            <button
-              className="btn-refresh"
-              onClick={fetchData}
-              title="Perbarui data"
-            >
-              <RefreshCw size={13} className={loading ? 'spin' : ''} />
-              <span>Refresh</span>
-            </button>
-          </div>
+      {/* Filters & Actions */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 'var(--sp-3)',
+          marginBottom: 'var(--sp-5)',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        <div className="search-bar" style={{ flex: 1, minWidth: 240 }}>
+          <Building2 className="search-icon" style={{ width: 16, height: 16 }} />
+          <input
+            id="input-search-lab"
+            className="form-input"
+            type="text"
+            placeholder="Cari kode lab, nama lab, manager..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
+        <button
+          className="btn btn-secondary btn-icon"
+          onClick={loadData}
+          id="btn-refresh-lab"
+          title="Segarkan data"
+        >
+          <RefreshCw size={16} />
+        </button>
+      </div>
 
-        {/* Table Panel */}
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Daftar Laboratorium</h2>
-              <p className="panel-subtitle">
-                {loading ? 'Memuat data dari backend...' : `${filteredLabs.length} lab ditemukan`}
-              </p>
-            </div>
+      {/* Table / Content */}
+      {loading ? (
+        <div
+          className="card"
+          style={{
+            padding: 'var(--sp-6)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--sp-3)',
+          }}
+        >
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="skeleton" style={{ height: 52 }} />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <Building2 size={32} />
           </div>
+          <p className="empty-state-title">Tidak ada laboratorium ditemukan</p>
+          {canAdd && <button className="btn btn-primary" onClick={openCreate}>
+            <Plus size={16} /> Tambah Lab
+          </button>}
+        </div>
+      ) : (
+        <div className="table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ width: 140 }}>Kode Lab</th>
+                <th>Nama Laboratorium</th>
+                <th>Penanggung Jawab / Manager</th>
+                <th style={{ width: 120 }}>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((lab) => {
+                const managerObj =
+                  lab.manager ||
+                  managers.find((m) => m.user_id === lab.manager_id);
 
-          {apiError && (
-            <div style={{ padding: '14px 20px', background: '#FEF2F2', borderBottom: '1px solid #FECACA', color: '#991B1B', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertCircle size={18} />
-                <span>{apiError}</span>
-              </div>
-              <button className="btn-hero-secondary" style={{ padding: '4px 10px', fontSize: '11.5px' }} onClick={fetchData}>
-                Coba Lagi
-              </button>
-            </div>
-          )}
-
-          <div className="table-responsive">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>No</th>
-                  <th>Kode Lab</th>
-                  <th>Nama Laboratorium</th>
-                  <th>Manajer Lab</th>
-                  <th>Tanggal Dibuat</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLabs.map((l, idx) => (
-                  <tr key={l.id || idx}>
-                    <td><span className="eq-row-num">{String(idx + 1).padStart(2, '0')}</span></td>
+                return (
+                  <tr key={lab.id}>
                     <td>
-                      <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#111827' }}>
-                        {l.kode_labs}
-                      </span>
+                      <code
+                        style={{
+                          fontSize: 'var(--text-xs)',
+                          background: 'var(--clr-dark-100)',
+                          padding: '2px 6px',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'var(--clr-primary-700)',
+                          fontWeight: 'var(--fw-bold)',
+                        }}
+                      >
+                        {lab.kode_labs}
+                      </code>
                     </td>
+                    <td style={{ fontWeight: 'var(--fw-semibold)' }}>{lab.nama_labs}</td>
                     <td>
-                      <strong className="tool-name-text">{l.nama_labs}</strong>
-                    </td>
-                    <td>
-                      {l.manager ? (
-                        <div>
-                          <span style={{ fontWeight: 600, color: '#111827' }}>{l.manager.name}</span>
-                          <br />
-                          <small style={{ color: '#6B7280' }}>{l.manager.email}</small>
+                      {managerObj ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+                          <div
+                            style={{
+                              width: 26,
+                              height: 26,
+                              borderRadius: '50%',
+                              background: 'var(--clr-primary-50)',
+                              color: 'var(--clr-primary-600)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 11,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {managerObj.name
+                              ? managerObj.name[0].toUpperCase()
+                              : 'M'}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>
+                              {managerObj.name}
+                            </div>
+                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
+                              {managerObj.email}
+                            </div>
+                          </div>
                         </div>
                       ) : (
-                        <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>Belum Ditentukan</span>
+                        <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>
+                          Belum ditentukan
+                        </span>
                       )}
                     </td>
                     <td>
-                      <span className="date-text">
-                        {l.created_at ? new Date(l.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="eq-actions">
-                        <button
-                          className="eq-btn-action edit"
-                          onClick={() => handleOpenEdit(l)}
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {canEdit && <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => openEdit(lab)}
+                          id={`btn-edit-lab-${lab.id}`}
                           title="Edit Lab"
                         >
                           <Pencil size={13} />
-                        </button>
-                        <button
-                          className="eq-btn-action delete"
-                          onClick={() => { setDeleteError(''); setDeleteTarget(l); }}
+                        </button>}
+                        {canDelete && <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(lab.id)}
+                          disabled={deleting === lab.id}
+                          id={`btn-hapus-lab-${lab.id}`}
                           title="Hapus Lab"
                         >
                           <Trash2 size={13} />
-                        </button>
+                        </button>}
                       </div>
                     </td>
                   </tr>
-                ))}
-                {!loading && filteredLabs.length === 0 && (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#6B7280' }}>
-                      Belum ada data laboratorium yang sesuai.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </main>
-
-      {/* MODAL CREATE / EDIT */}
-      {modalMode && (
-        <div className="profile-modal-overlay">
-          <div className="profile-modal" style={{ maxWidth: '480px' }}>
-            <div className="profile-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Building2 size={20} className="text-red" />
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
-                  {modalMode === 'create' ? 'Tambah Laboratorium Baru' : 'Ubah Data Laboratorium'}
-                </h3>
-              </div>
-              <button className="profile-modal-close" onClick={() => setModalMode(null)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitForm}>
-              <div className="profile-modal-body" style={{ padding: '20px' }}>
-                {formError && (
-                  <div className="error-banner" style={{ marginBottom: '14px' }}>
-                    {formError}
-                  </div>
-                )}
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">Kode Laboratorium *</label>
-                  <input
-                    type="text"
-                    className="eq-form-input"
-                    placeholder="Contoh: LAB-OPT-01"
-                    value={formData.kode_labs}
-                    onChange={(e) => setFormData({ ...formData, kode_labs: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">Nama Laboratorium *</label>
-                  <input
-                    type="text"
-                    className="eq-form-input"
-                    placeholder="Contoh: Laboratorium Transmisi & Optik"
-                    value={formData.nama_labs}
-                    onChange={(e) => setFormData({ ...formData, nama_labs: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="eq-form-group">
-                  <label className="eq-form-label">Manajer Penanggung Jawab (Opsional)</label>
-                  <select
-                    className="eq-form-input"
-                    value={formData.manager_id}
-                    onChange={(e) => setFormData({ ...formData, manager_id: e.target.value })}
-                  >
-                    <option value="">-- Pilih Manajer (Opsional) --</option>
-                    {managers.map((m) => (
-                      <option key={m.user_id} value={m.user_id}>
-                        {m.name} ({m.role ? m.role.toUpperCase() : 'USER'} - {m.position || 'Personel'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="profile-modal-footer" style={{ display: 'flex', gap: '10px', padding: '16px 20px' }}>
-                <button
-                  type="button"
-                  className="eq-btn-cancel"
-                  onClick={() => setModalMode(null)}
-                  disabled={formSubmitting}
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="btn-hero-primary"
-                  disabled={formSubmitting}
-                >
-                  {formSubmitting ? 'Menyimpan...' : modalMode === 'create' ? 'Buat Lab' : 'Simpan Perubahan'}
-                </button>
-              </div>
-            </form>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* MODAL CONFIRM DELETE */}
-      {deleteTarget && (
-        <div className="profile-modal-overlay">
-          <div className="profile-modal" style={{ maxWidth: '420px' }}>
-            <div className="profile-modal-header">
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#DC2626' }}>
-                Konfirmasi Hapus Lab
-              </h3>
-              <button className="profile-modal-close" onClick={() => setDeleteTarget(null)}>
+      {/* Modal Tambah / Edit */}
+      {modal && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => e.target === e.currentTarget && setModal(null)}
+        >
+          <div className="modal" id="modal-lab">
+            <div className="modal-header">
+              <h2 className="modal-title">
+                {modal.mode === 'create' ? 'Tambah Laboratorium' : 'Edit Laboratorium'}
+              </h2>
+              <button className="modal-close" onClick={() => setModal(null)}>
                 <X size={18} />
               </button>
             </div>
-            <div className="profile-modal-body" style={{ padding: '20px' }}>
-              {deleteError && (
-                <div className="error-banner" style={{ marginBottom: '14px' }}>
-                  {deleteError}
+            <div className="modal-body">
+              {error && (
+                <div className="alert alert-error" style={{ marginBottom: 'var(--sp-4)' }}>
+                  {error}
                 </div>
               )}
-              <p style={{ fontSize: '13.5px', color: '#374151', lineHeight: '1.5' }}>
-                Apakah Anda yakin ingin menghapus lab <strong>"{deleteTarget.nama_labs}"</strong> ({deleteTarget.kode_labs})?
-              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="modal-lab-kode">
+                    Kode Laboratorium <span className="required">*</span>
+                  </label>
+                  <input
+                    id="modal-lab-kode"
+                    className="form-input"
+                    placeholder="Contoh: LAB-RF, LAB-EMC, LAB-CAL"
+                    value={form.kode_labs}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, kode_labs: e.target.value.toUpperCase() }))
+                    }
+                  />
+                  <div className="form-hint">Gunakan kode unik berupa singkatan resmi lab.</div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="modal-lab-nama">
+                    Nama Laboratorium <span className="required">*</span>
+                  </label>
+                  <input
+                    id="modal-lab-nama"
+                    className="form-input"
+                    placeholder="Contoh: Lab Radio Frequency & Microwave"
+                    value={form.nama_labs}
+                    onChange={(e) => setForm((p) => ({ ...p, nama_labs: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="modal-lab-manager">
+                    Manager / Penanggung Jawab
+                  </label>
+                  <select
+                    id="modal-lab-manager"
+                    className="form-select"
+                    value={form.manager_id}
+                    onChange={(e) => setForm((p) => ({ ...p, manager_id: e.target.value }))}
+                  >
+                    <option value="">-- Pilih Manager Lab --</option>
+                    {managers.map((m) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.name} ({m.position || m.role})
+                      </option>
+                    ))}
+                  </select>
+                  <div className="form-hint">
+                    Manager ini akan menerima notifikasi status peralatan untuk lab terkait.
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="profile-modal-footer" style={{ display: 'flex', gap: '10px', padding: '16px 20px' }}>
-              <button className="eq-btn-cancel" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setModal(null)}
+                id="btn-batal-lab"
+              >
                 Batal
               </button>
-              <button className="eq-btn-action delete" style={{ padding: '8px 16px' }} onClick={handleConfirmDelete} disabled={deleting}>
-                {deleting ? 'Menghapus...' : 'Ya, Hapus Lab'}
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={saving}
+                id="btn-simpan-lab"
+              >
+                {saving ? (
+                  <>
+                    <div className="spinner" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  'Simpan'
+                )}
               </button>
             </div>
           </div>
