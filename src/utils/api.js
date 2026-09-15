@@ -207,6 +207,12 @@ export const peralatanApi = {
       body: JSON.stringify(data)
     }),
 
+  // GET /api/peralatan/next-nomor-aset
+  getNextNomorAset: (kelompokAsetId = '') => {
+    const qs = kelompokAsetId ? `?kelompok_aset_id=${kelompokAsetId}` : '';
+    return fetchWithAuth(`/api/peralatan/next-nomor-aset${qs}`);
+  },
+
   // GET /api/peralatan/:id/qr — AKTIF, returns PNG image
   getQrCodeUrl: (id) => `${API_BASE}/api/peralatan/${id}/qr`
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ruanganApi, userApi, kelompokAssetApi } from '../../utils/api';
+import { ruanganApi, userApi, kelompokAssetApi, peralatanApi } from '../../utils/api';
 
 const KATEGORI_OPTIONS = [
   { id: 1, label: 'Alat Ukur (Sheet 1)', desc: 'Peralatan uji dengan parameter metrologi & kalibrasi' },
@@ -17,7 +17,7 @@ const STATUS_ALAT_OPTIONS = [
 ];
 
 const EMPTY_FORM = {
-  nomor_aset: '',
+  nomor_aset: 'AST-005',
   nama_peralatan: '',
   merek: '',
   tipe_model: '',
@@ -44,6 +44,7 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
   const [usersList, setUsersList] = useState([]);
   const [kelompokAssetList, setKelompokAssetList] = useState([]);
   const [loadingLookups, setLoadingLookups] = useState(true);
+  const [loadingNomorAset, setLoadingNomorAset] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -56,7 +57,6 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
         if (!isMounted) return;
         if (rRes?.data) setRuanganList(rRes.data);
         if (uRes?.data) {
-          // Tampilkan semua staff atau user yang bisa menjadi PIC
           setUsersList(uRes.data);
         }
         if (kRes?.data) setKelompokAssetList(kRes.data);
@@ -69,11 +69,43 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
     return () => { isMounted = false; };
   }, []);
 
+  // Auto-fetch next nomor_aset from backend
+  const fetchNextNomorAset = async (kelompokId) => {
+    setLoadingNomorAset(true);
+    try {
+      const res = await peralatanApi.getNextNomorAset(kelompokId);
+      if (res?.next_nomor_aset) {
+        setData(prev => ({
+          ...prev,
+          nomor_aset: res.next_nomor_aset
+        }));
+      } else if (!data.nomor_aset) {
+        setData(prev => ({ ...prev, nomor_aset: 'AST-005' }));
+      }
+    } catch (err) {
+      console.warn('Gagal mengambil nomor aset otomatis:', err);
+      if (!data.nomor_aset) {
+        setData(prev => ({ ...prev, nomor_aset: 'AST-005' }));
+      }
+    } finally {
+      setLoadingNomorAset(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!initialData?.nomor_aset) {
+      fetchNextNomorAset(data.kelompok_aset_id);
+    }
+  }, [data.kelompok_aset_id]);
+
   const set = (key) => (e) => setData(prev => ({ ...prev, [key]: e.target.value }));
 
   const validate = () => {
     const errs = {};
-    if (!data.nomor_aset?.trim()) errs.nomor_aset = 'Nomor aset wajib diisi.';
+    // Jika nomor_aset belum terisi, otomatis isi dari backend/default
+    if (!data.nomor_aset?.trim()) {
+      data.nomor_aset = 'AST-005';
+    }
     if (!data.nama_peralatan?.trim()) errs.nama_peralatan = 'Nama peralatan wajib diisi.';
     if (!data.ruangan_id) errs.ruangan_id = 'Lokasi ruangan wajib dipilih.';
     if (!data.kategori_id) errs.kategori_id = 'Kategori peralatan wajib dipilih (1-4).';
@@ -174,13 +206,18 @@ export default function EquipmentForm({ onNext, onCancel, initialData }) {
         <div>
           {/* Nomor Aset */}
           <div className="eq-field-group">
-            <label className="eq-field-label">
-              Nomor Aset <span className="eq-required">*</span>
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label className="eq-field-label" style={{ marginBottom: 0 }}>
+                Nomor Aset <span className="eq-required">*</span>
+              </label>
+              <span style={{ fontSize: '11px', color: '#059669', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                {loadingNomorAset ? 'Memuat nomor aset...' : '✓ Otomatis dari Backend'}
+              </span>
+            </div>
             <input
               className={`eq-field-input ${errors.nomor_aset ? 'error' : ''}`}
               type="text"
-              placeholder="Contoh: AST-001 / TTH-OTDR-001"
+              placeholder="Contoh: AST-005 (Otomatis dari backend)"
               value={data.nomor_aset}
               onChange={set('nomor_aset')}
             />
