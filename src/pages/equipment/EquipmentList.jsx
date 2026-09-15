@@ -131,6 +131,9 @@ export default function EquipmentList({ onNavigate }) {
 
           <EquipmentTable
             equipment={filtered}
+            onSelect={(selected) => {
+              if (selected.id) onNavigate(`/alat-ukur/detail/${selected.id}`);
+            }}
           />
         </div>
       </main>

@@ -4,6 +4,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import EquipmentList from './pages/equipment/EquipmentList';
 import EquipmentCreate from './pages/equipment/EquipmentCreate';
+import EquipmentDetailPage from './pages/equipment/EquipmentDetailPage';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import UserManagement from './pages/admin/UserManagement';
@@ -48,6 +49,10 @@ export default function App() {
   if (currentPath === '/forgot-password')   return <ForgotPassword onNavigate={navigate} />;
   if (currentPath === '/dashboard')         return <Dashboard onNavigate={navigate} />;
   if (currentPath === '/alat-ukur/tambah')  return <EquipmentCreate onNavigate={navigate} />;
+  if (currentPath.startsWith('/alat-ukur/detail/')) {
+    const equipmentId = currentPath.split('/').pop();
+    return <EquipmentDetailPage equipmentId={equipmentId} onNavigate={navigate} />;
+  }
   if (currentPath === '/alat-ukur')         return <EquipmentList onNavigate={navigate} />;
   if (currentPath === '/settings' || currentPath === '/pengaturan') return <Settings onNavigate={navigate} />;
   if (currentPath === '/profile')           return <Settings onNavigate={navigate} initialTab="profile" />;

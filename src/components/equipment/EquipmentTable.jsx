@@ -1,7 +1,7 @@
 import React from 'react';
 import EquipmentStatusBadge from './EquipmentStatusBadge';
 
-export default function EquipmentTable({ equipment }) {
+export default function EquipmentTable({ equipment, onSelect }) {
   if (equipment.length === 0) {
     return (
       <div className="eq-empty">
@@ -29,12 +29,17 @@ export default function EquipmentTable({ equipment }) {
             const name = eq.nama_peralatan || eq.name || '-';
             const brand = eq.merk || eq.brand || '';
             const model = eq.tipe_model || eq.model || '';
-            const category = eq.kelompok_asset ? `[${eq.kelompok_asset.kode}] ${eq.kelompok_asset.nama}` : (eq.kategori_peralatan?.nama_kategori || eq.kategori_peralatan || eq.category || 'Peralatan');
+            const category = eq.kategori_peralatan?.nama_kategori || eq.kategori_peralatan || eq.category || 'Peralatan';
             const roomName = eq.ruangan ? `${eq.ruangan.kode_ruangan} - ${eq.ruangan.nama_ruangan}` : (eq.room || '-');
             const status = eq.status_alat || eq.status_kelayakan || eq.status || 'Aktif';
 
             return (
-              <tr key={eq.id}>
+              <tr
+                key={eq.id}
+                onClick={() => onSelect?.(eq)}
+                style={{ cursor: onSelect ? 'pointer' : undefined }}
+                title={onSelect ? 'Buka detail peralatan' : undefined}
+              >
                 <td><span className="eq-row-num">{String(idx + 1).padStart(2, '0')}</span></td>
                 <td><span className="loan-id-badge">{assetNo}</span></td>
                 <td>
