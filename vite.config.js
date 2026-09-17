@@ -7,15 +7,15 @@ export default defineConfig({
     port: 5174,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://si-ke-po-backend-dkfe-31rhkxj8d-rendy-kamaluddins-projects.vercel.app',
         changeOrigin: true,
       },
       '/recaptcha': {
-        target: 'http://localhost:5000',
+        target: 'https://si-ke-po-backend-dkfe-31rhkxj8d-rendy-kamaluddins-projects.vercel.app',
         changeOrigin: true,
       },
       '/static': {
-        target: 'http://localhost:5000',
+        target: 'https://si-ke-po-backend-dkfe-31rhkxj8d-rendy-kamaluddins-projects.vercel.app',
         changeOrigin: true,
       },
     },
