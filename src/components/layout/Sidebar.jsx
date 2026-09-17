@@ -142,13 +142,7 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
               <NavItem label="Kelompok Lab" path="/admin/labs" feature={ACCESS.MASTER_LAB} />
               <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" feature={ACCESS.MASTER_EQUIPMENT} />
               <NavItem label="Kelompok Lokasi" path="/admin/ruangan" feature={ACCESS.MASTER_EQUIPMENT} />
-              <NavItem label="Manajemen User / PIC" path="/admin/users" feature={ACCESS.MASTER_USER_PIC} />
             </NavGroup>
-
-            {/* Pengaturan Akun */}
-            <div style={{ marginTop: '12px' }}>
-              <NavTopItem label="Pengaturan Akun" icon={Settings} path="/settings" />
-            </div>
           </nav>
         </div>
 

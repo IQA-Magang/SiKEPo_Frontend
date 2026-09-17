@@ -87,6 +87,46 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
     'Dihapuskan':      'badge-dihapuskan',
   };
 
+  async function handleDownloadQR() {
+    const imgEl = document.getElementById(`qr-img-${equipmentId}`);
+    const currentQrSrc = imgEl?.src || qrUrl;
+    const fileName = `QR-Peralatan-ID${equipmentId}-${peralatan?.nomor_aset || 'aset'}.png`;
+
+    try {
+      const res = await fetch(currentQrSrc);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      // Fallback Canvas jika terjadi CORS
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || 250;
+        canvas.height = img.naturalHeight || 250;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+      img.src = currentQrSrc;
+    }
+  }
+
   return (
     <div className="page-container fade-in-up">
       {/* Back & Title */}
@@ -121,23 +161,20 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
               <InfoRow label="Merek" value={peralatan.merek || '–'} />
               <InfoRow label="Tipe/Model" value={peralatan.tipe_model || '–'} />
               <InfoRow label="No. Seri" value={peralatan.nomor_seri || '–'} />
+              <InfoRow label="Perangkat Lunak / Software" value={peralatan.peranti_lunak_versi || '–'} />
               <InfoRow label="Status" value={peralatan.status_alat} />
               <InfoRow label="Keterangan" value={peralatan.keterangan || '–'} />
             </div>
           </div>
 
-          {/* Detail Kategori */}
+          {/* Detail Kategori / Teknis */}
           {peralatan.detail_alat_ukur && (
             <div className="card card-padded">
-              <h2 className="section-title">Detail Alat Ukur</h2>
+              <h2 className="section-title">Detail Teknis Alat Ukur</h2>
               <div className="form-grid-2">
-                <InfoRow label="Parameter & Rentang Ukur" value={peralatan.detail_alat_ukur.parameter_rentang_ukur} />
-                <InfoRow label="Resolusi" value={peralatan.detail_alat_ukur.resolusi} />
-                <InfoRow label="Akurasi/Spesifikasi" value={peralatan.detail_alat_ukur.akurasi_spesifikasi} />
                 <InfoRow label="No. Sertifikat" value={peralatan.detail_alat_ukur.no_sertifikat} />
                 <InfoRow label="Tgl. Kalibrasi" value={formatDate(peralatan.detail_alat_ukur.tgl_kalibrasi)} />
                 <InfoRow label="Jatuh Tempo" value={formatDate(peralatan.detail_alat_ukur.tgl_jatuh_tempo)} />
-                <InfoRow label="Status Kelayakan" value={peralatan.detail_alat_ukur.status_kelayakan} />
               </div>
             </div>
           )}
@@ -229,20 +266,30 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
 
           {/* QR Code */}
           <div className="card card-padded">
-            <h2 className="section-title">QR Code</h2>
+            <h2 className="section-title">QR Code (by ID)</h2>
             <div className="qr-container">
-              <img src={qrUrl} alt="QR Code" className="qr-image" id={`qr-img-${equipmentId}`} />
+              <img
+                src={qrUrl}
+                alt={`QR Code Peralatan ID ${equipmentId}`}
+                className="qr-image"
+                id={`qr-img-${equipmentId}`}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`SIKEPO-EQ-ID:${equipmentId}-${peralatan.nomor_aset}`)}`;
+                }}
+              />
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
-                QR mengacu pada nomor aset: <strong>{peralatan.nomor_aset}</strong>
+                QR ID Peralatan: <strong>#{equipmentId}</strong> ({peralatan.nomor_aset})
               </p>
-              <a
-                href={qrUrl}
-                download={`qr-${peralatan.nomor_aset}.png`}
+              <button
+                type="button"
+                onClick={handleDownloadQR}
                 className="btn btn-secondary btn-sm"
                 id="btn-unduh-qr"
+                style={{ cursor: 'pointer' }}
               >
                 <Download size={14} /> Unduh QR
-              </a>
+              </button>
             </div>
           </div>
         </div>

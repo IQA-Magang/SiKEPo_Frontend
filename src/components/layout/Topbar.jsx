@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, User, ChevronDown, LogOut, Menu, Settings, ShieldCheck } from 'lucide-react';
+import { Search, Bell, User, ChevronDown, LogOut, Menu, Settings, ShieldCheck, QrCode } from 'lucide-react';
 import { getCurrentUser, authApi } from '../../utils/api.js';
 import NotificationBell from '../NotificationBell.jsx';
+import QRScannerModal from '../QRScannerModal.jsx';
 
 export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSearch }) {
   const [profileOpen, setProfileOpen] = useState(false);
+  const [isQrOpen, setIsQrOpen] = useState(false);
   const [user, setUser] = useState(getCurrentUser);
   const [searchVal, setSearchVal] = useState('');
   const profileRef = useRef(null);
@@ -84,7 +86,19 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
       </div>
 
       {/* Topbar Right */}
-      <div className="topbar-right">
+      <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+        {/* Tombol Scan QR Code by ID */}
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={() => setIsQrOpen(true)}
+          title="Scan Kode QR Peralatan"
+          id="btn-topbar-scan-qr"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          <QrCode size={16} style={{ color: 'var(--clr-primary-500)' }} />
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--fw-semibold)' }}>Scan QR</span>
+        </button>
+
         {/* Live Notification Bell */}
         <NotificationBell onNavigate={onNavigate} />
 
@@ -136,6 +150,13 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
           )}
         </div>
       </div>
+
+      {/* Modal Pemindai QR Code */}
+      <QRScannerModal
+        isOpen={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        onNavigate={onNavigate}
+      />
     </header>
   );
 }

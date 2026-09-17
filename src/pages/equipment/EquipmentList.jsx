@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Package, Search, Plus, QrCode, ChevronRight, RefreshCw } from 'lucide-react';
 import { peralatanApi, KATEGORI_OPTIONS, formatPhotoUrl } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
+import QRScannerModal from '../../components/QRScannerModal.jsx';
 
 // ------------------------------------------------------------------
 // Daftar Peralatan
@@ -13,6 +14,7 @@ export default function EquipmentList({ onNavigate }) {
   const [search, setSearch]     = useState('');
   const [filterKat, setFilterKat] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [isQrOpen, setIsQrOpen] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -65,13 +67,24 @@ export default function EquipmentList({ onNavigate }) {
             {loading ? 'Memuat...' : `${filtered.length} dari ${list.length} peralatan`}
           </p>
         </div>
-        {canCreate && <button
-          className="btn btn-primary"
-          onClick={() => onNavigate('/peralatan/tambah')}
-          id="btn-tambah-peralatan"
-        >
-          <Plus size={16} /> Tambah Peralatan
-        </button>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setIsQrOpen(true)}
+            id="btn-scan-qr-header"
+          >
+            <QrCode size={16} style={{ color: 'var(--clr-primary-500)' }} /> Scan QR Code
+          </button>
+          {canCreate && (
+            <button
+              className="btn btn-primary"
+              onClick={() => onNavigate('/peralatan/tambah')}
+              id="btn-tambah-peralatan"
+            >
+              <Plus size={16} /> Tambah Peralatan
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -145,7 +158,6 @@ export default function EquipmentList({ onNavigate }) {
                 <th>Foto</th>
                 <th>Nama Peralatan</th>
                 <th>No. Aset</th>
-                <th>Kategori</th>
                 <th>Status</th>
                 <th>Aksi</th>
               </tr>
@@ -180,11 +192,6 @@ export default function EquipmentList({ onNavigate }) {
                       <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
                         {p.nomor_aset}
                       </code>
-                    </td>
-                    <td>
-                      <span className="badge badge-blue">
-                        {kategoriLabel[p.kategori_peralatan_id] || `Kat-${p.kategori_peralatan_id}`}
-                      </span>
                     </td>
                     <td>
                       <span className={`badge ${statusClass[p.status_alat] || 'badge-gray'}`}>
@@ -222,6 +229,13 @@ export default function EquipmentList({ onNavigate }) {
           </table>
         </div>
       )}
+
+      {/* Modal Pemindai QR Code */}
+      <QRScannerModal
+        isOpen={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }
