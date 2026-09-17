@@ -361,13 +361,17 @@
 @media (max-width: 900px) {
   .login-content-grid {
     grid-template-columns: 1fr;
-    gap: 30px;
-    padding: 40px 16px;
+    gap: 20px;
+    padding: 30px 16px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    justify-content: center;
   }
 
   .login-left-col {
     align-items: center;
     padding: 0;
+    width: 100%;
   }
 
   .login-right-col {
@@ -375,9 +379,35 @@
   }
 }
 
+@media (max-width: 480px) {
+  .login-card {
+    padding: 24px 20px 20px 20px;
+    border-radius: 20px;
+  }
+
+  .sikepo-tagline {
+    font-size: 20px;
+  }
+
+  .pill-input {
+    height: 44px;
+    padding: 0 18px;
+    font-size: 13.5px;
+  }
+
+  .btn-masuk {
+    height: 44px;
+    font-size: 14.5px;
+  }
+}
+
 @media (max-width: 380px) {
   .recaptcha-wrapper {
-    transform: scale(0.88);
+    transform: scale(0.85);
     transform-origin: center;
+  }
+
+  .login-card {
+    padding: 20px 16px 16px 16px;
   }
 }

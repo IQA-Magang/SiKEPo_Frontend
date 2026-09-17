@@ -2,6 +2,45 @@
    SiKEPo Components CSS
    ======================================== */
 
+/* ---- PAGE HEADER ---- */
+.page-header {
+  margin-bottom: 28px;
+}
+
+.page-title {
+  font-family: var(--font-display, sans-serif);
+  font-size: var(--text-2xl, 24px);
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--clr-dark-900, #111111);
+  margin-bottom: 6px;
+}
+
+.page-subtitle {
+  font-size: var(--text-sm, 14px);
+  color: var(--clr-dark-500, #6B7280);
+  line-height: var(--lh-normal, 1.5);
+}
+
+/* ---- CATEGORY CARDS GRID ---- */
+.category-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+@media (max-width: 1024px) {
+  .category-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .category-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* ---- CARDS ---- */
 .card {
   background: #fff;

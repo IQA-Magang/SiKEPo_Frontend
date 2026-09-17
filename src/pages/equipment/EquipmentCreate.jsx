@@ -520,10 +520,10 @@ export default function EquipmentCreate({ onNavigate }) {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-ruangan">
-                    Ruangan Uji / Simpan <span className="required">*</span>
+                    Lokasi <span className="required">*</span>
                   </label>
                   <select id="select-ruangan" className="form-select" value={form.ruangan_id} onChange={(e) => setField('ruangan_id', e.target.value)}>
-                    <option value="">– Pilih Ruangan –</option>
+                    <option value="">– Pilih Lokasi –</option>
                     {ruangan
                       .filter((r) => !form.lab_id || String(r.labs_id) === String(form.lab_id))
                       .map((r) => (

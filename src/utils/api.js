@@ -228,9 +228,18 @@ export const notificationApi = {
 };
 
 // =============================================================
-// KATEGORI PERALATAN (local constant — sesuai backend)
-// Kategori 1-4 fix di backend
+// KATEGORI PERALATAN  — /api/kategori-peralatan
 // =============================================================
+export const kategoriApi = {
+  getAll: () => fetchWithAuth('/api/kategori-peralatan').catch(() => null),
+  getById: (id) => fetchWithAuth(`/api/kategori-peralatan/${id}`).catch(() => null),
+  create: (body) =>
+    fetchWithAuth('/api/kategori-peralatan/', { method: 'POST', body: JSON.stringify(body) }).catch(() => null),
+  update: (id, body) =>
+    fetchWithAuth(`/api/kategori-peralatan/${id}`, { method: 'PUT', body: JSON.stringify(body) }).catch(() => null),
+  delete: (id) => fetchWithAuth(`/api/kategori-peralatan/${id}`, { method: 'DELETE' }).catch(() => null),
+};
+
 export const KATEGORI_OPTIONS = [
   { id: 1, label: 'Alat Ukur',            desc: 'Peralatan uji dengan parameter metrologi & kalibrasi' },
   { id: 2, label: 'Alat Bantu',           desc: 'Peralatan pendukung dengan pemeriksaan berkala' },

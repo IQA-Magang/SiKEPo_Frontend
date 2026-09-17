@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Tags, ShieldCheck, Wrench, Compass, Box, CheckCircle2, ArrowRight, Edit3, Plus, X, Save } from 'lucide-react';
-import { KATEGORI_OPTIONS, peralatanApi } from '../../utils/api.js';
+import { KATEGORI_OPTIONS, peralatanApi, kategoriApi } from '../../utils/api.js';
+
+const STORAGE_KEY_CATS = 'sikepo_categories_cache';
+const STORAGE_KEY_DETAILS = 'sikepo_category_details_cache';
 
 const INITIAL_CATEGORY_DETAILS = {
   1: {
@@ -86,9 +89,38 @@ const INITIAL_CATEGORY_DETAILS = {
   },
 };
 
+function getInitialCategories() {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY_CATS);
+    if (cached) return JSON.parse(cached);
+  } catch {
+    // fallback
+  }
+  return KATEGORI_OPTIONS;
+}
+
+function getInitialDetails() {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY_DETAILS);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      const restored = {};
+      Object.keys(parsed).forEach(k => {
+        const id = Number(k);
+        const baseIcon = id === 1 ? Compass : id === 2 ? Wrench : id === 3 ? ShieldCheck : Box;
+        restored[id] = { ...parsed[id], icon: baseIcon };
+      });
+      return restored;
+    }
+  } catch {
+    // fallback
+  }
+  return INITIAL_CATEGORY_DETAILS;
+}
+
 export default function CategoryManagement({ onNavigate }) {
-  const [categories, setCategories] = useState(KATEGORI_OPTIONS);
-  const [categoryDetails, setCategoryDetails] = useState(INITIAL_CATEGORY_DETAILS);
+  const [categories, setCategories] = useState(getInitialCategories);
+  const [categoryDetails, setCategoryDetails] = useState(getInitialDetails);
   const [counts, setCounts] = useState({ 1: 0, 2: 0, 3: 0, 4: 0 });
   const [loading, setLoading] = useState(true);
   const [selectedCat, setSelectedCat] = useState(1);
@@ -100,25 +132,40 @@ export default function CategoryManagement({ onNavigate }) {
   const [addForm, setAddForm] = useState({ label: '', desc: '', standard: '' });
 
   useEffect(() => {
-    async function loadStats() {
+    async function loadDataFromDb() {
+      setLoading(true);
       try {
-        const res = await peralatanApi.getAll();
-        const items = res.data || [];
+        // 1. Ambil data peralatan dari Database untuk hitung unit terdaftar per kategori
+        const resEquip = await peralatanApi.getAll();
+        const items = resEquip.data || [];
         const tally = {};
         categories.forEach(c => { tally[c.id] = 0; });
         items.forEach((item) => {
-          const kId = Number(item.kategori_id);
+          const kId = Number(item.kategori_id || item.kategori_peralatan_id);
           if (tally[kId] !== undefined) tally[kId]++;
+          else tally[kId] = 1;
         });
         setCounts(tally);
-      } catch {
-        // Offline / dev fallback
+
+        // 2. Ambil data kategori langsung dari Database API
+        const dbRes = await kategoriApi.getAll();
+        if (dbRes && dbRes.data && Array.isArray(dbRes.data) && dbRes.data.length > 0) {
+          const fetchedCats = dbRes.data.map(item => ({
+            id: item.id,
+            label: item.nama_kategori || item.label || item.nama,
+            desc: item.deskripsi || item.desc,
+          }));
+          setCategories(fetchedCats);
+        }
+      } catch (err) {
+        console.warn('DB Sync info:', err);
       } finally {
         setLoading(false);
       }
     }
-    loadStats();
-  }, [categories]);
+
+    loadDataFromDb();
+  }, []);
 
   function handleOpenEdit(cat, e) {
     e.stopPropagation();
@@ -126,46 +173,95 @@ export default function CategoryManagement({ onNavigate }) {
     setEditModalCat(cat);
     setEditForm({
       label: cat.label,
-      desc: cat.desc,
+      desc: detail.desc || cat.desc,
       standard: detail.standard || 'ISO/IEC 17025',
     });
   }
 
-  function handleSaveEdit() {
+  async function handleSaveEdit() {
     if (!editForm.label.trim()) return;
-    setCategories(prev => prev.map(c => c.id === editModalCat.id ? { ...c, label: editForm.label, desc: editForm.desc } : c));
-    setCategoryDetails(prev => ({
-      ...prev,
-      [editModalCat.id]: {
-        ...(prev[editModalCat.id] || {}),
-        title: `${editForm.label}`,
+
+    const catId = editModalCat.id;
+    const updatedCats = categories.map(c => c.id === catId ? { ...c, label: editForm.label, desc: editForm.desc } : c);
+    const updatedDetails = {
+      ...categoryDetails,
+      [catId]: {
+        ...(categoryDetails[catId] || {}),
+        title: editForm.label,
         standard: editForm.standard,
         desc: editForm.desc,
       }
-    }));
+    };
+
+    setCategories(updatedCats);
+    setCategoryDetails(updatedDetails);
+
+    // Simpan ke Local Cache
+    try {
+      localStorage.setItem(STORAGE_KEY_CATS, JSON.stringify(updatedCats));
+      localStorage.setItem(STORAGE_KEY_DETAILS, JSON.stringify(updatedDetails));
+    } catch (e) {
+      console.warn('LocalStorage save error:', e);
+    }
+
+    // Kirim Perubahan langsung ke Database API
+    try {
+      await kategoriApi.update(catId, {
+        nama_kategori: editForm.label,
+        deskripsi: editForm.desc,
+        standar: editForm.standard,
+      });
+    } catch (err) {
+      console.warn('Backend DB Update (Fallback Active):', err);
+    }
+
     setEditModalCat(null);
   }
 
-  function handleSaveAdd() {
+  async function handleSaveAdd() {
     if (!addForm.label.trim()) return;
+
     const newId = categories.length > 0 ? Math.max(...categories.map(c => c.id)) + 1 : 1;
     const newCat = { id: newId, label: addForm.label, desc: addForm.desc || 'Kategori tambahan' };
-    setCategories(prev => [...prev, newCat]);
-    setCategoryDetails(prev => ({
-      ...prev,
+    const updatedCats = [...categories, newCat];
+    const updatedDetails = {
+      ...categoryDetails,
       [newId]: {
         icon: Box,
         color: '#7C3AED',
         bg: '#F5F3FF',
         border: '#DDD6FE',
         title: addForm.label,
-        standard: addForm.standard || 'ISO/IEC 17025',
-        desc: addForm.desc,
+        standard: addForm.standard || 'ISO/IEC 17025 Klausul 6.4',
+        desc: addForm.desc || 'Kategori peralatan pengujian tambahan',
         requirements: ['Pemeriksaan rutin & tata kelola aset terstandar'],
         specificFields: ['Keterangan Tambahan', 'Spesifikasi Khusus'],
       }
-    }));
+    };
+
+    setCategories(updatedCats);
+    setCategoryDetails(updatedDetails);
     setCounts(prev => ({ ...prev, [newId]: 0 }));
+
+    // Simpan ke Local Cache
+    try {
+      localStorage.setItem(STORAGE_KEY_CATS, JSON.stringify(updatedCats));
+      localStorage.setItem(STORAGE_KEY_DETAILS, JSON.stringify(updatedDetails));
+    } catch (e) {
+      console.warn('LocalStorage save error:', e);
+    }
+
+    // Kirim Tambah Kategori Baru ke Database API
+    try {
+      await kategoriApi.create({
+        nama_kategori: addForm.label,
+        deskripsi: addForm.desc,
+        standar: addForm.standard,
+      });
+    } catch (err) {
+      console.warn('Backend DB Create (Fallback Active):', err);
+    }
+
     setSelectedCat(newId);
     setIsAddModalOpen(false);
     setAddForm({ label: '', desc: '', standard: '' });
@@ -187,9 +283,19 @@ export default function CategoryManagement({ onNavigate }) {
   return (
     <div className="page-container fade-in-up">
       {/* Header & Button Tambah Kategori */}
-      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--sp-4)' }}>
+      <div
+        className="page-header"
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 'var(--sp-4)',
+          marginBottom: '28px',
+        }}
+      >
         <div>
-          <h1 className="page-title">Kelompok & Kategori Peralatan Lab</h1>
+          <h1 className="page-title" style={{ marginBottom: '6px' }}>Kelompok & Kategori Peralatan Lab</h1>
           <p className="page-subtitle">
             Klasifikasi standar ISO/IEC 17025 Telkom Test House untuk kepatuhan tata kelola peralatan
           </p>
@@ -199,14 +305,15 @@ export default function CategoryManagement({ onNavigate }) {
         </button>
       </div>
 
-      {/* Grid Kategori Cards */}
+      {/* Grid Kategori Cards - 1 Baris Sejajar (4 Kolom) */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+          gridTemplateColumns: 'repeat(4, 1fr)',
           gap: 'var(--sp-4)',
           marginBottom: 'var(--sp-6)',
         }}
+        className="category-cards-grid"
       >
         {categories.map((cat) => {
           const detail = categoryDetails[cat.id] || { icon: Box, color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE' };
@@ -253,30 +360,14 @@ export default function CategoryManagement({ onNavigate }) {
                     <Icon size={22} />
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span
-                      style={{
-                        fontSize: 'var(--text-xs)',
-                        fontWeight: 'var(--fw-bold)',
-                        color: detail.color,
-                        background: '#ffffff',
-                        padding: '3px 9px',
-                        borderRadius: 'var(--radius-full)',
-                        border: `1px solid ${detail.border}`,
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                      }}
-                    >
-                      Kat #{cat.id}
-                    </span>
-                    <button
-                      className="btn btn-ghost btn-icon btn-sm"
-                      onClick={(e) => handleOpenEdit(cat, e)}
-                      title="Edit Card Kategori"
-                      style={{ color: 'var(--clr-dark-500)', padding: 4 }}
-                    >
-                      <Edit3 size={15} />
-                    </button>
-                  </div>
+                  <button
+                    className="btn btn-ghost btn-icon btn-sm"
+                    onClick={(e) => handleOpenEdit(cat, e)}
+                    title="Edit Card Kategori"
+                    style={{ color: 'var(--clr-dark-500)', padding: 4 }}
+                  >
+                    <Edit3 size={15} />
+                  </button>
                 </div>
 
                 <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-1)', color: 'var(--clr-dark-900)' }}>

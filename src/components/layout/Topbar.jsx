@@ -96,7 +96,7 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
           <QrCode size={16} style={{ color: 'var(--clr-primary-500)' }} />
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--fw-semibold)' }}>Scan QR</span>
+          <span className="topbar-btn-text" style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--fw-semibold)' }}>Scan QR</span>
         </button>
 
         {/* Live Notification Bell */}

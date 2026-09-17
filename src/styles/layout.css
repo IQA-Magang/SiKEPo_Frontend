@@ -507,20 +507,44 @@
   padding: 4px;
 }
 
+/* Sidebar Overlay Backdrop */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  z-index: 95;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.sidebar-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Topbar Hamburger */
 .topbar-hamburger {
   display: none;
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   color: #FFFFFF;
   cursor: pointer;
-  padding: 6px;
+  padding: 7px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
   margin-right: 12px;
-  border-radius: 6px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-.topbar-hamburger:hover {
-  background: rgba(255, 255, 255, 0.15);
+.topbar-hamburger:hover,
+.topbar-hamburger:active {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: #FFFFFF;
 }
 
 /* ---- MAIN CONTENT ---- */
@@ -541,6 +565,10 @@
 
 /* ---- RESPONSIVE ---- */
 @media (max-width: 1024px) {
+  .topbar {
+    padding: 0 16px;
+  }
+
   .sidebar {
     transform: translateX(-100%);
     top: 0;
@@ -557,7 +585,7 @@
   }
 
   .topbar-hamburger {
-    display: block;
+    display: flex !important;
   }
 
   .main-content {
@@ -568,5 +596,37 @@
 
   .topbar-search {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    padding: 0 12px;
+  }
+
+  .topbar-tth-sub,
+  .brand-divider {
+    display: none;
+  }
+
+  .user-meta {
+    display: none;
+  }
+
+  .profile-button {
+    padding: 4px;
+    border-radius: 50%;
+  }
+
+  .profile-button .chevron-icon {
+    display: none;
+  }
+
+  .topbar-btn-text {
+    display: none;
+  }
+
+  .brand-name {
+    font-size: 18px;
   }
 }
