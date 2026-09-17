@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { QrCode, Camera, Upload, X, Search, CheckCircle, AlertCircle, ArrowRight, RefreshCw } from 'lucide-react';
-import { peralatanApi } from '../utils/api.js';
+import { QrCode, Camera, Upload, X, Search, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import jsQR from 'jsqr';
+import { getEquipmentId, peralatanApi } from '../utils/api.js';
 
 export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
   const [activeTab, setActiveTab] = useState('camera'); // 'camera', 'upload', 'manual'
@@ -14,6 +15,8 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const detectorRef = useRef(null);
+  const scanInProgressRef = useRef(false);
 
   useEffect(() => {
     if (isOpen && activeTab === 'camera') {
@@ -39,7 +42,12 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
         setCameraActive(true);
-        startScanningLoop();
+        if ('BarcodeDetector' in window) {
+          detectorRef.current = new window.BarcodeDetector({ formats: ['qr_code'] });
+          startScanningLoop();
+        } else {
+          setErrorMsg('Browser ini belum mendukung pemindaian QR otomatis. Gunakan Input ID Manual.');
+        }
       }
     } catch (err) {
       console.warn('Kamera tidak tersedia:', err);
@@ -57,14 +65,31 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
+    detectorRef.current = null;
+    scanInProgressRef.current = false;
     setCameraActive(false);
   }
 
   // Loop scan frame
   function startScanningLoop() {
-    function tick() {
-      if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-        // Simulasi scan frame canvas jika diperlukan
+    async function tick() {
+      if (
+        detectorRef.current &&
+        videoRef.current &&
+        videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA &&
+        !scanInProgressRef.current
+      ) {
+        try {
+          const codes = await detectorRef.current.detect(videoRef.current);
+          const rawValue = codes[0]?.rawValue;
+          if (rawValue) {
+            scanInProgressRef.current = true;
+            await handleScanPayload(rawValue);
+            return;
+          }
+        } catch (err) {
+          console.warn('QR tidak dapat dibaca dari frame:', err);
+        }
       }
       animationFrameRef.current = requestAnimationFrame(tick);
     }
@@ -76,8 +101,8 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
     if (!rawStr) return null;
     const clean = String(rawStr).trim();
 
-    // 1. Format: SIKEPO-EQ-ID:12-AST-001 atau SIKEPO-EQ-ID:12
-    const matchPrefix = clean.match(/SIKEPO-EQ-ID:(\d+)/i);
+    // Format: SIKEPO-EQ-ID:12-AST-001 atau SIKEPO-EQ-ID:12
+    const matchPrefix = clean.match(/SIKEPO-EQ-ID[:\-](\d+)/i);
     if (matchPrefix && matchPrefix[1]) return matchPrefix[1];
 
     // 2. Format URL: .../peralatan/detail/12 atau .../peralatan/12/qr
@@ -97,31 +122,51 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
     setErrorMsg('');
     setScanning(true);
 
-    const extractedId = parseEquipmentId(manualInput);
-    if (extractedId) {
-      navigateToEquipment(extractedId);
-      return;
-    }
-
-    // Jika input berupa Nomor Aset atau Merek, cari dari API peralatan
     try {
       const res = await peralatanApi.getAll();
       const list = res.data || [];
-      const found = list.find(
-        (p) =>
-          String(p.id) === manualInput.trim() ||
-          p.nomor_aset?.toLowerCase() === manualInput.trim().toLowerCase()
-      );
+      const found = findEquipment(manualInput, list);
       if (found) {
-        navigateToEquipment(found.id);
+        navigateToEquipment(getEquipmentId(found));
       } else {
         setErrorMsg(`Peralatan dengan ID / Nomor Aset "${manualInput}" tidak ditemukan.`);
       }
+
     } catch (err) {
       setErrorMsg('Gagal mencari peralatan: ' + err.message);
     } finally {
       setScanning(false);
     }
+  }
+
+  async function handleScanPayload(rawValue) {
+    try {
+      const res = await peralatanApi.getAll();
+      const found = findEquipment(rawValue, res.data || []);
+      if (!found) {
+        setErrorMsg(`QR Code "${rawValue}" tidak cocok dengan peralatan di sistem.`);
+        scanInProgressRef.current = false;
+        animationFrameRef.current = requestAnimationFrame(() => startScanningLoop());
+        return;
+      }
+      navigateToEquipment(getEquipmentId(found));
+    } catch (err) {
+      setErrorMsg(`Gagal memvalidasi QR Code: ${err.message}`);
+      scanInProgressRef.current = false;
+    }
+  }
+
+  function findEquipment(input, list) {
+    const cleanInput = String(input || '').trim();
+    const extractedId = parseEquipmentId(cleanInput);
+    return list.find((item) => {
+      const id = getEquipmentId(item);
+      return (
+        (extractedId && String(id) === String(extractedId)) ||
+        String(id) === cleanInput ||
+        item.nomor_aset?.toLowerCase() === cleanInput.toLowerCase()
+      );
+    });
   }
 
   // Handle file upload QR
@@ -131,29 +176,28 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
     setErrorMsg('');
     setScanning(true);
 
-    // Ambil nama file / simulasi ekstraksi QR dari gambar
     const reader = new FileReader();
     reader.onload = async (event) => {
       const img = new Image();
       img.onload = async () => {
-        // Coba parsing dari nama file atau metadata QR
-        const parsed = parseEquipmentId(file.name);
-        if (parsed) {
-          navigateToEquipment(parsed);
-          return;
-        }
-
-        // Fallback: cari dari daftar peralatan pertama sebagai demo scan
         try {
-          const res = await peralatanApi.getAll();
-          const list = res.data || [];
-          if (list.length > 0) {
-            navigateToEquipment(list[0].id);
-          } else {
-            setErrorMsg('QR Code tidak dapat dibaca dari gambar. Gunakan Input ID Manual.');
-          }
-        } catch {
-          setErrorMsg('QR Code tidak dapat dibaca dari gambar.');
+          const canvas = canvasRef.current || document.createElement('canvas');
+          const width = img.naturalWidth || img.width;
+          const height = img.naturalHeight || img.height;
+          canvas.width = width;
+          canvas.height = height;
+          const context = canvas.getContext('2d', { willReadFrequently: true });
+          context.drawImage(img, 0, 0, width, height);
+          const imageData = context.getImageData(0, 0, width, height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'attemptBoth',
+          });
+          const rawValue = code?.data;
+          if (!rawValue) throw new Error('QR Code tidak ditemukan pada gambar.');
+          await handleScanPayload(rawValue);
+        } catch (err) {
+          setActiveTab('manual');
+          setErrorMsg(`${err.message} Gunakan Input ID Manual.`);
         } finally {
           setScanning(false);
         }
@@ -412,17 +456,11 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
                 Arahkan kamera perangkat Anda tepat ke <strong>QR Code ID Peralatan</strong>
               </p>
 
-              {/* Simulated Scan Trigger Button for Testing */}
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  // Simulate scanning equipment ID
-                  navigateToEquipment('1');
-                }}
-                style={{ fontSize: 'var(--text-xs)', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                <RefreshCw size={13} /> Uji Coba Scan ID Peralatan #1
-              </button>
+              {!('BarcodeDetector' in window) && (
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-warning-600)', textAlign: 'center', margin: 0 }}>
+                  Pemindaian otomatis tidak didukung browser ini. Gunakan tab Input ID Manual.
+                </p>
+              )}
             </div>
           )}
 

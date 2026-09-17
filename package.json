@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.453.0",
     "react": "latest",
     "react-dom": "latest"

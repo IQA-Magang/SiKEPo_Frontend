@@ -83,6 +83,12 @@ export function formatPhotoUrl(foto) {
   return `${API_BASE}${path}`;
 }
 
+// ID ini adalah primary key peralatan yang dipakai oleh seluruh endpoint.
+// Alias dipertahankan agar frontend tetap kompatibel dengan bentuk respons lama.
+export function getEquipmentId(peralatan) {
+  return peralatan?.id ?? peralatan?.peralatan_id ?? peralatan?.id_peralatan ?? peralatan?.equipment_id ?? null;
+}
+
 // =============================================================
 // AUTH
 // POST /api/users/login

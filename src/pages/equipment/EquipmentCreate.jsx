@@ -287,6 +287,9 @@ export default function EquipmentCreate({ onNavigate }) {
           >
             {success.nomor_aset}
           </code>
+          <p style={{ marginTop: 'var(--sp-3)', fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>
+            ID Sistem: <strong>{success.id}</strong>
+          </p>
           <div style={{ display: 'flex', gap: 'var(--sp-3)', justifyContent: 'center', marginTop: 'var(--sp-8)' }}>
             <button className="btn btn-secondary" onClick={() => onNavigate('/peralatan')} id="btn-kembali-daftar">
               <ArrowLeft size={16} /> Daftar Peralatan
@@ -866,4 +869,3 @@ function ConfirmRow({ label, value }) {
     </div>
   );
 }
-

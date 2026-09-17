@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, ArrowLeft, QrCode, Upload, FileText, Download, Eye } from 'lucide-react';
-import { peralatanApi, dokumenApi, formatPhotoUrl, API_BASE } from '../../utils/api.js';
+import { peralatanApi, dokumenApi, formatPhotoUrl, getEquipmentId, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
 // ------------------------------------------------------------------
@@ -26,7 +26,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
         dokumenApi.getByPeralatanId(equipmentId),
       ]);
       if (allRes.status === 'fulfilled') {
-        const found = (allRes.value.data || []).find((p) => String(p.id) === String(equipmentId));
+        const found = (allRes.value.data || []).find((p) => String(getEquipmentId(p)) === String(equipmentId));
         setPeralatan(found || null);
       }
       if (docRes.status === 'fulfilled') setDokumen(docRes.value.data || []);
@@ -72,7 +72,8 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
   );
 
   const photoUrl = formatPhotoUrl(peralatan.foto);
-  const qrUrl = peralatanApi.getQRCodeUrl(equipmentId);
+  const canonicalEquipmentId = getEquipmentId(peralatan);
+  const qrUrl = peralatanApi.getQRCodeUrl(canonicalEquipmentId);
   const canEditEquipment = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.EDIT);
 
   const kategoriLabel = {
@@ -88,9 +89,9 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
   };
 
   async function handleDownloadQR() {
-    const imgEl = document.getElementById(`qr-img-${equipmentId}`);
+    const imgEl = document.getElementById(`qr-img-${canonicalEquipmentId}`);
     const currentQrSrc = imgEl?.src || qrUrl;
-    const fileName = `QR-Peralatan-ID${equipmentId}-${peralatan?.nomor_aset || 'aset'}.png`;
+    const fileName = `QR-Peralatan-ID${canonicalEquipmentId}-${peralatan?.nomor_aset || 'aset'}.png`;
 
     try {
       const res = await fetch(currentQrSrc);
@@ -270,17 +271,24 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
             <div className="qr-container">
               <img
                 src={qrUrl}
-                alt={`QR Code Peralatan ID ${equipmentId}`}
+                alt={`QR Code Peralatan ID ${canonicalEquipmentId}`}
                 className="qr-image"
-                id={`qr-img-${equipmentId}`}
+                id={`qr-img-${canonicalEquipmentId}`}
                 onError={(e) => {
                   e.target.onerror = null;
-                  e.target.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`SIKEPO-EQ-ID:${equipmentId}-${peralatan.nomor_aset}`)}`;
+                  e.target.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`SIKEPO-EQ-ID:${canonicalEquipmentId}-${peralatan.nomor_aset}`)}`;
                 }}
               />
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
-                QR ID Peralatan: <strong>#{equipmentId}</strong> ({peralatan.nomor_aset})
+                QR ID Peralatan: <strong>#{canonicalEquipmentId}</strong> ({peralatan.nomor_aset})
               </p>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => onNavigate(`/peralatan/qr/${canonicalEquipmentId}`)}
+              >
+                <QrCode size={14} /> Buka Halaman QR
+              </button>
               <button
                 type="button"
                 onClick={handleDownloadQR}

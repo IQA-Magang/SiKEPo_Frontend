@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Search, Plus, QrCode, ChevronRight, RefreshCw } from 'lucide-react';
-import { peralatanApi, KATEGORI_OPTIONS, formatPhotoUrl } from '../../utils/api.js';
+import { getEquipmentId, KATEGORI_OPTIONS, formatPhotoUrl, peralatanApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import QRScannerModal from '../../components/QRScannerModal.jsx';
 
@@ -165,8 +165,9 @@ export default function EquipmentList({ onNavigate }) {
             <tbody>
               {filtered.map((p, i) => {
                 const photoUrl = formatPhotoUrl(p.foto);
+                const equipmentId = getEquipmentId(p);
                 return (
-                  <tr key={p.id}>
+                  <tr key={equipmentId}>
                     <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{i + 1}</td>
                     <td style={{ width: 56 }}>
                       {photoUrl ? (
@@ -203,23 +204,22 @@ export default function EquipmentList({ onNavigate }) {
                       <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>
                         <button
                           className="btn btn-ghost btn-sm"
-                          onClick={() => onNavigate(`/peralatan/detail/${p.id}`)}
+                          onClick={() => onNavigate(`/peralatan/detail/${equipmentId}`)}
                           title="Detail"
-                          id={`btn-detail-${p.id}`}
+                          id={`btn-detail-${equipmentId}`}
                         >
                           <ChevronRight size={14} /> Detail
                         </button>
-                        <a
-                          href={peralatanApi.getQRCodeUrl(p.id)}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => onNavigate(`/peralatan/qr/${equipmentId}`)}
                           className="btn btn-ghost btn-sm"
                           title="Lihat QR Code"
-                          id={`btn-qr-${p.id}`}
+                          id={`btn-qr-${equipmentId}`}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}
                         >
                           <QrCode size={14} />
-                        </a>
+                        </button>
                       </div>
                     </td>
                   </tr>

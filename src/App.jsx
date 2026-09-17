@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import EquipmentList from './pages/equipment/EquipmentList.jsx';
 import EquipmentDetail from './pages/equipment/EquipmentDetail.jsx';
 import EquipmentCreate from './pages/equipment/EquipmentCreate.jsx';
+import EquipmentQrPage from './pages/equipment/EquipmentQrPage.jsx';
 import UserManagement from './pages/admin/UserManagement.jsx';
 import LabsManagement from './pages/admin/LabsManagement.jsx';
 import RuanganManagement from './pages/admin/RuanganManagement.jsx';
@@ -80,6 +81,11 @@ export default function App() {
       const parts = currentPath.split('/');
       const id = parts[parts.length - 1];
       return <EquipmentDetail equipmentId={id} onNavigate={navigate} />;
+    }
+    if (currentPath.startsWith('/peralatan/qr/')) {
+      const parts = currentPath.split('/');
+      const id = parts[parts.length - 1];
+      return <EquipmentQrPage equipmentId={id} onNavigate={navigate} />;
     }
 
     switch (currentPath) {
