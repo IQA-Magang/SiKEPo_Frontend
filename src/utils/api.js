@@ -1,10 +1,10 @@
 // =============================================================
 // SiKEPo Frontend — API Client
-// Terhubung langsung ke backend Go Fiber (localhost:5000)
+// Terhubung langsung ke backend Go Fiber (https://si-ke-po-backend-dkfe-31rhkxj8d-rendy-kamaluddins-projects.vercel.app)
 // JWT token disimpan di localStorage sebagai 'sikepo_token'
 // =============================================================
 
-export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+export const API_BASE = import.meta.env.VITE_API_BASE || 'https://si-ke-po-backend-dkfe-31rhkxj8d-rendy-kamaluddins-projects.vercel.app';
 
 // ------------------------------------------------------------------
 // Helper: ambil token dari localStorage
