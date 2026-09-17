@@ -201,53 +201,36 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.captcha-form-group .input-label {
-  align-self: flex-start;
   width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #111111;
-  margin-bottom: 8px;
 }
 
 .recaptcha-wrapper {
-  width: 100%;
   min-height: 78px;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  transition: all 0.2s ease;
+  position: relative;
+  transition: all 0.2s ease-in-out;
 }
 
 .recaptcha-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 100%;
-  max-width: 304px;
-  border-radius: 10px;
+  border-radius: 4px;
   overflow: hidden;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
-  border: 1px solid #E5E7EB;
-  background: #FFFFFF;
-  transition: all 0.2s ease;
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
 }
 
 .recaptcha-container:hover {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.09);
-  border-color: #D1D5DB;
 }
 
 .recaptcha-wrapper.recaptcha-has-error .recaptcha-container {
-  border-color: #DC2626;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  box-shadow: 0 0 0 2px #E30613, 0 4px 14px rgba(227, 6, 19, 0.2);
 }
 
 .recaptcha-skeleton {
@@ -261,13 +244,29 @@
   color: #6B7280;
   background: #F9FAFB;
   border: 1px solid #E5E7EB;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.recaptcha-error-notice {
+  width: 304px;
+  padding: 10px 14px;
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  border-radius: 6px;
+  color: #DC2626;
+  font-size: 12px;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 .captcha-error-text {
+  margin-top: 8px;
   text-align: center;
-  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #DC2626;
+  padding-left: 0;
 }
 
 .spinner-mini {
@@ -373,5 +372,12 @@
 
   .login-right-col {
     display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .recaptcha-wrapper {
+    transform: scale(0.88);
+    transform-origin: center;
   }
 }
