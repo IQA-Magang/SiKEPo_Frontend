@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { ShieldCheck } from 'lucide-react';
 import { authApi } from '../utils/api.js';
 
 // Kunci pengujian resmi Google reCAPTCHA v2 Checkbox
@@ -110,7 +111,9 @@ export default function Captcha({ onVerify, onExpire, error, disabled, resetTrig
 
   return (
     <div className="form-group captcha-form-group">
-      <label className="input-label">Verifikasi Keamanan</label>
+      <label className="input-label">
+        <ShieldCheck size={16} style={{ color: '#E30613', flexShrink: 0 }} /> Verifikasi Keamanan
+      </label>
 
       <div
         className={`recaptcha-wrapper ${error ? 'recaptcha-has-error' : ''} ${
@@ -120,7 +123,7 @@ export default function Captcha({ onVerify, onExpire, error, disabled, resetTrig
         {!isLoaded && !loadError && (
           <div className="recaptcha-skeleton">
             <span className="spinner-mini" />
-            <span>Menyiapkan verifikasi keamanan...</span>
+            <span>Menyiapkan verifikasi...</span>
           </div>
         )}
 
@@ -137,7 +140,7 @@ export default function Captcha({ onVerify, onExpire, error, disabled, resetTrig
         />
       </div>
 
-      {error && <span className="error-text">{error}</span>}
+      {error && <span className="error-text captcha-error-text">{error}</span>}
     </div>
   );
 }
