@@ -95,8 +95,8 @@ export default function RuanganManagement({ onNavigate }) {
   }
 
   async function handleSave() {
-    if (!form.nama_ruangan.trim() || !form.kode_ruangan.trim() || !form.lantai_ruangan.trim()) {
-      setError('Kode Ruangan, Nama Ruangan, dan Lantai wajib diisi.');
+    if (!form.nama_ruangan.trim() || !form.kode_ruangan.trim() || !form.lantai_ruangan.trim() || !form.labs_id || !form.pic_user_id) {
+      setError('Kode Ruangan, Nama Ruangan, Lantai, Laboratorium, dan PIC Ruangan wajib diisi.');
       return;
     }
 
@@ -428,7 +428,7 @@ export default function RuanganManagement({ onNavigate }) {
                 <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label" htmlFor="modal-lab-select">
-                      Laboratorium Terkait
+                      Laboratorium Terkait <span className="required">*</span>
                     </label>
                     <select
                       id="modal-lab-select"
@@ -447,7 +447,7 @@ export default function RuanganManagement({ onNavigate }) {
 
                   <div className="form-group">
                     <label className="form-label" htmlFor="modal-pic-select">
-                      PIC Ruangan
+                      PIC Ruangan <span className="required">*</span>
                     </label>
                     <select
                       id="modal-pic-select"

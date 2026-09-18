@@ -83,8 +83,8 @@ export default function LabsManagement({ onNavigate }) {
   }
 
   async function handleSave() {
-    if (!form.nama_labs.trim() || !form.kode_labs.trim()) {
-      setError('Kode Lab dan Nama Lab wajib diisi.');
+    if (!form.nama_labs.trim() || !form.kode_labs.trim() || !form.manager_id) {
+      setError('Kode Lab, Nama Lab, dan Manager / Penanggung Jawab wajib diisi.');
       return;
     }
 
@@ -365,7 +365,7 @@ export default function LabsManagement({ onNavigate }) {
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="modal-lab-manager">
-                    Manager / Penanggung Jawab
+                    Manager / Penanggung Jawab <span className="required">*</span>
                   </label>
                   <select
                     id="modal-lab-manager"

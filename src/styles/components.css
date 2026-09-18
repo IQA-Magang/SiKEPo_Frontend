@@ -1454,6 +1454,33 @@
   border: 1px solid var(--clr-dark-200);
 }
 
+/* ---- EQUIPMENT DETAIL RESPONSIVE LAYOUT ---- */
+.equipment-detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: var(--sp-5);
+  align-items: start;
+  width: 100%;
+}
+
+@media (max-width: 992px) {
+  .equipment-detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .equipment-detail-layout {
+    gap: var(--sp-4);
+  }
+  .card-padded {
+    padding: var(--sp-4);
+  }
+  .qr-container {
+    padding: var(--sp-3);
+  }
+}
+
 /* ---- KEYFRAMES FOR SCANNER ---- */
 @keyframes scanLine {
   0% { transform: translateY(-70px); opacity: 0.4; }
