@@ -182,10 +182,6 @@ export default function EquipmentCreate({ onNavigate }) {
       }
       if (!form.keterangan.trim()) {
         setError('Keterangan tambahan wajib diisi.');
-
-      if (!form.kategori_id) {
-        setError('Kategori peralatan belum tersedia dari backend.');
-
         return false;
       }
     }
@@ -506,7 +502,7 @@ export default function EquipmentCreate({ onNavigate }) {
 
         {/* ---- STEP 0: Info Dasar ---- */}
         {step === 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
+          <div key="step-info-dasar" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', borderBottom: '1px solid var(--clr-dark-100)', paddingBottom: 'var(--sp-4)' }}>
               <Package size={22} style={{ color: 'var(--clr-primary-500)' }} />
               <div>
@@ -685,7 +681,7 @@ export default function EquipmentCreate({ onNavigate }) {
 
         {/* ---- STEP 1: Lokasi & PIC ---- */}
         {step === 1 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
+          <div key="step-lokasi-pic" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', borderBottom: '1px solid var(--clr-dark-100)', paddingBottom: 'var(--sp-4)' }}>
               <UserCheck size={22} style={{ color: 'var(--clr-primary-500)' }} />
               <div>
@@ -760,7 +756,7 @@ export default function EquipmentCreate({ onNavigate }) {
 
         {/* ---- STEP 2: Detail Teknis ---- */}
         {step === 2 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
+          <div key="step-detail-teknis" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', borderBottom: '1px solid var(--clr-dark-100)', paddingBottom: 'var(--sp-4)' }}>
               <Layers size={22} style={{ color: 'var(--clr-primary-500)' }} />
               <div>
@@ -779,7 +775,7 @@ export default function EquipmentCreate({ onNavigate }) {
 
         {/* ---- STEP 3: Dokumen Wajib (MINIMAL 2 DOKUMEN) ---- */}
         {step === 3 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
+          <div key="step-dokumen-wajib" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', borderBottom: '1px solid var(--clr-dark-100)', paddingBottom: 'var(--sp-4)' }}>
               <FileText size={22} style={{ color: 'var(--clr-primary-500)' }} />
               <div>
@@ -917,7 +913,7 @@ export default function EquipmentCreate({ onNavigate }) {
 
         {/* ---- STEP 4: Konfirmasi ---- */}
         {step === 4 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
+          <div key="step-konfirmasi" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', borderBottom: '1px solid var(--clr-dark-100)', paddingBottom: 'var(--sp-4)' }}>
               <CheckCircle size={22} style={{ color: 'var(--clr-primary-500)' }} />
               <div>
@@ -930,7 +926,6 @@ export default function EquipmentCreate({ onNavigate }) {
               <ConfirmRow label="Nama Peralatan" value={form.nama_peralatan} />
 
               <ConfirmRow label="Foto Peralatan" value={photoFile ? photoFile.name : '–'} />
-              <ConfirmRow label="Kategori" value={KATEGORI_OPTIONS.find((k) => k.id === form.kategori_id)?.label} />
               <ConfirmRow label="Kategori" value={categories.find((k) => k.id === form.kategori_id)?.label || '–'} />
               <ConfirmRow label="Merek / Tipe" value={[form.merek, form.tipe_model].filter(Boolean).join(' / ') || '–'} />
               <ConfirmRow label="No. Seri" value={form.nomor_seri || '–'} />
@@ -1070,5 +1065,4 @@ function ConfirmRow({ label, value }) {
       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)', color: 'var(--clr-dark-900)' }}>{value || '–'}</div>
     </div>
   );
-}
 }
