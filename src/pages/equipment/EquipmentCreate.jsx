@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle, Package, Upload, FileText, Trash2, Plus, Info, Layers, UserCheck, ShieldCheck, HardDrive } from 'lucide-react';
-import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, usersApi, getCurrentUser, KATEGORI_OPTIONS } from '../../utils/api.js';
+import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, usersApi, getCurrentUser } from '../../utils/api.js';
 
 // Langkah-langkah stepper
 const STEPS = ['Info Dasar', 'Lokasi & PIC', 'Detail Teknis', 'Dokumen Wajib', 'Konfirmasi'];
@@ -20,13 +20,14 @@ export default function EquipmentCreate({ onNavigate }) {
   const [ruangan, setRuangan]         = useState([]);
   const [kelompokAset, setKelompokAset] = useState([]);
   const [pics, setPics]               = useState([]);
+  const [categories, setCategories]   = useState([]);
   const [loadingOpts, setLoadingOpts] = useState(true);
 
   // Form data
   const [form, setForm] = useState({
     // Step 0: Info Dasar
     nama_peralatan: '',
-    kategori_id: 1,
+    kategori_id: 0,
     merek: '',
     tipe_model: '',
     nomor_seri: '',
@@ -81,15 +82,29 @@ export default function EquipmentCreate({ onNavigate }) {
   useEffect(() => {
     async function loadOptions() {
       try {
-        const [l, r, k, u] = await Promise.allSettled([
+        const [l, r, k, u, p] = await Promise.allSettled([
           labsApi.getAll(),
           ruanganApi.getAll(),
           kelompokAssetApi.getAll(),
           usersApi.getAll(),
+          peralatanApi.getAll(),
         ]);
         if (l.status === 'fulfilled') setLabs(l.value.data || []);
         if (r.status === 'fulfilled') setRuangan(r.value.data || []);
         if (k.status === 'fulfilled') setKelompokAset(k.value.data || []);
+        if (p.status === 'fulfilled') {
+          const categoryMap = new Map();
+          (p.value.data || []).forEach((item) => {
+            const category = item.kategori_peralatan;
+            if (category?.id && category.nama_kategori) {
+              categoryMap.set(Number(category.id), {
+                id: Number(category.id),
+                label: category.nama_kategori,
+              });
+            }
+          });
+          setCategories(Array.from(categoryMap.values()));
+        }
         if (u.status === 'fulfilled' && Array.isArray(u.value?.data)) {
           const staffPIC = u.value.data.filter((usr) => usr.pic === true || usr.pic === 1);
           setPics(staffPIC.length > 0 ? staffPIC : u.value.data);
@@ -137,6 +152,10 @@ export default function EquipmentCreate({ onNavigate }) {
     if (step === 0) {
       if (!form.nama_peralatan.trim()) {
         setError('Nama peralatan wajib diisi.');
+        return false;
+      }
+      if (!form.kategori_id) {
+        setError('Kategori peralatan belum tersedia dari backend.');
         return false;
       }
     }
@@ -439,7 +458,7 @@ export default function EquipmentCreate({ onNavigate }) {
                 Kategori Peralatan <span className="required">*</span>
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--sp-3)' }}>
-                {KATEGORI_OPTIONS.map((k) => {
+                {categories.map((k) => {
                   const isSelected = form.kategori_id === k.id;
                   return (
                     <div
@@ -610,7 +629,7 @@ export default function EquipmentCreate({ onNavigate }) {
               <Layers size={22} style={{ color: 'var(--clr-primary-500)' }} />
               <div>
                 <h2 className="section-title" style={{ margin: 0, fontSize: 'var(--text-lg)' }}>
-                  Detail Teknis — {KATEGORI_OPTIONS.find((k) => k.id === form.kategori_id)?.label}
+                  Detail Teknis — {categories.find((k) => k.id === form.kategori_id)?.label || 'Kategori peralatan'}
                 </h2>
                 <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', margin: 0 }}>
                   Spesifikasi metrologis dan parameter khusus standar ISO/IEC 17025
@@ -773,7 +792,7 @@ export default function EquipmentCreate({ onNavigate }) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)', background: 'var(--clr-dark-50)', padding: 'var(--sp-5)', borderRadius: 'var(--radius-lg)' }}>
               <ConfirmRow label="Nama Peralatan" value={form.nama_peralatan} />
-              <ConfirmRow label="Kategori" value={KATEGORI_OPTIONS.find((k) => k.id === form.kategori_id)?.label} />
+              <ConfirmRow label="Kategori" value={categories.find((k) => k.id === form.kategori_id)?.label || '–'} />
               <ConfirmRow label="Merek / Tipe" value={[form.merek, form.tipe_model].filter(Boolean).join(' / ') || '–'} />
               <ConfirmRow label="No. Seri" value={form.nomor_seri || '–'} />
               <ConfirmRow label="Software / Versi" value={form.peranti_lunak_versi || '–'} />

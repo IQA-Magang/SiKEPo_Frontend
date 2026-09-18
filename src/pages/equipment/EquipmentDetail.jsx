@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, ArrowLeft, QrCode, Upload, FileText, Download, Eye } from 'lucide-react';
-import { peralatanApi, dokumenApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, API_BASE } from '../../utils/api.js';
+import { peralatanApi, dokumenApi, formatPhotoUrl, getEquipmentId, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
 // ------------------------------------------------------------------
@@ -75,10 +75,6 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
   const canonicalEquipmentId = getEquipmentId(peralatan);
   const qrUrl = peralatanApi.getQRCodeUrl(canonicalEquipmentId);
   const canEditEquipment = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.EDIT);
-
-  const kategoriLabel = {
-    1: 'Alat Ukur', 2: 'Alat Bantu', 3: 'Artefak Acuan', 4: 'Komponen Pendukung'
-  };
 
   const statusClass = {
     'Aktif':           'badge-aktif',
@@ -158,7 +154,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
             <div className="form-grid-2">
               <InfoRow label="Nama Peralatan" value={peralatan.nama_peralatan} />
               <InfoRow label="No. Aset" value={peralatan.nomor_aset} mono />
-              <InfoRow label="Kategori" value={kategoriLabel[getEquipmentCategoryId(peralatan)] || '–'} />
+              <InfoRow label="Kategori" value={peralatan.kategori_peralatan?.nama_kategori || '–'} />
               <InfoRow label="Merek" value={peralatan.merek || '–'} />
               <InfoRow label="Tipe/Model" value={peralatan.tipe_model || '–'} />
               <InfoRow label="No. Seri" value={peralatan.nomor_seri || '–'} />

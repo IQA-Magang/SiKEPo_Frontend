@@ -149,9 +149,14 @@ export function getEquipmentId(peralatan) {
   return peralatan?.id ?? peralatan?.peralatan_id ?? peralatan?.id_peralatan ?? peralatan?.equipment_id ?? null;
 }
 
-// Normalisasi kategori_id vs kategori_peralatan_id
+// Backend memakai kategori_peralatan_id sebagai foreign key.
+// kategori_id tetap didukung untuk respons lama, tetapi nilai 0 bukan ID valid.
 export function getEquipmentCategoryId(peralatan) {
-  return peralatan?.kategori_id ?? peralatan?.kategori_peralatan_id ?? null;
+  const legacyId = Number(peralatan?.kategori_id);
+  if (Number.isInteger(legacyId) && legacyId > 0) return legacyId;
+
+  const categoryId = Number(peralatan?.kategori_peralatan_id);
+  return Number.isInteger(categoryId) && categoryId > 0 ? categoryId : null;
 }
 
 // =============================================================
@@ -327,13 +332,6 @@ export const notificationApi = {
     fetchWithAuth(`/api/notifications/${id}/read`, { method: 'PATCH' }),
 };
 
-
-export const KATEGORI_OPTIONS = [
-  { id: 1, label: 'Alat Ukur',            desc: 'Peralatan uji dengan parameter metrologi & kalibrasi' },
-  { id: 2, label: 'Alat Bantu',           desc: 'Peralatan pendukung dengan pemeriksaan berkala' },
-  { id: 3, label: 'Artefak Acuan',        desc: 'Standar referensi dengan karakterisasi acuan' },
-  { id: 4, label: 'Komponen Pendukung',   desc: 'Material/komponen pendukung operasional' },
-];
 
 export const STATUS_ALAT_OPTIONS = [
   'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak', 'Dihapuskan'

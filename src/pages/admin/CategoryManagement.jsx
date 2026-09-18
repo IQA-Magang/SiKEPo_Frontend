@@ -10,7 +10,7 @@ import {
   RefreshCw,
   FileCheck,
 } from 'lucide-react';
-import { KATEGORI_OPTIONS, peralatanApi } from '../../utils/api.js';
+import { getEquipmentCategoryId, peralatanApi } from '../../utils/api.js';
 
 const CATEGORY_META = {
   1: {
@@ -98,6 +98,7 @@ const CATEGORY_META = {
 
 export default function CategoryManagement({ onNavigate }) {
   const [counts, setCounts] = useState({ 1: 0, 2: 0, 3: 0, 4: 0 });
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCat, setSelectedCat] = useState(1);
 
@@ -107,10 +108,23 @@ export default function CategoryManagement({ onNavigate }) {
       const res = await peralatanApi.getAll();
       const items = res.data || [];
       const tally = { 1: 0, 2: 0, 3: 0, 4: 0 };
+      const categoryData = new Map();
+
       items.forEach((item) => {
-        const kId = Number(item.kategori_id || item.kategori_peralatan_id);
+        const kId = getEquipmentCategoryId(item);
         if (tally[kId] !== undefined) tally[kId]++;
+
+        const category = item.kategori_peralatan;
+        if (category?.id && (category.nama_kategori || category.description)) {
+          categoryData.set(Number(category.id), {
+            id: Number(category.id),
+            ...(category.nama_kategori ? { label: category.nama_kategori } : {}),
+            ...(category.description ? { desc: category.description } : {}),
+          });
+        }
       });
+
+      setCategories(Array.from(categoryData.values()));
       setCounts(tally);
     } catch (err) {
       console.error('Gagal memuat data peralatan untuk kategori:', err);
@@ -123,7 +137,9 @@ export default function CategoryManagement({ onNavigate }) {
     loadData();
   }, []);
 
-  const activeMeta = CATEGORY_META[selectedCat] || CATEGORY_META[1];
+  const selectedCategory = categories.find((category) => category.id === selectedCat);
+  const selectedMeta = selectedCategory ? (CATEGORY_META[selectedCategory.id] || CATEGORY_META[1]) : CATEGORY_META[1];
+  const activeMeta = selectedMeta;
   const ActiveIcon = activeMeta.icon;
 
   return (
@@ -151,8 +167,8 @@ export default function CategoryManagement({ onNavigate }) {
 
       {/* Grid 4 Kartu Kategori */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--sp-4)', marginBottom: 'var(--sp-6)' }}>
-        {KATEGORI_OPTIONS.map((cat) => {
-          const meta = CATEGORY_META[cat.id];
+        {categories.map((cat) => {
+          const meta = CATEGORY_META[cat.id] || CATEGORY_META[1];
           const Icon = meta.icon;
           const isSelected = selectedCat === cat.id;
 
@@ -206,7 +222,7 @@ export default function CategoryManagement({ onNavigate }) {
             </div>
             <div>
               <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0, color: 'var(--clr-dark-900)' }}>
-                {activeMeta.title}
+                {selectedCategory?.label || 'Kategori peralatan'}
               </h2>
               <span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', fontWeight: 500 }}>
                 {activeMeta.standard}
@@ -223,7 +239,7 @@ export default function CategoryManagement({ onNavigate }) {
         </div>
 
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-700)', lineHeight: 1.6, marginBottom: 'var(--sp-5)' }}>
-          {activeMeta.desc}
+          {selectedCategory?.desc || 'Deskripsi kategori belum tersedia.'}
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--sp-5)' }}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Search, Plus, QrCode, ChevronRight, RefreshCw } from 'lucide-react';
-import { getEquipmentId, getEquipmentCategoryId, KATEGORI_OPTIONS, formatPhotoUrl, peralatanApi } from '../../utils/api.js';
+import { getEquipmentId, getEquipmentCategoryId, formatPhotoUrl, peralatanApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import QRScannerModal from '../../components/QRScannerModal.jsx';
 
@@ -54,9 +54,13 @@ export default function EquipmentList({ onNavigate }) {
     'Dihapuskan':      'badge-dihapuskan',
   };
 
-  const kategoriLabel = {
-    1: 'Alat Ukur', 2: 'Alat Bantu', 3: 'Artefak Acuan', 4: 'Komponen Pendukung'
-  };
+  const categories = Array.from(
+    new Map(
+      list
+        .filter((item) => item.kategori_peralatan?.id && item.kategori_peralatan?.nama_kategori)
+        .map((item) => [item.kategori_peralatan.id, item.kategori_peralatan])
+    ).values()
+  );
 
   return (
     <div className="page-container fade-in-up">
@@ -110,8 +114,8 @@ export default function EquipmentList({ onNavigate }) {
           style={{ width: 'auto', minWidth: 180 }}
         >
           <option value="">Semua Kategori</option>
-          {KATEGORI_OPTIONS.map((k) => (
-            <option key={k.id} value={String(k.id)}>{k.label}</option>
+          {categories.map((category) => (
+            <option key={category.id} value={String(category.id)}>{category.nama_kategori}</option>
           ))}
         </select>
 
@@ -199,7 +203,7 @@ export default function EquipmentList({ onNavigate }) {
                     </td>
                     <td>
                       <span className="badge badge-gray" style={{ fontSize: 'var(--text-xs)' }}>
-                        {kategoriLabel[categoryId] || '–'}
+                        {p.kategori_peralatan?.nama_kategori || '–'}
                       </span>
                     </td>
                     <td>

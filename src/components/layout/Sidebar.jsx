@@ -141,7 +141,6 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
                 <NavItem label="Kelompok Lab" path="/admin/labs" feature={ACCESS.MASTER_LAB} roles={['admin']} />
                 <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin']} />
                 <NavItem label="Kelompok Lokasi" path="/admin/ruangan" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin']} />
-                <NavItem label="Pengguna Sistem" path="/admin/users" feature={ACCESS.SYSTEM_SETTINGS} roles={['admin']} />
               </NavGroup>
             )}
           </nav>
