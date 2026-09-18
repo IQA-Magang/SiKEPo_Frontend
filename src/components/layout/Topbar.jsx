@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, User, ChevronDown, LogOut, Menu, Settings, ShieldCheck, QrCode } from 'lucide-react';
+import { Search, User, ChevronDown, LogOut, Menu, Settings, QrCode } from 'lucide-react';
 import { getCurrentUser, authApi } from '../../utils/api.js';
 import NotificationBell from '../NotificationBell.jsx';
 import QRScannerModal from '../QRScannerModal.jsx';
+import { useToast } from '../../context/ToastContext.jsx';
+import { useConfirm } from '../../context/ConfirmContext.jsx';
 
 export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSearch }) {
   const [profileOpen, setProfileOpen] = useState(false);
@@ -10,6 +12,9 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
   const [user, setUser] = useState(getCurrentUser);
   const [searchVal, setSearchVal] = useState('');
   const profileRef = useRef(null);
+
+  const toast = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
     setUser(getCurrentUser());
@@ -28,8 +33,19 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [profileOpen]);
 
-  function handleLogout() {
+  async function handleLogout() {
+    setProfileOpen(false);
+    const confirmed = await confirm({
+      title: 'Keluar dari SiKEPo',
+      message: 'Apakah Anda yakin ingin mengakhiri sesi login saat ini?',
+      confirmText: 'Keluar',
+      cancelText: 'Batal',
+      variant: 'warning',
+    });
+    if (!confirmed) return;
+
     authApi.logout();
+    toast.info('Anda telah berhasil keluar dari akun.');
     onNavigate('/login');
   }
 
@@ -44,7 +60,7 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
 
   return (
     <header className="topbar">
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div className="topbar-left">
         <button
           className="topbar-hamburger"
           onClick={onToggleSidebar}
@@ -55,9 +71,8 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
         </button>
 
         <div
-          className="brand-wrap"
+          className="brand-wrap brand-wrap-clickable"
           onClick={() => onNavigate('/dashboard')}
-          style={{ cursor: 'pointer' }}
           title="Kembali ke Dashboard"
         >
           {/* TTH Logo SVG */}
@@ -79,24 +94,23 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
         <Search size={16} className="search-icon" />
         <input
           type="text"
-          placeholder="Cari alat, kode inventaris, atau peminjam..."
+          placeholder="Cari peralatan, kode aset, atau ruangan..."
           value={searchVal}
           onChange={handleSearchChange}
         />
       </div>
 
       {/* Topbar Right */}
-      <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+      <div className="topbar-right">
         {/* Tombol Scan QR Code by ID */}
         <button
-          className="btn btn-secondary btn-sm"
+          className="topbar-qr-btn"
           onClick={() => setIsQrOpen(true)}
           title="Scan Kode QR Peralatan"
           id="btn-topbar-scan-qr"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <QrCode size={16} style={{ color: 'var(--clr-primary-500)' }} />
-          <span className="topbar-btn-text" style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--fw-semibold)' }}>Scan QR</span>
+          <QrCode size={15} />
+          <span className="topbar-btn-text">Scan QR</span>
         </button>
 
         {/* Live Notification Bell */}

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Users, Plus, Pencil, Trash2, X, RefreshCw, Shield } from 'lucide-react';
 import { usersApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
+import { useToast } from '../../context/ToastContext.jsx';
+import { useConfirm } from '../../context/ConfirmContext.jsx';
 
 const EMPTY_FORM = { nip: '', name: '', email: '', password: '', role: 'staff', position: '', pic: false };
 
@@ -22,6 +24,20 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
   const [deleting, setDeleting] = useState(null);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
+
+  const toast = useToast();
+  const confirm = useConfirm();
+
+  // Escape key listener for modal
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && modal) {
+        setModal(null);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modal]);
 
   useEffect(() => { loadData(); }, []);
 
@@ -73,22 +89,37 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
         await usersApi.update(modal.id, payload);
       }
       setModal(null);
+      toast.success(modal.mode === 'create' ? 'Pengguna baru berhasil ditambahkan.' : 'Data pengguna berhasil disimpan.');
       loadData();
     } catch (err) {
       setError(err.message || 'Gagal menyimpan.');
+      toast.error(err.message || 'Gagal menyimpan data pengguna.');
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Hapus pengguna ini?')) return;
+    const targetUser = users.find((u) => u.user_id === id);
+    const userName = targetUser?.name ? `"${targetUser.name}"` : 'pengguna ini';
+
+    const confirmed = await confirm({
+      title: 'Hapus Pengguna',
+      message: `Apakah Anda yakin ingin menghapus akun ${userName}? Tindakan ini akan menghapus hak akses yang bersangkutan secara permanen.`,
+      confirmText: 'Ya, Hapus Pengguna',
+      cancelText: 'Batal',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
+
     setDeleting(id);
     try {
       await usersApi.delete(id);
       setUsers((prev) => prev.filter((u) => u.user_id !== id));
+      toast.success(`Pengguna ${userName} berhasil dihapus.`);
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || 'Gagal menghapus pengguna.');
     } finally {
       setDeleting(null);
     }
@@ -103,13 +134,14 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
 
   return (
     <div className="page-container fade-in-up">
-      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
+      {/* 1. Page Header */}
+      <div className="page-header-row">
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1 className="page-title">Manajemen Pengguna</h1>
             {viewOnly && <span className="badge badge-gray">Mode Lihat (Manager)</span>}
           </div>
-          <p className="page-subtitle">{filtered.length} pengguna terdaftar di sistem</p>
+          <p className="page-subtitle">Kelola akun personel laboratorium dan hak akses SiKEPo</p>
         </div>
         {canManage && (
           <button className="btn btn-primary" onClick={openCreate} id="btn-tambah-user">
@@ -118,10 +150,10 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
         )}
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 'var(--sp-3)', marginBottom: 'var(--sp-5)', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div className="search-bar" style={{ flex: 1, minWidth: 240 }}>
-          <Users className="search-icon" style={{ width: 16, height: 16 }} />
+      {/* 2. Filter / Search Bar */}
+      <div className="filter-toolbar">
+        <div className="search-bar filter-search-wrap">
+          <Users className="search-icon" size={16} />
           <input
             id="input-search-user"
             className="form-input"
@@ -131,63 +163,102 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <select id="select-filter-role" className="form-select" value={filterRole} onChange={(e) => setFilterRole(e.target.value)} style={{ width: 'auto', minWidth: 160 }}>
+        <select
+          id="select-filter-role"
+          className="form-select filter-select"
+          value={filterRole}
+          onChange={(e) => setFilterRole(e.target.value)}
+        >
           <option value="">Semua Role</option>
           <option value="admin">Administrator</option>
           <option value="manager">Manager</option>
           <option value="staff">Staff</option>
         </select>
-        <button className="btn btn-secondary btn-icon" onClick={loadData} id="btn-refresh-user" title="Refresh"><RefreshCw size={16} /></button>
+        <button
+          className="btn btn-secondary btn-icon"
+          onClick={loadData}
+          id="btn-refresh-user"
+          title="Segarkan data pengguna"
+        >
+          <RefreshCw size={16} />
+        </button>
       </div>
 
-      {/* Tabel */}
+      {/* 3. Content Table Card */}
       {loading ? (
-        <div className="card" style={{ padding: 'var(--sp-6)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-          {[...Array(5)].map((_, i) => <div key={i} className="skeleton" style={{ height: 52 }} />)}
+        <div className="card skeleton-list">
+          {[...Array(5)].map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Users size={32} /></div>
           <p className="empty-state-title">Tidak ada pengguna ditemukan</p>
-          {canManage && <button className="btn btn-primary" onClick={openCreate}><Plus size={16} /> Tambah Pengguna</button>}
+          {canManage && (
+            <button className="btn btn-primary" onClick={openCreate}>
+              <Plus size={16} /> Tambah Pengguna
+            </button>
+          )}
         </div>
       ) : (
-        <div className="table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>NIP</th>
-                <th>Nama</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Jabatan</th>
-                <th>PIC</th>
-                {canManage && <th>Aksi</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((u) => (
-                <tr key={u.user_id}>
-                  <td><code style={{ fontSize: 'var(--text-xs)' }}>{u.nip}</code></td>
-                  <td style={{ fontWeight: 'var(--fw-medium)' }}>{u.name}</td>
-                  <td style={{ color: 'var(--clr-dark-500)', fontSize: 'var(--text-sm)' }}>{u.email}</td>
-                  <td><span className={`badge ${ROLE_BADGE[u.role] || 'badge-gray'}`}>{u.role}</span></td>
-                  <td style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>{u.position}</td>
-                  <td>
-                    {u.pic && <span className="badge badge-green"><Shield size={10} /> PIC</span>}
-                  </td>
-                  {canManage && (
-                    <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(u)} id={`btn-edit-user-${u.user_id}`}><Pencil size={13} /></button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(u.user_id)} disabled={deleting === u.user_id} id={`btn-hapus-user-${u.user_id}`}><Trash2 size={13} /></button>
-                      </div>
-                    </td>
-                  )}
+        <div className="table-card">
+          <div className="table-wrapper table-borderless">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>NIP</th>
+                  <th>Nama</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Jabatan</th>
+                  <th>PIC</th>
+                  {canManage && <th style={{ width: 100 }}>Aksi</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((u) => (
+                  <tr key={u.user_id}>
+                    <td><code className="text-mono-xs">{u.nip}</code></td>
+                    <td style={{ fontWeight: 'var(--fw-medium)' }}>{u.name}</td>
+                    <td style={{ color: 'var(--clr-dark-500)', fontSize: 'var(--text-sm)' }}>{u.email}</td>
+                    <td><span className={`badge ${ROLE_BADGE[u.role] || 'badge-gray'}`}>{u.role}</span></td>
+                    <td style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>{u.position}</td>
+                    <td>
+                      {u.pic && <span className="badge badge-green"><Shield size={10} /> PIC</span>}
+                    </td>
+                    {canManage && (
+                      <td>
+                        <div className="table-action-btns">
+                          <button
+                            className="btn-action-icon"
+                            onClick={() => openEdit(u)}
+                            id={`btn-edit-user-${u.user_id}`}
+                            title="Edit pengguna"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            className="btn-action-icon btn-action-delete"
+                            onClick={() => handleDelete(u.user_id)}
+                            disabled={deleting === u.user_id}
+                            id={`btn-hapus-user-${u.user_id}`}
+                            title="Hapus pengguna"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 5. Summary Footer */}
+          <div className="table-footer-summary">
+            <span>Menampilkan <strong>{filtered.length}</strong> dari <strong>{users.length}</strong> total pengguna terdaftar</span>
+            <span>Total PIC Aktif: <strong>{users.filter(u => u.pic).length}</strong></span>
+          </div>
         </div>
       )}
 

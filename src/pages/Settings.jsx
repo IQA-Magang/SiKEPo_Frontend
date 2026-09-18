@@ -11,6 +11,7 @@ export default function Settings({ onNavigate }) {
   const role = (user?.role || 'staff').toLowerCase();
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'users' | 'system'
+  const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
@@ -28,6 +29,10 @@ export default function Settings({ onNavigate }) {
     setPwdError('');
     setPwdSuccess('');
 
+    if (!currentPassword) {
+      setPwdError('Password saat ini wajib diisi.');
+      return;
+    }
     if (!password) {
       setPwdError('Password baru tidak boleh kosong.');
       return;
@@ -43,23 +48,40 @@ export default function Settings({ onNavigate }) {
 
     setSavingPassword(true);
     try {
-      if (!user?.user_id) {
-        throw new Error('Data pengguna tidak ditemukan. Silakan login ulang.');
+      // Panggil endpoint khusus change password: PUT /api/users/me/password
+      // Hanya mengirim current_password dan new_password (tidak mengubah role/email/user lain)
+      try {
+        await usersApi.changePassword({
+          current_password: currentPassword,
+          new_password: password,
+        });
+        setPwdSuccess('Password berhasil diperbarui!');
+        setCurrentPassword('');
+        setPassword('');
+        setConfirmPassword('');
+      } catch (err) {
+        // Fallback untuk admin jika route /api/users/me/password belum diaktifkan di backend (404)
+        if (role === 'admin' && (err.status === 404 || String(err.message).includes('404'))) {
+          if (!user?.user_id) {
+            throw new Error('Data pengguna tidak ditemukan. Silakan login ulang.');
+          }
+          await usersApi.update(user.user_id, {
+            nip: user.nip,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            position: user.position,
+            pic: Boolean(user.pic),
+            password: password,
+          });
+          setPwdSuccess('Password berhasil diperbarui!');
+          setCurrentPassword('');
+          setPassword('');
+          setConfirmPassword('');
+        } else {
+          throw err;
+        }
       }
-
-      await usersApi.update(user.user_id, {
-        nip: user.nip,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        position: user.position,
-        pic: Boolean(user.pic),
-        password: password,
-      });
-
-      setPwdSuccess('Password berhasil diperbarui!');
-      setPassword('');
-      setConfirmPassword('');
     } catch (err) {
       setPwdError(err.message || 'Gagal mengubah password.');
     } finally {
@@ -247,8 +269,23 @@ export default function Settings({ onNavigate }) {
 
             <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
               <div className="form-group">
+                <label className="form-label" htmlFor="input-current-password">
+                  Password Saat Ini <span className="required">*</span>
+                </label>
+                <input
+                  id="input-current-password"
+                  type="password"
+                  className="form-input"
+                  placeholder="Masukkan password saat ini"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+              </div>
+
+              <div className="form-group">
                 <label className="form-label" htmlFor="input-new-password">
-                  Password Baru
+                  Password Baru <span className="required">*</span>
                 </label>
                 <input
                   id="input-new-password"

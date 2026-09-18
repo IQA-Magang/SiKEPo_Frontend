@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, ArrowLeft, QrCode, Upload, FileText, Download, Eye } from 'lucide-react';
-import { peralatanApi, dokumenApi, formatPhotoUrl, getEquipmentId, API_BASE } from '../../utils/api.js';
+import { peralatanApi, dokumenApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
 // ------------------------------------------------------------------
@@ -158,7 +158,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
             <div className="form-grid-2">
               <InfoRow label="Nama Peralatan" value={peralatan.nama_peralatan} />
               <InfoRow label="No. Aset" value={peralatan.nomor_aset} mono />
-              <InfoRow label="Kategori" value={kategoriLabel[peralatan.kategori_peralatan_id]} />
+              <InfoRow label="Kategori" value={kategoriLabel[getEquipmentCategoryId(peralatan)] || '–'} />
               <InfoRow label="Merek" value={peralatan.merek || '–'} />
               <InfoRow label="Tipe/Model" value={peralatan.tipe_model || '–'} />
               <InfoRow label="No. Seri" value={peralatan.nomor_seri || '–'} />
@@ -169,16 +169,82 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
           </div>
 
           {/* Detail Kategori / Teknis */}
-          {peralatan.detail_alat_ukur && (
-            <div className="card card-padded">
-              <h2 className="section-title">Detail Teknis Alat Ukur</h2>
-              <div className="form-grid-2">
-                <InfoRow label="No. Sertifikat" value={peralatan.detail_alat_ukur.no_sertifikat} />
-                <InfoRow label="Tgl. Kalibrasi" value={formatDate(peralatan.detail_alat_ukur.tgl_kalibrasi)} />
-                <InfoRow label="Jatuh Tempo" value={formatDate(peralatan.detail_alat_ukur.tgl_jatuh_tempo)} />
-              </div>
-            </div>
-          )}
+          {(() => {
+            const catId = getEquipmentCategoryId(peralatan);
+            const detail = peralatan.detail || peralatan.detail_alat_ukur || peralatan.detail_alat_bantu || peralatan.detail_artefak_acuan || peralatan.detail_komponen_pendukung;
+            if (!detail) return null;
+
+            if (catId === 1) {
+              return (
+                <div className="card card-padded">
+                  <h2 className="section-title">Detail Teknis Alat Ukur</h2>
+                  <div className="form-grid-2">
+                    <InfoRow label="No. Sertifikat" value={detail.no_sertifikat || '–'} />
+                    <InfoRow label="Metode Kelayakan" value={detail.metode_kelayakan || '–'} />
+                    <InfoRow label="Tgl. Kalibrasi" value={formatDate(detail.tgl_kalibrasi)} />
+                    <InfoRow label="Jatuh Tempo" value={formatDate(detail.tgl_jatuh_tempo)} />
+                    <InfoRow label="Interval (Bulan)" value={detail.interval_bulan ? `${detail.interval_bulan} Bulan` : '–'} />
+                    <InfoRow label="Status Kelayakan" value={detail.status_kelayakan || '–'} />
+                    <InfoRow label="Rentang Ukur" value={detail.parameter_rentang_ukur || '–'} />
+                    <InfoRow label="Akurasi / Resolusi" value={[detail.akurasi_spesifikasi, detail.resolusi].filter(Boolean).join(' / ') || '–'} />
+                  </div>
+                </div>
+              );
+            }
+
+            if (catId === 2) {
+              return (
+                <div className="card card-padded">
+                  <h2 className="section-title">Detail Teknis Alat Bantu</h2>
+                  <div className="form-grid-2">
+                    <InfoRow label="Fungsi / Kegunaan" value={detail.fungsi_kegunaan || '–'} />
+                    <InfoRow label="Jenis Pemeriksaan" value={detail.jenis_pemeriksaan_berkala || '–'} />
+                    <InfoRow label="Tgl. Pemeriksaan" value={formatDate(detail.tgl_pemeriksaan_terakhir)} />
+                    <InfoRow label="Jatuh Tempo" value={formatDate(detail.tgl_jatuh_tempo)} />
+                    <InfoRow label="Interval (Bulan)" value={detail.interval_bulan ? `${detail.interval_bulan} Bulan` : '–'} />
+                    <InfoRow label="Kriteria Pemeriksaan" value={detail.kriteria_pemeriksaan || '–'} />
+                  </div>
+                </div>
+              );
+            }
+
+            if (catId === 3) {
+              return (
+                <div className="card card-padded">
+                  <h2 className="section-title">Detail Teknis Artefak Acuan</h2>
+                  <div className="form-grid-2">
+                    <InfoRow label="Jenis Deskripsi" value={detail.jenis_deskripsi || '–'} />
+                    <InfoRow label="Karakteristik yang Diacu" value={detail.karakteristik_yang_diacu || '–'} />
+                    <InfoRow label="Nilai Spesifikasi" value={detail.nilai_spesifikasi_karakterisasi || '–'} />
+                    <InfoRow label="Metode Karakterisasi" value={detail.metode_karakterisasi || '–'} />
+                    <InfoRow label="No. Laporan" value={detail.no_laporan_karakterisasi || '–'} />
+                    <InfoRow label="Tgl. Karakterisasi" value={formatDate(detail.tgl_karakterisasi_terakhir)} />
+                    <InfoRow label="Kondisi Penyimpanan" value={detail.kondisi_penyimpanan || '–'} />
+                  </div>
+                </div>
+              );
+            }
+
+            if (catId === 4) {
+              return (
+                <div className="card card-padded">
+                  <h2 className="section-title">Detail Komponen Pendukung</h2>
+                  <div className="form-grid-2">
+                    <InfoRow label="Sub Kategori" value={detail.sub_kategori || '–'} />
+                    <InfoRow label="Sumber / Pemasok" value={detail.sumber_pemasok || '–'} />
+                    <InfoRow label="No. Lot / Batch" value={detail.no_lot_batch_edisi || '–'} />
+                    <InfoRow label="Satuan Kemasan" value={detail.satuan_kemasan || '–'} />
+                    <InfoRow label="Tgl. Terima / Terbit" value={formatDate(detail.tgl_terima_terbit)} />
+                    <InfoRow label="Tgl. Kedaluwarsa" value={formatDate(detail.tgl_kedaluwarsa)} />
+                    <InfoRow label="Status Ketersediaan" value={detail.status_ketersediaan || '–'} />
+                    <InfoRow label="Kondisi Penyimpanan" value={detail.kondisi_penyimpanan || '–'} />
+                  </div>
+                </div>
+              );
+            }
+
+            return null;
+          })()}
 
           {/* Dokumen */}
           <div className="card">

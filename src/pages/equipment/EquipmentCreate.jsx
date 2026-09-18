@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle, Package, Upload, FileText, Trash2, Plus, Info, Layers, UserCheck, ShieldCheck, HardDrive } from 'lucide-react';
-import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, usersApi, KATEGORI_OPTIONS } from '../../utils/api.js';
+import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, usersApi, getCurrentUser, KATEGORI_OPTIONS } from '../../utils/api.js';
 
 // Langkah-langkah stepper
 const STEPS = ['Info Dasar', 'Lokasi & PIC', 'Detail Teknis', 'Dokumen Wajib', 'Konfirmasi'];
@@ -90,9 +90,20 @@ export default function EquipmentCreate({ onNavigate }) {
         if (l.status === 'fulfilled') setLabs(l.value.data || []);
         if (r.status === 'fulfilled') setRuangan(r.value.data || []);
         if (k.status === 'fulfilled') setKelompokAset(k.value.data || []);
-        if (u.status === 'fulfilled') {
-          const staffPIC = (u.value.data || []).filter((usr) => usr.pic === true || usr.pic === 1);
-          setPics(staffPIC.length > 0 ? staffPIC : u.value.data || []);
+        if (u.status === 'fulfilled' && Array.isArray(u.value?.data)) {
+          const staffPIC = u.value.data.filter((usr) => usr.pic === true || usr.pic === 1);
+          setPics(staffPIC.length > 0 ? staffPIC : u.value.data);
+        } else {
+          // Fallback jika usersApi.getAll dibatasi oleh role backend
+          const currentUser = getCurrentUser();
+          if (currentUser) {
+            setPics([{
+              id: currentUser.user_id || currentUser.id,
+              user_id: currentUser.user_id || currentUser.id,
+              name: currentUser.name || currentUser.email,
+              position: currentUser.position || currentUser.role,
+            }]);
+          }
         }
       } finally {
         setLoadingOpts(false);
@@ -163,13 +174,88 @@ export default function EquipmentCreate({ onNavigate }) {
     setStep((s) => s - 1);
   }
 
+  function toIsoDate(val) {
+    if (!val) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+      return `${val}T00:00:00Z`;
+    }
+    try {
+      return new Date(val).toISOString();
+    } catch {
+      return null;
+    }
+  }
+
   async function handleSubmit() {
     setSub(true);
     setError('');
     try {
+      const catId = Number(form.kategori_id);
+      let detailPayload = {};
+
+      if (catId === 1) {
+        detailPayload = {
+          peranti_lunak_versi: form.peranti_lunak_versi || '',
+          metode_kelayakan: form.metode_kelayakan || 'kalibrasi eksternal',
+          no_sertifikat: form.no_sertifikat || '',
+          tgl_kalibrasi: toIsoDate(form.tgl_kalibrasi),
+          tgl_jatuh_tempo: toIsoDate(form.tgl_jatuh_tempo),
+          interval_bulan: Number(form.interval_bulan) || 0,
+          fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
+          jenis_label: form.jenis_label || 'calibration',
+          status_kelayakan: form.status_kelayakan || 'Layak',
+          parameter_rentang_ukur: form.parameter_rentang_ukur || '',
+          resolusi: form.resolusi || '',
+          akurasi_spesifikasi: form.akurasi_spesifikasi || '',
+          satuan: form.satuan || '',
+          nilai_koreksi: form.nilai_koreksi || '',
+          ketidakpastian: form.ketidakpastian || '',
+        };
+      } else if (catId === 2) {
+        detailPayload = {
+          fungsi_kegunaan: form.fungsi_kegunaan || '',
+          peranti_lunak_versi: form.peranti_lunak_versi || '',
+          jenis_pemeriksaan_berkala: form.jenis_pemeriksaan_berkala || 'pemeriksaan lain',
+          kriteria_pemeriksaan: form.kriteria_pemeriksaan || '',
+          tgl_pemeriksaan_terakhir: toIsoDate(form.tgl_pemeriksaan_terakhir),
+          tgl_jatuh_tempo: toIsoDate(form.tgl_jatuh_tempo),
+          interval_bulan: Number(form.interval_bulan) || 0,
+          fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
+          karakteristik_acuan: form.karakteristik_acuan || '',
+          jadwal_karakterisasi_ulang: form.jadwal_karakterisasi_ulang || '',
+        };
+      } else if (catId === 3) {
+        detailPayload = {
+          jenis_deskripsi: form.jenis_deskripsi || '',
+          karakteristik_yang_diacu: form.karakteristik_yang_diacu || 'visual',
+          nilai_spesifikasi_karakterisasi: form.nilai_spesifikasi_karakterisasi || '',
+          metode_karakterisasi: form.metode_karakterisasi || '',
+          no_laporan_karakterisasi: form.no_laporan_karakterisasi || '',
+          tgl_karakterisasi_terakhir: toIsoDate(form.tgl_karakterisasi_terakhir),
+          tgl_karakterisasi: toIsoDate(form.tgl_jatuh_tempo),
+          interval_bulan: Number(form.interval_bulan) || 0,
+          kondisi_penyimpanan: form.kondisi_penyimpanan || '',
+          status: form.status_artefak || 'aktif',
+        };
+      } else if (catId === 4) {
+        detailPayload = {
+          sub_kategori: form.sub_kategori || 'data acuan',
+          deskripsi_spesifikasi: form.deskripsi_spesifikasi || '',
+          sumber_pemasok: form.sumber_pemasok || '',
+          no_lot_batch_edisi: form.no_lot_batch_edisi || '',
+          grade_mutu: form.grade_mutu || '',
+          satuan_kemasan: form.satuan_kemasan || '',
+          tgl_terima_terbit: toIsoDate(form.tgl_terima_terbit),
+          tgl_kedaluwarsa: toIsoDate(form.tgl_kedaluwarsa),
+          kondisi_penyimpanan: form.kondisi_penyimpanan || '',
+          status_ketersediaan: form.status_ketersediaan || 'Tersedia',
+        };
+      }
+
       const payload = {
         nama_peralatan: form.nama_peralatan,
-        kategori_id: Number(form.kategori_id),
+        kategori_id: catId,
+        kategori_peralatan_id: catId,
         kelompok_aset_id: Number(form.kelompok_aset_id),
         ruangan_id: Number(form.ruangan_id),
         pic_id: Number(form.pic_id),
@@ -179,57 +265,7 @@ export default function EquipmentCreate({ onNavigate }) {
         peranti_lunak_versi: form.peranti_lunak_versi,
         keterangan: form.keterangan,
         status_alat: form.status_alat,
-        // Detail teknis berdasarkan kategori
-        ...(form.kategori_id === 1 && {
-          detail_alat_ukur: {
-            parameter_rentang_ukur: form.parameter_rentang_ukur,
-            resolusi: form.resolusi,
-            akurasi_spesifikasi: form.akurasi_spesifikasi,
-            satuan: form.satuan,
-            no_sertifikat: form.no_sertifikat,
-            tgl_kalibrasi: form.tgl_kalibrasi || null,
-            tgl_jatuh_tempo: form.tgl_jatuh_tempo || null,
-            interval_bulan: Number(form.interval_bulan) || 0,
-            nilai_koreksi: form.nilai_koreksi,
-            ketidakpastian: form.ketidakpastian,
-            status_kelayakan: form.status_kelayakan,
-          },
-        }),
-        ...(form.kategori_id === 2 && {
-          detail_alat_bantu: {
-            fungsi_kegunaan: form.fungsi_kegunaan,
-            jenis_pemeriksaan_berkala: form.jenis_pemeriksaan_berkala,
-            kriteria_pemeriksaan: form.kriteria_pemeriksaan,
-            tgl_pemeriksaan_terakhir: form.tgl_pemeriksaan_terakhir || null,
-            tgl_jatuh_tempo: form.tgl_jatuh_tempo || null,
-            interval_bulan: Number(form.interval_bulan) || 0,
-          },
-        }),
-        ...(form.kategori_id === 3 && {
-          detail_artefak_acuan: {
-            jenis_deskripsi: form.jenis_deskripsi,
-            karakteristik_yang_diacu: form.karakteristik_yang_diacu,
-            nilai_spesifikasi_karakterisasi: form.nilai_spesifikasi_karakterisasi,
-            metode_karakterisasi: form.metode_karakterisasi,
-            no_laporan_karakterisasi: form.no_laporan_karakterisasi,
-            tgl_karakterisasi_terakhir: form.tgl_karakterisasi_terakhir || null,
-            tgl_jatuh_tempo: form.tgl_jatuh_tempo || null,
-            kondisi_penyimpanan: form.kondisi_penyimpanan,
-          },
-        }),
-        ...(form.kategori_id === 4 && {
-          detail_komponen_pendukung: {
-            sub_kategori: form.sub_kategori,
-            deskripsi_spesifikasi: form.deskripsi_spesifikasi,
-            sumber_pemasok: form.sumber_pemasok,
-            no_lot_batch_edisi: form.no_lot_batch_edisi,
-            grade_mutu: form.grade_mutu,
-            satuan_kemasan: form.satuan_kemasan,
-            tgl_terima_terbit: form.tgl_terima_terbit || null,
-            tgl_kedaluwarsa: form.tgl_kedaluwarsa || null,
-            status_ketersediaan: form.status_ketersediaan,
-          },
-        }),
+        detail: detailPayload,
       };
 
       const res = await peralatanApi.create(payload);

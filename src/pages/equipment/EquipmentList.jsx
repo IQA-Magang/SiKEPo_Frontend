@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Search, Plus, QrCode, ChevronRight, RefreshCw } from 'lucide-react';
-import { getEquipmentId, KATEGORI_OPTIONS, formatPhotoUrl, peralatanApi } from '../../utils/api.js';
+import { getEquipmentId, getEquipmentCategoryId, KATEGORI_OPTIONS, formatPhotoUrl, peralatanApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import QRScannerModal from '../../components/QRScannerModal.jsx';
 
@@ -38,7 +38,8 @@ export default function EquipmentList({ onNavigate }) {
       p.nama_peralatan?.toLowerCase().includes(q) ||
       p.nomor_aset?.toLowerCase().includes(q) ||
       p.merek?.toLowerCase().includes(q);
-    const matchKat = !filterKat || String(p.kategori_peralatan_id) === filterKat;
+    const catId = getEquipmentCategoryId(p);
+    const matchKat = !filterKat || String(catId) === filterKat;
     const matchStatus = !filterStatus || p.status_alat === filterStatus;
     return matchQ && matchKat && matchStatus;
   });
@@ -158,6 +159,7 @@ export default function EquipmentList({ onNavigate }) {
                 <th>Foto</th>
                 <th>Nama Peralatan</th>
                 <th>No. Aset</th>
+                <th>Kategori</th>
                 <th>Status</th>
                 <th>Aksi</th>
               </tr>
@@ -166,6 +168,7 @@ export default function EquipmentList({ onNavigate }) {
               {filtered.map((p, i) => {
                 const photoUrl = formatPhotoUrl(p.foto);
                 const equipmentId = getEquipmentId(p);
+                const categoryId = getEquipmentCategoryId(p);
                 return (
                   <tr key={equipmentId}>
                     <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{i + 1}</td>
@@ -193,6 +196,11 @@ export default function EquipmentList({ onNavigate }) {
                       <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
                         {p.nomor_aset}
                       </code>
+                    </td>
+                    <td>
+                      <span className="badge badge-gray" style={{ fontSize: 'var(--text-xs)' }}>
+                        {kategoriLabel[categoryId] || '–'}
+                      </span>
                     </td>
                     <td>
                       <span className={`badge ${statusClass[p.status_alat] || 'badge-gray'}`}>

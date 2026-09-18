@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, HelpCircle, KeyRound, X, Mail, Phone } from 'lucide-react';
 import WaveBackground from '../components/WaveBackground.jsx';
 import LogoSiKEPo from '../components/LogoSiKEPo.jsx';
 import TelkomTestHouseLogo from '../components/TelkomTestHouseLogo.jsx';
 import Captcha from '../components/Captcha.jsx';
-import { authApi } from '../utils/api.js';
+import { authApi, getToken } from '../utils/api.js';
+import { useToast } from '../context/ToastContext.jsx';
 
 export default function Login({ onNavigate }) {
   const [emailOrNip, setEmailOrNip] = useState('');
@@ -14,12 +15,26 @@ export default function Login({ onNavigate }) {
   const [captchaResetTrigger, setCaptchaResetTrigger] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({ email: '', password: '', captcha: '', general: '' });
+  const [infoModal, setInfoModal] = useState(null); // { title, subtitle, content, icon: Icon }
+
+  const toast = useToast();
 
   useEffect(() => {
-    if (localStorage.getItem('sikepo_token')) {
+    if (getToken()) {
       onNavigate('/dashboard');
     }
-  }, []);
+  }, [onNavigate]);
+
+  // Handle ESC to close info modal
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && infoModal) {
+        setInfoModal(null);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [infoModal]);
 
   const resetCaptcha = () => {
     setRecaptchaToken('');
@@ -56,13 +71,16 @@ export default function Login({ onNavigate }) {
       });
 
       setIsLoading(false);
+      toast.success('Berhasil masuk ke SiKEPo!', 3000);
       onNavigate('/dashboard');
     } catch (err) {
       setIsLoading(false);
+      const msg = err.message || 'Gagal login. Periksa email, password, dan reCAPTCHA.';
       setErrors((prev) => ({
         ...prev,
-        general: err.message || 'Gagal login. Periksa email, password, dan reCAPTCHA.',
+        general: msg,
       }));
+      toast.error(msg, 5000);
       resetCaptcha();
     }
   };
@@ -77,6 +95,9 @@ export default function Login({ onNavigate }) {
         <section className="login-left-col">
           <div className="login-left-wrapper">
             <LogoSiKEPo />
+            <p className="sikepo-onboarding-sub">
+              Sistem Informasi Tata Kelola &amp; Posisi Peralatan Laboratorium Uji Telkom Test House
+            </p>
 
             <div className="login-card">
               <form onSubmit={handleSubmit} noValidate>
@@ -88,7 +109,7 @@ export default function Login({ onNavigate }) {
 
                 <div className="form-group">
                   <label htmlFor="emailOrNip" className="input-label">
-                    Email Terdaftar
+                    Email Terdaftar <span className="required">*</span>
                   </label>
                   <div className="input-wrapper">
                     <input
@@ -102,14 +123,17 @@ export default function Login({ onNavigate }) {
                         clearErrors('email');
                       }}
                       disabled={isLoading}
+                      autoComplete="username"
+                      aria-required="true"
+                      aria-invalid={Boolean(errors.email)}
                     />
                   </div>
-                  {errors.email && <span className="error-text">{errors.email}</span>}
+                  {errors.email && <span className="error-text" role="alert">{errors.email}</span>}
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="password" className="input-label">
-                    Password
+                    Password <span className="required">*</span>
                   </label>
                   <div className="input-wrapper">
                     <input
@@ -124,6 +148,8 @@ export default function Login({ onNavigate }) {
                       }}
                       disabled={isLoading}
                       autoComplete="current-password"
+                      aria-required="true"
+                      aria-invalid={Boolean(errors.password)}
                     />
                     <button
                       type="button"
@@ -135,7 +161,7 @@ export default function Login({ onNavigate }) {
                       {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                     </button>
                   </div>
-                  {errors.password && <span className="error-text">{errors.password}</span>}
+                  {errors.password && <span className="error-text" role="alert">{errors.password}</span>}
                 </div>
 
                 {/* Google reCAPTCHA v2 Checkbox */}
@@ -162,22 +188,62 @@ export default function Login({ onNavigate }) {
                   )}
                 </button>
 
+                {/* Accessible Replacement for alert() */}
                 <div className="form-links">
-                  <a
-                    href="#/forgot-password"
-                    className="link-item"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      alert('Silakan hubungi Administrator Lab untuk mereset kata sandi Anda.');
-                    }}
-                  >
-                    Forgot password?
-                  </a>
                   <button
                     type="button"
                     className="link-item btn-link"
                     onClick={() =>
-                      alert('Butuh bantuan? Hubungi IT Support Telkom Test House (TTH).')
+                      setInfoModal({
+                        title: 'Lupa Kata Sandi?',
+                        subtitle: 'Prosedur Reset Akun SiKEPo Telkom Test House',
+                        icon: KeyRound,
+                        content: (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <p style={{ fontSize: '13.5px', color: 'var(--clr-dark-700, #374151)', lineHeight: 1.5 }}>
+                              Untuk alasan keamanan ISO/IEC 17025, pengaturan ulang kata sandi dikelola secara tersentralisasi.
+                            </p>
+                            <div style={{ background: '#F9FAFB', padding: '12px 14px', borderRadius: 8, border: '1px solid #E5E7EB', fontSize: '12.5px', color: '#4B5563' }}>
+                              <strong style={{ display: 'block', marginBottom: 4, color: '#111827' }}>Langkah Reset:</strong>
+                              <ol style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <li>Hubungi Administrator Lab atau Manajer Mutu TTH.</li>
+                                <li>Lampirkan NIP dan nama lengkap yang terdaftar.</li>
+                                <li>Administrator akan menerbitkan kata sandi sementara untuk Anda.</li>
+                              </ol>
+                            </div>
+                          </div>
+                        ),
+                      })
+                    }
+                  >
+                    Forgot password?
+                  </button>
+                  <button
+                    type="button"
+                    className="link-item btn-link"
+                    onClick={() =>
+                      setInfoModal({
+                        title: 'Pusat Bantuan & Dukungan',
+                        subtitle: 'Helpdesk SiKEPo - Telkom Test House',
+                        icon: HelpCircle,
+                        content: (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <p style={{ fontSize: '13.5px', color: 'var(--clr-dark-700, #374151)', lineHeight: 1.5 }}>
+                              Mengalami kendala saat login atau memiliki pertanyaan terkait tata kelola peralatan uji?
+                            </p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '13px', color: '#374151' }}>
+                                <Mail size={16} style={{ color: '#E30613' }} />
+                                <span>Email Support: <strong>support-tth@telkom.co.id</strong></span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '13px', color: '#374151' }}>
+                                <Phone size={16} style={{ color: '#E30613' }} />
+                                <span>Ext. Kantor Lab: <strong>+62 (022) 456-7890 (TTH)</strong></span>
+                              </div>
+                            </div>
+                          </div>
+                        ),
+                      })
                     }
                   >
                     Need help?
@@ -185,30 +251,13 @@ export default function Login({ onNavigate }) {
                 </div>
 
                 {/* Test Credentials Helper */}
-                <div
-                  style={{
-                    marginTop: '16px',
-                    paddingTop: '12px',
-                    borderTop: '1px dashed #E5E7EB',
-                    textAlign: 'center',
-                  }}
-                >
-                  <span style={{ fontSize: '11.5px', color: '#6B7280' }}>
+                <div className="test-creds-box">
+                  <span className="test-creds-text">
                     Akun Standar: <strong>admin@sikepo.local</strong>
                   </span>
                   <button
                     type="button"
-                    style={{
-                      display: 'block',
-                      margin: '4px auto 0',
-                      background: 'none',
-                      border: 'none',
-                      color: '#DC2626',
-                      fontSize: '11.5px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                    }}
+                    className="btn-test-creds"
                     onClick={() => {
                       setEmailOrNip('admin@sikepo.local');
                       setPassword('password123');
@@ -229,6 +278,52 @@ export default function Login({ onNavigate }) {
           <TelkomTestHouseLogo />
         </section>
       </main>
+
+      {/* Accessible Info & Help Modal Dialog */}
+      {infoModal && (
+        <div
+          className="confirm-modal-overlay fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setInfoModal(null);
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="login-info-modal-title"
+        >
+          <div className="confirm-dialog-card zoom-in">
+            <div className="confirm-dialog-header">
+              <div className="confirm-icon-wrap bg-primary-subtle text-primary">
+                {infoModal.icon ? <infoModal.icon size={22} /> : <HelpCircle size={22} />}
+              </div>
+              <button
+                className="confirm-dialog-close"
+                onClick={() => setInfoModal(null)}
+                aria-label="Tutup jendela informasi"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div>
+              <h3 id="login-info-modal-title" className="confirm-dialog-title">
+                {infoModal.title}
+              </h3>
+              <p style={{ fontSize: '12px', color: 'var(--clr-dark-500, #6B7280)', marginBottom: 14 }}>
+                {infoModal.subtitle}
+              </p>
+              {infoModal.content}
+            </div>
+            <div className="confirm-dialog-footer">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setInfoModal(null)}
+              >
+                Mengerti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

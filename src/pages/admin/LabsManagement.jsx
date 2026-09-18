@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Building2, Plus, Pencil, Trash2, X, RefreshCw, UserCheck, Shield } from 'lucide-react';
 import { labsApi, usersApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
+import { useToast } from '../../context/ToastContext.jsx';
+import { useConfirm } from '../../context/ConfirmContext.jsx';
 
 const EMPTY_FORM = { nama_labs: '', kode_labs: '', manager_id: '' };
 
@@ -18,6 +20,20 @@ export default function LabsManagement({ onNavigate }) {
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(null);
   const [search, setSearch] = useState('');
+
+  const toast = useToast();
+  const confirm = useConfirm();
+
+  // Escape key listener for modal
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && modal) {
+        setModal(null);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modal]);
 
   useEffect(() => {
     loadData();
@@ -89,22 +105,37 @@ export default function LabsManagement({ onNavigate }) {
       }
 
       setModal(null);
+      toast.success(modal.mode === 'create' ? 'Laboratorium baru berhasil ditambahkan.' : 'Data laboratorium berhasil diperbarui.');
       await loadData();
     } catch (err) {
       setError(err.message || 'Gagal menyimpan laboratorium.');
+      toast.error(err.message || 'Gagal menyimpan laboratorium.');
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Yakin ingin menghapus laboratorium ini?')) return;
+    const targetLab = labs.find((item) => item.id === id);
+    const labName = targetLab?.nama_labs ? `"${targetLab.nama_labs}"` : 'laboratorium ini';
+
+    const confirmed = await confirm({
+      title: 'Hapus Laboratorium',
+      message: `Apakah Anda yakin ingin menghapus ${labName}? Seluruh data ruangan yang berelasi dapat terpengaruh.`,
+      confirmText: 'Ya, Hapus Lab',
+      cancelText: 'Batal',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
+
     setDeleting(id);
     try {
       await labsApi.delete(id);
       setLabs((prev) => prev.filter((item) => item.id !== id));
+      toast.success(`Laboratorium ${labName} berhasil dihapus.`);
     } catch (err) {
-      alert(err.message || 'Gagal menghapus laboratorium.');
+      toast.error(err.message || 'Gagal menghapus laboratorium.');
     } finally {
       setDeleting(null);
     }
@@ -122,40 +153,25 @@ export default function LabsManagement({ onNavigate }) {
 
   return (
     <div className="page-container fade-in-up">
-      {/* Header */}
-      <div
-        className="page-header"
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 'var(--sp-3)',
-        }}
-      >
+      {/* 1. Page Header */}
+      <div className="page-header-row">
         <div>
           <h1 className="page-title">Laboratorium Pengujian</h1>
           <p className="page-subtitle">
             Kelola laboratorium uji Telkom Test House ({filtered.length} terdaftar)
           </p>
         </div>
-        {canAdd && <button className="btn btn-primary" onClick={openCreate} id="btn-tambah-lab">
-          <Plus size={16} /> Tambah Lab
-        </button>}
+        {canAdd && (
+          <button className="btn btn-primary" onClick={openCreate} id="btn-tambah-lab">
+            <Plus size={16} /> Tambah Lab
+          </button>
+        )}
       </div>
 
-      {/* Filters & Actions */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 'var(--sp-3)',
-          marginBottom: 'var(--sp-5)',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
-        <div className="search-bar" style={{ flex: 1, minWidth: 240 }}>
-          <Building2 className="search-icon" style={{ width: 16, height: 16 }} />
+      {/* 2. Filters & Actions */}
+      <div className="filter-toolbar">
+        <div className="search-bar filter-search-wrap">
+          <Building2 className="search-icon" size={16} />
           <input
             id="input-search-lab"
             className="form-input"
@@ -169,25 +185,17 @@ export default function LabsManagement({ onNavigate }) {
           className="btn btn-secondary btn-icon"
           onClick={loadData}
           id="btn-refresh-lab"
-          title="Segarkan data"
+          title="Segarkan data laboratorium"
         >
           <RefreshCw size={16} />
         </button>
       </div>
 
-      {/* Table / Content */}
+      {/* 3. Table / Content Card */}
       {loading ? (
-        <div
-          className="card"
-          style={{
-            padding: 'var(--sp-6)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--sp-3)',
-          }}
-        >
+        <div className="card skeleton-list">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="skeleton" style={{ height: 52 }} />
+            <div key={i} className="skeleton skeleton-row" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -196,106 +204,111 @@ export default function LabsManagement({ onNavigate }) {
             <Building2 size={32} />
           </div>
           <p className="empty-state-title">Tidak ada laboratorium ditemukan</p>
-          {canAdd && <button className="btn btn-primary" onClick={openCreate}>
-            <Plus size={16} /> Tambah Lab
-          </button>}
+          {canAdd && (
+            <button className="btn btn-primary" onClick={openCreate}>
+              <Plus size={16} /> Tambah Lab
+            </button>
+          )}
         </div>
       ) : (
-        <div className="table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ width: 140 }}>Kode Lab</th>
-                <th>Nama Laboratorium</th>
-                <th>Penanggung Jawab / Manager</th>
-                <th style={{ width: 120 }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((lab) => {
-                const managerObj =
-                  lab.manager ||
-                  managers.find((m) => m.user_id === lab.manager_id);
+        <div className="table-card">
+          <div className="table-wrapper table-borderless">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 140 }}>Kode Lab</th>
+                  <th>Nama Laboratorium</th>
+                  <th>Penanggung Jawab / Manager</th>
+                  <th style={{ width: 100 }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((lab) => {
+                  const managerObj =
+                    lab.manager ||
+                    managers.find((m) => m.user_id === lab.manager_id);
 
-                return (
-                  <tr key={lab.id}>
-                    <td>
-                      <code
-                        style={{
-                          fontSize: 'var(--text-xs)',
-                          background: 'var(--clr-dark-100)',
-                          padding: '2px 6px',
-                          borderRadius: 'var(--radius-sm)',
-                          color: 'var(--clr-primary-700)',
-                          fontWeight: 'var(--fw-bold)',
-                        }}
-                      >
-                        {lab.kode_labs}
-                      </code>
-                    </td>
-                    <td style={{ fontWeight: 'var(--fw-semibold)' }}>{lab.nama_labs}</td>
-                    <td>
-                      {managerObj ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-                          <div
-                            style={{
-                              width: 26,
-                              height: 26,
-                              borderRadius: '50%',
-                              background: 'var(--clr-primary-50)',
-                              color: 'var(--clr-primary-600)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 11,
-                              fontWeight: 700,
-                            }}
-                          >
-                            {managerObj.name
-                              ? managerObj.name[0].toUpperCase()
-                              : 'M'}
-                          </div>
-                          <div>
-                            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>
-                              {managerObj.name}
+                  return (
+                    <tr key={lab.id}>
+                      <td>
+                        <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>
+                          {lab.kode_labs}
+                        </code>
+                      </td>
+                      <td style={{ fontWeight: 'var(--fw-semibold)' }}>{lab.nama_labs}</td>
+                      <td>
+                        {managerObj ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+                            <div
+                              style={{
+                                width: 26,
+                                height: 26,
+                                borderRadius: '50%',
+                                background: 'var(--clr-primary-50)',
+                                color: 'var(--clr-primary-600)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 11,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {managerObj.name
+                                ? managerObj.name[0].toUpperCase()
+                                : 'M'}
                             </div>
-                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
-                              {managerObj.email}
+                            <div>
+                              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>
+                                {managerObj.name}
+                              </div>
+                              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
+                                {managerObj.email}
+                              </div>
                             </div>
                           </div>
+                        ) : (
+                          <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>
+                            Belum ditentukan
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="table-action-btns">
+                          {canEdit && (
+                            <button
+                              className="btn-action-icon"
+                              onClick={() => openEdit(lab)}
+                              id={`btn-edit-lab-${lab.id}`}
+                              title="Edit Lab"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              className="btn-action-icon btn-action-delete"
+                              onClick={() => handleDelete(lab.id)}
+                              disabled={deleting === lab.id}
+                              id={`btn-hapus-lab-${lab.id}`}
+                              title="Hapus Lab"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </div>
-                      ) : (
-                        <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>
-                          Belum ditentukan
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {canEdit && <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => openEdit(lab)}
-                          id={`btn-edit-lab-${lab.id}`}
-                          title="Edit Lab"
-                        >
-                          <Pencil size={13} />
-                        </button>}
-                        {canDelete && <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(lab.id)}
-                          disabled={deleting === lab.id}
-                          id={`btn-hapus-lab-${lab.id}`}
-                          title="Hapus Lab"
-                        >
-                          <Trash2 size={13} />
-                        </button>}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 5. Summary Footer */}
+          <div className="table-footer-summary">
+            <span>Menampilkan <strong>{filtered.length}</strong> dari <strong>{labs.length}</strong> total laboratorium pengujian</span>
+            <span>Standar: <strong>ISO/IEC 17025:2017</strong></span>
+          </div>
         </div>
       )}
 

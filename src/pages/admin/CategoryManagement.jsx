@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Tags, ShieldCheck, Wrench, Compass, Box, CheckCircle2, ArrowRight, Edit3, Plus, X, Save } from 'lucide-react';
-import { KATEGORI_OPTIONS, peralatanApi, kategoriApi } from '../../utils/api.js';
+import {
+  Compass,
+  Wrench,
+  ShieldCheck,
+  Box,
+  Layers,
+  CheckCircle2,
+  ArrowRight,
+  RefreshCw,
+  FileCheck,
+} from 'lucide-react';
+import { KATEGORI_OPTIONS, peralatanApi } from '../../utils/api.js';
 
-const STORAGE_KEY_CATS = 'sikepo_categories_cache';
-const STORAGE_KEY_DETAILS = 'sikepo_category_details_cache';
-
-const INITIAL_CATEGORY_DETAILS = {
+const CATEGORY_META = {
   1: {
     icon: Compass,
     color: '#EE2E24',
@@ -89,451 +96,167 @@ const INITIAL_CATEGORY_DETAILS = {
   },
 };
 
-function getInitialCategories() {
-  try {
-    const cached = localStorage.getItem(STORAGE_KEY_CATS);
-    if (cached) return JSON.parse(cached);
-  } catch {
-    // fallback
-  }
-  return KATEGORI_OPTIONS;
-}
-
-function getInitialDetails() {
-  try {
-    const cached = localStorage.getItem(STORAGE_KEY_DETAILS);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      const restored = {};
-      Object.keys(parsed).forEach(k => {
-        const id = Number(k);
-        const baseIcon = id === 1 ? Compass : id === 2 ? Wrench : id === 3 ? ShieldCheck : Box;
-        restored[id] = { ...parsed[id], icon: baseIcon };
-      });
-      return restored;
-    }
-  } catch {
-    // fallback
-  }
-  return INITIAL_CATEGORY_DETAILS;
-}
-
 export default function CategoryManagement({ onNavigate }) {
-  const [categories, setCategories] = useState(getInitialCategories);
-  const [categoryDetails, setCategoryDetails] = useState(getInitialDetails);
   const [counts, setCounts] = useState({ 1: 0, 2: 0, 3: 0, 4: 0 });
   const [loading, setLoading] = useState(true);
   const [selectedCat, setSelectedCat] = useState(1);
 
-  // Modal States
-  const [editModalCat, setEditModalCat] = useState(null);
-  const [editForm, setEditForm] = useState({ label: '', desc: '', standard: '' });
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addForm, setAddForm] = useState({ label: '', desc: '', standard: '' });
+  async function loadData() {
+    setLoading(true);
+    try {
+      const res = await peralatanApi.getAll();
+      const items = res.data || [];
+      const tally = { 1: 0, 2: 0, 3: 0, 4: 0 };
+      items.forEach((item) => {
+        const kId = Number(item.kategori_id || item.kategori_peralatan_id);
+        if (tally[kId] !== undefined) tally[kId]++;
+      });
+      setCounts(tally);
+    } catch (err) {
+      console.error('Gagal memuat data peralatan untuk kategori:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadDataFromDb() {
-      setLoading(true);
-      try {
-        // 1. Ambil data peralatan dari Database untuk hitung unit terdaftar per kategori
-        const resEquip = await peralatanApi.getAll();
-        const items = resEquip.data || [];
-        const tally = {};
-        categories.forEach(c => { tally[c.id] = 0; });
-        items.forEach((item) => {
-          const kId = Number(item.kategori_id || item.kategori_peralatan_id);
-          if (tally[kId] !== undefined) tally[kId]++;
-          else tally[kId] = 1;
-        });
-        setCounts(tally);
-
-        // 2. Ambil data kategori langsung dari Database API
-        const dbRes = await kategoriApi.getAll();
-        if (dbRes && dbRes.data && Array.isArray(dbRes.data) && dbRes.data.length > 0) {
-          const fetchedCats = dbRes.data.map(item => ({
-            id: item.id,
-            label: item.nama_kategori || item.label || item.nama,
-            desc: item.deskripsi || item.desc,
-          }));
-          setCategories(fetchedCats);
-        }
-      } catch (err) {
-        console.warn('DB Sync info:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadDataFromDb();
+    loadData();
   }, []);
 
-  function handleOpenEdit(cat, e) {
-    e.stopPropagation();
-    const detail = categoryDetails[cat.id] || {};
-    setEditModalCat(cat);
-    setEditForm({
-      label: cat.label,
-      desc: detail.desc || cat.desc,
-      standard: detail.standard || 'ISO/IEC 17025',
-    });
-  }
-
-  async function handleSaveEdit() {
-    if (!editForm.label.trim()) return;
-
-    const catId = editModalCat.id;
-    const updatedCats = categories.map(c => c.id === catId ? { ...c, label: editForm.label, desc: editForm.desc } : c);
-    const updatedDetails = {
-      ...categoryDetails,
-      [catId]: {
-        ...(categoryDetails[catId] || {}),
-        title: editForm.label,
-        standard: editForm.standard,
-        desc: editForm.desc,
-      }
-    };
-
-    setCategories(updatedCats);
-    setCategoryDetails(updatedDetails);
-
-    // Simpan ke Local Cache
-    try {
-      localStorage.setItem(STORAGE_KEY_CATS, JSON.stringify(updatedCats));
-      localStorage.setItem(STORAGE_KEY_DETAILS, JSON.stringify(updatedDetails));
-    } catch (e) {
-      console.warn('LocalStorage save error:', e);
-    }
-
-    // Kirim Perubahan langsung ke Database API
-    try {
-      await kategoriApi.update(catId, {
-        nama_kategori: editForm.label,
-        deskripsi: editForm.desc,
-        standar: editForm.standard,
-      });
-    } catch (err) {
-      console.warn('Backend DB Update (Fallback Active):', err);
-    }
-
-    setEditModalCat(null);
-  }
-
-  async function handleSaveAdd() {
-    if (!addForm.label.trim()) return;
-
-    const newId = categories.length > 0 ? Math.max(...categories.map(c => c.id)) + 1 : 1;
-    const newCat = { id: newId, label: addForm.label, desc: addForm.desc || 'Kategori tambahan' };
-    const updatedCats = [...categories, newCat];
-    const updatedDetails = {
-      ...categoryDetails,
-      [newId]: {
-        icon: Box,
-        color: '#7C3AED',
-        bg: '#F5F3FF',
-        border: '#DDD6FE',
-        title: addForm.label,
-        standard: addForm.standard || 'ISO/IEC 17025 Klausul 6.4',
-        desc: addForm.desc || 'Kategori peralatan pengujian tambahan',
-        requirements: ['Pemeriksaan rutin & tata kelola aset terstandar'],
-        specificFields: ['Keterangan Tambahan', 'Spesifikasi Khusus'],
-      }
-    };
-
-    setCategories(updatedCats);
-    setCategoryDetails(updatedDetails);
-    setCounts(prev => ({ ...prev, [newId]: 0 }));
-
-    // Simpan ke Local Cache
-    try {
-      localStorage.setItem(STORAGE_KEY_CATS, JSON.stringify(updatedCats));
-      localStorage.setItem(STORAGE_KEY_DETAILS, JSON.stringify(updatedDetails));
-    } catch (e) {
-      console.warn('LocalStorage save error:', e);
-    }
-
-    // Kirim Tambah Kategori Baru ke Database API
-    try {
-      await kategoriApi.create({
-        nama_kategori: addForm.label,
-        deskripsi: addForm.desc,
-        standar: addForm.standard,
-      });
-    } catch (err) {
-      console.warn('Backend DB Create (Fallback Active):', err);
-    }
-
-    setSelectedCat(newId);
-    setIsAddModalOpen(false);
-    setAddForm({ label: '', desc: '', standard: '' });
-  }
-
-  const activeDetail = categoryDetails[selectedCat] || {
-    icon: Box,
-    color: '#3B82F6',
-    bg: '#EFF6FF',
-    border: '#BFDBFE',
-    title: categories.find(c => c.id === selectedCat)?.label || 'Detail Kategori',
-    standard: 'ISO/IEC 17025',
-    desc: categories.find(c => c.id === selectedCat)?.desc || '-',
-    requirements: ['Pemeriksaan berkala & pengujian terstandar'],
-    specificFields: ['Interval Pemeriksaan', 'Spesifikasi Peralatan'],
-  };
-  const ActiveIcon = activeDetail.icon || Box;
+  const activeMeta = CATEGORY_META[selectedCat] || CATEGORY_META[1];
+  const ActiveIcon = activeMeta.icon;
 
   return (
     <div className="page-container fade-in-up">
-      {/* Header & Button Tambah Kategori */}
-      <div
-        className="page-header"
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 'var(--sp-4)',
-          marginBottom: '28px',
-        }}
-      >
+      {/* Header */}
+      <div className="page-header-row">
         <div>
-          <h1 className="page-title" style={{ marginBottom: '6px' }}>Kelompok & Kategori Peralatan Lab</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h1 className="page-title">Klasifikasi Kategori Peralatan</h1>
+            <span className="badge badge-blue">ISO/IEC 17025:2017</span>
+          </div>
           <p className="page-subtitle">
-            Klasifikasi standar ISO/IEC 17025 Telkom Test House untuk kepatuhan tata kelola peralatan
+            Standar klasifikasi, tata kelola metrologis, dan regulasi kepatuhan peralatan laboratorium uji
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)} id="btn-tambah-kategori">
-          <Plus size={16} /> Tambah Kategori Baru
+        <button
+          className="btn btn-secondary btn-icon"
+          onClick={loadData}
+          id="btn-refresh-kategori"
+          title="Segarkan data unit peralatan"
+        >
+          <RefreshCw size={16} />
         </button>
       </div>
 
-      {/* Grid Kategori Cards - 1 Baris Sejajar (4 Kolom) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 'var(--sp-4)',
-          marginBottom: 'var(--sp-6)',
-        }}
-        className="category-cards-grid"
-      >
-        {categories.map((cat) => {
-          const detail = categoryDetails[cat.id] || { icon: Box, color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE' };
-          const Icon = detail.icon || Box;
+      {/* Grid 4 Kartu Kategori */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--sp-4)', marginBottom: 'var(--sp-6)' }}>
+        {KATEGORI_OPTIONS.map((cat) => {
+          const meta = CATEGORY_META[cat.id];
+          const Icon = meta.icon;
           const isSelected = selectedCat === cat.id;
 
           return (
             <div
               key={cat.id}
-              className="card"
               onClick={() => setSelectedCat(cat.id)}
               style={{
                 cursor: 'pointer',
                 borderRadius: 'var(--radius-lg)',
-                border: isSelected ? `2px solid ${detail.color}` : '1px solid var(--clr-dark-200)',
-                background: isSelected ? detail.bg : 'var(--clr-surface)',
-                transition: 'all 0.2s ease-in-out',
-                transform: isSelected ? 'translateY(-3px)' : 'none',
-                boxShadow: isSelected ? '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)' : '0 2px 5px rgba(0,0,0,0.03)',
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                padding: 'var(--sp-5)',
+                padding: 'var(--sp-4)',
+                background: isSelected ? meta.bg : '#fff',
+                border: `2px solid ${isSelected ? meta.color : 'var(--clr-dark-200)'}`,
+                boxShadow: isSelected ? 'var(--shadow-md)' : 'var(--shadow-sm)',
+                transition: 'all 0.2s ease',
               }}
-              id={`cat-card-${cat.id}`}
             >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--sp-3)' }}>
-                  <div
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 'var(--radius-md)',
-                      background: detail.bg,
-                      border: `1px solid ${detail.border}`,
-                      color: detail.color,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                    }}
-                  >
-                    <Icon size={22} />
-                  </div>
-
-                  <button
-                    className="btn btn-ghost btn-icon btn-sm"
-                    onClick={(e) => handleOpenEdit(cat, e)}
-                    title="Edit Card Kategori"
-                    style={{ color: 'var(--clr-dark-500)', padding: 4 }}
-                  >
-                    <Edit3 size={15} />
-                  </button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--sp-2)' }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 'var(--radius-md)',
+                  background: meta.bg, border: `1px solid ${meta.border}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: meta.color,
+                }}>
+                  <Icon size={20} />
                 </div>
-
-                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-1)', color: 'var(--clr-dark-900)' }}>
-                  {cat.label}
-                </h3>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', lineHeight: '1.5', marginBottom: 'var(--sp-4)', minHeight: 40 }}>
-                  {cat.desc}
-                </p>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingTop: 'var(--sp-3)',
-                  borderTop: '1px solid var(--clr-dark-100)',
-                  marginTop: 'auto',
-                }}
-              >
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', fontWeight: 'var(--fw-medium)' }}>
-                  Aset terdaftar:
-                </span>
-                <span
-                  style={{
-                    fontSize: 'var(--text-xs)',
-                    fontWeight: 'var(--fw-bold)',
-                    color: detail.color,
-                    backgroundColor: isSelected ? '#ffffff' : detail.bg,
-                    padding: '2px 8px',
-                    borderRadius: 'var(--radius-md)',
-                    border: `1px solid ${detail.border}`,
-                  }}
-                >
+                <span className="badge" style={{ background: '#fff', border: '1px solid var(--clr-dark-200)', fontWeight: 600 }}>
                   {loading ? '...' : `${counts[cat.id] || 0} unit`}
                 </span>
               </div>
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--clr-dark-900)', margin: '0 0 4px' }}>
+                {cat.label}
+              </h3>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', margin: 0, lineHeight: 1.4 }}>
+                {cat.desc}
+              </p>
             </div>
           );
         })}
       </div>
 
       {/* Detail Spesifikasi Kategori Terpilih */}
-      <div className="card" style={{ padding: 'var(--sp-6)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', marginBottom: 'var(--sp-5)' }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 'var(--radius-lg)',
-              background: activeDetail.bg,
-              color: activeDetail.color,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+      <div className="card" style={{ padding: 'var(--sp-6)', borderLeft: `5px solid ${activeMeta.color}` }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--sp-3)', marginBottom: 'var(--sp-4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 'var(--radius-lg)',
+              background: activeMeta.bg, border: `1px solid ${activeMeta.border}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: activeMeta.color,
+            }}>
+              <ActiveIcon size={24} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0, color: 'var(--clr-dark-900)' }}>
+                {activeMeta.title}
+              </h2>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', fontWeight: 500 }}>
+                {activeMeta.standard}
+              </span>
+            </div>
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={() => onNavigate('/peralatan')}
+            id="btn-lihat-peralatan-kat"
           >
-            <ActiveIcon size={26} />
-          </div>
-          <div>
-            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--fw-bold)', color: 'var(--clr-dark-900)' }}>
-              {activeDetail.title}
-            </h2>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-primary-700)', fontWeight: 'var(--fw-semibold)' }}>
-              {activeDetail.standard}
-            </span>
-          </div>
+            Lihat Inventaris Peralatan <ArrowRight size={15} />
+          </button>
         </div>
 
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)', lineHeight: 'var(--lh-relaxed)', marginBottom: 'var(--sp-6)' }}>
-          {activeDetail.desc}
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-700)', lineHeight: 1.6, marginBottom: 'var(--sp-5)' }}>
+          {activeMeta.desc}
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--sp-6)' }}>
-          {/* Persyaratan Kepatuhan */}
-          <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-5)', borderRadius: 'var(--radius-lg)' }}>
-            <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', color: 'var(--clr-dark-900)' }}>
-              Standar & Ketentuan ISO/IEC 17025
-            </h4>
-            <ul style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
-              {(activeDetail.requirements || []).map((req, idx) => (
-                <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--sp-2)', fontSize: 'var(--text-xs)', color: 'var(--clr-dark-700)' }}>
-                  <CheckCircle2 size={14} style={{ color: activeDetail.color, flexShrink: 0, marginTop: 2 }} />
-                  <span>{req}</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--sp-5)' }}>
+          {/* Kolom 1: Persyaratan Kepatuhan */}
+          <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)' }}>
+            <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, margin: '0 0 var(--sp-3)', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--clr-dark-800)' }}>
+              <FileCheck size={16} style={{ color: activeMeta.color }} /> Persyaratan Kepatuhan ISO/IEC 17025
+            </h3>
+            <ul style={{ margin: 0, paddingLeft: 'var(--sp-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+              {activeMeta.requirements.map((req, idx) => (
+                <li key={idx} style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-600)', lineHeight: 1.4 }}>
+                  {req}
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Form & Atribut Spesifik SiKEPo */}
-          <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-5)', borderRadius: 'var(--radius-lg)' }}>
-            <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', color: 'var(--clr-dark-900)' }}>
-              Atribut Form Khusus di SiKEPo
-            </h4>
-            <ul style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
-              {(activeDetail.specificFields || []).map((field, idx) => (
-                <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', fontSize: 'var(--text-xs)', color: 'var(--clr-dark-700)' }}>
-                  <ArrowRight size={13} style={{ color: 'var(--clr-dark-400)', flexShrink: 0 }} />
+          {/* Kolom 2: Parameter Teknis Wajib */}
+          <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)' }}>
+            <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, margin: '0 0 var(--sp-3)', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--clr-dark-800)' }}>
+              <Layers size={16} style={{ color: activeMeta.color }} /> Parameter &amp; Atribut Data Khusus
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+              {activeMeta.specificFields.map((field, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--clr-dark-700)' }}>
+                  <CheckCircle2 size={13} style={{ color: 'var(--clr-green-600)', flexShrink: 0 }} />
                   <span>{field}</span>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* ---- MODAL EDIT CARD KATEGORI ---- */}
-      {editModalCat && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div className="card" style={{ width: 440, maxWidth: '90%', padding: 'var(--sp-6)', background: '#fff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--sp-4)' }}>
-              <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--fw-bold)' }}>Edit Card Kategori #{editModalCat.id}</h3>
-              <button className="btn btn-ghost btn-icon" onClick={() => setEditModalCat(null)}><X size={18} /></button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
-              <div className="form-group">
-                <label className="form-label">Nama Kategori</label>
-                <input className="form-input" value={editForm.label} onChange={(e) => setEditForm({ ...editForm, label: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Standar Rujukan</label>
-                <input className="form-input" value={editForm.standard} onChange={(e) => setEditForm({ ...editForm, standard: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Deskripsi Ringkas</label>
-                <textarea className="form-textarea" value={editForm.desc} onChange={(e) => setEditForm({ ...editForm, desc: e.target.value })} style={{ minHeight: 80 }} />
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--sp-3)', marginTop: 'var(--sp-6)' }}>
-              <button className="btn btn-secondary" onClick={() => setEditModalCat(null)}>Batal</button>
-              <button className="btn btn-primary" onClick={handleSaveEdit}><Save size={16} /> Simpan Perubahan</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ---- MODAL TAMBAH KATEGORI BARU ---- */}
-      {isAddModalOpen && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div className="card" style={{ width: 460, maxWidth: '90%', padding: 'var(--sp-6)', background: '#fff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--sp-4)' }}>
-              <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--fw-bold)' }}>Tambah Kategori Peralatan Baru</h3>
-              <button className="btn btn-ghost btn-icon" onClick={() => setIsAddModalOpen(false)}><X size={18} /></button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
-              <div className="form-group">
-                <label className="form-label">Nama Kategori Peralatan <span className="required">*</span></label>
-                <input className="form-input" placeholder="Misal: Alat Pengujian RF / Sensor Lingkungan" value={addForm.label} onChange={(e) => setAddForm({ ...addForm, label: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Standar Rujukan</label>
-                <input className="form-input" placeholder="ISO/IEC 17025 Klausul 6.4..." value={addForm.standard} onChange={(e) => setAddForm({ ...addForm, standard: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Deskripsi Ringkas</label>
-                <textarea className="form-textarea" placeholder="Jelaskan peruntukan dan kriteria instrumen dalam kategori ini..." value={addForm.desc} onChange={(e) => setAddForm({ ...addForm, desc: e.target.value })} style={{ minHeight: 80 }} />
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--sp-3)', marginTop: 'var(--sp-6)' }}>
-              <button className="btn btn-secondary" onClick={() => setIsAddModalOpen(false)}>Batal</button>
-              <button className="btn btn-primary" onClick={handleSaveAdd}><Plus size={16} /> Tambah Kategori</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-

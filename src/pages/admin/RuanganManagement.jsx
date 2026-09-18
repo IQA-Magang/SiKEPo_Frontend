@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { DoorOpen, Plus, Pencil, Trash2, X, RefreshCw, Building2, Shield, Layers } from 'lucide-react';
 import { ruanganApi, labsApi, usersApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
+import { useToast } from '../../context/ToastContext.jsx';
+import { useConfirm } from '../../context/ConfirmContext.jsx';
 
 const EMPTY_FORM = {
   nama_ruangan: '',
@@ -26,6 +28,20 @@ export default function RuanganManagement({ onNavigate }) {
   const [deleting, setDeleting] = useState(null);
   const [search, setSearch] = useState('');
   const [filterLab, setFilterLab] = useState('');
+
+  const toast = useToast();
+  const confirm = useConfirm();
+
+  // Escape key listener for modal
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && modal) {
+        setModal(null);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modal]);
 
   useEffect(() => {
     loadData();
@@ -103,22 +119,37 @@ export default function RuanganManagement({ onNavigate }) {
       }
 
       setModal(null);
+      toast.success(modal.mode === 'create' ? 'Ruangan uji baru berhasil ditambahkan.' : 'Data ruangan uji berhasil diperbarui.');
       await loadData();
     } catch (err) {
       setError(err.message || 'Gagal menyimpan ruangan.');
+      toast.error(err.message || 'Gagal menyimpan ruangan.');
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Yakin ingin menghapus ruangan uji ini?')) return;
+    const targetRoom = ruanganList.find((r) => r.id === id);
+    const roomName = targetRoom?.nama_ruangan ? `"${targetRoom.nama_ruangan}"` : 'ruangan ini';
+
+    const confirmed = await confirm({
+      title: 'Hapus Ruangan Uji',
+      message: `Apakah Anda yakin ingin menghapus ${roomName}? Seluruh data penempatan alat pada ruangan ini akan terpengaruh.`,
+      confirmText: 'Ya, Hapus Ruangan',
+      cancelText: 'Batal',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
+
     setDeleting(id);
     try {
       await ruanganApi.delete(id);
       setRuanganList((prev) => prev.filter((r) => r.id !== id));
+      toast.success(`Ruangan ${roomName} berhasil dihapus.`);
     } catch (err) {
-      alert(err.message || 'Gagal menghapus ruangan.');
+      toast.error(err.message || 'Gagal menghapus ruangan.');
     } finally {
       setDeleting(null);
     }
@@ -141,40 +172,25 @@ export default function RuanganManagement({ onNavigate }) {
 
   return (
     <div className="page-container fade-in-up">
-      {/* Header */}
-      <div
-        className="page-header"
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 'var(--sp-3)',
-        }}
-      >
+      {/* 1. Page Header */}
+      <div className="page-header-row">
         <div>
           <h1 className="page-title">Ruangan Pengujian</h1>
           <p className="page-subtitle">
             Daftar ruangan uji dan alokasi laboratorium ({filtered.length} terdaftar)
           </p>
         </div>
-        {canAdd && <button className="btn btn-primary" onClick={openCreate} id="btn-tambah-ruangan">
-          <Plus size={16} /> Tambah Ruangan
-        </button>}
+        {canAdd && (
+          <button className="btn btn-primary" onClick={openCreate} id="btn-tambah-ruangan">
+            <Plus size={16} /> Tambah Ruangan
+          </button>
+        )}
       </div>
 
-      {/* Filter Bar */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 'var(--sp-3)',
-          marginBottom: 'var(--sp-5)',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
-        <div className="search-bar" style={{ flex: 1, minWidth: 240 }}>
-          <DoorOpen className="search-icon" style={{ width: 16, height: 16 }} />
+      {/* 2. Filter Bar */}
+      <div className="filter-toolbar">
+        <div className="search-bar filter-search-wrap">
+          <DoorOpen className="search-icon" size={16} />
           <input
             id="input-search-ruangan"
             className="form-input"
@@ -187,10 +203,9 @@ export default function RuanganManagement({ onNavigate }) {
 
         <select
           id="select-filter-lab"
-          className="form-select"
+          className="form-select filter-select"
           value={filterLab}
           onChange={(e) => setFilterLab(e.target.value)}
-          style={{ width: 'auto', minWidth: 180 }}
         >
           <option value="">Semua Laboratorium</option>
           {labs.map((l) => (
@@ -204,25 +219,17 @@ export default function RuanganManagement({ onNavigate }) {
           className="btn btn-secondary btn-icon"
           onClick={loadData}
           id="btn-refresh-ruangan"
-          title="Segarkan data"
+          title="Segarkan data ruangan"
         >
           <RefreshCw size={16} />
         </button>
       </div>
 
-      {/* Table */}
+      {/* 3. Table Content Card */}
       {loading ? (
-        <div
-          className="card"
-          style={{
-            padding: 'var(--sp-6)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--sp-3)',
-          }}
-        >
+        <div className="card skeleton-list">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="skeleton" style={{ height: 52 }} />
+            <div key={i} className="skeleton skeleton-row" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -231,118 +238,123 @@ export default function RuanganManagement({ onNavigate }) {
             <DoorOpen size={32} />
           </div>
           <p className="empty-state-title">Tidak ada ruangan ditemukan</p>
-          {canAdd && <button className="btn btn-primary" onClick={openCreate}>
-            <Plus size={16} /> Tambah Ruangan
-          </button>}
+          {canAdd && (
+            <button className="btn btn-primary" onClick={openCreate}>
+              <Plus size={16} /> Tambah Ruangan
+            </button>
+          )}
         </div>
       ) : (
-        <div className="table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ width: 130 }}>Kode Ruangan</th>
-                <th>Nama Ruangan</th>
-                <th>Laboratorium</th>
-                <th>Lantai</th>
-                <th>PIC Ruangan</th>
-                <th style={{ width: 120 }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => {
-                const labObj = r.labs || labs.find((l) => l.id === r.labs_id);
-                const picObj = r.pic_user || users.find((u) => u.user_id === r.pic_user_id);
+        <div className="table-card">
+          <div className="table-wrapper table-borderless">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 130 }}>Kode Ruangan</th>
+                  <th>Nama Ruangan</th>
+                  <th>Laboratorium</th>
+                  <th>Lantai</th>
+                  <th>PIC Ruangan</th>
+                  <th style={{ width: 100 }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r) => {
+                  const labObj = r.labs || labs.find((l) => l.id === r.labs_id);
+                  const picObj = r.pic_user || users.find((u) => u.user_id === r.pic_user_id);
 
-                return (
-                  <tr key={r.id}>
-                    <td>
-                      <code
-                        style={{
-                          fontSize: 'var(--text-xs)',
-                          background: 'var(--clr-dark-100)',
-                          padding: '2px 6px',
-                          borderRadius: 'var(--radius-sm)',
-                          color: 'var(--clr-primary-700)',
-                          fontWeight: 'var(--fw-bold)',
-                        }}
-                      >
-                        {r.kode_ruangan}
-                      </code>
-                    </td>
-                    <td style={{ fontWeight: 'var(--fw-semibold)' }}>{r.nama_ruangan}</td>
-                    <td>
-                      {labObj ? (
-                        <span className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          <Building2 size={12} />
-                          {labObj.nama_labs}
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)' }}>
-                          -
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <Layers size={12} />
-                        {r.lantai_ruangan}
-                      </span>
-                    </td>
-                    <td>
-                      {picObj ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-                          <div
-                            style={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: '50%',
-                              background: 'var(--clr-primary-100)',
-                              color: 'var(--clr-primary-700)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 10,
-                              fontWeight: 700,
-                            }}
-                          >
-                            {picObj.name ? picObj.name[0].toUpperCase() : 'U'}
-                          </div>
-                          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>
-                            {picObj.name}
+                  return (
+                    <tr key={r.id}>
+                      <td>
+                        <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>
+                          {r.kode_ruangan}
+                        </code>
+                      </td>
+                      <td style={{ fontWeight: 'var(--fw-semibold)' }}>{r.nama_ruangan}</td>
+                      <td>
+                        {labObj ? (
+                          <span className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <Building2 size={12} />
+                            {labObj.nama_labs}
                           </span>
-                        </div>
-                      ) : (
-                        <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)', fontStyle: 'italic' }}>
-                          Belum ada PIC
+                        ) : (
+                          <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)' }}>
+                            -
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Layers size={12} />
+                          {r.lantai_ruangan}
                         </span>
-                      )}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {canEdit && <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => openEdit(r)}
-                          id={`btn-edit-ruangan-${r.id}`}
-                          title="Edit Ruangan"
-                        >
-                          <Pencil size={13} />
-                        </button>}
-                        {canDelete && <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(r.id)}
-                          disabled={deleting === r.id}
-                          id={`btn-hapus-ruangan-${r.id}`}
-                          title="Hapus Ruangan"
-                        >
-                          <Trash2 size={13} />
-                        </button>}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td>
+                        {picObj ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+                            <div
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: '50%',
+                                background: 'var(--clr-primary-100)',
+                                color: 'var(--clr-primary-700)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 10,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {picObj.name ? picObj.name[0].toUpperCase() : 'U'}
+                            </div>
+                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>
+                              {picObj.name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)', fontStyle: 'italic' }}>
+                            Belum ada PIC
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="table-action-btns">
+                          {canEdit && (
+                            <button
+                              className="btn-action-icon"
+                              onClick={() => openEdit(r)}
+                              id={`btn-edit-ruangan-${r.id}`}
+                              title="Edit Ruangan"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              className="btn-action-icon btn-action-delete"
+                              onClick={() => handleDelete(r.id)}
+                              disabled={deleting === r.id}
+                              id={`btn-hapus-ruangan-${r.id}`}
+                              title="Hapus Ruangan"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 5. Summary Footer */}
+          <div className="table-footer-summary">
+            <span>Menampilkan <strong>{filtered.length}</strong> dari <strong>{ruanganList.length}</strong> total ruangan uji</span>
+            <span>Tersebar di <strong>{labs.length}</strong> laboratorium</span>
+          </div>
         </div>
       )}
 

@@ -1,16 +1,23 @@
-// =============================================================
-// SiKEPo Frontend — API Client
-// Terhubung langsung ke backend Go Fiber (https://si-ke-po-backend-dkfe-31rhkxj8d-rendy-kamaluddins-projects.vercel.app)
-// JWT token disimpan di localStorage sebagai 'sikepo_token'
-// =============================================================
+export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
-export const API_BASE = import.meta.env.VITE_API_BASE || 'https://si-ke-po-backend-dkfe-31rhkxj8d-rendy-kamaluddins-projects.vercel.app';
+const TOKEN_KEY = 'sikepo_token';
+const USER_KEY = 'sikepo_user';
 
 // ------------------------------------------------------------------
-// Helper: ambil token dari localStorage
+// Helper: ambil token dari sessionStorage (dengan migrasi legacy localStorage)
 // ------------------------------------------------------------------
-function getToken() {
-  return localStorage.getItem('sikepo_token');
+export function getToken() {
+  let token = sessionStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    // Migrasi otomatis jika sebelumnya tersimpan di localStorage
+    const legacy = localStorage.getItem(TOKEN_KEY);
+    if (legacy) {
+      sessionStorage.setItem(TOKEN_KEY, legacy);
+      localStorage.removeItem(TOKEN_KEY);
+      token = legacy;
+    }
+  }
+  return token;
 }
 
 // ------------------------------------------------------------------
@@ -18,14 +25,45 @@ function getToken() {
 // ------------------------------------------------------------------
 export function getCurrentUser() {
   try {
-    return JSON.parse(localStorage.getItem('sikepo_user') || 'null');
+    let raw = sessionStorage.getItem(USER_KEY);
+    if (!raw) {
+      const legacy = localStorage.getItem(USER_KEY);
+      if (legacy) {
+        sessionStorage.setItem(USER_KEY, legacy);
+        localStorage.removeItem(USER_KEY);
+        raw = legacy;
+      }
+    }
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
 
 // ------------------------------------------------------------------
-// fetchWithAuth — wrapper dengan Bearer token otomatis
+// Central Error Formatter
+// ------------------------------------------------------------------
+export function parseApiError(data, status) {
+  if (!data) {
+    if (status === 401) return 'Sesi telah berakhir atau belum terautentikasi. Silakan login kembali.';
+    if (status === 403) return 'Akses ditolak: Anda tidak memiliki izin untuk tindakan ini.';
+    if (status === 404) return 'Resource yang diminta tidak ditemukan.';
+    if (status >= 500) return 'Terjadi gangguan pada server. Silakan coba beberapa saat lagi.';
+    return `Terjadi kesalahan (HTTP ${status || 'Unknown'})`;
+  }
+
+  if (typeof data === 'string') return data;
+  if (data.message && typeof data.message === 'string') return data.message;
+  if (data.error && typeof data.error === 'string') return data.error;
+  if (Array.isArray(data.errors) && data.errors.length > 0) {
+    return data.errors.map(e => e.message || e).join(', ');
+  }
+
+  return `Operasi gagal (Status ${status})`;
+}
+
+// ------------------------------------------------------------------
+// fetchWithAuth — wrapper dengan Bearer token otomatis & central error handling
 // ------------------------------------------------------------------
 export async function fetchWithAuth(endpoint, options = {}) {
   const token = getToken();
@@ -35,17 +73,38 @@ export async function fetchWithAuth(endpoint, options = {}) {
     ...(options.headers || {}),
   };
 
-  const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  } catch (networkErr) {
+    const err = new Error('Koneksi jaringan terputus atau backend tidak dapat dijangkau.');
+    err.isNetworkError = true;
+    throw err;
+  }
+
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    // 401: Auto Logout & cleanup
     if (res.status === 401) {
-      localStorage.removeItem('sikepo_token');
-      localStorage.removeItem('sikepo_user');
-      window.dispatchEvent(new CustomEvent('sikepo_session_expired'));
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      window.dispatchEvent(new CustomEvent('sikepo_session_expired', {
+        detail: { message: 'Sesi login Anda telah berakhir. Silakan masuk kembali.' }
+      }));
     }
-    const msg = data?.message || data?.error || `HTTP error ${res.status}`;
-    const err = new Error(msg);
+
+    // 403: Forbidden handling
+    if (res.status === 403) {
+      window.dispatchEvent(new CustomEvent('sikepo_auth_forbidden', {
+        detail: { message: data?.message || 'Akses ditolak: Role Anda tidak memiliki izin untuk tindakan ini.' }
+      }));
+    }
+
+    const errorMsg = parseApiError(data, res.status);
+    const err = new Error(errorMsg);
     err.status = res.status;
     err.data = data;
     throw err;
@@ -53,6 +112,7 @@ export async function fetchWithAuth(endpoint, options = {}) {
 
   return data;
 }
+
 
 // ------------------------------------------------------------------
 // fetchFormData — untuk upload file (multipart)
@@ -89,6 +149,11 @@ export function getEquipmentId(peralatan) {
   return peralatan?.id ?? peralatan?.peralatan_id ?? peralatan?.id_peralatan ?? peralatan?.equipment_id ?? null;
 }
 
+// Normalisasi kategori_id vs kategori_peralatan_id
+export function getEquipmentCategoryId(peralatan) {
+  return peralatan?.kategori_id ?? peralatan?.kategori_peralatan_id ?? null;
+}
+
 // =============================================================
 // AUTH
 // POST /api/users/login
@@ -96,30 +161,53 @@ export function getEquipmentId(peralatan) {
 // =============================================================
 export const authApi = {
   login: async ({ email, password, recaptcha_token }) => {
-    const res = await fetch(`${API_BASE}/api/users/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, recaptcha_token }),
-    });
+    // Bersihkan sesi lama sebelum mengirim request login baru
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+
+    let res;
+    try {
+      res = await fetch(`${API_BASE}/api/users/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, recaptcha_token }),
+      });
+    } catch (networkErr) {
+      throw new Error('Koneksi jaringan terputus atau server backend tidak dapat dijangkau.');
+    }
+
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.success) {
-      throw new Error(data?.message || `Login gagal (${res.status})`);
+      const errMsg = parseApiError(data, res.status);
+      throw new Error(errMsg || `Login gagal (${res.status})`);
     }
-    // Simpan ke localStorage
-    localStorage.setItem('sikepo_token', data.data.token);
-    localStorage.setItem('sikepo_user', JSON.stringify(data.data.user));
+
+    // Simpan ke sessionStorage (Prioritas 1: Hindari localStorage untuk mitigasi risiko XSS)
+    sessionStorage.setItem(TOKEN_KEY, data.data.token);
+    sessionStorage.setItem(USER_KEY, JSON.stringify(data.data.user));
+
     return data.data;
   },
 
   logout: () => {
-    localStorage.removeItem('sikepo_token');
-    localStorage.removeItem('sikepo_user');
+    // Hapus seluruh data sesi dan kredensial sensitif dari semua tempat
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    window.dispatchEvent(new CustomEvent('sikepo_auth_logout'));
   },
 
   getRecaptchaSiteKey: async () => {
-    const res = await fetch(`${API_BASE}/recaptcha/sitekey`);
-    const data = await res.json().catch(() => ({}));
-    return data.site_key || null;
+    try {
+      const res = await fetch(`${API_BASE}/recaptcha/sitekey`);
+      const data = await res.json().catch(() => ({}));
+      return data.site_key || null;
+    } catch {
+      return null;
+    }
   },
 };
 
@@ -129,6 +217,7 @@ export const authApi = {
 // GET /:id       → { success, data: User }
 // POST /         → { success, data: User }  [admin]
 // PUT /:id       → { success, data: User }  [admin]
+// PUT /me/password → { success, message }
 // DELETE /:id    → { success }              [admin]
 // =============================================================
 export const usersApi = {
@@ -138,6 +227,11 @@ export const usersApi = {
     fetchWithAuth('/api/users/', { method: 'POST', body: JSON.stringify(body) }),
   update: (id, body) =>
     fetchWithAuth(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  changePassword: (body) =>
+    fetchWithAuth('/api/users/me/password', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
   delete: (id) => fetchWithAuth(`/api/users/${id}`, { method: 'DELETE' }),
 };
 
@@ -233,18 +327,6 @@ export const notificationApi = {
     fetchWithAuth(`/api/notifications/${id}/read`, { method: 'PATCH' }),
 };
 
-// =============================================================
-// KATEGORI PERALATAN  — /api/kategori-peralatan
-// =============================================================
-export const kategoriApi = {
-  getAll: () => fetchWithAuth('/api/kategori-peralatan').catch(() => null),
-  getById: (id) => fetchWithAuth(`/api/kategori-peralatan/${id}`).catch(() => null),
-  create: (body) =>
-    fetchWithAuth('/api/kategori-peralatan/', { method: 'POST', body: JSON.stringify(body) }).catch(() => null),
-  update: (id, body) =>
-    fetchWithAuth(`/api/kategori-peralatan/${id}`, { method: 'PUT', body: JSON.stringify(body) }).catch(() => null),
-  delete: (id) => fetchWithAuth(`/api/kategori-peralatan/${id}`, { method: 'DELETE' }).catch(() => null),
-};
 
 export const KATEGORI_OPTIONS = [
   { id: 1, label: 'Alat Ukur',            desc: 'Peralatan uji dengan parameter metrologi & kalibrasi' },

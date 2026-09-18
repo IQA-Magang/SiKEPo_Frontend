@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/layout/Sidebar.jsx';
 import Topbar from './components/layout/Topbar.jsx';
+import {
+  Router,
+  Routes,
+  Route,
+  ProtectedRoute,
+  useNavigate,
+  useLocation,
+  useParams,
+  Navigate,
+} from './router/Router.jsx';
+import { ToastProvider, useToast } from './context/ToastContext.jsx';
+import { ConfirmProvider } from './context/ConfirmContext.jsx';
+import { getToken } from './utils/api.js';
+import { ACCESS, ACTIONS } from './utils/permissions.js';
 
 // Pages
 import Login from './pages/Login.jsx';
@@ -15,102 +29,57 @@ import RuanganManagement from './pages/admin/RuanganManagement.jsx';
 import AssetGroupManagement from './pages/admin/AssetGroupManagement.jsx';
 import CategoryManagement from './pages/admin/CategoryManagement.jsx';
 import Settings from './pages/Settings.jsx';
-import { ACCESS, ACTIONS, can } from './utils/permissions.js';
+import NotFound from './pages/NotFound.jsx';
+import Forbidden from './pages/Forbidden.jsx';
 
-// Helper: ambil path dari hash
-function getPathFromHash() {
-  const hash = window.location.hash;
-  if (!hash || hash === '#') return '/dashboard';
-  const clean = hash.startsWith('#') ? hash.slice(1) : hash;
-  return clean.startsWith('/') ? clean : `/${clean}`;
+// Wrapper for parameterized Equipment Detail
+function EquipmentDetailRoute() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  return <EquipmentDetail equipmentId={id} onNavigate={navigate} />;
 }
 
-export default function App() {
-  const [currentPath, setCurrentPath] = useState(getPathFromHash);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [token, setToken] = useState(() => localStorage.getItem('sikepo_token'));
+// Wrapper for parameterized Equipment QR
+function EquipmentQrRoute() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  return <EquipmentQrPage equipmentId={id} onNavigate={navigate} />;
+}
 
-  // Sinkronisasi navigasi berbasis hash
+// Global Event Listener for API Auth & Forbidden Notifications
+function GlobalAuthListener() {
+  const { error, warning } = useToast();
+  const navigate = useNavigate();
+
   useEffect(() => {
-    function handleHashChange() {
-      const p = getPathFromHash();
-      setCurrentPath(p);
-      setSidebarOpen(false);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function handleSessionExpired() {
-      setToken(null);
+    function handleSessionExpired(e) {
+      const msg = e.detail?.message || 'Sesi login telah berakhir. Silakan masuk kembali.';
+      warning(msg, 5000);
       navigate('/login');
     }
 
-    window.addEventListener('hashchange', handleHashChange);
+    function handleForbidden(e) {
+      const msg = e.detail?.message || 'Akses ditolak: Anda tidak memiliki izin untuk tindakan ini.';
+      error(msg, 5000);
+    }
+
     window.addEventListener('sikepo_session_expired', handleSessionExpired);
+    window.addEventListener('sikepo_auth_forbidden', handleForbidden);
 
     return () => {
-      window.removeEventListener('hashchange', handleHashChange);
       window.removeEventListener('sikepo_session_expired', handleSessionExpired);
+      window.removeEventListener('sikepo_auth_forbidden', handleForbidden);
     };
-  }, []);
+  }, [error, warning, navigate]);
 
-  // Auth Guard
-  useEffect(() => {
-    const currentToken = localStorage.getItem('sikepo_token');
-    setToken(currentToken);
+  return null;
+}
 
-    if (!currentToken && currentPath !== '/login') {
-      window.location.hash = '/login';
-    } else if (currentToken && currentPath === '/login') {
-      window.location.hash = '/dashboard';
-    }
-  }, [currentPath]);
-
-  function navigate(path) {
-    window.location.hash = path;
-  }
-
-  // Jika halaman Login, render tanpa AppShell
-  if (currentPath === '/login' || !token) {
-    return <Login onNavigate={navigate} />;
-  }
-
-  // Route Resolver
-  function renderContent() {
-    // 1. Equipment Detail with dynamic ID: /peralatan/detail/:id
-    if (currentPath.startsWith('/peralatan/detail/')) {
-      const parts = currentPath.split('/');
-      const id = parts[parts.length - 1];
-      return <EquipmentDetail equipmentId={id} onNavigate={navigate} />;
-    }
-    if (currentPath.startsWith('/peralatan/qr/')) {
-      const parts = currentPath.split('/');
-      const id = parts[parts.length - 1];
-      return <EquipmentQrPage equipmentId={id} onNavigate={navigate} />;
-    }
-
-    switch (currentPath) {
-      case '/dashboard':
-        return <Dashboard onNavigate={navigate} />;
-      case '/peralatan':
-        return <EquipmentList onNavigate={navigate} />;
-      case '/peralatan/tambah':
-        return can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD) ? <EquipmentCreate onNavigate={navigate} /> : <EquipmentList onNavigate={navigate} />;
-      case '/admin/users':
-        return <UserManagement onNavigate={navigate} />;
-      case '/admin/labs':
-        return <LabsManagement onNavigate={navigate} />;
-      case '/admin/ruangan':
-        return <RuanganManagement onNavigate={navigate} />;
-      case '/admin/kelompok-aset':
-        return <AssetGroupManagement onNavigate={navigate} />;
-      case '/admin/kategori':
-        return <CategoryManagement onNavigate={navigate} />;
-      case '/settings':
-        return <Settings onNavigate={navigate} />;
-      default:
-        return <Dashboard onNavigate={navigate} />;
-    }
-  }
+// App Layout Shell (Topbar, Sidebar, Main Content)
+function AppShell({ children }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
 
   return (
     <div className="app-shell">
@@ -118,27 +87,170 @@ export default function App() {
       <div
         className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`}
         onClick={() => setSidebarOpen(false)}
+        role="presentation"
       />
 
       {/* Sidebar Navigasi Berbasis Role */}
       <Sidebar
-        currentPath={currentPath}
-        onNavigate={navigate}
+        currentPath={pathname}
+        onNavigate={(path) => {
+          navigate(path);
+          setSidebarOpen(false);
+        }}
         onClose={() => setSidebarOpen(false)}
         open={sidebarOpen}
       />
 
       {/* Topbar Header */}
       <Topbar
-        currentPath={currentPath}
+        currentPath={pathname}
         onNavigate={navigate}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
       />
 
       {/* Konten Halaman Utama */}
       <main className="main-content" id="main-view">
-        {renderContent()}
+        {children}
       </main>
     </div>
+  );
+}
+
+// Route Switcher
+function AppContent() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const token = getToken();
+
+  // Login page rendered without AppShell
+  if (pathname === '/login') {
+    if (token) {
+      return <Navigate to="/dashboard" />;
+    }
+    return <Login onNavigate={navigate} />;
+  }
+
+  // If user has no token and is accessing anything else, ProtectedRoute will redirect to /login
+  if (!token) {
+    return <Navigate to="/login" />;
+  }
+
+  return (
+    <AppShell>
+      <Routes fallback={<NotFound />}>
+        {/* Dashboard */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Equipment Routes */}
+        <Route
+          path="/peralatan"
+          element={
+            <ProtectedRoute feature={ACCESS.MASTER_EQUIPMENT}>
+              <EquipmentList onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/peralatan/tambah"
+          element={
+            <ProtectedRoute feature={ACCESS.INPUT_EQUIPMENT} action={ACTIONS.ADD}>
+              <EquipmentCreate onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/peralatan/detail/:id"
+          element={
+            <ProtectedRoute feature={ACCESS.MASTER_EQUIPMENT}>
+              <EquipmentDetailRoute />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/peralatan/qr/:id"
+          element={
+            <ProtectedRoute feature={ACCESS.QR_CODE}>
+              <EquipmentQrRoute />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Management Routes */}
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <UserManagement onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/labs"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <LabsManagement onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/ruangan"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <RuanganManagement onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/kelompok-aset"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AssetGroupManagement onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/kategori"
+          element={
+            <ProtectedRoute roles={['admin', 'manager']}>
+              <CategoryManagement onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Settings */}
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Error Pages */}
+        <Route path="/unauthorized" element={<Forbidden />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AppShell>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <ToastProvider>
+        <ConfirmProvider>
+          <GlobalAuthListener />
+          <AppContent />
+        </ConfirmProvider>
+      </ToastProvider>
+    </Router>
   );
 }

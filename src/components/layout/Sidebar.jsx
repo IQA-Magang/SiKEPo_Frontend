@@ -5,10 +5,9 @@ import {
   ShieldCheck,
   Settings2,
   ChevronDown,
-  Settings,
   X
 } from 'lucide-react';
-import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
+import { ACCESS, ACTIONS, can, getUserRole } from '../../utils/permissions.js';
 
 function NavGroup({ label, icon: Icon, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -20,17 +19,13 @@ function NavGroup({ label, icon: Icon, children, defaultOpen = true }) {
         onClick={() => setOpen(!open)}
         aria-expanded={open}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Icon size={16} className="nav-group-icon" />
+        <div className="nav-group-left">
+          <Icon size={15} className="nav-group-icon" />
           <span className="nav-group-label">{label}</span>
         </div>
         <ChevronDown
           size={13}
-          className="nav-group-chevron"
-          style={{
-            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s ease',
-          }}
+          className={`nav-group-chevron ${open ? 'open' : ''}`}
         />
       </button>
       {open && <div className="nav-group-children">{children}</div>}
@@ -39,6 +34,7 @@ function NavGroup({ label, icon: Icon, children, defaultOpen = true }) {
 }
 
 export default function Sidebar({ currentPath, onNavigate, onClose, open: mobileOpen }) {
+  const userRole = getUserRole();
   const canView = (feature) => can(feature, ACTIONS.VIEW);
 
   const isManajemenAlatActive =
@@ -59,8 +55,9 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
     if (onClose) onClose();
   }
 
-  const NavItem = ({ label, path, feature, disabled = false }) => {
+  const NavItem = ({ label, path, feature, roles, disabled = false }) => {
     if (feature && !canView(feature)) return null;
+    if (roles && Array.isArray(roles) && !roles.includes(userRole)) return null;
 
     const isActive =
       currentPath === path || (path !== '/dashboard' && currentPath.startsWith(path + '/'));
@@ -74,6 +71,7 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
         title={disabled ? 'Modul dalam pengembangan' : undefined}
       >
         <span className="nav-label">{label}</span>
+        {disabled && <span className="nav-badge-soon">Segera</span>}
         {isActive && <div className="active-indicator" />}
       </button>
     );
@@ -86,7 +84,7 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
         className={`nav-item ${isActive ? 'active' : ''}`}
         onClick={() => navigate(path)}
       >
-        <Icon className="nav-icon-svg" size={19} />
+        <Icon className="nav-icon-svg" size={17} />
         <span className="nav-label">{label}</span>
         {isActive && <div className="active-indicator" />}
       </button>
@@ -133,16 +131,19 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
             </NavGroup>
 
             {/* PENGATURAN INVENTARIS */}
-            <NavGroup
-              label="PENGATURAN INVENTARIS"
-              icon={Settings2}
-              defaultOpen={isPengaturanActive}
-            >
-              <NavItem label="Kelompok Peralatan" path="/admin/kategori" feature={ACCESS.MASTER_EQUIPMENT} />
-              <NavItem label="Kelompok Lab" path="/admin/labs" feature={ACCESS.MASTER_LAB} />
-              <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" feature={ACCESS.MASTER_EQUIPMENT} />
-              <NavItem label="Kelompok Lokasi" path="/admin/ruangan" feature={ACCESS.MASTER_EQUIPMENT} />
-            </NavGroup>
+            {userRole !== 'staff' && (
+              <NavGroup
+                label="PENGATURAN INVENTARIS"
+                icon={Settings2}
+                defaultOpen={isPengaturanActive}
+              >
+                <NavItem label="Kelompok Peralatan" path="/admin/kategori" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin', 'manager']} />
+                <NavItem label="Kelompok Lab" path="/admin/labs" feature={ACCESS.MASTER_LAB} roles={['admin']} />
+                <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin']} />
+                <NavItem label="Kelompok Lokasi" path="/admin/ruangan" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin']} />
+                <NavItem label="Pengguna Sistem" path="/admin/users" feature={ACCESS.SYSTEM_SETTINGS} roles={['admin']} />
+              </NavGroup>
+            )}
           </nav>
         </div>
 
