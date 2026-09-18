@@ -792,6 +792,13 @@
   padding: var(--sp-6);
 }
 
+@media (max-height: 700px) {
+  .modal-overlay {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+}
+
 .modal-footer {
   display: flex;
   align-items: center;
@@ -1357,10 +1364,14 @@
 }
 
 .qr-image {
-  width: 160px;
-  height: 160px;
+  width: 280px;
+  height: 280px;
+  max-width: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
   border-radius: var(--radius-lg);
   border: 1px solid var(--clr-dark-200);
+  background: #fff;
 }
 
 /* ---- DIVIDER ---- */

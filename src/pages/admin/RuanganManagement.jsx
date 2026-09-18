@@ -175,7 +175,7 @@ export default function RuanganManagement({ onNavigate }) {
       {/* 1. Page Header */}
       <div className="page-header-row">
         <div>
-          <h1 className="page-title">Ruangan Pengujian</h1>
+          <h1 className="page-title">Lokasi Penyimpanan</h1>
           <p className="page-subtitle">
             Daftar ruangan uji dan alokasi laboratorium ({filtered.length} terdaftar)
           </p>

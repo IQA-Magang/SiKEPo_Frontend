@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, ArrowLeft, QrCode, Upload, FileText, Download, Eye } from 'lucide-react';
-import { peralatanApi, dokumenApi, formatPhotoUrl, getEquipmentId, API_BASE } from '../../utils/api.js';
+import { fetchBlobWithAuth, peralatanApi, dokumenApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
 // ------------------------------------------------------------------
@@ -12,9 +12,27 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
   const [loading, setLoading]     = useState(true);
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg]             = useState('');
+  const [qrSrc, setQrSrc]         = useState('');
 
   useEffect(() => {
     loadData();
+  }, [equipmentId]);
+
+  useEffect(() => {
+    let objectUrl = '';
+    async function loadQr() {
+      try {
+        const blob = await fetchBlobWithAuth(`/api/peralatan/${equipmentId}/qr`);
+        objectUrl = URL.createObjectURL(blob);
+        setQrSrc(objectUrl);
+      } catch {
+        setQrSrc('');
+      }
+    }
+    loadQr();
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [equipmentId]);
 
   async function loadData() {
@@ -73,7 +91,6 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
 
   const photoUrl = formatPhotoUrl(peralatan.foto);
   const canonicalEquipmentId = getEquipmentId(peralatan);
-  const qrUrl = peralatanApi.getQRCodeUrl(canonicalEquipmentId);
   const canEditEquipment = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.EDIT);
 
   const statusClass = {
@@ -86,11 +103,12 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
 
   async function handleDownloadQR() {
     const imgEl = document.getElementById(`qr-img-${canonicalEquipmentId}`);
-    const currentQrSrc = imgEl?.src || qrUrl;
+    const currentQrSrc = imgEl?.src || qrSrc;
     const fileName = `QR-Peralatan-ID${canonicalEquipmentId}-${peralatan?.nomor_aset || 'aset'}.png`;
 
     try {
       const res = await fetch(currentQrSrc);
+      if (!res.ok) throw new Error(`Gagal mengunduh QR (${res.status})`);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -332,15 +350,12 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
             <h2 className="section-title">QR Code (by ID)</h2>
             <div className="qr-container">
               <img
-                src={qrUrl}
+                src={qrSrc}
                 alt={`QR Code Peralatan ID ${canonicalEquipmentId}`}
                 className="qr-image"
                 id={`qr-img-${canonicalEquipmentId}`}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`SIKEPO-EQ-ID:${canonicalEquipmentId}-${peralatan.nomor_aset}`)}`;
-                }}
               />
+              {!qrSrc && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>Memuat QR Code...</span>}
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
                 QR ID Peralatan: <strong>#{canonicalEquipmentId}</strong> ({peralatan.nomor_aset})
               </p>
@@ -354,6 +369,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
               <button
                 type="button"
                 onClick={handleDownloadQR}
+                disabled={!qrSrc}
                 className="btn btn-secondary btn-sm"
                 id="btn-unduh-qr"
                 style={{ cursor: 'pointer' }}

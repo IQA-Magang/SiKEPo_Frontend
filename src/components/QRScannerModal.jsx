@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { QrCode, Camera, Upload, X, Search, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
 import jsQR from 'jsqr';
 import { getEquipmentId, peralatanApi } from '../utils/api.js';
@@ -17,6 +18,7 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
   const animationFrameRef = useRef(null);
   const detectorRef = useRef(null);
   const scanInProgressRef = useRef(false);
+  const scannerTypeRef = useRef(null);
 
   useEffect(() => {
     if (isOpen && activeTab === 'camera') {
@@ -33,6 +35,7 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
   async function startCamera() {
     setErrorMsg('');
     setCameraActive(false);
+    scanInProgressRef.current = false;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
@@ -40,14 +43,20 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play();
         setCameraActive(true);
         if ('BarcodeDetector' in window) {
-          detectorRef.current = new window.BarcodeDetector({ formats: ['qr_code'] });
-          startScanningLoop();
+          try {
+            detectorRef.current = new window.BarcodeDetector({ formats: ['qr_code'] });
+            scannerTypeRef.current = 'native';
+          } catch {
+            detectorRef.current = null;
+            scannerTypeRef.current = 'jsqr';
+          }
         } else {
-          setErrorMsg('Browser ini belum mendukung pemindaian QR otomatis. Gunakan Input ID Manual.');
+          scannerTypeRef.current = 'jsqr';
         }
+        startScanningLoop();
       }
     } catch (err) {
       console.warn('Kamera tidak tersedia:', err);
@@ -66,6 +75,7 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
       streamRef.current = null;
     }
     detectorRef.current = null;
+    scannerTypeRef.current = null;
     scanInProgressRef.current = false;
     setCameraActive(false);
   }
@@ -74,14 +84,31 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
   function startScanningLoop() {
     async function tick() {
       if (
-        detectorRef.current &&
         videoRef.current &&
         videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA &&
         !scanInProgressRef.current
       ) {
         try {
-          const codes = await detectorRef.current.detect(videoRef.current);
-          const rawValue = codes[0]?.rawValue;
+          let rawValue = '';
+          if (scannerTypeRef.current === 'native' && detectorRef.current) {
+            const codes = await detectorRef.current.detect(videoRef.current);
+            rawValue = codes[0]?.rawValue || '';
+          } else if (scannerTypeRef.current === 'jsqr') {
+            const video = videoRef.current;
+            const canvas = canvasRef.current || document.createElement('canvas');
+            const width = video.videoWidth;
+            const height = video.videoHeight;
+            if (width && height) {
+              canvas.width = width;
+              canvas.height = height;
+              const context = canvas.getContext('2d', { willReadFrequently: true });
+              context.drawImage(video, 0, 0, width, height);
+              const imageData = context.getImageData(0, 0, width, height);
+              rawValue = jsQR(imageData.data, width, height, {
+                inversionAttempts: 'attemptBoth',
+              })?.data || '';
+            }
+          }
           if (rawValue) {
             scanInProgressRef.current = true;
             await handleScanPayload(rawValue);
@@ -218,7 +245,7 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal((
     <div
       className="modal-overlay fade-in-up"
       style={{
@@ -238,9 +265,12 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
         style={{
           width: 500,
           maxWidth: '95%',
+          maxHeight: '92vh',
           background: '#ffffff',
           borderRadius: 'var(--radius-2xl)',
           overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
           boxShadow: 'var(--shadow-2xl)',
           border: '1px solid var(--clr-dark-200)',
         }}
@@ -361,7 +391,13 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
         </div>
 
         {/* Modal Body */}
-        <div style={{ padding: 'var(--sp-6)' }}>
+        <div
+          style={{
+            padding: 'var(--sp-6)',
+            overflowY: 'auto',
+            minHeight: 0,
+          }}
+        >
           {scanResult && (
             <div
               style={{
@@ -408,7 +444,8 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
                 style={{
                   position: 'relative',
                   width: '100%',
-                  height: 240,
+                  height: 'min(240px, 36vh)',
+                  minHeight: 180,
                   background: 'var(--clr-dark-950)',
                   borderRadius: 'var(--radius-xl)',
                   overflow: 'hidden',
@@ -420,7 +457,7 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
               >
                 <video
                   ref={videoRef}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   playsInline
                   muted
                 />
@@ -430,8 +467,8 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
                 <div
                   style={{
                     position: 'absolute',
-                    width: 180,
-                    height: 180,
+                    width: 'min(180px, 65vw)',
+                    height: 'min(180px, 65vw)',
                     border: '2px dashed #EE2E24',
                     borderRadius: 'var(--radius-lg)',
                     boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
@@ -456,11 +493,9 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
                 Arahkan kamera perangkat Anda tepat ke <strong>QR Code ID Peralatan</strong>
               </p>
 
-              {!('BarcodeDetector' in window) && (
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-warning-600)', textAlign: 'center', margin: 0 }}>
-                  Pemindaian otomatis tidak didukung browser ini. Gunakan tab Input ID Manual.
-                </p>
-              )}
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', textAlign: 'center', margin: 0 }}>
+                Scanner otomatis memiliki fallback untuk browser yang belum mendukung BarcodeDetector.
+              </p>
             </div>
           )}
 
@@ -521,5 +556,5 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }

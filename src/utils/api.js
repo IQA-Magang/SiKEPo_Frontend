@@ -132,6 +132,28 @@ export async function fetchFormData(endpoint, formData) {
 }
 
 // ------------------------------------------------------------------
+// fetchBlobWithAuth — untuk resource binary yang dilindungi autentikasi
+// ------------------------------------------------------------------
+export async function fetchBlobWithAuth(endpoint) {
+  const token = getToken();
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${endpoint}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch {
+    throw new Error('Koneksi jaringan terputus atau backend tidak dapat dijangkau.');
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(parseApiError(data, res.status));
+  }
+
+  return res.blob();
+}
+
+// ------------------------------------------------------------------
 // Helper: format URL foto/gambar
 // ------------------------------------------------------------------
 export function formatPhotoUrl(foto) {
@@ -158,6 +180,29 @@ export function getEquipmentCategoryId(peralatan) {
   const categoryId = Number(peralatan?.kategori_peralatan_id);
   return Number.isInteger(categoryId) && categoryId > 0 ? categoryId : null;
 }
+
+export const STATIC_EQUIPMENT_CATEGORIES = [
+  {
+    id: 1,
+    label: 'Alat Ukur',
+    desc: 'Peralatan yang menghasilkan nilai terukur, dan ketelitiannya mempengaruhi keabsahan hasil yang dilaporkan.',
+  },
+  {
+    id: 2,
+    label: 'Alat Bantu',
+    desc: 'Peralatan yang diperlukan agar pengujian dapat berjalan, tetapi pembacaannya tidak masuk ke perhitungan hasil.',
+  },
+  {
+    id: 3,
+    label: 'Artefak Acuan',
+    desc: 'Benda yang menjadi acuan pembanding sebagai yang diukur, bukan yang membaca. Mencakup Alat Standar dan Golden Sample.',
+  },
+  {
+    id: 4,
+    label: 'Komponen Pendukung',
+    desc: 'Bahan atau data yang habis, kedaluwarsa, atau diperbarui — bukan barang inventaris yang tetap.',
+  },
+];
 
 // =============================================================
 // AUTH

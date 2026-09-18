@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Download, Package, QrCode } from 'lucide-react';
-import { getEquipmentId, peralatanApi } from '../../utils/api.js';
+import { fetchBlobWithAuth, getEquipmentId, peralatanApi } from '../../utils/api.js';
 
 export default function EquipmentQrPage({ equipmentId, onNavigate }) {
   const [equipment, setEquipment] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [qrSrc, setQrSrc] = useState('');
+  const [qrError, setQrError] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -24,10 +26,28 @@ export default function EquipmentQrPage({ equipmentId, onNavigate }) {
     return () => { mounted = false; };
   }, [equipmentId]);
 
+  useEffect(() => {
+    let objectUrl = '';
+    async function loadQr() {
+      try {
+        const blob = await fetchBlobWithAuth(`/api/peralatan/${equipmentId}/qr`);
+        objectUrl = URL.createObjectURL(blob);
+        setQrSrc(objectUrl);
+      } catch (err) {
+        setQrSrc('');
+        setQrError(`QR tidak dapat dimuat: ${err.message}`);
+      }
+    }
+    loadQr();
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [equipmentId]);
+
   async function downloadQr() {
-    const response = await fetch(peralatanApi.getQRCodeUrl(equipmentId));
-    if (!response.ok) throw new Error(`Gagal mengunduh QR (${response.status})`);
-    const blobUrl = URL.createObjectURL(await response.blob());
+    const blobUrl = URL.createObjectURL(
+      await fetchBlobWithAuth(`/api/peralatan/${equipmentId}/qr`),
+    );
     const link = document.createElement('a');
     link.href = blobUrl;
     link.download = `QR-Peralatan-${equipmentId}-${equipment?.nomor_aset || 'aset'}.png`;
@@ -56,8 +76,6 @@ export default function EquipmentQrPage({ equipmentId, onNavigate }) {
   }
 
   const id = getEquipmentId(equipment);
-  const qrUrl = peralatanApi.getQRCodeUrl(id);
-
   return (
     <div className="page-container fade-in-up" style={{ maxWidth: 720, margin: '0 auto' }}>
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
@@ -76,19 +94,20 @@ export default function EquipmentQrPage({ equipmentId, onNavigate }) {
         <p style={{ color: 'var(--clr-dark-500)', fontSize: 'var(--text-sm)' }}>
           Arahkan kamera ponsel ke QR Code yang tampil di halaman ini.
         </p>
-        <div style={{ margin: 'var(--sp-5) auto', width: 'min(460px, 100%)', padding: 'var(--sp-5)', background: '#fff', border: '1px solid var(--clr-dark-200)', borderRadius: 'var(--radius-xl)' }}>
+        <div style={{ margin: 'var(--sp-5) auto', width: 'min(360px, 100%)', padding: 'var(--sp-5)', background: '#fff', border: '1px solid var(--clr-dark-200)', borderRadius: 'var(--radius-xl)' }}>
           <img
-            src={qrUrl}
+            src={qrSrc}
             alt={`QR Code ${equipment.nomor_aset || id}`}
-            style={{ display: 'block', width: '100%', maxWidth: 420, margin: '0 auto' }}
+            style={{ display: 'block', width: '100%', maxWidth: 300, height: 'auto', imageRendering: 'pixelated', margin: '0 auto' }}
           />
+          {qrError && <p style={{ color: 'var(--clr-error-500)', fontSize: 'var(--text-sm)' }}>{qrError}</p>}
         </div>
         <div style={{ display: 'grid', gap: 'var(--sp-2)', marginBottom: 'var(--sp-5)' }}>
           <strong>{equipment.nama_peralatan}</strong>
           <code style={{ fontSize: 'var(--text-sm)' }}>ID Sistem: {id}</code>
           <code style={{ fontSize: 'var(--text-sm)' }}>No. Aset: {equipment.nomor_aset || '–'}</code>
         </div>
-        <button type="button" className="btn btn-secondary" onClick={downloadQr}>
+        <button type="button" className="btn btn-secondary" onClick={downloadQr} disabled={!qrSrc}>
           <Download size={15} /> Unduh QR
         </button>
       </div>

@@ -10,7 +10,7 @@ import {
   RefreshCw,
   FileCheck,
 } from 'lucide-react';
-import { getEquipmentCategoryId, peralatanApi } from '../../utils/api.js';
+import { getEquipmentCategoryId, peralatanApi, STATIC_EQUIPMENT_CATEGORIES } from '../../utils/api.js';
 
 const CATEGORY_META = {
   1: {
@@ -98,7 +98,7 @@ const CATEGORY_META = {
 
 export default function CategoryManagement({ onNavigate }) {
   const [counts, setCounts] = useState({ 1: 0, 2: 0, 3: 0, 4: 0 });
-  const [categories, setCategories] = useState([]);
+  const [categories] = useState(STATIC_EQUIPMENT_CATEGORIES);
   const [loading, setLoading] = useState(true);
   const [selectedCat, setSelectedCat] = useState(1);
 
@@ -108,23 +108,11 @@ export default function CategoryManagement({ onNavigate }) {
       const res = await peralatanApi.getAll();
       const items = res.data || [];
       const tally = { 1: 0, 2: 0, 3: 0, 4: 0 };
-      const categoryData = new Map();
-
       items.forEach((item) => {
         const kId = getEquipmentCategoryId(item);
         if (tally[kId] !== undefined) tally[kId]++;
-
-        const category = item.kategori_peralatan;
-        if (category?.id && (category.nama_kategori || category.description)) {
-          categoryData.set(Number(category.id), {
-            id: Number(category.id),
-            ...(category.nama_kategori ? { label: category.nama_kategori } : {}),
-            ...(category.description ? { desc: category.description } : {}),
-          });
-        }
       });
 
-      setCategories(Array.from(categoryData.values()));
       setCounts(tally);
     } catch (err) {
       console.error('Gagal memuat data peralatan untuk kategori:', err);
@@ -229,13 +217,13 @@ export default function CategoryManagement({ onNavigate }) {
               </span>
             </div>
           </div>
-          <button
+          {/* <button
             className="btn btn-primary"
             onClick={() => onNavigate('/peralatan')}
             id="btn-lihat-peralatan-kat"
           >
             Lihat Inventaris Peralatan <ArrowRight size={15} />
-          </button>
+          </button> */}
         </div>
 
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-700)', lineHeight: 1.6, marginBottom: 'var(--sp-5)' }}>

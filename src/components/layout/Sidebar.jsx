@@ -114,7 +114,7 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
               defaultOpen={isManajemenAlatActive}
             >
               <NavItem label="Peralatan" path="/peralatan" feature={ACCESS.MASTER_EQUIPMENT} />
-              <NavItem label="Peminjaman" path="/peminjaman" feature={ACCESS.LOAN_REQUEST} disabled />
+              {/* <NavItem label="Peminjaman" path="/peminjaman" feature={ACCESS.LOAN_REQUEST} disabled /> */}
               <NavItem label="Verifikasi" path="/verifikasi" feature={ACCESS.DIGITAL_CHECK_FORM} disabled />
               <NavItem label="Peninjauan Peralatan" path="/peninjauan-peralatan" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />
               <NavItem label="Peralatan Usang" path="/peralatan-usang" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />

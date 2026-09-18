@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle, Package, Upload, FileText, Trash2, Plus, Info, Layers, UserCheck, ShieldCheck, HardDrive } from 'lucide-react';
-import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, usersApi, getCurrentUser } from '../../utils/api.js';
+import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, usersApi, getCurrentUser, STATIC_EQUIPMENT_CATEGORIES } from '../../utils/api.js';
 
 // Langkah-langkah stepper
 const STEPS = ['Info Dasar', 'Lokasi & PIC', 'Detail Teknis', 'Dokumen Wajib', 'Konfirmasi'];
@@ -20,7 +20,7 @@ export default function EquipmentCreate({ onNavigate }) {
   const [ruangan, setRuangan]         = useState([]);
   const [kelompokAset, setKelompokAset] = useState([]);
   const [pics, setPics]               = useState([]);
-  const [categories, setCategories]   = useState([]);
+  const [categories]                   = useState(STATIC_EQUIPMENT_CATEGORIES);
   const [loadingOpts, setLoadingOpts] = useState(true);
 
   // Form data
@@ -82,29 +82,15 @@ export default function EquipmentCreate({ onNavigate }) {
   useEffect(() => {
     async function loadOptions() {
       try {
-        const [l, r, k, u, p] = await Promise.allSettled([
+        const [l, r, k, u] = await Promise.allSettled([
           labsApi.getAll(),
           ruanganApi.getAll(),
           kelompokAssetApi.getAll(),
           usersApi.getAll(),
-          peralatanApi.getAll(),
         ]);
         if (l.status === 'fulfilled') setLabs(l.value.data || []);
         if (r.status === 'fulfilled') setRuangan(r.value.data || []);
         if (k.status === 'fulfilled') setKelompokAset(k.value.data || []);
-        if (p.status === 'fulfilled') {
-          const categoryMap = new Map();
-          (p.value.data || []).forEach((item) => {
-            const category = item.kategori_peralatan;
-            if (category?.id && category.nama_kategori) {
-              categoryMap.set(Number(category.id), {
-                id: Number(category.id),
-                label: category.nama_kategori,
-              });
-            }
-          });
-          setCategories(Array.from(categoryMap.values()));
-        }
         if (u.status === 'fulfilled' && Array.isArray(u.value?.data)) {
           const staffPIC = u.value.data.filter((usr) => usr.pic === true || usr.pic === 1);
           setPics(staffPIC.length > 0 ? staffPIC : u.value.data);
