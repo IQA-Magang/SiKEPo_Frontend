@@ -22,7 +22,7 @@ export default function EquipmentList({ onNavigate }) {
     setLoading(true);
     try {
       const res = await peralatanApi.getAll();
-      setList(res.data || []);
+      setList((res.data || []).filter((item) => item.status_verifikasi === 'Disetujui'));
     } catch (err) {
       console.error('Gagal memuat peralatan:', err);
     } finally {

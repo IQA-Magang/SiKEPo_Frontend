@@ -9,8 +9,11 @@ import {
   ArrowRight,
   RefreshCw,
   FileCheck,
+  Edit3,
 } from 'lucide-react';
-import { getEquipmentCategoryId, peralatanApi, STATIC_EQUIPMENT_CATEGORIES } from '../../utils/api.js';
+import { getCurrentUser, getEquipmentCategoryId, kategoriPeralatanApi, peralatanApi } from '../../utils/api.js';
+import { useToast } from '../../context/ToastContext.jsx';
+import { getUserRole } from '../../utils/permissions.js';
 
 const CATEGORY_META = {
   1: {
@@ -97,25 +100,36 @@ const CATEGORY_META = {
 };
 
 export default function CategoryManagement({ onNavigate }) {
+  const { success, error } = useToast();
+  const canEditEquipment = getUserRole(getCurrentUser()) === 'admin';
   const [counts, setCounts] = useState({ 1: 0, 2: 0, 3: 0, 4: 0 });
-  const [categories] = useState(STATIC_EQUIPMENT_CATEGORIES);
+  const [categories, setCategories] = useState([]);
+  const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCat, setSelectedCat] = useState(1);
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   async function loadData() {
     setLoading(true);
     try {
-      const res = await peralatanApi.getAll();
-      const items = res.data || [];
-      const tally = { 1: 0, 2: 0, 3: 0, 4: 0 };
+      const [categoryRes, equipmentRes] = await Promise.all([
+        kategoriPeralatanApi.getAll(),
+        peralatanApi.getAll(),
+      ]);
+      const categoryData = categoryRes.data || [];
+      const items = equipmentRes.data || [];
+      const tally = {};
       items.forEach((item) => {
         const kId = getEquipmentCategoryId(item);
         if (tally[kId] !== undefined) tally[kId]++;
       });
 
+      setCategories(categoryData);
+      setEquipment(items);
       setCounts(tally);
     } catch (err) {
-      console.error('Gagal memuat data peralatan untuk kategori:', err);
+      error(err.message || 'Gagal memuat data kategori peralatan.');
     } finally {
       setLoading(false);
     }
@@ -125,10 +139,33 @@ export default function CategoryManagement({ onNavigate }) {
     loadData();
   }, []);
 
-  const selectedCategory = categories.find((category) => category.id === selectedCat);
+  const selectedCategory = categories.find((category) => Number(category.id) === selectedCat);
   const selectedMeta = selectedCategory ? (CATEGORY_META[selectedCategory.id] || CATEGORY_META[1]) : CATEGORY_META[1];
   const activeMeta = selectedMeta;
   const ActiveIcon = activeMeta.icon;
+  const selectedEquipment = equipment.filter((item) => getEquipmentCategoryId(item) === selectedCat);
+
+  async function saveEquipment(event) {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const response = await peralatanApi.update(editing.id, {
+        nama_peralatan: editing.nama_peralatan,
+        merek: editing.merek,
+        tipe_model: editing.tipe_model,
+        nomor_seri: editing.nomor_seri,
+        status_alat: editing.status_alat,
+        keterangan: editing.keterangan,
+      });
+      setEquipment((previous) => previous.map((item) => item.id === response.data.id ? response.data : item));
+      setEditing(null);
+      success('Data alat ukur berhasil diperbarui.');
+    } catch (err) {
+      error(err.message || 'Gagal memperbarui alat ukur.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="page-container fade-in-up">
@@ -187,10 +224,10 @@ export default function CategoryManagement({ onNavigate }) {
                 </span>
               </div>
               <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--clr-dark-900)', margin: '0 0 4px' }}>
-                {cat.label}
+                {cat.nama_kategori || cat.label}
               </h3>
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', margin: 0, lineHeight: 1.4 }}>
-                {cat.desc}
+                {cat.description || cat.desc || 'Deskripsi kategori belum tersedia.'}
               </p>
             </div>
           );
@@ -210,7 +247,7 @@ export default function CategoryManagement({ onNavigate }) {
             </div>
             <div>
               <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0, color: 'var(--clr-dark-900)' }}>
-                {selectedCategory?.label || 'Kategori peralatan'}
+                {selectedCategory?.nama_kategori || selectedCategory?.label || 'Kategori peralatan'}
               </h2>
               <span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', fontWeight: 500 }}>
                 {activeMeta.standard}
@@ -227,7 +264,7 @@ export default function CategoryManagement({ onNavigate }) {
         </div>
 
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-700)', lineHeight: 1.6, marginBottom: 'var(--sp-5)' }}>
-          {selectedCategory?.desc || 'Deskripsi kategori belum tersedia.'}
+          {selectedCategory?.description || selectedCategory?.desc || 'Deskripsi kategori belum tersedia.'}
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--sp-5)' }}>
@@ -260,7 +297,50 @@ export default function CategoryManagement({ onNavigate }) {
             </div>
           </div>
         </div>
+
+        <div style={{ marginTop: 'var(--sp-6)' }}>
+          <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, margin: '0 0 var(--sp-3)' }}>
+            Daftar {selectedCategory?.nama_kategori || 'Peralatan'} dari Backend
+          </h3>
+          {selectedEquipment.length === 0 ? (
+            <div className="empty-state" style={{ padding: 'var(--sp-5)' }}><p className="empty-state-desc">Belum ada peralatan pada kategori ini.</p></div>
+          ) : (
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead><tr><th>Nomor Aset</th><th>Nama</th><th>Merek / Model</th><th>Status</th><th>Aksi</th></tr></thead>
+                <tbody>{selectedEquipment.map((item) => (
+                  <tr key={item.id}>
+                    <td><code>{item.nomor_aset || '-'}</code></td>
+                    <td>{item.nama_peralatan || '-'}</td>
+                    <td>{[item.merek, item.tipe_model].filter(Boolean).join(' / ') || '-'}</td>
+                    <td><span className="badge badge-gray">{item.status_alat || '-'}</span></td>
+                    <td>{canEditEquipment && <button className="btn btn-ghost btn-sm" onClick={() => setEditing({ ...item })}><Edit3 size={14} /> Edit</button>}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
+
+      {editing && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setEditing(null)}>
+          <form className="modal-card" role="dialog" aria-modal="true" onSubmit={saveEquipment} onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header"><h2 className="modal-title">Edit Alat Ukur</h2><button type="button" className="btn btn-ghost" onClick={() => setEditing(null)}>Tutup</button></div>
+            <div className="modal-body">
+              <div className="form-group"><label className="form-label">Nama Peralatan</label><input className="form-input" value={editing.nama_peralatan || ''} onChange={(event) => setEditing({ ...editing, nama_peralatan: event.target.value })} required /></div>
+              <div className="form-grid-2">
+                <div className="form-group"><label className="form-label">Merek</label><input className="form-input" value={editing.merek || ''} onChange={(event) => setEditing({ ...editing, merek: event.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Tipe / Model</label><input className="form-input" value={editing.tipe_model || ''} onChange={(event) => setEditing({ ...editing, tipe_model: event.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Nomor Seri</label><input className="form-input" value={editing.nomor_seri || ''} onChange={(event) => setEditing({ ...editing, nomor_seri: event.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Status</label><select className="form-select" value={editing.status_alat || ''} onChange={(event) => setEditing({ ...editing, status_alat: event.target.value })}><option>Karantina</option><option>Aktif</option><option>Dipinjam</option><option>Dalam Kalibrasi</option><option>Rusak</option><option>Dihapuskan</option></select></div>
+              </div>
+              <div className="form-group"><label className="form-label">Keterangan</label><textarea className="form-textarea" value={editing.keterangan || ''} onChange={(event) => setEditing({ ...editing, keterangan: event.target.value })} /></div>
+            </div>
+            <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setEditing(null)}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</button></div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

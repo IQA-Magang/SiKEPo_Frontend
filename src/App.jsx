@@ -23,6 +23,7 @@ import EquipmentList from './pages/equipment/EquipmentList.jsx';
 import EquipmentDetail from './pages/equipment/EquipmentDetail.jsx';
 import EquipmentCreate from './pages/equipment/EquipmentCreate.jsx';
 import EquipmentQrPage from './pages/equipment/EquipmentQrPage.jsx';
+import Verification from './pages/Verification.jsx';
 import UserManagement from './pages/admin/UserManagement.jsx';
 import LabsManagement from './pages/admin/LabsManagement.jsx';
 import RuanganManagement from './pages/admin/RuanganManagement.jsx';
@@ -178,6 +179,16 @@ function AppContent() {
           element={
             <ProtectedRoute feature={ACCESS.QR_CODE}>
               <EquipmentQrRoute />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Verification Routes */}
+        <Route
+          path="/verifikasi"
+          element={
+            <ProtectedRoute feature={ACCESS.DIGITAL_CHECK_FORM}>
+              <Verification onNavigate={navigate} />
             </ProtectedRoute>
           }
         />

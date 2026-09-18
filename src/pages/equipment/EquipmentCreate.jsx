@@ -35,7 +35,7 @@ export default function EquipmentCreate({ onNavigate }) {
     nomor_seri: '',
     peranti_lunak_versi: '',
     keterangan: '',
-    status_alat: 'Aktif',
+    status_alat: 'Karantina',
     // Step 1: Lokasi & PIC
     lab_id: '',
     ruangan_id: '',
