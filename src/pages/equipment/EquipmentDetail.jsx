@@ -145,25 +145,24 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
   return (
     <div className="page-container fade-in-up">
       {/* Back & Title */}
-      <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)', flexWrap: 'wrap' }}>
         <button className="btn btn-ghost btn-icon" onClick={() => onNavigate('/peralatan')} id="btn-kembali-peralatan">
           <ArrowLeft size={20} />
         </button>
-        <div>
-          <h1 className="page-title">{peralatan.nama_peralatan}</h1>
-          <p className="page-subtitle">
-            <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 className="page-title" style={{ wordBreak: 'break-word' }}>{peralatan.nama_peralatan}</h1>
+          <p className="page-subtitle" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', wordBreak: 'break-all' }}>
               {peralatan.nomor_aset}
             </code>
-            {' '}
-            <span className={`badge ${statusClass[peralatan.status_alat] || 'badge-gray'}`} style={{ marginLeft: 6 }}>
+            <span className={`badge ${statusClass[peralatan.status_alat] || 'badge-gray'}`}>
               {peralatan.status_alat}
             </span>
           </p>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 'var(--sp-5)', alignItems: 'start' }}>
+      <div className="equipment-detail-layout">
         {/* Kiri: Detail */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
           {/* Info Umum */}
@@ -387,11 +386,11 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
 // helpers
 function InfoRow({ label, value, mono }) {
   return (
-    <div>
+    <div style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
       <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--fw-semibold)', color: 'var(--clr-dark-500)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
         {label}
       </div>
-      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-900)', fontFamily: mono ? 'monospace' : 'inherit' }}>
+      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-900)', fontFamily: mono ? 'monospace' : 'inherit', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
         {value || '–'}
       </div>
     </div>

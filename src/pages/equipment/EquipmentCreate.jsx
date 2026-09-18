@@ -14,6 +14,8 @@ export default function EquipmentCreate({ onNavigate }) {
   const [success, setSuccess] = useState(null);
   const [error, setError]     = useState('');
   const [documentFiles, setDocumentFiles] = useState([]);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
 
   // Options
   const [labs, setLabs]               = useState([]);
@@ -118,6 +120,20 @@ export default function EquipmentCreate({ onNavigate }) {
     if (error) setError('');
   }
 
+  function handleSelectPhoto(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    if (error) setError('');
+  }
+
+  function handleRemovePhoto() {
+    setPhotoFile(null);
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(null);
+  }
+
   function handleAddFiles(e) {
     const selected = Array.from(e.target.files || []);
     if (selected.length === 0) return;
@@ -140,14 +156,47 @@ export default function EquipmentCreate({ onNavigate }) {
         setError('Nama peralatan wajib diisi.');
         return false;
       }
+<<<<<<< HEAD
+      if (!photoFile) {
+        setError('Foto peralatan wajib diunggah.');
+        return false;
+      }
+      if (!form.kategori_id) {
+        setError('Kategori peralatan wajib dipilih.');
+        return false;
+      }
+      if (!form.merek.trim()) {
+        setError('Merek / Pabrikan wajib diisi.');
+        return false;
+      }
+      if (!form.tipe_model.trim()) {
+        setError('Tipe / Model wajib diisi.');
+        return false;
+      }
+      if (!form.nomor_seri.trim()) {
+        setError('Nomor Seri (Serial Number) wajib diisi.');
+        return false;
+      }
+      if (!form.peranti_lunak_versi.trim()) {
+        setError('Perangkat Lunak / Firmware wajib diisi.');
+        return false;
+      }
+      if (!form.keterangan.trim()) {
+        setError('Keterangan tambahan wajib diisi.');
+=======
       if (!form.kategori_id) {
         setError('Kategori peralatan belum tersedia dari backend.');
+>>>>>>> 4e5db669bc8f0a81f9c399dbbc236c899d8c0245
         return false;
       }
     }
     if (step === 1) {
+      if (!form.lab_id) {
+        setError('Laboratorium wajib dipilih.');
+        return false;
+      }
       if (!form.ruangan_id) {
-        setError('Ruangan wajib dipilih.');
+        setError('Lokasi ruangan wajib dipilih.');
         return false;
       }
       if (!form.kelompok_aset_id) {
@@ -155,8 +204,45 @@ export default function EquipmentCreate({ onNavigate }) {
         return false;
       }
       if (!form.pic_id) {
-        setError('PIC wajib dipilih.');
+        setError('Penanggung Jawab (PIC) wajib dipilih.');
         return false;
+      }
+    }
+    if (step === 2) {
+      if (form.kategori_id === 1) {
+        if (!form.no_sertifikat.trim()) { setError('No. sertifikat kalibrasi wajib diisi.'); return false; }
+        if (!form.interval_bulan) { setError('Interval kalibrasi (bulan) wajib diisi.'); return false; }
+        if (!form.tgl_kalibrasi) { setError('Tanggal kalibrasi terakhir wajib diisi.'); return false; }
+        if (!form.tgl_jatuh_tempo) { setError('Tanggal jatuh tempo kalibrasi wajib diisi.'); return false; }
+      }
+      if (form.kategori_id === 2) {
+        if (!form.fungsi_kegunaan.trim()) { setError('Fungsi / Kegunaan wajib diisi.'); return false; }
+        if (!form.jenis_pemeriksaan_berkala.trim()) { setError('Jenis pemeriksaan berkala wajib diisi.'); return false; }
+        if (!form.interval_bulan) { setError('Interval pemeriksaan (bulan) wajib diisi.'); return false; }
+        if (!form.tgl_jatuh_tempo) { setError('Tanggal jatuh tempo wajib diisi.'); return false; }
+        if (!form.tgl_pemeriksaan_terakhir) { setError('Tanggal pemeriksaan terakhir wajib diisi.'); return false; }
+        if (!form.kriteria_pemeriksaan.trim()) { setError('Kriteria pemeriksaan wajib diisi.'); return false; }
+      }
+      if (form.kategori_id === 3) {
+        if (!form.jenis_deskripsi.trim()) { setError('Jenis / deskripsi acuan wajib diisi.'); return false; }
+        if (!form.karakteristik_yang_diacu.trim()) { setError('Karakteristik yang diacu wajib diisi.'); return false; }
+        if (!form.nilai_spesifikasi_karakterisasi.trim()) { setError('Nilai spesifikasi karakterisasi wajib diisi.'); return false; }
+        if (!form.metode_karakterisasi.trim()) { setError('Metode karakterisasi wajib diisi.'); return false; }
+        if (!form.no_laporan_karakterisasi.trim()) { setError('No. laporan karakterisasi wajib diisi.'); return false; }
+        if (!form.tgl_karakterisasi_terakhir) { setError('Tanggal karakterisasi terakhir wajib diisi.'); return false; }
+        if (!form.tgl_jatuh_tempo) { setError('Tanggal jatuh tempo wajib diisi.'); return false; }
+        if (!form.kondisi_penyimpanan.trim()) { setError('Kondisi penyimpanan wajib diisi.'); return false; }
+      }
+      if (form.kategori_id === 4) {
+        if (!form.sub_kategori.trim()) { setError('Sub kategori wajib diisi.'); return false; }
+        if (!form.sumber_pemasok.trim()) { setError('Sumber / pemasok wajib diisi.'); return false; }
+        if (!form.no_lot_batch_edisi.trim()) { setError('No. lot / batch / edisi wajib diisi.'); return false; }
+        if (!form.grade_mutu.trim()) { setError('Grade mutu wajib diisi.'); return false; }
+        if (!form.satuan_kemasan.trim()) { setError('Satuan kemasan wajib diisi.'); return false; }
+        if (!form.tgl_terima_terbit) { setError('Tanggal terima / terbit wajib diisi.'); return false; }
+        if (!form.tgl_kedaluwarsa) { setError('Tanggal kedaluwarsa wajib diisi.'); return false; }
+        if (!form.deskripsi_spesifikasi.trim()) { setError('Deskripsi / spesifikasi wajib diisi.'); return false; }
+        if (!form.status_ketersediaan.trim()) { setError('Status ketersediaan wajib diisi.'); return false; }
       }
     }
     if (step === 3) {
@@ -276,6 +362,11 @@ export default function EquipmentCreate({ onNavigate }) {
       const res = await peralatanApi.create(payload);
       const equipmentId = res.id || res.data?.id;
       if (!equipmentId) throw new Error('Peralatan tersimpan, tetapi ID peralatan tidak diterima.');
+
+      // Upload foto jika ada
+      if (photoFile) {
+        await peralatanApi.uploadFoto(equipmentId, photoFile);
+      }
 
       // Upload semua dokumen
       for (const file of documentFiles) {
@@ -439,6 +530,67 @@ export default function EquipmentCreate({ onNavigate }) {
               />
             </div>
 
+            {/* Upload Foto Peralatan */}
+            <div className="form-group">
+              <label className="form-label">
+                Foto Peralatan <span className="required">*</span>
+              </label>
+              {photoPreview ? (
+                <div style={{ position: 'relative', display: 'inline-block', maxWidth: 280 }}>
+                  <img
+                    src={photoPreview}
+                    alt="Preview Peralatan"
+                    style={{
+                      width: '100%',
+                      maxHeight: 200,
+                      objectFit: 'cover',
+                      borderRadius: 'var(--radius-lg)',
+                      border: '1px solid var(--clr-dark-200)',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={handleRemovePhoto}
+                    style={{ position: 'absolute', top: 8, right: 8 }}
+                    title="Hapus foto"
+                  >
+                    <Trash2 size={14} /> Hapus Foto
+                  </button>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    border: '2px dashed var(--clr-dark-300)',
+                    borderRadius: 'var(--radius-xl)',
+                    padding: 'var(--sp-6)',
+                    textAlign: 'center',
+                    background: 'var(--clr-dark-50)',
+                    transition: 'border-color var(--duration-fast)',
+                  }}
+                >
+                  <div style={{ width: 44, height: 44, background: 'var(--clr-primary-50)', color: 'var(--clr-primary-500)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--sp-2)' }}>
+                    <Upload size={20} />
+                  </div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-semibold)', color: 'var(--clr-dark-800)', marginBottom: 2 }}>
+                    Unggah Foto Peralatan
+                  </div>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 'var(--sp-3)' }}>
+                    Format yang didukung: JPG, PNG, WEBP (Maks. 5MB)
+                  </p>
+                  <label className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <Plus size={14} /> Pilih Foto Peralatan
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleSelectPhoto}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
             <div className="form-group">
               <label className="form-label">
                 Kategori Peralatan <span className="required">*</span>
@@ -484,45 +636,42 @@ export default function EquipmentCreate({ onNavigate }) {
 
             <div className="form-grid-3">
               <div className="form-group">
-                <label className="form-label" htmlFor="input-merek">Merek / Pabrikan</label>
+                <label className="form-label" htmlFor="input-merek">
+                  Merek / Pabrikan <span className="required">*</span>
+                </label>
                 <input id="input-merek" className="form-input" placeholder="Fluke, Hioki, Keysight..." value={form.merek} onChange={(e) => setField('merek', e.target.value)} />
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="input-tipe">Tipe / Model</label>
+                <label className="form-label" htmlFor="input-tipe">
+                  Tipe / Model <span className="required">*</span>
+                </label>
                 <input id="input-tipe" className="form-input" placeholder="179, MR6000..." value={form.tipe_model} onChange={(e) => setField('tipe_model', e.target.value)} />
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="input-seri">Nomor Seri (Serial Number)</label>
+                <label className="form-label" htmlFor="input-seri">
+                  Nomor Seri (Serial Number) <span className="required">*</span>
+                </label>
                 <input id="input-seri" className="form-input" placeholder="SN-88492019" value={form.nomor_seri} onChange={(e) => setField('nomor_seri', e.target.value)} />
               </div>
             </div>
 
-            <div className="form-grid-2">
-              <div className="form-group">
-                <label className="form-label" htmlFor="input-software" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <HardDrive size={15} style={{ color: 'var(--clr-primary-500)' }} /> Perangkat Lunak / Software (Versi/Firmware)
-                </label>
-                <input
-                  id="input-software"
-                  className="form-input"
-                  placeholder="Contoh: LabVIEW v2023 / Firmware v1.4.2"
-                  value={form.peranti_lunak_versi}
-                  onChange={(e) => setField('peranti_lunak_versi', e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="select-status">Status Alat</label>
-                <select id="select-status" className="form-select" value={form.status_alat} onChange={(e) => setField('status_alat', e.target.value)}>
-                  {['Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak', 'Dihapuskan'].map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="input-software" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <HardDrive size={15} style={{ color: 'var(--clr-primary-500)' }} /> Perangkat Lunak / Software (Versi/Firmware) <span className="required">*</span>
+              </label>
+              <input
+                id="input-software"
+                className="form-input"
+                placeholder="Contoh: LabVIEW v2023 / Firmware v1.4.2"
+                value={form.peranti_lunak_versi}
+                onChange={(e) => setField('peranti_lunak_versi', e.target.value)}
+              />
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="input-keterangan">Keterangan Tambahan</label>
+              <label className="form-label" htmlFor="input-keterangan">
+                Keterangan Tambahan <span className="required">*</span>
+              </label>
               <textarea
                 id="input-keterangan"
                 className="form-textarea"
@@ -553,7 +702,9 @@ export default function EquipmentCreate({ onNavigate }) {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--sp-5)' }}>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="select-lab">Laboratorium</label>
+                  <label className="form-label" htmlFor="select-lab">
+                    Laboratorium <span className="required">*</span>
+                  </label>
                   <select id="select-lab" className="form-select" value={form.lab_id} onChange={(e) => setField('lab_id', e.target.value)}>
                     <option value="">– Pilih Laboratorium –</option>
                     {labs.map((l) => (
@@ -778,7 +929,12 @@ export default function EquipmentCreate({ onNavigate }) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)', background: 'var(--clr-dark-50)', padding: 'var(--sp-5)', borderRadius: 'var(--radius-lg)' }}>
               <ConfirmRow label="Nama Peralatan" value={form.nama_peralatan} />
+<<<<<<< HEAD
+              <ConfirmRow label="Foto Peralatan" value={photoFile ? photoFile.name : '–'} />
+              <ConfirmRow label="Kategori" value={KATEGORI_OPTIONS.find((k) => k.id === form.kategori_id)?.label} />
+=======
               <ConfirmRow label="Kategori" value={categories.find((k) => k.id === form.kategori_id)?.label || '–'} />
+>>>>>>> 4e5db669bc8f0a81f9c399dbbc236c899d8c0245
               <ConfirmRow label="Merek / Tipe" value={[form.merek, form.tipe_model].filter(Boolean).join(' / ') || '–'} />
               <ConfirmRow label="No. Seri" value={form.nomor_seri || '–'} />
               <ConfirmRow label="Software / Versi" value={form.peranti_lunak_versi || '–'} />
@@ -830,7 +986,9 @@ export default function EquipmentCreate({ onNavigate }) {
 function DetailTeknis({ form, setField, kategoriId }) {
   const F = ({ id, label, type = 'text', value, onChange, placeholder }) => (
     <div className="form-group">
-      <label className="form-label" htmlFor={id}>{label}</label>
+      <label className="form-label" htmlFor={id}>
+        {label} <span className="required">*</span>
+      </label>
       <input id={id} type={type} className="form-input" placeholder={placeholder} value={value} onChange={onChange} />
     </div>
   );
@@ -854,7 +1012,9 @@ function DetailTeknis({ form, setField, kategoriId }) {
       <F id="d-jatuh-ab" label="Tgl. Jatuh Tempo" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
       <F id="d-tgl-pemeriksaan" label="Tgl. Pemeriksaan Terakhir" type="date" value={form.tgl_pemeriksaan_terakhir} onChange={(e) => setField('tgl_pemeriksaan_terakhir', e.target.value)} />
       <div className="form-group" style={{ gridColumn: '1/-1' }}>
-        <label className="form-label" htmlFor="d-kriteria">Kriteria Pemeriksaan</label>
+        <label className="form-label" htmlFor="d-kriteria">
+          Kriteria Pemeriksaan <span className="required">*</span>
+        </label>
         <textarea id="d-kriteria" className="form-textarea" value={form.kriteria_pemeriksaan} onChange={(e) => setField('kriteria_pemeriksaan', e.target.value)} style={{ minHeight: 80 }} />
       </div>
     </div>
@@ -885,11 +1045,15 @@ function DetailTeknis({ form, setField, kategoriId }) {
         <F id="d-tgl-kadaluarsa" label="Tgl. Kedaluwarsa" type="date" value={form.tgl_kedaluwarsa} onChange={(e) => setField('tgl_kedaluwarsa', e.target.value)} />
       </div>
       <div className="form-group">
-        <label className="form-label" htmlFor="d-deskripsi-kp">Deskripsi / Spesifikasi</label>
+        <label className="form-label" htmlFor="d-deskripsi-kp">
+          Deskripsi / Spesifikasi <span className="required">*</span>
+        </label>
         <textarea id="d-deskripsi-kp" className="form-textarea" value={form.deskripsi_spesifikasi} onChange={(e) => setField('deskripsi_spesifikasi', e.target.value)} style={{ minHeight: 80 }} />
       </div>
       <div className="form-group">
-        <label className="form-label" htmlFor="d-ketersediaan">Status Ketersediaan</label>
+        <label className="form-label" htmlFor="d-ketersediaan">
+          Status Ketersediaan <span className="required">*</span>
+        </label>
         <select id="d-ketersediaan" className="form-select" value={form.status_ketersediaan} onChange={(e) => setField('status_ketersediaan', e.target.value)}>
           {['Berlaku', 'Tersedia', 'Stok cukup', 'Stok menipis', 'Kedaluwarsa', 'Habis'].map((s) => (
             <option key={s}>{s}</option>
