@@ -156,7 +156,6 @@ export default function EquipmentCreate({ onNavigate }) {
         setError('Nama peralatan wajib diisi.');
         return false;
       }
-<<<<<<< HEAD
       if (!photoFile) {
         setError('Foto peralatan wajib diunggah.');
         return false;
@@ -183,10 +182,10 @@ export default function EquipmentCreate({ onNavigate }) {
       }
       if (!form.keterangan.trim()) {
         setError('Keterangan tambahan wajib diisi.');
-=======
+
       if (!form.kategori_id) {
         setError('Kategori peralatan belum tersedia dari backend.');
->>>>>>> 4e5db669bc8f0a81f9c399dbbc236c899d8c0245
+
         return false;
       }
     }
@@ -929,12 +928,10 @@ export default function EquipmentCreate({ onNavigate }) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)', background: 'var(--clr-dark-50)', padding: 'var(--sp-5)', borderRadius: 'var(--radius-lg)' }}>
               <ConfirmRow label="Nama Peralatan" value={form.nama_peralatan} />
-<<<<<<< HEAD
+
               <ConfirmRow label="Foto Peralatan" value={photoFile ? photoFile.name : '–'} />
               <ConfirmRow label="Kategori" value={KATEGORI_OPTIONS.find((k) => k.id === form.kategori_id)?.label} />
-=======
               <ConfirmRow label="Kategori" value={categories.find((k) => k.id === form.kategori_id)?.label || '–'} />
->>>>>>> 4e5db669bc8f0a81f9c399dbbc236c899d8c0245
               <ConfirmRow label="Merek / Tipe" value={[form.merek, form.tipe_model].filter(Boolean).join(' / ') || '–'} />
               <ConfirmRow label="No. Seri" value={form.nomor_seri || '–'} />
               <ConfirmRow label="Software / Versi" value={form.peranti_lunak_versi || '–'} />
@@ -1073,4 +1070,5 @@ function ConfirmRow({ label, value }) {
       <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)', color: 'var(--clr-dark-900)' }}>{value || '–'}</div>
     </div>
   );
+}
 }
