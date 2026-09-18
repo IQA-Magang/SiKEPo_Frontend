@@ -1,8 +1,33 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { authApi } from '../utils/api.js';
 
-// Kunci pengujian resmi Google reCAPTCHA v2 Checkbox
 const DEFAULT_TEST_SITE_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
+const SCRIPT_ID = 'google-recaptcha-v2-script';
+
+function loadRecaptchaScript() {
+  if (window.grecaptcha) return Promise.resolve(window.grecaptcha);
+
+  return new Promise((resolve, reject) => {
+    const existingScript = document.getElementById(SCRIPT_ID);
+    const script = existingScript || document.createElement('script');
+
+    const handleLoad = () => {
+      if (window.grecaptcha) resolve(window.grecaptcha);
+      else reject(new Error('reCAPTCHA tidak tersedia.'));
+    };
+
+    script.addEventListener('load', handleLoad, { once: true });
+    script.addEventListener('error', reject, { once: true });
+
+    if (!existingScript) {
+      script.id = SCRIPT_ID;
+      script.src = 'https://www.google.com/recaptcha/api.js?render=explicit&hl=id';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+  });
+}
 
 export default function Captcha({ onVerify, onExpire, error, disabled, resetTrigger }) {
   const containerRef = useRef(null);
@@ -11,89 +36,47 @@ export default function Captcha({ onVerify, onExpire, error, disabled, resetTrig
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    let isMounted = true;
+    let active = true;
 
-    const setupRecaptcha = async () => {
+    (async () => {
       let siteKey = DEFAULT_TEST_SITE_KEY;
-
       try {
         const fetchedKey = await authApi.getRecaptchaSiteKey();
-        if (fetchedKey && fetchedKey !== 'your_recaptcha_site_key') {
-          siteKey = fetchedKey;
-        }
+        if (fetchedKey && fetchedKey !== 'your_recaptcha_site_key') siteKey = fetchedKey;
       } catch {
-        siteKey = DEFAULT_TEST_SITE_KEY;
+        // Gunakan kunci pengujian saat API belum tersedia.
       }
 
-      if (!isMounted) return;
+      try {
+        const grecaptcha = await loadRecaptchaScript();
+        if (!active || !containerRef.current) return;
 
-      const renderCheckbox = () => {
-        if (!containerRef.current || !window.grecaptcha || !window.grecaptcha.render) return;
+        grecaptcha.ready(() => {
+          if (!active || !containerRef.current || containerRef.current.hasChildNodes()) {
+            if (containerRef.current?.hasChildNodes()) setIsLoaded(true);
+            return;
+          }
 
-        if (containerRef.current.hasChildNodes()) {
-          setIsLoaded(true);
-          return;
-        }
-
-        try {
-          const id = window.grecaptcha.render(containerRef.current, {
-            sitekey: siteKey,
-            callback: (token) => {
-              if (onVerify) onVerify(token);
-            },
-            'expired-callback': () => {
-              if (onExpire) onExpire();
-            },
-            'error-callback': () => {
-              // Jika token pengujian di backend lokal, sediakan bypass token
-              if (onVerify) onVerify('test-token-valid');
-            },
-            hl: 'id', // Bahasa Indonesia
-          });
-
-          widgetIdRef.current = id;
-          setIsLoaded(true);
-        } catch (err) {
-          console.warn('reCAPTCHA render info:', err);
-        }
-      };
-
-      const scriptId = 'google-recaptcha-v2-script';
-      if (!window.grecaptcha) {
-        const existingScript = document.getElementById(scriptId);
-        if (!existingScript) {
-          const script = document.createElement('script');
-          script.id = scriptId;
-          script.src = 'https://www.google.com/recaptcha/api.js?render=explicit&hl=id';
-          script.async = true;
-          script.defer = true;
-          script.onload = () => {
-            if (window.grecaptcha) {
-              window.grecaptcha.ready(renderCheckbox);
-            }
-          };
-          script.onerror = () => {
-            if (isMounted) {
-              setLoadError('Gagal memuat reCAPTCHA. Pastikan koneksi internet aktif.');
-            }
-          };
-          document.head.appendChild(script);
-        } else {
-          existingScript.addEventListener('load', () => {
-            if (window.grecaptcha) {
-              window.grecaptcha.ready(renderCheckbox);
-            }
-          });
-        }
-      } else {
-        window.grecaptcha.ready(renderCheckbox);
+          try {
+            widgetIdRef.current = grecaptcha.render(containerRef.current, {
+              sitekey: siteKey,
+              callback: onVerify,
+              'expired-callback': onExpire,
+              'error-callback': () => onVerify?.('test-token-valid'),
+              hl: 'id',
+            });
+            setIsLoaded(true);
+          } catch (renderError) {
+            console.warn('reCAPTCHA render info:', renderError);
+          }
+        });
+      } catch {
+        if (active) setLoadError('Gagal memuat reCAPTCHA. Pastikan koneksi internet aktif.');
       }
-    };
-
-    setupRecaptcha();
+    })();
 
     return () => {
-      isMounted = false;
+      active = false;
     };
   }, []);
 
@@ -101,9 +84,9 @@ export default function Captcha({ onVerify, onExpire, error, disabled, resetTrig
     if (resetTrigger && widgetIdRef.current !== null && window.grecaptcha) {
       try {
         window.grecaptcha.reset(widgetIdRef.current);
-        if (onExpire) onExpire();
-      } catch (err) {
-        console.warn('reCAPTCHA reset info:', err);
+        onExpire?.();
+      } catch (resetError) {
+        console.warn('reCAPTCHA reset info:', resetError);
       }
     }
   }, [resetTrigger]);
