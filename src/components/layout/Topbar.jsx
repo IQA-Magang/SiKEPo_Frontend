@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, User, ChevronDown, LogOut, Menu, Settings, QrCode } from 'lucide-react';
+import { Search, User, ChevronDown, LogOut, Menu, Settings } from 'lucide-react';
 import { getCurrentUser, authApi } from '../../utils/api.js';
 import NotificationBell from '../NotificationBell.jsx';
-import QRScannerModal from '../QRScannerModal.jsx';
+
 import { useToast } from '../../context/ToastContext.jsx';
 import { useConfirm } from '../../context/ConfirmContext.jsx';
 
 export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSearch }) {
   const [profileOpen, setProfileOpen] = useState(false);
-  const [isQrOpen, setIsQrOpen] = useState(false);
+
   const [user, setUser] = useState(getCurrentUser);
   const [searchVal, setSearchVal] = useState('');
   const profileRef = useRef(null);
@@ -102,19 +102,10 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
 
       {/* Topbar Right */}
       <div className="topbar-right">
-        {/* Tombol Scan QR Code by ID */}
-        <button
-          className="topbar-qr-btn"
-          onClick={() => setIsQrOpen(true)}
-          title="Scan Kode QR Peralatan"
-          id="btn-topbar-scan-qr"
-        >
-          <QrCode size={15} />
-          <span className="topbar-btn-text">Scan QR</span>
-        </button>
+
 
         {/* Live Notification Bell */}
-        <NotificationBell onNavigate={onNavigate} />
+        {user?.role === 'manager' && <NotificationBell onNavigate={onNavigate} />}
 
         <div className="profile-wrapper" ref={profileRef}>
           <button
@@ -165,12 +156,7 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
         </div>
       </div>
 
-      {/* Modal Pemindai QR Code */}
-      <QRScannerModal
-        isOpen={isQrOpen}
-        onClose={() => setIsQrOpen(false)}
-        onNavigate={onNavigate}
-      />
+
     </header>
   );
 }

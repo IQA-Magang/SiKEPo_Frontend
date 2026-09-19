@@ -6,12 +6,19 @@ import {
   Box,
   Layers,
   CheckCircle2,
-  ArrowRight,
   RefreshCw,
   FileCheck,
   Edit3,
+  ArrowRight,
 } from 'lucide-react';
-import { getCurrentUser, getEquipmentCategoryId, kategoriPeralatanApi, peralatanApi } from '../../utils/api.js';
+import {
+  getCurrentUser,
+  getEquipmentCategoryId,
+  kategoriPeralatanApi,
+  peralatanApi,
+  STATUS_ALAT_OPTIONS,
+  STATUS_BADGE_CLASS,
+} from '../../utils/api.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { getUserRole } from '../../utils/permissions.js';
 
@@ -113,16 +120,16 @@ export default function CategoryManagement({ onNavigate }) {
   async function loadData() {
     setLoading(true);
     try {
-      const [categoryRes, equipmentRes] = await Promise.all([
-        kategoriPeralatanApi.getAll(),
-        peralatanApi.getAll(),
-      ]);
+      const categoryRes = await kategoriPeralatanApi.getAll();
+      const equipmentRes = canEditEquipment ? await peralatanApi.getAll() : { data: [] };
       const categoryData = categoryRes.data || [];
       const items = equipmentRes.data || [];
-      const tally = {};
+      const tally = { 1: 0, 2: 0, 3: 0, 4: 0 };
       items.forEach((item) => {
         const kId = getEquipmentCategoryId(item);
-        if (tally[kId] !== undefined) tally[kId]++;
+        if (kId) {
+          tally[kId] = (tally[kId] || 0) + 1;
+        }
       });
 
       setCategories(categoryData);
@@ -313,7 +320,7 @@ export default function CategoryManagement({ onNavigate }) {
                     <td><code>{item.nomor_aset || '-'}</code></td>
                     <td>{item.nama_peralatan || '-'}</td>
                     <td>{[item.merek, item.tipe_model].filter(Boolean).join(' / ') || '-'}</td>
-                    <td><span className="badge badge-gray">{item.status_alat || '-'}</span></td>
+                    <td><span className={`badge ${STATUS_BADGE_CLASS[item.status_alat] || 'badge-gray'}`}>{item.status_alat || '-'}</span></td>
                     <td>{canEditEquipment && <button className="btn btn-ghost btn-sm" onClick={() => setEditing({ ...item })}><Edit3 size={14} /> Edit</button>}</td>
                   </tr>
                 ))}</tbody>
@@ -333,7 +340,11 @@ export default function CategoryManagement({ onNavigate }) {
                 <div className="form-group"><label className="form-label">Merek</label><input className="form-input" value={editing.merek || ''} onChange={(event) => setEditing({ ...editing, merek: event.target.value })} /></div>
                 <div className="form-group"><label className="form-label">Tipe / Model</label><input className="form-input" value={editing.tipe_model || ''} onChange={(event) => setEditing({ ...editing, tipe_model: event.target.value })} /></div>
                 <div className="form-group"><label className="form-label">Nomor Seri</label><input className="form-input" value={editing.nomor_seri || ''} onChange={(event) => setEditing({ ...editing, nomor_seri: event.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Status</label><select className="form-select" value={editing.status_alat || ''} onChange={(event) => setEditing({ ...editing, status_alat: event.target.value })}><option>Karantina</option><option>Aktif</option><option>Dipinjam</option><option>Dalam Kalibrasi</option><option>Rusak</option><option>Dihapuskan</option></select></div>
+                <div className="form-group"><label className="form-label">Status</label><select className="form-select" value={editing.status_alat || ''} onChange={(event) => setEditing({ ...editing, status_alat: event.target.value })}>
+                  {STATUS_ALAT_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select></div>
               </div>
               <div className="form-group"><label className="form-label">Keterangan</label><textarea className="form-textarea" value={editing.keterangan || ''} onChange={(event) => setEditing({ ...editing, keterangan: event.target.value })} /></div>
             </div>

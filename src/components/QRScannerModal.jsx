@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { QrCode, Camera, Upload, X, Search, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import { QrCode, Camera, Upload, X, CheckCircle, AlertCircle, Search, ArrowRight } from 'lucide-react';
 import jsQR from 'jsqr';
 import { getEquipmentId, peralatanApi } from '../utils/api.js';
 

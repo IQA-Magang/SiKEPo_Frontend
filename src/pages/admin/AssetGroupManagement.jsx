@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FolderKanban, Plus, Pencil, Trash2, X, RefreshCw, Building2, Shield } from 'lucide-react';
+import { FolderKanban, Plus, Pencil, Trash2, X, RefreshCw, Building2 } from 'lucide-react';
 import { kelompokAssetApi, labsApi, usersApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import { useToast } from '../../context/ToastContext.jsx';

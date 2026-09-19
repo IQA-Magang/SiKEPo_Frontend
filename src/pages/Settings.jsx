@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import {
-  User, Shield, KeyRound, Check, AlertCircle,
-  Building, Server, LogOut, CheckCircle2, Users, FileText
+  User, Shield, KeyRound, AlertCircle,
+  LogOut, Users, Server, CheckCircle2, Check
 } from 'lucide-react';
-import { getCurrentUser, usersApi, authApi, API_BASE } from '../utils/api.js';
+import { getCurrentUser, usersApi } from '../utils/api.js';
 import UserManagement from './admin/UserManagement.jsx';
 
 export default function Settings({ onNavigate }) {

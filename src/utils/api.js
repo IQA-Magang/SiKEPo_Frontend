@@ -351,30 +351,40 @@ export const peralatanApi = {
 // =============================================================
 export const kategoriPeralatanApi = {
   getAll: () => fetchWithAuth('/api/kategori-peralatan/'),
+  getById: (id) => fetchWithAuth(`/api/kategori-peralatan/${id}`),
+  create: (body) =>
+    fetchWithAuth('/api/kategori-peralatan/', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id, body) =>
+    fetchWithAuth(`/api/kategori-peralatan/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  delete: (id) => fetchWithAuth(`/api/kategori-peralatan/${id}`, { method: 'DELETE' }),
 };
 
 // =============================================================
-// VERIFIKASI  — /api/verifikasi
+// VERIFIKASI PERALATAN — /api/verifikasi
 // =============================================================
 export const verifikasiApi = {
   getAll: () => fetchWithAuth('/api/verifikasi/'),
   getPengajuan: () => fetchWithAuth('/api/verifikasi/pengajuan'),
+  getLogPeninjauan: () => fetchWithAuth('/api/verifikasi/log-peninjauan'),
+  getLogByPeralatanId: (peralatanId) =>
+    fetchWithAuth(`/api/verifikasi/log-peninjauan/peralatan/${peralatanId}`),
+  getByPeralatanId: (peralatanId) =>
+    fetchWithAuth(`/api/verifikasi/peralatan/${peralatanId}`),
   getById: (id) => fetchWithAuth(`/api/verifikasi/${id}`),
-  getByPeralatanId: (id) => fetchWithAuth(`/api/verifikasi/peralatan/${id}`),
-  getLogs: () => fetchWithAuth('/api/verifikasi/log-peninjauan'),
-  create: (body) => fetchWithAuth('/api/verifikasi/', { method: 'POST', body: JSON.stringify(body) }),
-  signPic: (id, signature) => fetchWithAuth(`/api/verifikasi/${id}/sign-pic`, {
-    method: 'PUT',
-    body: JSON.stringify({ signature }),
-  }),
-  approve: (id, signature) => fetchWithAuth(`/api/verifikasi/${id}/approve`, {
-    method: 'PUT',
-    body: JSON.stringify({ signature }),
-  }),
-  reject: (id, alasan, catatan) => fetchWithAuth(`/api/verifikasi/${id}/reject`, {
-    method: 'PUT',
-    body: JSON.stringify({ alasan, catatan }),
-  }),
+  create: (body) =>
+    fetchWithAuth('/api/verifikasi/', { method: 'POST', body: JSON.stringify(body) }),
+  signPic: (id, signature) =>
+    fetchWithAuth(`/api/verifikasi/${id}/sign-pic`, {
+      method: 'PUT', body: JSON.stringify({ signature }),
+    }),
+  approve: (id, signature) =>
+    fetchWithAuth(`/api/verifikasi/${id}/approve`, {
+      method: 'PUT', body: JSON.stringify({ signature }),
+    }),
+  reject: (id, body) =>
+    fetchWithAuth(`/api/verifikasi/${id}/reject`, {
+      method: 'PUT', body: JSON.stringify(body),
+    }),
   delete: (id) => fetchWithAuth(`/api/verifikasi/${id}`, { method: 'DELETE' }),
 };
 
@@ -412,5 +422,14 @@ export const notificationApi = {
 
 
 export const STATUS_ALAT_OPTIONS = [
-  'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak', 'Dihapuskan'
+  'Karantina', 'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak', 'Dihapuskan'
 ];
+
+export const STATUS_BADGE_CLASS = {
+  'Aktif': 'badge-aktif',
+  'Dipinjam': 'badge-dipinjam',
+  'Dalam Kalibrasi': 'badge-kalibrasi',
+  'Rusak': 'badge-rusak',
+  'Dihapuskan': 'badge-dihapuskan',
+  'Karantina': 'badge-rusak',
+};

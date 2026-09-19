@@ -14,7 +14,7 @@ import {
 import { ToastProvider, useToast } from './context/ToastContext.jsx';
 import { ConfirmProvider } from './context/ConfirmContext.jsx';
 import { getToken } from './utils/api.js';
-import { ACCESS, ACTIONS } from './utils/permissions.js';
+import { ACCESS } from './utils/permissions.js';
 
 // Pages
 import Login from './pages/Login.jsx';
@@ -23,7 +23,6 @@ import EquipmentList from './pages/equipment/EquipmentList.jsx';
 import EquipmentDetail from './pages/equipment/EquipmentDetail.jsx';
 import EquipmentCreate from './pages/equipment/EquipmentCreate.jsx';
 import EquipmentQrPage from './pages/equipment/EquipmentQrPage.jsx';
-import Verification from './pages/Verification.jsx';
 import UserManagement from './pages/admin/UserManagement.jsx';
 import LabsManagement from './pages/admin/LabsManagement.jsx';
 import RuanganManagement from './pages/admin/RuanganManagement.jsx';
@@ -32,6 +31,7 @@ import CategoryManagement from './pages/admin/CategoryManagement.jsx';
 import Settings from './pages/Settings.jsx';
 import NotFound from './pages/NotFound.jsx';
 import Forbidden from './pages/Forbidden.jsx';
+import VerificationManagement from './pages/VerificationManagement.jsx';
 
 // Wrapper for parameterized Equipment Detail
 function EquipmentDetailRoute() {
@@ -45,6 +45,17 @@ function EquipmentQrRoute() {
   const { id } = useParams();
   const navigate = useNavigate();
   return <EquipmentQrPage equipmentId={id} onNavigate={navigate} />;
+}
+
+function VerificationRoute() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  return <VerificationManagement equipmentId={id} onNavigate={navigate} />;
+}
+
+function EquipmentLifecycleRoute({ lifecycle }) {
+  const navigate = useNavigate();
+  return <EquipmentList onNavigate={navigate} initialLifecycle={lifecycle} />;
 }
 
 // Global Event Listener for API Auth & Forbidden Notifications
@@ -161,7 +172,7 @@ function AppContent() {
         <Route
           path="/peralatan/tambah"
           element={
-            <ProtectedRoute feature={ACCESS.INPUT_EQUIPMENT} action={ACTIONS.ADD}>
+            <ProtectedRoute feature={ACCESS.INPUT_EQUIPMENT}>
               <EquipmentCreate onNavigate={navigate} />
             </ProtectedRoute>
           }
@@ -182,13 +193,23 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+        <Route path="/peralatan/menunggu-verifikasi" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="pending" /></ProtectedRoute>} />
+        <Route path="/peralatan/dalam-peninjauan" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="review" /></ProtectedRoute>} />
+        <Route path="/peralatan/arsip" element={<ProtectedRoute feature={ACCESS.MASTER_EQUIPMENT}><EquipmentLifecycleRoute lifecycle="archived" /></ProtectedRoute>} />
 
-        {/* Verification Routes */}
         <Route
           path="/verifikasi"
           element={
-            <ProtectedRoute feature={ACCESS.DIGITAL_CHECK_FORM}>
-              <Verification onNavigate={navigate} />
+            <ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}>
+              <VerificationManagement onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/verifikasi/:id"
+          element={
+            <ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}>
+              <VerificationRoute />
             </ProtectedRoute>
           }
         />
@@ -205,7 +226,7 @@ function AppContent() {
         <Route
           path="/admin/labs"
           element={
-            <ProtectedRoute roles={['admin']}>
+            <ProtectedRoute feature={ACCESS.MASTER_LAB}>
               <LabsManagement onNavigate={navigate} />
             </ProtectedRoute>
           }
@@ -213,7 +234,7 @@ function AppContent() {
         <Route
           path="/admin/ruangan"
           element={
-            <ProtectedRoute roles={['admin']}>
+            <ProtectedRoute feature={ACCESS.MASTER_EQUIPMENT}>
               <RuanganManagement onNavigate={navigate} />
             </ProtectedRoute>
           }
@@ -221,7 +242,7 @@ function AppContent() {
         <Route
           path="/admin/kelompok-aset"
           element={
-            <ProtectedRoute roles={['admin']}>
+            <ProtectedRoute feature={ACCESS.MASTER_EQUIPMENT}>
               <AssetGroupManagement onNavigate={navigate} />
             </ProtectedRoute>
           }
@@ -239,7 +260,7 @@ function AppContent() {
         <Route
           path="/settings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute feature={ACCESS.SYSTEM_SETTINGS}>
               <Settings onNavigate={navigate} />
             </ProtectedRoute>
           }

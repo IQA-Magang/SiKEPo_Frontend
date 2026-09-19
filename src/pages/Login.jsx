@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, HelpCircle, KeyRound, X, Mail, Phone } from 'lucide-react';
+import { Eye, EyeOff, HelpCircle, X, Mail, Phone } from 'lucide-react';
 import WaveBackground from '../components/WaveBackground.jsx';
 import LogoSiKEPo from '../components/LogoSiKEPo.jsx';
 import TelkomTestHouseLogo from '../components/TelkomTestHouseLogo.jsx';

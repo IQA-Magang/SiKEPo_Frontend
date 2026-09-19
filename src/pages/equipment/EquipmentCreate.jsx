@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle, Package, Upload, FileText, Trash2, Plus, Info, Layers, UserCheck, ShieldCheck, HardDrive } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Package, Upload, FileText, Trash2, Info, Layers, CheckCircle, Plus, HardDrive, UserCheck, ShieldCheck } from 'lucide-react';
 import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, usersApi, getCurrentUser, STATIC_EQUIPMENT_CATEGORIES } from '../../utils/api.js';
 
 // Langkah-langkah stepper
@@ -368,7 +368,9 @@ export default function EquipmentCreate({ onNavigate }) {
         await dokumenApi.upload(equipmentId, file);
       }
 
-      setSuccess({ nomor_aset: res.nomor_aset || res.data?.nomor_aset, id: equipmentId });
+      // Peralatan baru berstatus Karantina dan harus melewati verifikasi awal
+      // sebelum diproses sebagai inventaris aktif.
+      onNavigate(`/verifikasi/${equipmentId}`);
     } catch (err) {
       setError(err.message || 'Gagal menyimpan peralatan.');
     } finally {

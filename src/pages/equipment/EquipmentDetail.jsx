@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ArrowLeft, QrCode, Upload, FileText, Download, Eye } from 'lucide-react';
-import { fetchBlobWithAuth, peralatanApi, dokumenApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, API_BASE } from '../../utils/api.js';
-import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
+import { Package, ArrowLeft, Upload, FileText, Download, QrCode } from 'lucide-react';
+import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, formatPhotoUrl, getEquipmentId, STATUS_BADGE_CLASS } from '../../utils/api.js';
 
 // ------------------------------------------------------------------
 // Halaman Detail Peralatan
@@ -13,12 +12,17 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg]             = useState('');
   const [qrSrc, setQrSrc]         = useState('');
+  const [reviewLogs, setReviewLogs] = useState([]);
 
   useEffect(() => {
     loadData();
   }, [equipmentId]);
 
   useEffect(() => {
+    if (!peralatan || peralatan.status_verifikasi !== 'Disetujui') {
+      setQrSrc('');
+      return undefined;
+    }
     let objectUrl = '';
     async function loadQr() {
       try {
@@ -33,21 +37,23 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [equipmentId]);
+  }, [equipmentId, peralatan]);
 
   async function loadData() {
     setLoading(true);
     try {
       // Ambil dari daftar semua (backend belum punya GET /api/peralatan/:id)
-      const [allRes, docRes] = await Promise.allSettled([
+      const [allRes, docRes, reviewRes] = await Promise.allSettled([
         peralatanApi.getAll(),
         dokumenApi.getByPeralatanId(equipmentId),
+        verifikasiApi.getLogByPeralatanId(equipmentId),
       ]);
       if (allRes.status === 'fulfilled') {
         const found = (allRes.value.data || []).find((p) => String(getEquipmentId(p)) === String(equipmentId));
         setPeralatan(found || null);
       }
       if (docRes.status === 'fulfilled') setDokumen(docRes.value.data || []);
+      if (reviewRes.status === 'fulfilled') setReviewLogs(reviewRes.value.data || []);
     } finally {
       setLoading(false);
     }
@@ -91,15 +97,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
 
   const photoUrl = formatPhotoUrl(peralatan.foto);
   const canonicalEquipmentId = getEquipmentId(peralatan);
-  const canEditEquipment = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.EDIT);
-
-  const statusClass = {
-    'Aktif':           'badge-aktif',
-    'Dipinjam':        'badge-dipinjam',
-    'Dalam Kalibrasi': 'badge-kalibrasi',
-    'Rusak':           'badge-rusak',
-    'Dihapuskan':      'badge-dihapuskan',
-  };
+  const isVerified = peralatan.status_verifikasi === 'Disetujui';
 
   async function handleDownloadQR() {
     const imgEl = document.getElementById(`qr-img-${canonicalEquipmentId}`);
@@ -155,16 +153,93 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
             <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', wordBreak: 'break-all' }}>
               {peralatan.nomor_aset}
             </code>
-            <span className={`badge ${statusClass[peralatan.status_alat] || 'badge-gray'}`}>
+            <span className={`badge ${STATUS_BADGE_CLASS[peralatan.status_alat] || 'badge-gray'}`}>
               {peralatan.status_alat}
+            </span>
+            <span className={`badge ${isVerified ? 'badge-aktif' : peralatan.status_verifikasi === 'Ditolak' ? 'badge-rusak' : 'badge-gray'}`}>
+              Verifikasi: {peralatan.status_verifikasi || 'Belum Diverifikasi'}
             </span>
           </p>
         </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}`)}
+            title="Buka form verifikasi peralatan (TLKM13/IK/003)"
+          >
+            {peralatan.status_verifikasi === 'Ditolak' ? 'Ajukan Verifikasi Ulang' : 'Verifikasi / Periksa'}
+          </button>
+        </div>
       </div>
+
+      {!isVerified && <div className="alert alert-warning" style={{ marginBottom: 'var(--sp-5)' }}>
+        <strong>{peralatan.status_verifikasi === 'Ditolak' ? 'Peralatan dalam peninjauan.' : 'Menunggu verifikasi.'}</strong> {peralatan.status_verifikasi === 'Ditolak' ? 'Alat tidak layak digunakan hingga tindak lanjut selesai dan verifikasi ulang dilakukan.' : 'Alat berstatus karantina dan tidak dapat digunakan atau diproses dengan QR sebelum Manager Lab menyetujui verifikasi.'}
+        <button className="btn btn-primary btn-sm" style={{ marginLeft: 12 }} onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}`)}>{peralatan.status_verifikasi === 'Ditolak' ? 'Ajukan Verifikasi Ulang (IK/003)' : 'Buka Verifikasi'}</button>
+      </div>}
 
       <div className="equipment-detail-layout">
         {/* Kiri: Detail */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
+          {/* Riwayat Peninjauan Ketidaksesuaian (TLKM13/IK/012) */}
+          {(reviewLogs.length > 0 || peralatan.status_verifikasi === 'Ditolak') && (
+            <div className="card card-padded" style={{ borderLeft: '4px solid #ef4444' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--sp-3)', flexWrap: 'wrap', gap: 8 }}>
+                <div>
+                  <h2 className="section-title" style={{ margin: 0 }}>Riwayat Peninjauan (TLKM13/IK/012)</h2>
+                  <p className="page-subtitle" style={{ margin: '4px 0 0', fontSize: 'var(--text-xs)' }}>
+                    Catatan evaluasi ketidaksesuaian dan penolakan verifikasi Manager Lab.
+                  </p>
+                </div>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}`)}
+                >
+                  Ajukan Verifikasi Ulang
+                </button>
+              </div>
+
+              {reviewLogs.length === 0 ? (
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-500)', fontStyle: 'italic', margin: 0 }}>
+                  Peralatan berstatus Ditolak dalam peninjauan. Sesuai alur IK/012, peralatan berstatus Karantina hingga perbaikan (IK/013) selesai dan verifikasi ulang diajukan.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+                  {reviewLogs.map((log, idx) => (
+                    <div
+                      key={log.id_log || idx}
+                      style={{
+                        padding: 'var(--sp-3)',
+                        background: 'var(--clr-dark-50, #f8fafc)',
+                        borderRadius: 'var(--radius-md, 6px)',
+                        border: '1px solid var(--clr-dark-200, #e2e8f0)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span className="badge badge-rusak">{log.status || 'Ditolak'}</span>
+                          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--fw-semibold)', color: 'var(--clr-dark-700)' }}>
+                            Peninjau: {log.manager?.nama_lengkap || log.manager?.nama || 'Manager Lab'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
+                          {formatDate(log.created_at)}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 'var(--text-sm)', marginBottom: 4 }}>
+                        <strong>Alasan Ketidaksesuaian:</strong> {log.alasan || '–'}
+                      </div>
+                      {log.catatan && (
+                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>
+                          <strong>Catatan Tindak Lanjut:</strong> {log.catatan}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Info Umum */}
           <div className="card card-padded">
             <h2 className="section-title">Informasi Umum</h2>
@@ -344,8 +419,8 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
             </div>}
           </div>
 
-          {/* QR Code */}
-          <div className="card card-padded">
+          {/* QR Code hanya tersedia setelah alat disetujui masuk inventaris */}
+          {isVerified && <div className="card card-padded">
             <h2 className="section-title">QR Code (by ID)</h2>
             <div className="qr-container">
               <img
@@ -376,7 +451,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
                 <Download size={14} /> Unduh QR
               </button>
             </div>
-          </div>
+          </div>}
         </div>
       </div>
     </div>

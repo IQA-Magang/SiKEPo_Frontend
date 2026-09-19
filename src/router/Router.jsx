@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { getToken, getCurrentUser } from '../utils/api.js';
-import { can, canAny, getUserRole } from '../utils/permissions.js';
+import { can, getUserRole } from '../utils/permissions.js';
 import Forbidden from '../pages/Forbidden.jsx';
 
 const RouterContext = createContext(null);

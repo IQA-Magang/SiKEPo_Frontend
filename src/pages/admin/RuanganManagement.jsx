@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DoorOpen, Plus, Pencil, Trash2, X, RefreshCw, Building2, Shield, Layers } from 'lucide-react';
+import { DoorOpen, Plus, Pencil, Trash2, X, RefreshCw, Building2, Layers } from 'lucide-react';
 import { ruanganApi, labsApi, usersApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import { useToast } from '../../context/ToastContext.jsx';

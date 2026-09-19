@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Pencil, Trash2, X, RefreshCw, UserCheck, Shield } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, RefreshCw, UserCheck, Building2 } from 'lucide-react';
 import { labsApi, usersApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -55,9 +55,8 @@ export default function LabsManagement({ onNavigate }) {
 
       if (usersRes.status === 'fulfilled') {
         const allUsers = usersRes.value.data || [];
-        // Filter users who are managers or have managerial roles
-        const mgrs = allUsers.filter((u) => u.role === 'manager' || u.role === 'admin');
-        setManagers(mgrs.length > 0 ? mgrs : allUsers);
+        const managerUsers = allUsers.filter((u) => u.role === 'manager');
+        setManagers(managerUsers.length > 0 ? managerUsers : allUsers);
       }
     } catch (err) {
       setError(err.message);

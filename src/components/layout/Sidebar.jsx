@@ -114,9 +114,9 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
               defaultOpen={isManajemenAlatActive}
             >
               <NavItem label="Peralatan" path="/peralatan" feature={ACCESS.MASTER_EQUIPMENT} />
-              {/* <NavItem label="Peminjaman" path="/peminjaman" feature={ACCESS.LOAN_REQUEST} disabled /> */}
-              <NavItem label="Verifikasi" path="/verifikasi" feature={ACCESS.DIGITAL_CHECK_FORM} />
-              <NavItem label="Peninjauan Peralatan" path="/peninjauan-peralatan" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />
+              <NavItem label="Verifikasi Peralatan" path="/verifikasi" feature={ACCESS.EQUIPMENT_ELIGIBILITY} />
+              <NavItem label="Peminjaman" path="/peminjaman" feature={ACCESS.LOAN_REQUEST} disabled />
+              <NavItem label="Peninjauan Peralatan" path="/peralatan/dalam-peninjauan" feature={ACCESS.EQUIPMENT_ELIGIBILITY} />
               <NavItem label="Peralatan Usang" path="/peralatan-usang" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />
               <NavItem label="Perbaikan" path="/perbaikan" feature={ACCESS.EQUIPMENT_USAGE} disabled />
             </NavGroup>
@@ -138,9 +138,9 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
                 defaultOpen={isPengaturanActive}
               >
                 <NavItem label="Kelompok Peralatan" path="/admin/kategori" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin', 'manager']} />
-                <NavItem label="Kelompok Lab" path="/admin/labs" feature={ACCESS.MASTER_LAB} roles={['admin']} />
-                <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin']} />
-                <NavItem label="Kelompok Lokasi" path="/admin/ruangan" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin']} />
+                <NavItem label="Kelompok Lab" path="/admin/labs" feature={ACCESS.MASTER_LAB} roles={['admin', 'manager']} />
+                <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin', 'manager']} />
+                <NavItem label="Kelompok Lokasi" path="/admin/ruangan" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin', 'manager']} />
               </NavGroup>
             )}
           </nav>

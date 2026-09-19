@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Building2, DoorOpen, Users, FolderKanban, Plus, ArrowRight, Bell, RefreshCw } from 'lucide-react';
-import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi } from '../utils/api.js';
+import { Package, Building2, DoorOpen, Users, FolderKanban, Plus, ArrowRight, Bell, RefreshCw, QrCode } from 'lucide-react';
+import QRScannerModal from '../components/QRScannerModal.jsx';
+import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi, STATUS_BADGE_CLASS } from '../utils/api.js';
 
 // ------------------------------------------------------------------
 // Dashboard: tampilan berbeda berdasarkan role
@@ -35,6 +36,7 @@ function AdminDashboard({ onNavigate, user }) {
   });
   const [latestPeralatan, setLatestPeralatan] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isQrOpen, setIsQrOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -153,6 +155,54 @@ function AdminDashboard({ onNavigate, user }) {
           <div className="stat-footer">
             <span className="stat-sub">Ruang uji ISO/IEC 17025 &rarr;</span>
           </div>
+        </div>
+      </div>
+
+      {/* QR Scanner Card */}
+      <div
+        className="card card-padded"
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--sp-4)' }}
+        onClick={() => setIsQrOpen(true)}
+        id="card-scan-qr"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 'var(--radius-xl)',
+              background: 'linear-gradient(135deg, var(--clr-primary-600), var(--clr-primary-500))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              flexShrink: 0,
+            }}
+          >
+            <QrCode size={22} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 'var(--fw-bold)', fontSize: 'var(--text-sm)', color: 'var(--clr-dark-900)' }}>
+              Scan QR Code Peralatan
+            </div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginTop: 2 }}>
+              Pindai kode QR untuk langsung membuka detail peralatan
+            </div>
+          </div>
+        </div>
+        <div
+          style={{
+            padding: '6px 16px',
+            background: 'var(--clr-primary-600)',
+            color: '#fff',
+            borderRadius: 'var(--radius-full)',
+            fontSize: 'var(--text-xs)',
+            fontWeight: 'var(--fw-semibold)',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
+        >
+          Buka Scanner
         </div>
       </div>
 
@@ -294,6 +344,11 @@ function AdminDashboard({ onNavigate, user }) {
           </div>
         )}
       </div>
+      <QRScannerModal
+        isOpen={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        onNavigate={onNavigate}
+      />
     </>
   );
 }
@@ -309,18 +364,18 @@ function ManagerDashboard({ onNavigate, user }) {
   useEffect(() => {
     async function load() {
       try {
-        const [p, n] = await Promise.allSettled([
-          peralatanApi.getAll(),
+        const [n, p] = await Promise.allSettled([
           notificationApi.getByUserId(user?.user_id),
+          peralatanApi.getAll(),
         ]);
-        if (p.status === 'fulfilled') setPeralatan(p.value.data || []);
         if (n.status === 'fulfilled') setNotifications(n.value.data || []);
+        if (p.status === 'fulfilled') setPeralatan(p.value.data || []);
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [user?.user_id]);
 
   const unread = notifications.filter((n) => !n.is_read);
   const aktif = peralatan.filter((p) => p.status_alat === 'Aktif').length;
@@ -429,10 +484,15 @@ function StaffDashboard({ onNavigate, user }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    peralatanApi.getAll()
-      .then((res) => setPeralatan(res.data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    async function load() {
+      try {
+        const res = await peralatanApi.getAll();
+        setPeralatan(res.data || []);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
 
   return (
@@ -508,15 +568,8 @@ function StaffDashboard({ onNavigate, user }) {
 // Status Badge helper
 // ------------------------------------------------------------------
 function StatusBadge({ status }) {
-  const map = {
-    'Aktif':           'badge-aktif',
-    'Dipinjam':        'badge-dipinjam',
-    'Dalam Kalibrasi': 'badge-kalibrasi',
-    'Rusak':           'badge-rusak',
-    'Dihapuskan':      'badge-dihapuskan',
-  };
   return (
-    <span className={`badge ${map[status] || 'badge-gray'}`}>
+    <span className={`badge ${STATUS_BADGE_CLASS[status] || 'badge-gray'}`}>
       <span className="badge-dot" />
       {status || 'Tidak diketahui'}
     </span>
