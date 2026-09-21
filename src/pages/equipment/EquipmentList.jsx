@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Search, Plus, ChevronRight, RefreshCw } from 'lucide-react';
+import { Package, Search, Plus, ChevronRight, RefreshCw, QrCode } from 'lucide-react';
 import { getEquipmentId, getEquipmentCategoryId, formatPhotoUrl, peralatanApi, STATUS_ALAT_OPTIONS, STATUS_BADGE_CLASS } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 

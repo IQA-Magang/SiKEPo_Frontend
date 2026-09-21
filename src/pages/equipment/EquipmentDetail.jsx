@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Package, ArrowLeft, Upload, FileText, Download, QrCode } from 'lucide-react';
-import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, formatPhotoUrl, getEquipmentId, STATUS_BADGE_CLASS } from '../../utils/api.js';
+import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
+import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
 // ------------------------------------------------------------------
 // Halaman Detail Peralatan
 // ------------------------------------------------------------------
 export default function EquipmentDetail({ equipmentId, onNavigate }) {
+  const canEditEquipment = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.EDIT);
   const [peralatan, setPeralatan] = useState(null);
   const [dokumen, setDokumen]     = useState([]);
   const [loading, setLoading]     = useState(true);
