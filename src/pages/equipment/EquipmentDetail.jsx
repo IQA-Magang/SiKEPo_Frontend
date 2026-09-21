@@ -3,7 +3,7 @@ import { Package, ArrowLeft, Upload, FileText, Download, QrCode } from 'lucide-r
 import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
-// ------------------------------------------------------------------
+// ------------------------------------------------------------------ 123
 // Halaman Detail Peralatan
 // ------------------------------------------------------------------
 export default function EquipmentDetail({ equipmentId, onNavigate }) {
