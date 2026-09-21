@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Package, Upload, FileText, Trash2, Info, Layers, CheckCircle, Plus, HardDrive, UserCheck, ShieldCheck } from 'lucide-react';
 import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, usersApi, getCurrentUser, STATIC_EQUIPMENT_CATEGORIES } from '../../utils/api.js';
+import { useToast } from '../../context/ToastContext.jsx';
 
 // Langkah-langkah stepper
 const STEPS = ['Info Dasar', 'Lokasi & PIC', 'Detail Teknis', 'Dokumen Wajib', 'Konfirmasi'];
@@ -9,6 +10,7 @@ const STEPS = ['Info Dasar', 'Lokasi & PIC', 'Detail Teknis', 'Dokumen Wajib', '
 // Form Tambah Peralatan
 // ------------------------------------------------------------------
 export default function EquipmentCreate({ onNavigate }) {
+  const { success: toastSuccess } = useToast();
   const [step, setStep]       = useState(0);
   const [submitting, setSub]  = useState(false);
   const [success, setSuccess] = useState(null);
@@ -368,9 +370,9 @@ export default function EquipmentCreate({ onNavigate }) {
         await dokumenApi.upload(equipmentId, file);
       }
 
-      // Peralatan baru berstatus Karantina dan harus melewati verifikasi awal
-      // sebelum diproses sebagai inventaris aktif.
-      onNavigate(`/verifikasi/${equipmentId}`);
+      // Peralatan baru berstatus Karantina dan masuk ke daftar verifikasi (menunggu verifikasi)
+      toastSuccess(`Peralatan "${form.nama_peralatan}" berhasil ditambahkan dan masuk ke daftar verifikasi.`);
+      onNavigate('/verifikasi');
     } catch (err) {
       setError(err.message || 'Gagal menyimpan peralatan.');
     } finally {
@@ -975,10 +977,10 @@ export default function EquipmentCreate({ onNavigate }) {
 }
 
 // ------------------------------------------------------------------
-// Detail Teknis per Kategori
+// Komponen Input Stabil untuk Detail Teknis (Module-level agar fokus tidak hilang saat mengetik)
 // ------------------------------------------------------------------
-function DetailTeknis({ form, setField, kategoriId }) {
-  const F = ({ id, label, type = 'text', value, onChange, placeholder }) => (
+function DetailInputField({ id, label, type = 'text', value, onChange, placeholder }) {
+  return (
     <div className="form-group">
       <label className="form-label" htmlFor={id}>
         {label} <span className="required">*</span>
@@ -986,25 +988,30 @@ function DetailTeknis({ form, setField, kategoriId }) {
       <input id={id} type={type} className="form-input" placeholder={placeholder} value={value} onChange={onChange} />
     </div>
   );
+}
 
+// ------------------------------------------------------------------
+// Detail Teknis per Kategori
+// ------------------------------------------------------------------
+function DetailTeknis({ form, setField, kategoriId }) {
   if (kategoriId === 1) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
       <div className="form-grid-2">
-        <F id="d-sertifikat" label="No. Sertifikat Kalibrasi" value={form.no_sertifikat} onChange={(e) => setField('no_sertifikat', e.target.value)} placeholder="CAL-2026-0012" />
-        <F id="d-interval" label="Interval Kalibrasi (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} placeholder="12" />
-        <F id="d-tgl-kalibrasi" label="Tgl. Kalibrasi Terakhir" type="date" value={form.tgl_kalibrasi} onChange={(e) => setField('tgl_kalibrasi', e.target.value)} />
-        <F id="d-tgl-jatuh" label="Tgl. Jatuh Tempo Kalibrasi" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
+        <DetailInputField id="d-sertifikat" label="No. Sertifikat Kalibrasi" value={form.no_sertifikat} onChange={(e) => setField('no_sertifikat', e.target.value)} placeholder="CAL-2026-0012" />
+        <DetailInputField id="d-interval" label="Interval Kalibrasi (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} placeholder="12" />
+        <DetailInputField id="d-tgl-kalibrasi" label="Tgl. Kalibrasi Terakhir" type="date" value={form.tgl_kalibrasi} onChange={(e) => setField('tgl_kalibrasi', e.target.value)} />
+        <DetailInputField id="d-tgl-jatuh" label="Tgl. Jatuh Tempo Kalibrasi" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
       </div>
     </div>
   );
 
   if (kategoriId === 2) return (
     <div className="form-grid-2">
-      <F id="d-fungsi" label="Fungsi / Kegunaan" value={form.fungsi_kegunaan} onChange={(e) => setField('fungsi_kegunaan', e.target.value)} />
-      <F id="d-jenis-pemeriksaan" label="Jenis Pemeriksaan Berkala" value={form.jenis_pemeriksaan_berkala} onChange={(e) => setField('jenis_pemeriksaan_berkala', e.target.value)} />
-      <F id="d-interval-ab" label="Interval (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} />
-      <F id="d-jatuh-ab" label="Tgl. Jatuh Tempo" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
-      <F id="d-tgl-pemeriksaan" label="Tgl. Pemeriksaan Terakhir" type="date" value={form.tgl_pemeriksaan_terakhir} onChange={(e) => setField('tgl_pemeriksaan_terakhir', e.target.value)} />
+      <DetailInputField id="d-fungsi" label="Fungsi / Kegunaan" value={form.fungsi_kegunaan} onChange={(e) => setField('fungsi_kegunaan', e.target.value)} />
+      <DetailInputField id="d-jenis-pemeriksaan" label="Jenis Pemeriksaan Berkala" value={form.jenis_pemeriksaan_berkala} onChange={(e) => setField('jenis_pemeriksaan_berkala', e.target.value)} />
+      <DetailInputField id="d-interval-ab" label="Interval (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} />
+      <DetailInputField id="d-jatuh-ab" label="Tgl. Jatuh Tempo" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
+      <DetailInputField id="d-tgl-pemeriksaan" label="Tgl. Pemeriksaan Terakhir" type="date" value={form.tgl_pemeriksaan_terakhir} onChange={(e) => setField('tgl_pemeriksaan_terakhir', e.target.value)} />
       <div className="form-group" style={{ gridColumn: '1/-1' }}>
         <label className="form-label" htmlFor="d-kriteria">
           Kriteria Pemeriksaan <span className="required">*</span>
@@ -1016,27 +1023,27 @@ function DetailTeknis({ form, setField, kategoriId }) {
 
   if (kategoriId === 3) return (
     <div className="form-grid-2">
-      <F id="d-jenis-aa" label="Jenis / Deskripsi Acuan" value={form.jenis_deskripsi} onChange={(e) => setField('jenis_deskripsi', e.target.value)} />
-      <F id="d-karakteristik" label="Karakteristik yang Diacu" value={form.karakteristik_yang_diacu} onChange={(e) => setField('karakteristik_yang_diacu', e.target.value)} />
-      <F id="d-nilai-spec" label="Nilai Spesifikasi Karakterisasi" value={form.nilai_spesifikasi_karakterisasi} onChange={(e) => setField('nilai_spesifikasi_karakterisasi', e.target.value)} />
-      <F id="d-metode-kar" label="Metode Karakterisasi" value={form.metode_karakterisasi} onChange={(e) => setField('metode_karakterisasi', e.target.value)} />
-      <F id="d-no-laporan" label="No. Laporan Karakterisasi" value={form.no_laporan_karakterisasi} onChange={(e) => setField('no_laporan_karakterisasi', e.target.value)} />
-      <F id="d-tgl-kar" label="Tgl. Karakterisasi Terakhir" type="date" value={form.tgl_karakterisasi_terakhir} onChange={(e) => setField('tgl_karakterisasi_terakhir', e.target.value)} />
-      <F id="d-jatuh-aa" label="Tgl. Jatuh Tempo" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
-      <F id="d-kondisi" label="Kondisi Penyimpanan" value={form.kondisi_penyimpanan} onChange={(e) => setField('kondisi_penyimpanan', e.target.value)} />
+      <DetailInputField id="d-jenis-aa" label="Jenis / Deskripsi Acuan" value={form.jenis_deskripsi} onChange={(e) => setField('jenis_deskripsi', e.target.value)} />
+      <DetailInputField id="d-karakteristik" label="Karakteristik yang Diacu" value={form.karakteristik_yang_diacu} onChange={(e) => setField('karakteristik_yang_diacu', e.target.value)} />
+      <DetailInputField id="d-nilai-spec" label="Nilai Spesifikasi Karakterisasi" value={form.nilai_spesifikasi_karakterisasi} onChange={(e) => setField('nilai_spesifikasi_karakterisasi', e.target.value)} />
+      <DetailInputField id="d-metode-kar" label="Metode Karakterisasi" value={form.metode_karakterisasi} onChange={(e) => setField('metode_karakterisasi', e.target.value)} />
+      <DetailInputField id="d-no-laporan" label="No. Laporan Karakterisasi" value={form.no_laporan_karakterisasi} onChange={(e) => setField('no_laporan_karakterisasi', e.target.value)} />
+      <DetailInputField id="d-tgl-kar" label="Tgl. Karakterisasi Terakhir" type="date" value={form.tgl_karakterisasi_terakhir} onChange={(e) => setField('tgl_karakterisasi_terakhir', e.target.value)} />
+      <DetailInputField id="d-jatuh-aa" label="Tgl. Jatuh Tempo" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
+      <DetailInputField id="d-kondisi" label="Kondisi Penyimpanan" value={form.kondisi_penyimpanan} onChange={(e) => setField('kondisi_penyimpanan', e.target.value)} />
     </div>
   );
 
   if (kategoriId === 4) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
       <div className="form-grid-2">
-        <F id="d-subkat" label="Sub Kategori" value={form.sub_kategori} onChange={(e) => setField('sub_kategori', e.target.value)} />
-        <F id="d-pemasok" label="Sumber / Pemasok" value={form.sumber_pemasok} onChange={(e) => setField('sumber_pemasok', e.target.value)} />
-        <F id="d-lot" label="No. Lot / Batch / Edisi" value={form.no_lot_batch_edisi} onChange={(e) => setField('no_lot_batch_edisi', e.target.value)} />
-        <F id="d-grade" label="Grade Mutu" value={form.grade_mutu} onChange={(e) => setField('grade_mutu', e.target.value)} />
-        <F id="d-satuan-kemasan" label="Satuan Kemasan" value={form.satuan_kemasan} onChange={(e) => setField('satuan_kemasan', e.target.value)} />
-        <F id="d-tgl-terima" label="Tgl. Terima / Terbit" type="date" value={form.tgl_terima_terbit} onChange={(e) => setField('tgl_terima_terbit', e.target.value)} />
-        <F id="d-tgl-kadaluarsa" label="Tgl. Kedaluwarsa" type="date" value={form.tgl_kedaluwarsa} onChange={(e) => setField('tgl_kedaluwarsa', e.target.value)} />
+        <DetailInputField id="d-subkat" label="Sub Kategori" value={form.sub_kategori} onChange={(e) => setField('sub_kategori', e.target.value)} />
+        <DetailInputField id="d-pemasok" label="Sumber / Pemasok" value={form.sumber_pemasok} onChange={(e) => setField('sumber_pemasok', e.target.value)} />
+        <DetailInputField id="d-lot" label="No. Lot / Batch / Edisi" value={form.no_lot_batch_edisi} onChange={(e) => setField('no_lot_batch_edisi', e.target.value)} />
+        <DetailInputField id="d-grade" label="Grade Mutu" value={form.grade_mutu} onChange={(e) => setField('grade_mutu', e.target.value)} />
+        <DetailInputField id="d-satuan-kemasan" label="Satuan Kemasan" value={form.satuan_kemasan} onChange={(e) => setField('satuan_kemasan', e.target.value)} />
+        <DetailInputField id="d-tgl-terima" label="Tgl. Terima / Terbit" type="date" value={form.tgl_terima_terbit} onChange={(e) => setField('tgl_terima_terbit', e.target.value)} />
+        <DetailInputField id="d-tgl-kadaluarsa" label="Tgl. Kedaluwarsa" type="date" value={form.tgl_kedaluwarsa} onChange={(e) => setField('tgl_kedaluwarsa', e.target.value)} />
       </div>
       <div className="form-group">
         <label className="form-label" htmlFor="d-deskripsi-kp">
