@@ -32,6 +32,7 @@ import Settings from './pages/Settings.jsx';
 import NotFound from './pages/NotFound.jsx';
 import Forbidden from './pages/Forbidden.jsx';
 import VerificationManagement from './pages/VerificationManagement.jsx';
+import QRScannerModal from './components/QRScannerModal.jsx';
 
 // Wrapper for parameterized Equipment Detail
 function EquipmentDetailRoute() {
@@ -90,6 +91,7 @@ function GlobalAuthListener() {
 // App Layout Shell (Topbar, Sidebar, Main Content)
 function AppShell({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isQrOpen, setIsQrOpen] = useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
@@ -118,12 +120,19 @@ function AppShell({ children }) {
         currentPath={pathname}
         onNavigate={navigate}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        onScanQr={() => setIsQrOpen(true)}
       />
 
       {/* Konten Halaman Utama */}
       <main className="main-content" id="main-view">
         {children}
       </main>
+
+      <QRScannerModal
+        isOpen={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        onNavigate={navigate}
+      />
     </div>
   );
 }

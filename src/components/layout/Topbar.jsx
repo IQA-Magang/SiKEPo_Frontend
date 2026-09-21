@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, User, ChevronDown, LogOut, Menu, Settings } from 'lucide-react';
+import { Search, User, ChevronDown, LogOut, Menu, Settings, QrCode } from 'lucide-react';
 import { getCurrentUser, authApi } from '../../utils/api.js';
+import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import NotificationBell from '../NotificationBell.jsx';
 
 import { useToast } from '../../context/ToastContext.jsx';
 import { useConfirm } from '../../context/ConfirmContext.jsx';
 
-export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSearch }) {
+export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSearch, onScanQr }) {
   const [profileOpen, setProfileOpen] = useState(false);
 
   const [user, setUser] = useState(getCurrentUser);
@@ -103,6 +104,18 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
       {/* Topbar Right */}
       <div className="topbar-right">
 
+        {can(ACCESS.QR_CODE, ACTIONS.VIEW, user) && (
+          <button
+            className="topbar-qr-btn"
+            onClick={onScanQr}
+            aria-label="Buka scanner QR peralatan"
+            title="Scan QR Peralatan"
+            id="btn-topbar-scan-qr"
+          >
+            <QrCode size={16} />
+            <span className="topbar-btn-text">Scan QR</span>
+          </button>
+        )}
 
         {/* Live Notification Bell */}
         {user?.role === 'manager' && <NotificationBell onNavigate={onNavigate} />}
