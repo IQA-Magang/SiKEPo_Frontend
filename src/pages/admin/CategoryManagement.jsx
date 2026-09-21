@@ -115,6 +115,7 @@ export default function CategoryManagement({ onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [selectedCat, setSelectedCat] = useState(1);
   const [editing, setEditing] = useState(null);
+  const [editingCategory, setEditingCategory] = useState(null);
   const [saving, setSaving] = useState(false);
 
   async function loadData() {
@@ -169,6 +170,24 @@ export default function CategoryManagement({ onNavigate }) {
       success('Data alat ukur berhasil diperbarui.');
     } catch (err) {
       error(err.message || 'Gagal memperbarui alat ukur.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveCategory(event) {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const response = await kategoriPeralatanApi.update(editingCategory.id, {
+        nama_kategori: editingCategory.nama_kategori,
+        description: editingCategory.description,
+      });
+      setCategories((previous) => previous.map((category) => category.id === response.data.id ? response.data : category));
+      setEditingCategory(null);
+      success('Kategori berhasil diperbarui.');
+    } catch (err) {
+      error(err.message || 'Gagal memperbarui kategori.');
     } finally {
       setSaving(false);
     }
@@ -236,6 +255,20 @@ export default function CategoryManagement({ onNavigate }) {
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', margin: 0, lineHeight: 1.4 }}>
                 {cat.description || cat.desc || 'Deskripsi kategori belum tersedia.'}
               </p>
+              {canEditEquipment && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setEditingCategory({ ...cat });
+                  }}
+                  style={{ marginTop: 'var(--sp-3)' }}
+                  title="Edit kategori"
+                >
+                  <Edit3 size={14} /> Edit
+                </button>
+              )}
             </div>
           );
         })}
@@ -305,34 +338,11 @@ export default function CategoryManagement({ onNavigate }) {
           </div>
         </div>
 
-        <div style={{ marginTop: 'var(--sp-6)' }}>
-          <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, margin: '0 0 var(--sp-3)' }}>
-            Daftar {selectedCategory?.nama_kategori || 'Peralatan'} dari Backend
-          </h3>
-          {selectedEquipment.length === 0 ? (
-            <div className="empty-state" style={{ padding: 'var(--sp-5)' }}><p className="empty-state-desc">Belum ada peralatan pada kategori ini.</p></div>
-          ) : (
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead><tr><th>Nomor Aset</th><th>Nama</th><th>Merek / Model</th><th>Status</th><th>Aksi</th></tr></thead>
-                <tbody>{selectedEquipment.map((item) => (
-                  <tr key={item.id}>
-                    <td><code>{item.nomor_aset || '-'}</code></td>
-                    <td>{item.nama_peralatan || '-'}</td>
-                    <td>{[item.merek, item.tipe_model].filter(Boolean).join(' / ') || '-'}</td>
-                    <td><span className={`badge ${STATUS_BADGE_CLASS[item.status_alat] || 'badge-gray'}`}>{item.status_alat || '-'}</span></td>
-                    <td>{canEditEquipment && <button className="btn btn-ghost btn-sm" onClick={() => setEditing({ ...item })}><Edit3 size={14} /> Edit</button>}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          )}
-        </div>
       </div>
 
       {editing && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setEditing(null)}>
-          <form className="modal-card" role="dialog" aria-modal="true" onSubmit={saveEquipment} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-overlay" role="presentation" onClick={() => setEditing(null)}>
+          <form className="modal" role="dialog" aria-modal="true" onSubmit={saveEquipment} onClick={(event) => event.stopPropagation()}>
             <div className="modal-header"><h2 className="modal-title">Edit Alat Ukur</h2><button type="button" className="btn btn-ghost" onClick={() => setEditing(null)}>Tutup</button></div>
             <div className="modal-body">
               <div className="form-group"><label className="form-label">Nama Peralatan</label><input className="form-input" value={editing.nama_peralatan || ''} onChange={(event) => setEditing({ ...editing, nama_peralatan: event.target.value })} required /></div>
@@ -349,6 +359,25 @@ export default function CategoryManagement({ onNavigate }) {
               <div className="form-group"><label className="form-label">Keterangan</label><textarea className="form-textarea" value={editing.keterangan || ''} onChange={(event) => setEditing({ ...editing, keterangan: event.target.value })} /></div>
             </div>
             <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setEditing(null)}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</button></div>
+          </form>
+        </div>
+      )}
+
+      {editingCategory && (
+        <div className="modal-overlay" role="presentation" onClick={() => setEditingCategory(null)}>
+          <form className="modal" role="dialog" aria-modal="true" onSubmit={saveCategory} onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header"><h2 className="modal-title">Edit Kategori</h2><button type="button" className="btn btn-ghost" onClick={() => setEditingCategory(null)}>Tutup</button></div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-category-name">Nama Kategori</label>
+                <input id="edit-category-name" className="form-input" value={editingCategory.nama_kategori || ''} onChange={(event) => setEditingCategory({ ...editingCategory, nama_kategori: event.target.value })} required />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-category-description">Deskripsi</label>
+                <textarea id="edit-category-description" className="form-textarea" value={editingCategory.description || ''} onChange={(event) => setEditingCategory({ ...editingCategory, description: event.target.value })} maxLength={255} />
+              </div>
+            </div>
+            <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setEditingCategory(null)}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</button></div>
           </form>
         </div>
       )}
