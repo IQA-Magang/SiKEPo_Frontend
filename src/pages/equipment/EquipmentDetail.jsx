@@ -8,6 +8,7 @@ import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 // ------------------------------------------------------------------
 export default function EquipmentDetail({ equipmentId, onNavigate }) {
   const canEditEquipment = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.EDIT);
+  const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const [peralatan, setPeralatan] = useState(null);
   const [dokumen, setDokumen]     = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -164,19 +165,23 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}`)}
-            title="Buka form verifikasi peralatan (TLKM13/IK/003)"
-          >
-            {peralatan.status_verifikasi === 'Ditolak' ? 'Ajukan Verifikasi Ulang' : 'Verifikasi / Periksa'}
-          </button>
+          {canViewVerification && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}`)}
+              title="Buka form verifikasi peralatan (TLKM13/IK/003)"
+            >
+              {peralatan.status_verifikasi === 'Ditolak' ? 'Ajukan Verifikasi Ulang' : 'Verifikasi / Periksa'}
+            </button>
+          )}
         </div>
       </div>
 
       {!isVerified && <div className="alert alert-warning" style={{ marginBottom: 'var(--sp-5)' }}>
         <strong>{peralatan.status_verifikasi === 'Ditolak' ? 'Peralatan dalam peninjauan.' : 'Menunggu verifikasi.'}</strong> {peralatan.status_verifikasi === 'Ditolak' ? 'Alat tidak layak digunakan hingga tindak lanjut selesai dan verifikasi ulang dilakukan.' : 'Alat berstatus karantina dan tidak dapat digunakan atau diproses dengan QR sebelum Manager Lab menyetujui verifikasi.'}
-        <button className="btn btn-primary btn-sm" style={{ marginLeft: 12 }} onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}`)}>{peralatan.status_verifikasi === 'Ditolak' ? 'Ajukan Verifikasi Ulang (IK/003)' : 'Buka Verifikasi'}</button>
+        {canViewVerification && (
+          <button className="btn btn-primary btn-sm" style={{ marginLeft: 12 }} onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}`)}>{peralatan.status_verifikasi === 'Ditolak' ? 'Ajukan Verifikasi Ulang (IK/003)' : 'Buka Verifikasi'}</button>
+        )}
       </div>}
 
       <div className="equipment-detail-layout">
@@ -192,12 +197,14 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
                     Catatan evaluasi ketidaksesuaian dan penolakan verifikasi Manager Lab.
                   </p>
                 </div>
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}`)}
-                >
-                  Ajukan Verifikasi Ulang
-                </button>
+                {canViewVerification && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}`)}
+                  >
+                    Ajukan Verifikasi Ulang
+                  </button>
+                )}
               </div>
 
               {reviewLogs.length === 0 ? (

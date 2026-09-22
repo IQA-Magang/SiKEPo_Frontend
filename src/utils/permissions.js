@@ -72,6 +72,9 @@ export function getUserRole(user = getCurrentUser()) {
 }
 
 export function can(feature, action = ACTIONS.VIEW, user = getCurrentUser()) {
+  if (feature === ACCESS.EQUIPMENT_ELIGIBILITY && getUserRole(user) === 'staff' && !user?.pic) {
+    return false;
+  }
   return ROLE_PERMISSIONS[getUserRole(user)]?.[feature]?.includes(action) || false;
 }
 

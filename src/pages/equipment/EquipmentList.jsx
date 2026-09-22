@@ -9,6 +9,7 @@ import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 // ------------------------------------------------------------------
 export default function EquipmentList({ onNavigate, initialLifecycle = 'active' }) {
   const canCreate = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD);
+  const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const [list, setList]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
@@ -244,8 +245,8 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'active' 
                         >
                           <ChevronRight size={14} /> Detail
                         </button>
-                        {!approved && !rejected && <button className="btn btn-ghost btn-sm" onClick={() => onNavigate(`/verifikasi/${equipmentId}`)} title="Mulai atau lanjutkan verifikasi">Verifikasi</button>}
-                        {rejected && (
+                        {canViewVerification && !approved && !rejected && <button className="btn btn-ghost btn-sm" onClick={() => onNavigate(`/verifikasi/${equipmentId}`)} title="Mulai atau lanjutkan verifikasi">Verifikasi</button>}
+                        {canViewVerification && rejected && (
                           <>
                             <button className="btn btn-ghost btn-sm text-error" onClick={() => onNavigate(`/peralatan/detail/${equipmentId}`)} title="Lihat Catatan Peninjauan (TLKM13/IK/012)">Tinjau</button>
                             <button className="btn btn-ghost btn-sm" onClick={() => onNavigate(`/verifikasi/${equipmentId}`)} title="Ajukan Verifikasi Ulang (TLKM13/IK/003)">Verifikasi Ulang</button>

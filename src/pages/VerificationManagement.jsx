@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -9,6 +9,7 @@ import {
   XCircle,
   AlertTriangle,
   Package,
+  Eraser,
 } from 'lucide-react';
 import { getCurrentUser, verifikasiApi, peralatanApi, getEquipmentId, formatPhotoUrl } from '../utils/api.js';
 import { useToast } from '../context/ToastContext.jsx';
@@ -61,6 +62,74 @@ const FOLLOW_UP_OPTIONS = [
   'Lainnya',
 ];
 
+function DigitalSignaturePad({ value, onChange, label }) {
+  const canvasRef = useRef(null);
+  const drawingRef = useRef(false);
+
+  function point(event) {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const source = event.touches?.[0] || event;
+    return {
+      x: (source.clientX - rect.left) * (canvas.width / rect.width),
+      y: (source.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  }
+
+  function start(event) {
+    event.preventDefault();
+    drawingRef.current = true;
+    const ctx = canvasRef.current.getContext('2d');
+    const { x, y } = point(event);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  }
+
+  function draw(event) {
+    if (!drawingRef.current) return;
+    event.preventDefault();
+    const ctx = canvasRef.current.getContext('2d');
+    const { x, y } = point(event);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#172033';
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    onChange(canvasRef.current.toDataURL('image/png'));
+  }
+
+  function stop() {
+    drawingRef.current = false;
+  }
+
+  function clear() {
+    const canvas = canvasRef.current;
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    onChange('');
+  }
+
+  return (
+    <div className="form-group">
+      <label className="form-label">{label} <span style={{ color: 'red' }}>*</span></label>
+      <canvas
+        ref={canvasRef}
+        width={700}
+        height={180}
+        onPointerDown={start}
+        onPointerMove={draw}
+        onPointerUp={stop}
+        onPointerLeave={stop}
+        style={{ width: '100%', height: 140, display: 'block', background: '#fff', border: '1px solid var(--clr-dark-300, #cbd5e1)', borderRadius: 6, touchAction: 'none' }}
+        aria-label={label}
+      />
+      <button type="button" className="btn btn-ghost btn-sm" onClick={clear} style={{ marginTop: 6 }}>
+        <Eraser size={14} /> Hapus tanda tangan
+      </button>
+      {!value && <small className="form-help">Goreskan tanda tangan pada area di atas.</small>}
+    </div>
+  );
+}
+
 const emptyForm = () => ({
   id_peralatan: '',
   tanggal_verifikasi: new Date().toISOString().slice(0, 10),
@@ -83,6 +152,10 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   const { success, error } = useToast();
   const currentUser = getCurrentUser();
   const role = getUserRole(currentUser);
+  const isStaffPIC = role === 'staff' && Boolean(currentUser?.pic);
+  const canSubmit = isStaffPIC || role === 'admin';
+  const canApprove = role === 'manager' || role === 'admin';
+  const currentUserId = currentUser?.user_id ?? currentUser?.id;
 
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'review' | 'history'
   const [items, setItems] = useState([]);
@@ -95,6 +168,8 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   const [equipmentInfo, setEquipmentInfo] = useState(null);
   const [reviewLogs, setReviewLogs] = useState([]);
   const [loadingEquipment, setLoadingEquipment] = useState(Boolean(equipmentId));
+  const [picSignature, setPicSignature] = useState('');
+  const [managerSignature, setManagerSignature] = useState('');
 
   // Memuat daftar verifikasi, log peninjauan, & daftar peralatan karantina/pending
   async function loadList() {
@@ -117,7 +192,10 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
         const pending = all.filter(
           (p) => p.status_verifikasi !== 'Disetujui' && p.status_verifikasi !== 'Diajukan' && p.status_alat !== 'Dihapuskan'
         );
-        setPendingEquipment(pending);
+        const visiblePending = role === 'staff'
+          ? pending.filter((p) => String(p.pic_id) === String(currentUserId))
+          : pending;
+        setPendingEquipment(visiblePending);
       }
     } catch (err) {
       error(err.message || 'Gagal memuat data verifikasi.');
@@ -187,6 +265,11 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   async function submitVerifikasi(event) {
     event.preventDefault();
 
+    if (!picSignature) {
+      error('Tanda tangan PIC wajib diisi sebelum verifikasi diajukan.');
+      return;
+    }
+
     const tbKeys = CHECKS.filter((key) => form.hasil_verifikasi[key] === 'TB');
     if (tbKeys.some((key) => !form.tb_alasan[key]?.trim())) {
       error('Setiap hasil TB (Tidak Berlaku) wajib disertai alasan penjelasan.');
@@ -227,12 +310,10 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
         },
       });
 
-      // 2. Langsung tandatangani (sign PIC) agar status langsung 'Diajukan'
+      // 2. Tanda tangan PIC menjadi bukti pengajuan kepada Manager
       const newId = res?.data?.id_verifikasi ?? res?.data?.id ?? res?.id;
       if (newId) {
-        const signature =
-          currentUser?.nama_lengkap || currentUser?.nama || currentUser?.email || 'PIC Lab';
-        await verifikasiApi.signPic(newId, signature);
+        await verifikasiApi.signPic(newId, picSignature);
       }
 
       success('Verifikasi berhasil diajukan kepada Manager Lab untuk ditinjau.');
@@ -241,6 +322,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
         navigate('/verifikasi');
       } else {
         setForm(emptyForm());
+        setPicSignature('');
         await loadList();
       }
     } catch (err) {
@@ -251,18 +333,17 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   }
 
   // Manager Actions
-  async function approve(item) {
-    const defaultSign = currentUser?.nama_lengkap || currentUser?.nama || '';
-    const signature = window.prompt(
-      'Masukkan tanda tangan/nama manager untuk menyetujui verifikasi:',
-      defaultSign
-    );
-    if (!signature?.trim()) return;
-
+  async function approve(item, signature = managerSignature) {
+    if (!signature?.trim()) {
+      error('Tanda tangan manager wajib diisi.');
+      return;
+    }
     setBusy(true);
     try {
       await verifikasiApi.approve(item.id_verifikasi ?? item.id, signature.trim());
       success('Verifikasi berhasil disetujui. Status peralatan kini Aktif dan masuk ke Daftar Peralatan.');
+      setSelected(null);
+      setManagerSignature('');
       await loadList();
     } catch (err) {
       error(err.message || 'Gagal menyetujui verifikasi.');
@@ -308,6 +389,23 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   // Muncul setelah input data peralatan atau saat klik tombol Verifikasi
   // =========================================================================
   if (equipmentId) {
+    if (!canSubmit) {
+      return (
+        <div className="page-container fade-in-up">
+          <div className="card card-padded">
+            <h1 className="page-title">Akses Pengajuan Verifikasi</h1>
+            <p className="page-subtitle">
+              Hanya staff yang ditandai sebagai PIC yang dapat mengisi dan mengajukan verifikasi.
+              Staff lainnya tetap dapat melihat verifikasi beserta detailnya.
+            </p>
+            <button className="btn btn-secondary" type="button" onClick={() => navigate('/verifikasi')}>
+              <ArrowLeft size={16} /> Kembali ke Verifikasi
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     const isRejected = equipmentInfo?.status_verifikasi === 'Ditolak';
     const hasTS = Object.values(form.hasil_verifikasi).includes('TS');
 
@@ -677,6 +775,17 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                 onChange={(e) => setForm({ ...form, catatan: e.target.value })}
               />
             </div>
+
+            <div className="form-group" style={{ marginTop: 'var(--sp-3)' }}>
+              <label className="form-label">
+                Tanda Tangan PIC <span style={{ color: 'red' }}>*</span>
+              </label>
+              <DigitalSignaturePad
+                value={picSignature}
+                onChange={setPicSignature}
+                label="Tanda Tangan Digital PIC"
+              />
+            </div>
           </div>
 
           {/* Tombol Aksi — Tidak ada draft, langsung ajukan verifikasi */}
@@ -876,15 +985,26 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                           </span>
                         </td>
                         <td>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => navigate(`/verifikasi/${eqId}`)}
-                            title="Mulai pengisian tahapan verifikasi alat"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                          >
-                            <ClipboardCheck size={14} />
-                            {isRejected ? 'Verifikasi Ulang' : 'Mulai Verifikasi'}
-                          </button>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {isStaffPIC || role === 'admin' ? (
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={() => navigate(`/verifikasi/${eqId}`)}
+                              title="Mulai pengisian tahapan verifikasi alat"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                            >
+                              <ClipboardCheck size={14} />
+                              {isRejected ? 'Verifikasi Ulang' : 'Mulai Verifikasi'}
+                            </button>
+                            ) : null}
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => navigate(`/peralatan/detail/${eqId}`)}
+                              title="Lihat detail alat"
+                            >
+                              Detail Alat
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -946,33 +1066,14 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <button
                             className="btn btn-ghost btn-sm"
-                            onClick={() => setSelected(item)}
+                            onClick={() => {
+                              setSelected(item);
+                              setManagerSignature('');
+                            }}
                           >
                             Rincian
                           </button>
 
-                          {/* Aksi Persetujuan Manager / Admin */}
-                          {(role === 'manager' || role === 'admin') && (
-                            <>
-                              <button
-                                className="btn btn-ghost btn-sm"
-                                style={{ color: 'var(--clr-success-600, #16a34a)' }}
-                                disabled={busy}
-                                onClick={() => approve(item)}
-                                title="Setujui verifikasi (peralatan akan aktif dan masuk ke Daftar Peralatan)"
-                              >
-                                <CheckCircle2 size={14} /> Setujui
-                              </button>
-                              <button
-                                className="btn btn-ghost btn-sm text-error"
-                                disabled={busy}
-                                onClick={() => reject(item)}
-                                title="Tolak verifikasi dan catat ketidaksesuaian"
-                              >
-                                <XCircle size={14} /> Tolak
-                              </button>
-                            </>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -1041,7 +1142,10 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <button
                             className="btn btn-ghost btn-sm"
-                            onClick={() => setSelected(item)}
+                            onClick={() => {
+                              setSelected(item);
+                              setManagerSignature('');
+                            }}
                           >
                             Rincian
                           </button>
@@ -1126,6 +1230,18 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                       : '-'}
                   </p>
                 </div>
+                <div>
+                  <strong>Tanda Tangan PIC:</strong>
+                  {selected.pic_signature ? (
+                    <img src={selected.pic_signature} alt="Tanda tangan PIC" style={{ display: 'block', maxWidth: 220, height: 60, objectFit: 'contain', border: '1px solid var(--clr-dark-200)', marginTop: 4 }} />
+                  ) : <p style={{ margin: '2px 0' }}>-</p>}
+                </div>
+                <div>
+                  <strong>Tanda Tangan Manager:</strong>
+                  {selected.manager_signature ? (
+                    <img src={selected.manager_signature} alt="Tanda tangan manager" style={{ display: 'block', maxWidth: 220, height: 60, objectFit: 'contain', border: '1px solid var(--clr-dark-200)', marginTop: 4 }} />
+                  ) : <p style={{ margin: '2px 0' }}>-</p>}
+                </div>
               </div>
 
               <h4 style={{ margin: 'var(--sp-4) 0 var(--sp-2)', fontSize: 'var(--text-sm)' }}>
@@ -1203,6 +1319,50 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                       <p style={{ margin: '2px 0', fontSize: 'var(--text-xs)', background: 'var(--clr-dark-50)', padding: 8, borderRadius: 4 }}>
                         {officialNotes(selected).catatan_pic}
                       </p>
+                    </div>
+                  )}
+
+                  {canApprove && selected.status === 'Diajukan' && (
+                    <div
+                      style={{
+                        marginTop: 'var(--sp-5)',
+                        padding: 'var(--sp-4)',
+                        border: '1px solid var(--clr-dark-200, #e2e8f0)',
+                        borderRadius: 'var(--radius-md, 6px)',
+                        background: 'var(--clr-dark-50, #f8fafc)',
+                      }}
+                    >
+                      <h4 style={{ margin: '0 0 var(--sp-2)', fontSize: 'var(--text-sm)' }}>
+                        Persetujuan Manager
+                      </h4>
+                      <div className="form-group">
+                        <label className="form-label">
+                          Tanda Tangan Manager <span style={{ color: 'red' }}>*</span>
+                        </label>
+                        <DigitalSignaturePad
+                          value={managerSignature}
+                          onChange={setManagerSignature}
+                          label="Tanda Tangan Digital Manager"
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 'var(--sp-3)' }}>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={busy || !managerSignature}
+                          onClick={() => approve(selected)}
+                        >
+                          <CheckCircle2 size={14} /> Setujui & Tanda Tangani
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm text-error"
+                          disabled={busy}
+                          onClick={() => reject(selected)}
+                        >
+                          <XCircle size={14} /> Tolak
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
