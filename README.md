@@ -3,6 +3,13 @@
 ### Telkom Test House (TTH)
 
 ---
+| Role | Email | Password | Tujuan pengujian |
+|---|---|---|---|
+| Administrator | `admin@sikepo.local` | `password123` | Dashboard dan seluruh master data |
+| Manajer | `manager@sikepo.local` | `password123` | Dashboard manajer dan notifikasi |
+| Staff | `staff@sikepo.local` | `password123` | Akses operasional dan pembatasan role |
+
+> Akun pada tabel di atas mengikuti seed backend. Jika environment memakai akun lain, catat kredensial aktual pada berita acara pengujian.
 
 ## 1. Tentang Aplikasi SiKEPo
 
