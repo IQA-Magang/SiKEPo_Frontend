@@ -3,6 +3,12 @@
 ### Telkom Test House (TTH)
 
 ---
+>LINK UAT: https://docs.google.com/spreadsheets/d/1u_lhTPgeu1v1zg_AE8A51vEuSL6dXPRwAfQ4c6K_Q0s/edit?pli=1&gid=0#gid=0
+
+>BUG REPORT : https://docs.google.com/spreadsheets/d/1QUUk6WC6CnAWe_wjUqPlzDBmprySkaFOPH5OqmWukh4/edit?gid=0#gid=0
+
+>LINK WEBSITE : https://si-ke-po-frontend-delta.vercel.app/
+---
 | Role | Email | Password | Tujuan pengujian |
 |---|---|---|---|
 | Administrator | `admin@sikepo.local` | `password123` | Dashboard dan seluruh master data |
@@ -12,7 +18,7 @@
 | transmisi | `transmisi@sikepo.local` | `password123` | Akses operasional dan pembatasan role |
 
 > Akun pada tabel di atas mengikuti seed backend. Jika environment memakai akun lain, catat kredensial aktual pada berita acara pengujian.
-
+---
 ## 1. Tentang Aplikasi SiKEPo
 
 SiKEPo adalah aplikasi berbasis web yang dirancang khusus untuk memodernisasi pengelolaan inventaris serta pengawasan kelaikan peralatan laboratorium di lingkungan Telkom Test House (TTH). 
