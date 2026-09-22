@@ -100,7 +100,7 @@ Berikut adalah alur lengkap operasional aplikasi SiKEPo dari awal hingga akhir d
 2. Di bagian atas layar terdapat nama akun yang sedang aktif, lonceng pemberitahuan pesan, serta tombol pemindai cepat.
 3. Pada tampilan ponsel pintar, menu bilah samping dapat disembunyikan dan dimunculkan kembali menggunakan tombol menu garis tiga di pojok kiri atas.
 
-### Tahap 3: Pendaftaran Peralatan Baru (Tugas Staf / PIC)
+### Tahap 3: Pendaftaran Peralatan Baru (Tugas PIC)
 1. Buka menu Inventaris Peralatan, lalu pilih Tambah Peralatan.
 2. Isi formulir identitas alat: nama peralatan, nomor inventaris aset, merk dagang, tipe atau model, nomor seri pabrikan, dan tahun pengadaan.
 3. Tentukan letak laboratorium, ruangan spesifik, kategori alat, serta tetapkan nama penanggung jawab alat tersebut.
