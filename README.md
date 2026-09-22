@@ -8,6 +8,8 @@
 | Administrator | `admin@sikepo.local` | `password123` | Dashboard dan seluruh master data |
 | Manajer | `manager@sikepo.local` | `password123` | Dashboard manajer dan notifikasi |
 | Staff | `staff@sikepo.local` | `password123` | Akses operasional dan pembatasan role |
+| energi | `ene@sikepo.local` | `password123` | Akses operasional dan pembatasan role |
+| transmisi | `transmisi@sikepo.local` | `password123` | Akses operasional dan pembatasan role |
 
 > Akun pada tabel di atas mengikuti seed backend. Jika environment memakai akun lain, catat kredensial aktual pada berita acara pengujian.
 
