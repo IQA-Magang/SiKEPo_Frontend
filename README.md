@@ -37,14 +37,14 @@ Aplikasi SiKEPo mengelompokkan hak penggunaan ke dalam beberapa tingkatan peran 
 - Memberikan keputusan persetujuan akhir atau penolakan disertai catatan evaluasi.
 - Menandatangani berkas verifikasi kelaikan secara digital di dalam sistem.
 
-### Petugas / Penanggung Jawab Laboratorium (Staff / PIC)
+### Petugas / Penanggung Jawab Laboratorium (PIC)
 - Mendaftarkan peralatan laboratorium baru ke dalam sistem.
 - Melengkapi data spesifikasi, foto fisik alat, dan mengunggah dokumen pedoman serta sertifikat kalibrasi.
 - Membuat draf pengajuan kelaikan peralatan berkala dan membubuhkan tanda tangan verifikasi awal.
 - Mengunduh dan mencetak label QR Code untuk ditempelkan pada fisik peralatan.
 - Menggunakan kamera ponsel atau laptop untuk memindai label QR alat di lapangan.
 
-### Pengguna Umum / Tamu
+### Staff tanpa akses PIC
 - Memiliki hak akses terbatas untuk melihat katalog peralatan laboratorium yang berstatus aktif tanpa izin mengubah data atau menyetujui dokumen.
 
 ---
