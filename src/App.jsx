@@ -14,7 +14,7 @@ import {
 import { ToastProvider, useToast } from './context/ToastContext.jsx';
 import { ConfirmProvider } from './context/ConfirmContext.jsx';
 import { getToken } from './utils/api.js';
-import { ACCESS } from './utils/permissions.js';
+import { ACCESS, ACTIONS } from './utils/permissions.js';
 
 // Pages
 import Login from './pages/Login.jsx';
@@ -181,7 +181,7 @@ function AppContent() {
         <Route
           path="/peralatan/tambah"
           element={
-            <ProtectedRoute feature={ACCESS.INPUT_EQUIPMENT}>
+            <ProtectedRoute feature={ACCESS.INPUT_EQUIPMENT} action={ACTIONS.ADD}>
               <EquipmentCreate onNavigate={navigate} />
             </ProtectedRoute>
           }

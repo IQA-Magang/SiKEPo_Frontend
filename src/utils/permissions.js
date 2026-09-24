@@ -71,11 +71,43 @@ export function getUserRole(user = getCurrentUser()) {
   return (user?.role || 'staff').toLowerCase();
 }
 
+export function isUserPic(user = getCurrentUser()) {
+  if (!user) return false;
+  return Boolean(user.pic === true || user.pic === 1 || user.pic === '1' || user.pic === 'true');
+}
+
+export function isStaffPic(user = getCurrentUser()) {
+  return getUserRole(user) === 'staff' && isUserPic(user);
+}
+
 export function can(feature, action = ACTIONS.VIEW, user = getCurrentUser()) {
-  if (feature === ACCESS.EQUIPMENT_ELIGIBILITY && getUserRole(user) === 'staff' && !user?.pic) {
+  const role = getUserRole(user);
+  const isPic = isUserPic(user);
+
+  // Penambahan peralatan baru (INPUT_EQUIPMENT):
+  // - Seluruh role yang berhak dapat melihat (VIEW)
+  // - Admin: selalu diizinkan (CRUD)
+  // - Staff PIC: diizinkan menambah (ADD) dan melihat (VIEW)
+  // - Staff biasa: TIDAK diizinkan menambah (memerlukan hak PIC dari admin), hanya VIEW
+  // - Manager: diizinkan VIEW & EDIT
+  if (feature === ACCESS.INPUT_EQUIPMENT) {
+    if (action === ACTIONS.VIEW) return true;
+    if (role === 'admin' || role === 'manager') return true;
+    if (role === 'staff') return isPic && action === ACTIONS.ADD;
     return false;
   }
-  return ROLE_PERMISSIONS[getUserRole(user)]?.[feature]?.includes(action) || false;
+
+  // Verifikasi kelayakan (EQUIPMENT_ELIGIBILITY):
+  // - Seluruh role dapat MELIHAT (VIEW) status & riwayat verifikasi
+  // - Pengisian / Pengajuan verifikasi (ADD/EDIT): hanya Staff PIC, Admin, dan Manager
+  if (feature === ACCESS.EQUIPMENT_ELIGIBILITY) {
+    if (action === ACTIONS.VIEW) return true;
+    if (role === 'admin' || role === 'manager') return true;
+    if (role === 'staff') return isPic;
+    return false;
+  }
+
+  return ROLE_PERMISSIONS[role]?.[feature]?.includes(action) || false;
 }
 
 export function canAny(feature, actions, user = getCurrentUser()) {

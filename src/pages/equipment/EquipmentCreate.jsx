@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Package, Upload, FileText, Trash2, Info, Layers, CheckCircle, Plus, HardDrive, UserCheck, ShieldCheck } from 'lucide-react';
-import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, usersApi, getCurrentUser, STATIC_EQUIPMENT_CATEGORIES } from '../../utils/api.js';
+import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, usersApi, getCurrentUser, STATIC_EQUIPMENT_CATEGORIES, calculateJatuhTempoDate } from '../../utils/api.js';
 import { useToast } from '../../context/ToastContext.jsx';
 
 // Langkah-langkah stepper
@@ -38,6 +38,9 @@ export default function EquipmentCreate({ onNavigate }) {
     peranti_lunak_versi: '',
     keterangan: '',
     status_alat: 'Karantina',
+    segel_utuh: true,
+    batasan_penggunaan: '',
+    fungsi_sbg_alat_standar: false,
     // Step 1: Lokasi & PIC
     lab_id: '',
     ruangan_id: '',
@@ -86,28 +89,36 @@ export default function EquipmentCreate({ onNavigate }) {
   useEffect(() => {
     async function loadOptions() {
       try {
+        const currentUser = getCurrentUser();
+        const role = (currentUser?.role || '').toLowerCase();
+        const isAdmin = role === 'admin';
+
         const [l, r, k, u] = await Promise.allSettled([
           labsApi.getAll(),
           ruanganApi.getAll(),
           kelompokAssetApi.getAll(),
-          usersApi.getAll(),
+          isAdmin ? usersApi.getAll() : Promise.resolve({ success: true, data: [] }),
         ]);
         if (l.status === 'fulfilled') setLabs(l.value.data || []);
         if (r.status === 'fulfilled') setRuangan(r.value.data || []);
         if (k.status === 'fulfilled') setKelompokAset(k.value.data || []);
-        if (u.status === 'fulfilled' && Array.isArray(u.value?.data)) {
-          const staffPIC = u.value.data.filter((usr) => usr.pic === true || usr.pic === 1);
+        if (isAdmin && u.status === 'fulfilled' && Array.isArray(u.value?.data) && u.value.data.length > 0) {
+          const staffPIC = u.value.data.filter((usr) => usr.pic === true || usr.pic === 1 || usr.pic === '1' || usr.pic === 'true');
           setPics(staffPIC.length > 0 ? staffPIC : u.value.data);
         } else {
-          // Fallback jika usersApi.getAll dibatasi oleh role backend
-          const currentUser = getCurrentUser();
+          // Role Staff PIC: PIC adalah user yang sedang login
           if (currentUser) {
+            const currentUserId = currentUser.user_id || currentUser.id;
             setPics([{
-              id: currentUser.user_id || currentUser.id,
-              user_id: currentUser.user_id || currentUser.id,
+              id: currentUserId,
+              user_id: currentUserId,
               name: currentUser.name || currentUser.email,
               position: currentUser.position || currentUser.role,
             }]);
+            setForm((prev) => ({
+              ...prev,
+              pic_id: prev.pic_id || (currentUserId ? String(currentUserId) : ''),
+            }));
           }
         }
       } finally {
@@ -118,7 +129,26 @@ export default function EquipmentCreate({ onNavigate }) {
   }, []);
 
   function setField(name, value) {
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+      // Auto-hitung tanggal jatuh tempo berdasarkan tanggal terakhir + interval (SRS 20 & FR-M13-01)
+      if (name === 'tgl_kalibrasi' || name === 'interval_bulan') {
+        const start = name === 'tgl_kalibrasi' ? value : next.tgl_kalibrasi;
+        const interval = name === 'interval_bulan' ? value : next.interval_bulan;
+        if (start && interval) {
+          next.tgl_jatuh_tempo = calculateJatuhTempoDate(start, interval);
+        }
+      } else if (name === 'tgl_pemeriksaan_terakhir') {
+        if (value && next.interval_bulan) {
+          next.tgl_jatuh_tempo = calculateJatuhTempoDate(value, next.interval_bulan);
+        }
+      } else if (name === 'tgl_karakterisasi_terakhir') {
+        if (value && next.interval_bulan) {
+          next.tgl_jatuh_tempo = calculateJatuhTempoDate(value, next.interval_bulan);
+        }
+      }
+      return next;
+    });
     if (error) setError('');
   }
 
@@ -289,9 +319,9 @@ export default function EquipmentCreate({ onNavigate }) {
           tgl_kalibrasi: toIsoDate(form.tgl_kalibrasi),
           tgl_jatuh_tempo: toIsoDate(form.tgl_jatuh_tempo),
           interval_bulan: Number(form.interval_bulan) || 0,
+          segel_utuh: Boolean(form.segel_utuh),
+          batasan_penggunaan: form.batasan_penggunaan || '',
           fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
-          jenis_label: form.jenis_label || 'calibration',
-          status_kelayakan: form.status_kelayakan || 'Layak',
           parameter_rentang_ukur: form.parameter_rentang_ukur || '',
           resolusi: form.resolusi || '',
           akurasi_spesifikasi: form.akurasi_spesifikasi || '',
@@ -308,6 +338,8 @@ export default function EquipmentCreate({ onNavigate }) {
           tgl_pemeriksaan_terakhir: toIsoDate(form.tgl_pemeriksaan_terakhir),
           tgl_jatuh_tempo: toIsoDate(form.tgl_jatuh_tempo),
           interval_bulan: Number(form.interval_bulan) || 0,
+          segel_utuh: Boolean(form.segel_utuh),
+          batasan_penggunaan: form.batasan_penggunaan || '',
           fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
           karakteristik_acuan: form.karakteristik_acuan || '',
           jadwal_karakterisasi_ulang: form.jadwal_karakterisasi_ulang || '',
@@ -323,6 +355,8 @@ export default function EquipmentCreate({ onNavigate }) {
           tgl_karakterisasi: toIsoDate(form.tgl_jatuh_tempo),
           interval_bulan: Number(form.interval_bulan) || 0,
           kondisi_penyimpanan: form.kondisi_penyimpanan || '',
+          segel_utuh: Boolean(form.segel_utuh),
+          batasan_penggunaan: form.batasan_penggunaan || '',
           status: form.status_artefak || 'aktif',
         };
       } else if (catId === 4) {
@@ -352,7 +386,11 @@ export default function EquipmentCreate({ onNavigate }) {
         nomor_seri: form.nomor_seri,
         peranti_lunak_versi: form.peranti_lunak_versi,
         keterangan: form.keterangan,
-        status_alat: form.status_alat,
+        segel_utuh: Boolean(form.segel_utuh),
+        batasan_penggunaan: form.batasan_penggunaan || '',
+        fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
+        // Peralatan baru tetap dikarantina sampai verifikasi P1 disetujui (SRS FR-M3-02)
+        status_alat: 'Karantina',
         detail: detailPayload,
       };
 
@@ -365,9 +403,15 @@ export default function EquipmentCreate({ onNavigate }) {
         await peralatanApi.uploadFoto(equipmentId, photoFile);
       }
 
-      // Upload semua dokumen
-      for (const file of documentFiles) {
-        await dokumenApi.upload(equipmentId, file);
+      // Upload semua dokumen jika ada
+      if (documentFiles.length > 0) {
+        for (const file of documentFiles) {
+          try {
+            await dokumenApi.upload(equipmentId, file);
+          } catch (uploadErr) {
+            console.warn('Upload dokumen pendukung dilewati atau memerlukan hak admin:', uploadErr?.message);
+          }
+        }
       }
 
       // Peralatan baru berstatus Karantina dan masuk ke daftar verifikasi (menunggu verifikasi)
@@ -1000,19 +1044,81 @@ function DetailTeknis({ form, setField, kategoriId }) {
         <DetailInputField id="d-sertifikat" label="No. Sertifikat Kalibrasi" value={form.no_sertifikat} onChange={(e) => setField('no_sertifikat', e.target.value)} placeholder="CAL-2026-0012" />
         <DetailInputField id="d-interval" label="Interval Kalibrasi (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} placeholder="12" />
         <DetailInputField id="d-tgl-kalibrasi" label="Tgl. Kalibrasi Terakhir" type="date" value={form.tgl_kalibrasi} onChange={(e) => setField('tgl_kalibrasi', e.target.value)} />
-        <DetailInputField id="d-tgl-jatuh" label="Tgl. Jatuh Tempo Kalibrasi" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
+        <div className="form-group">
+          <label className="form-label" htmlFor="d-tgl-jatuh">
+            Tgl. Jatuh Tempo Kalibrasi <span className="badge badge-gray" style={{ fontSize: '10px', marginLeft: 6 }}>Auto SRS 20</span>
+          </label>
+          <input
+            id="d-tgl-jatuh"
+            type="date"
+            className="form-input"
+            value={form.tgl_jatuh_tempo}
+            onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)}
+            style={{ background: 'var(--clr-dark-50)' }}
+          />
+          <small className="form-help">Dihitung otomatis: Tgl Kalibrasi + Interval ({form.interval_bulan || 0} bln)</small>
+        </div>
+      </div>
+
+      <div className="form-grid-2">
+        <div className="form-group">
+          <label className="form-label">Keutuhan Segel Kalibrasi (SRS 7.1)</label>
+          <select
+            className="form-select"
+            value={form.segel_utuh ? 'true' : 'false'}
+            onChange={(e) => setField('segel_utuh', e.target.value === 'true')}
+          >
+            <option value="true">Segel Utuh (Terjamin)</option>
+            <option value="false">Segel Rusak / Terbuka</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Batasan Penggunaan (Opsional)</label>
+          <input
+            className="form-input"
+            placeholder="Kosongkan jika layak penuh, atau isi batasan rentang..."
+            value={form.batasan_penggunaan}
+            onChange={(e) => setField('batasan_penggunaan', e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-sm)', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={Boolean(form.fungsi_sbg_alat_standar)}
+            onChange={(e) => setField('fungsi_sbg_alat_standar', e.target.checked)}
+          />
+          Peralatan ini difungsikan sebagai Alat Standar Acuan Laboratorium (SRS Klausul 5)
+        </label>
       </div>
     </div>
   );
 
   if (kategoriId === 2) return (
-    <div className="form-grid-2">
-      <DetailInputField id="d-fungsi" label="Fungsi / Kegunaan" value={form.fungsi_kegunaan} onChange={(e) => setField('fungsi_kegunaan', e.target.value)} />
-      <DetailInputField id="d-jenis-pemeriksaan" label="Jenis Pemeriksaan Berkala" value={form.jenis_pemeriksaan_berkala} onChange={(e) => setField('jenis_pemeriksaan_berkala', e.target.value)} />
-      <DetailInputField id="d-interval-ab" label="Interval (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} />
-      <DetailInputField id="d-jatuh-ab" label="Tgl. Jatuh Tempo" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
-      <DetailInputField id="d-tgl-pemeriksaan" label="Tgl. Pemeriksaan Terakhir" type="date" value={form.tgl_pemeriksaan_terakhir} onChange={(e) => setField('tgl_pemeriksaan_terakhir', e.target.value)} />
-      <div className="form-group" style={{ gridColumn: '1/-1' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+      <div className="form-grid-2">
+        <DetailInputField id="d-fungsi" label="Fungsi / Kegunaan" value={form.fungsi_kegunaan} onChange={(e) => setField('fungsi_kegunaan', e.target.value)} />
+        <DetailInputField id="d-jenis-pemeriksaan" label="Jenis Pemeriksaan Berkala" value={form.jenis_pemeriksaan_berkala} onChange={(e) => setField('jenis_pemeriksaan_berkala', e.target.value)} />
+        <DetailInputField id="d-interval-ab" label="Interval (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} />
+        <div className="form-group">
+          <label className="form-label" htmlFor="d-jatuh-ab">
+            Tgl. Jatuh Tempo <span className="badge badge-gray" style={{ fontSize: '10px', marginLeft: 6 }}>Auto SRS 20</span>
+          </label>
+          <input
+            id="d-jatuh-ab"
+            type="date"
+            className="form-input"
+            value={form.tgl_jatuh_tempo}
+            onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)}
+            style={{ background: 'var(--clr-dark-50)' }}
+          />
+          <small className="form-help">Dihitung otomatis: Tgl Pemeriksaan + Interval</small>
+        </div>
+        <DetailInputField id="d-tgl-pemeriksaan" label="Tgl. Pemeriksaan Terakhir" type="date" value={form.tgl_pemeriksaan_terakhir} onChange={(e) => setField('tgl_pemeriksaan_terakhir', e.target.value)} />
+      </div>
+      <div className="form-group">
         <label className="form-label" htmlFor="d-kriteria">
           Kriteria Pemeriksaan <span className="required">*</span>
         </label>
@@ -1029,7 +1135,20 @@ function DetailTeknis({ form, setField, kategoriId }) {
       <DetailInputField id="d-metode-kar" label="Metode Karakterisasi" value={form.metode_karakterisasi} onChange={(e) => setField('metode_karakterisasi', e.target.value)} />
       <DetailInputField id="d-no-laporan" label="No. Laporan Karakterisasi" value={form.no_laporan_karakterisasi} onChange={(e) => setField('no_laporan_karakterisasi', e.target.value)} />
       <DetailInputField id="d-tgl-kar" label="Tgl. Karakterisasi Terakhir" type="date" value={form.tgl_karakterisasi_terakhir} onChange={(e) => setField('tgl_karakterisasi_terakhir', e.target.value)} />
-      <DetailInputField id="d-jatuh-aa" label="Tgl. Jatuh Tempo" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
+      <div className="form-group">
+        <label className="form-label" htmlFor="d-jatuh-aa">
+          Tgl. Jatuh Tempo <span className="badge badge-gray" style={{ fontSize: '10px', marginLeft: 6 }}>Auto SRS 20</span>
+        </label>
+        <input
+          id="d-jatuh-aa"
+          type="date"
+          className="form-input"
+          value={form.tgl_jatuh_tempo}
+          onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)}
+          style={{ background: 'var(--clr-dark-50)' }}
+        />
+        <small className="form-help">Dihitung otomatis: Tgl Karakterisasi + Interval</small>
+      </div>
       <DetailInputField id="d-kondisi" label="Kondisi Penyimpanan" value={form.kondisi_penyimpanan} onChange={(e) => setField('kondisi_penyimpanan', e.target.value)} />
     </div>
   );

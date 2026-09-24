@@ -103,9 +103,9 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'active' 
 
       <div className="card" style={{ padding: 6, display: 'flex', gap: 6, width: 'fit-content', marginBottom: 'var(--sp-5)' }}>
         <button className={`btn btn-sm ${lifecycleView === 'active' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLifecycleView('active')}>Daftar Peralatan ({counts.active})</button>
-        {/* <button className={`btn btn-sm ${lifecycleView === 'pending' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLifecycleView('pending')}>Menunggu Verifikasi ({counts.pending})</button>
+        <button className={`btn btn-sm ${lifecycleView === 'pending' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLifecycleView('pending')}>Menunggu Verifikasi ({counts.pending})</button>
         <button className={`btn btn-sm ${lifecycleView === 'review' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLifecycleView('review')}>Dalam Peninjauan ({counts.review})</button>
-        <button className={`btn btn-sm ${lifecycleView === 'archived' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLifecycleView('archived')}>Arsip ({counts.archived})</button> */}
+        <button className={`btn btn-sm ${lifecycleView === 'archived' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLifecycleView('archived')}>Arsip ({counts.archived})</button>
       </div>
 
       {/* Filters */}
@@ -191,6 +191,7 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'active' 
                 const categoryId = getEquipmentCategoryId(p);
                 const approved = p.status_verifikasi === 'Disetujui';
                 const rejected = p.status_verifikasi === 'Ditolak';
+                const verificationLabel = p.status_verifikasi || 'Belum Diverifikasi';
                 return (
                   <tr key={equipmentId}>
                     <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{i + 1}</td>
@@ -231,7 +232,7 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'active' 
                           {p.status_alat}
                         </span>
                         <span className="badge badge-gray" style={{ fontSize: 'var(--text-xs)' }}>
-                          {p.status_verifikasi || 'Belum Diverifikasi'}
+                          {verificationLabel}
                         </span>
                       </div>
                     </td>

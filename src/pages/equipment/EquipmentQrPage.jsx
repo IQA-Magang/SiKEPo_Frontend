@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Download, Package, QrCode } from 'lucide-react';
-import { fetchBlobWithAuth, getEquipmentId, peralatanApi } from '../../utils/api.js';
+import { fetchBlobWithAuth, getEquipmentId, peralatanApi, computeEligibility } from '../../utils/api.js';
 
 export default function EquipmentQrPage({ equipmentId, onNavigate }) {
   const [equipment, setEquipment] = useState(null);
@@ -102,11 +102,29 @@ export default function EquipmentQrPage({ equipmentId, onNavigate }) {
           />
           {qrError && <p style={{ color: 'var(--clr-error-500)', fontSize: 'var(--text-sm)' }}>{qrError}</p>}
         </div>
-        <div style={{ display: 'grid', gap: 'var(--sp-2)', marginBottom: 'var(--sp-5)' }}>
-          <strong>{equipment.nama_peralatan}</strong>
-          <code style={{ fontSize: 'var(--text-sm)' }}>ID Sistem: {id}</code>
-          <code style={{ fontSize: 'var(--text-sm)' }}>No. Aset: {equipment.nomor_aset || '–'}</code>
-        </div>
+        {(() => {
+          const elig = computeEligibility(equipment);
+          return (
+            <div style={{ display: 'grid', gap: 'var(--sp-2)', marginBottom: 'var(--sp-5)' }}>
+              <strong>{equipment.nama_peralatan}</strong>
+              <code style={{ fontSize: 'var(--text-sm)' }}>ID Sistem: {id}</code>
+              <code style={{ fontSize: 'var(--text-sm)' }}>No. Aset: {equipment.nomor_aset || '–'}</code>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 4 }}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 12px',
+                  borderRadius: 'var(--radius-full)', background: elig.labelColor + '18',
+                  border: `1.5px solid ${elig.labelColor}`, fontWeight: 'var(--fw-bold)',
+                  fontSize: 'var(--text-xs)', color: elig.labelColor,
+                }}>
+                  {elig.jenisLabel}
+                </span>
+                <span className={`badge ${elig.isSealBroken ? 'badge-rusak' : 'badge-aktif'}`} style={{ fontSize: 'var(--text-xs)' }}>
+                  Segel: {elig.isSealBroken ? 'Rusak' : 'Utuh'}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
         <button type="button" className="btn btn-secondary" onClick={downloadQr} disabled={!qrSrc}>
           <Download size={15} /> Unduh QR
         </button>
