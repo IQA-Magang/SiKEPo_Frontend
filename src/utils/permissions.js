@@ -75,12 +75,15 @@ export function getUserRole(user = getCurrentUser()) {
 }
 
 export function isStaffPic(user = getCurrentUser()) {
-  return getUserRole(user) === 'staff' && Boolean(user?.pic);
+  const role = getUserRole(user);
+  if (role !== 'staff') return false;
+  const p = user?.pic;
+  return p === true || p === 1 || p === '1' || String(p).toLowerCase() === 'true';
 }
 
 export function can(feature, action = ACTIONS.VIEW, user = getCurrentUser()) {
   const role = getUserRole(user);
-  const isPic = Boolean(user?.pic);
+  const isPic = isStaffPic(user);
 
   // 1. Admin memiliki hak penuh (CRUD) untuk semua fitur
   if (role === 'admin') {

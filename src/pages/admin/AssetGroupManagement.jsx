@@ -52,7 +52,7 @@ export default function AssetGroupManagement({ onNavigate }) {
       const [groupsRes, labsRes, usersRes] = await Promise.allSettled([
         kelompokAssetApi.getAll(),
         labsApi.getAll(),
-        usersApi.getAll(),
+        (canAdd || canEdit) ? usersApi.getAll() : Promise.resolve({ data: [] }),
       ]);
 
       if (groupsRes.status === 'fulfilled') {

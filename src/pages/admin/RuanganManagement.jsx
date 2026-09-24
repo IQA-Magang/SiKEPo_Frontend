@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DoorOpen, Plus, Pencil, Trash2, X, RefreshCw, Building2, Layers } from 'lucide-react';
-import { ruanganApi, labsApi, usersApi } from '../../utils/api.js';
+import { ruanganApi, labsApi, usersApi, getCurrentUser } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useConfirm } from '../../context/ConfirmContext.jsx';
@@ -53,7 +53,7 @@ export default function RuanganManagement({ onNavigate }) {
       const [ruanganRes, labsRes, usersRes] = await Promise.allSettled([
         ruanganApi.getAll(),
         labsApi.getAll(),
-        usersApi.getAll(),
+        (canAdd || canEdit) ? usersApi.getAll() : Promise.resolve({ data: [] }),
       ]);
 
       if (ruanganRes.status === 'fulfilled') {

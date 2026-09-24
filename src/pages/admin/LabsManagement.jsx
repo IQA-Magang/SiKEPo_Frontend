@@ -44,7 +44,7 @@ export default function LabsManagement({ onNavigate }) {
     try {
       const [labsRes, usersRes] = await Promise.allSettled([
         labsApi.getAll(),
-        usersApi.getAll(),
+        (canAdd || canEdit) ? usersApi.getAll() : Promise.resolve({ data: [] }),
       ]);
 
       if (labsRes.status === 'fulfilled') {

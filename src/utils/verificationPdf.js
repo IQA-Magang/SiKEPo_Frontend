@@ -76,9 +76,9 @@ export function exportVerificationPdf(data) {
   const sertifikatData = officialNotes.sertifikat || {};
   const tbAlasan = officialNotes.alasan_tb || {};
 
-  const picName = data.pic_user?.name || data.pic_user?.email || 'PIC Peralatan';
+  const picName = data.pic_user?.nama_lengkap || data.pic_user?.nama || data.pic_user?.name || data.pic_user?.username || data.pic_user?.email || 'PIC Peralatan';
   const picNip = data.pic_user?.nip ? `NIP. ${data.pic_user.nip}` : 'Staff Laboratorium';
-  const managerName = data.verified_by_user?.name || data.verified_by_user?.email || 'Manager Laboratorium';
+  const managerName = data.verified_by_user?.nama_lengkap || data.verified_by_user?.nama || data.verified_by_user?.name || data.verified_by_user?.username || data.verified_by_user?.email || 'Manager Laboratorium';
   const managerNip = data.verified_by_user?.nip ? `NIP. ${data.verified_by_user.nip}` : 'Manager Lab';
 
   const tglVerifikasiFormatted = formatTanggalIndo(data.tanggal_verifikasi);

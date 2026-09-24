@@ -531,7 +531,8 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   }
 
   async function handleApproveFromModal() {
-    if (!approvalModalItem) return;
+    const target = selected || approvalModalItem;
+    if (!target) return;
     if (!managerSignature?.trim()) {
       error('Tanda tangan digital manager wajib digoreskan sebelum verifikasi disetujui.');
       return;
@@ -543,7 +544,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
 
     setBusy(true);
     try {
-      const verifikasiId = approvalModalItem.id_verifikasi ?? approvalModalItem.id;
+      const verifikasiId = target.id_verifikasi ?? target.id;
       await verifikasiApi.approve(verifikasiId, managerSignature.trim());
       success('Verifikasi berhasil disetujui. Status peralatan kini Aktif dan masuk ke inventaris.');
       closeApprovalModal();
@@ -557,7 +558,8 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   }
 
   async function handleRejectFromModal() {
-    if (!approvalModalItem) return;
+    const target = selected || approvalModalItem;
+    if (!target) return;
     if (!rejectReason.trim()) {
       error('Alasan penolakan / evaluasi ketidaksesuaian wajib diisi.');
       return;
@@ -565,7 +567,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
 
     setBusy(true);
     try {
-      const verifikasiId = approvalModalItem.id_verifikasi ?? approvalModalItem.id;
+      const verifikasiId = target.id_verifikasi ?? target.id;
       await verifikasiApi.reject(verifikasiId, {
         alasan: rejectReason.trim(),
         catatan: rejectCatatan.trim(),
@@ -1275,23 +1277,13 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                         </span>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => setSelected(item)}
-                          >
-                            Rincian
-                          </button>
-                          {canApprove && (
-                            <button
-                              className="btn btn-primary btn-sm"
-                              onClick={() => openApprovalModal(item)}
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                            >
-                              <CheckCircle2 size={13} /> Tinjau
-                            </button>
-                          )}
-                        </div>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => { setManagerSignature(''); setApprovalMode('approve'); setRejectReason(''); setRejectCatatan(''); setAffirmApproved(false); setSelected(item); }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        >
+                          <ClipboardCheck size={13} /> Tinjau
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -1361,7 +1353,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                             className="btn btn-ghost btn-sm"
                             onClick={() => setSelected(item)}
                           >
-                            Rincian
+                            Tinjau
                           </button>
                           {item.status === 'Disetujui' && (canApprove || isStaffPIC) && (
                             <button
@@ -1406,7 +1398,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
           >
             <div className="modal-header">
               <div>
-                <h2 className="modal-title">Rincian Verifikasi TLKM13/F/003</h2>
+                <h2 className="modal-title">Tinjau Verifikasi TLKM13/F/003</h2>
                 <p className="page-subtitle" style={{ margin: '4px 0 0', fontSize: 'var(--text-xs)' }}>
                   {selected.peralatan?.nama_peralatan || `Peralatan ID ${selected.id_peralatan}`}
                   {selected.peralatan?.nomor_aset ? ` (${selected.peralatan.nomor_aset})` : ''}
@@ -1430,7 +1422,17 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                 <div>
                   <strong>Status:</strong>
                   <p style={{ margin: '2px 0 0' }}>
-                    <span className="badge badge-gray">{selected.status || '-'}</span>
+                    <span
+                      className={`badge ${
+                        selected.status === 'Disetujui'
+                          ? 'badge-aktif'
+                          : selected.status === 'Ditolak'
+                          ? 'badge-rusak'
+                          : 'badge-kalibrasi'
+                      }`}
+                    >
+                      {selected.status || '-'}
+                    </span>
                   </p>
                 </div>
                 <div>
@@ -1445,18 +1447,25 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                       : '-'}
                   </p>
                 </div>
-                <div>
-                  <strong>Tanda Tangan PIC:</strong>
-                  {selected.pic_signature ? (
-                    <img src={selected.pic_signature} alt="Tanda tangan PIC" style={{ display: 'block', maxWidth: 220, height: 60, objectFit: 'contain', border: '1px solid var(--clr-dark-200)', marginTop: 4 }} />
-                  ) : <p style={{ margin: '2px 0' }}>-</p>}
-                </div>
-                <div>
-                  <strong>Tanda Tangan Manager:</strong>
-                  {selected.manager_signature ? (
-                    <img src={selected.manager_signature} alt="Tanda tangan manager" style={{ display: 'block', maxWidth: 220, height: 60, objectFit: 'contain', border: '1px solid var(--clr-dark-200)', marginTop: 4 }} />
-                  ) : <p style={{ margin: '2px 0' }}>-</p>}
-                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--sp-3)', marginBottom: 'var(--sp-4)' }}>
+                <SignatureDisplayCard
+                  title="Tanda Tangan PIC Penguji"
+                  roleLabel="Staff PIC Penguji"
+                  signature={selected.pic_signature}
+                  signerName={selected.pic_user?.nama_lengkap || selected.pic?.nama_lengkap || selected.pic?.nama || '-'}
+                  signerNip={selected.pic_user?.nip ? `NIP: ${selected.pic_user.nip}` : (selected.pic_user?.username ? `@${selected.pic_user.username}` : null)}
+                  signedAt={selected.pic_signed_at || selected.tanggal_verifikasi}
+                />
+                <SignatureDisplayCard
+                  title="Persetujuan Manager"
+                  roleLabel="Manager Laboratorium"
+                  signature={selected.manager_signature}
+                  signerName={selected.verified_by_user?.nama_lengkap || selected.manager?.nama_lengkap || (selected.status === 'Disetujui' ? 'Manager Lab' : '-')}
+                  signerNip={selected.verified_by_user?.nip ? `NIP: ${selected.verified_by_user.nip}` : (selected.verified_by_user?.username ? `@${selected.verified_by_user.username}` : null)}
+                  signedAt={selected.manager_signed_at || selected.verified_at}
+                />
               </div>
 
               <h4 style={{ margin: 'var(--sp-4) 0 var(--sp-2)', fontSize: 'var(--text-sm)' }}>
@@ -1538,18 +1547,116 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                   )}
                 </div>
               )}
+
+              {/* Form Persetujuan Manager — inline di dalam modal tinjau */}
+              {canApprove && selected.status === 'Diajukan' && (
+                <div style={{ marginTop: 'var(--sp-5)', borderTop: '2px solid var(--clr-dark-200)', paddingTop: 'var(--sp-4)' }}>
+                  <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <FileCheck size={16} style={{ color: 'var(--clr-primary-500)' }} />
+                    Keputusan Manager
+                  </h3>
+
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--sp-4)' }}>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${approvalMode === 'approve' ? 'btn-primary' : 'btn-ghost'}`}
+                      onClick={() => setApprovalMode('approve')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <CheckCircle2 size={14} /> Setujui
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${approvalMode === 'reject' ? 'btn-ghost' : 'btn-ghost'}`}
+                      onClick={() => setApprovalMode('reject')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: approvalMode === 'reject' ? 'var(--clr-error-500, #ef4444)' : undefined }}
+                    >
+                      <XCircle size={14} /> Tolak
+                    </button>
+                  </div>
+
+                  {approvalMode === 'approve' ? (
+                    <div>
+                      <DigitalSignaturePad
+                        value={managerSignature}
+                        onChange={setManagerSignature}
+                        label="Tanda Tangan Digital Manager"
+                      />
+                      <div
+                        style={{
+                          marginTop: 'var(--sp-3)',
+                          padding: 'var(--sp-3)',
+                          background: '#f0fdf4',
+                          border: '1px solid #bbf7d0',
+                          borderRadius: 'var(--radius-md)',
+                        }}
+                      >
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: 'var(--text-xs)' }}>
+                          <input
+                            type="checkbox"
+                            checked={affirmApproved}
+                            onChange={(e) => setAffirmApproved(e.target.checked)}
+                            style={{ marginTop: 2, flexShrink: 0 }}
+                          />
+                          <span>
+                            Saya menyatakan peralatan ini <strong>telah memenuhi seluruh kriteria kelayakan</strong> sesuai prosedur TLKM13/F/003 dan persetujuan ini sah secara sistem.
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="form-group">
+                        <label className="form-label">Alasan Penolakan <span style={{ color: 'red' }}>*</span></label>
+                        <textarea
+                          className="form-textarea"
+                          rows={3}
+                          placeholder="Tuliskan aspek yang belum memenuhi kriteria..."
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Catatan Tindak Lanjut</label>
+                        <textarea
+                          className="form-textarea"
+                          rows={2}
+                          placeholder="Instruksi perbaikan untuk PIC (opsional)..."
+                          value={rejectCatatan}
+                          onChange={(e) => setRejectCatatan(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="modal-footer" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              {selected.status === 'Diajukan' && canApprove && (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => { setSelected(null); openApprovalModal(selected); }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                >
-                  <CheckCircle2 size={15} /> Tinjau & Setujui
-                </button>
+              {canApprove && selected.status === 'Diajukan' && (
+                approvalMode === 'approve' ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={busy || !managerSignature?.trim() || !affirmApproved}
+                    onClick={handleApproveFromModal}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <CheckCircle2 size={15} />
+                    {busy ? 'Menyetujui...' : 'Konfirmasi Persetujuan'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={busy || !rejectReason.trim()}
+                    onClick={handleRejectFromModal}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--clr-error-500, #ef4444)' }}
+                  >
+                    <XCircle size={15} />
+                    {busy ? 'Menolak...' : 'Konfirmasi Penolakan'}
+                  </button>
+                )
               )}
               {selected.status === 'Disetujui' && (canApprove || isStaffPIC) && (
                 <button
@@ -1572,152 +1679,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
           </div>
         </div>
       )}
-
-      {/* Modal Persetujuan Manager (Terpisah) */}
-      {approvalModalItem && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={closeApprovalModal}
-        >
-          <div
-            className="modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="approval-modal-title"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 560 }}
-          >
-            <div className="modal-header">
-              <div>
-                <h2 className="modal-title" id="approval-modal-title">Form Persetujuan Manager</h2>
-                <p className="page-subtitle" style={{ margin: '4px 0 0', fontSize: 'var(--text-xs)' }}>
-                  {approvalModalItem.peralatan?.nama_peralatan || `Peralatan ID ${approvalModalItem.id_peralatan}`}
-                  {approvalModalItem.peralatan?.nomor_aset ? ` (${approvalModalItem.peralatan.nomor_aset})` : ''}
-                </p>
-              </div>
-              <button type="button" className="btn btn-ghost btn-icon" onClick={closeApprovalModal}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              {/* Toggle Approve / Reject */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--sp-4)' }}>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${approvalMode === 'approve' ? 'btn-primary' : 'btn-ghost'}`}
-                  onClick={() => setApprovalMode('approve')}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                >
-                  <CheckCircle2 size={14} /> Setujui
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${approvalMode === 'reject' ? 'btn-ghost text-error' : 'btn-ghost'}`}
-                  onClick={() => setApprovalMode('reject')}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                >
-                  <XCircle size={14} /> Tolak
-                </button>
-              </div>
-
-              {approvalMode === 'approve' ? (
-                <div>
-                  <div className="form-group">
-                    <label className="form-label">
-                      Tanda Tangan Digital Manager <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <DigitalSignaturePad
-                      value={managerSignature}
-                      onChange={setManagerSignature}
-                      label="Tanda Tangan Digital Manager"
-                    />
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 'var(--sp-3)',
-                      padding: 'var(--sp-3)',
-                      background: '#f0fdf4',
-                      border: '1px solid #bbf7d0',
-                      borderRadius: 'var(--radius-md)',
-                    }}
-                  >
-                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: 'var(--text-xs)' }}>
-                      <input
-                        type="checkbox"
-                        checked={affirmApproved}
-                        onChange={(e) => setAffirmApproved(e.target.checked)}
-                        style={{ marginTop: 2, flexShrink: 0 }}
-                      />
-                      <span>
-                        Saya menyatakan bahwa peralatan ini <strong>telah diperiksa dan memenuhi seluruh kriteria kelayakan</strong> sesuai prosedur TLKM13/F/003.
-                        Persetujuan ini menjadi bukti sah yang terekam dalam sistem SiKEPo.
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <div className="form-group">
-                    <label className="form-label">
-                      Alasan Penolakan / Evaluasi Ketidaksesuaian <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <textarea
-                      className="form-textarea"
-                      rows={3}
-                      placeholder="Tuliskan alasan penolakan dan aspek yang belum memenuhi kriteria..."
-                      value={rejectReason}
-                      onChange={(e) => setRejectReason(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Catatan Tindak Lanjut</label>
-                    <textarea
-                      className="form-textarea"
-                      rows={2}
-                      placeholder="Catatan / instruksi perbaikan untuk PIC (opsional)..."
-                      value={rejectCatatan}
-                      onChange={(e) => setRejectCatatan(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="modal-footer" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-secondary" onClick={closeApprovalModal}>
-                Batal
-              </button>
-              {approvalMode === 'approve' ? (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={busy || !managerSignature?.trim() || !affirmApproved}
-                  onClick={handleApproveFromModal}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                >
-                  <CheckCircle2 size={15} />
-                  {busy ? 'Menyetujui...' : 'Konfirmasi Persetujuan'}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-ghost text-error"
-                  disabled={busy || !rejectReason.trim()}
-                  onClick={handleRejectFromModal}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                >
-                  <XCircle size={15} />
-                  {busy ? 'Menolak...' : 'Konfirmasi Penolakan'}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+

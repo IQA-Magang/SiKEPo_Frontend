@@ -86,32 +86,35 @@ export default function EquipmentCreate({ onNavigate }) {
   useEffect(() => {
     async function loadOptions() {
       try {
+        const currentUser = getCurrentUser();
+        const role = (currentUser?.role || '').toLowerCase();
+        const isAdmin = role === 'admin';
+
         const [l, r, k, u] = await Promise.allSettled([
           labsApi.getAll(),
           ruanganApi.getAll(),
           kelompokAssetApi.getAll(),
-          usersApi.getAll(),
+          isAdmin ? usersApi.getAll() : Promise.resolve({ data: [] }),
         ]);
         if (l.status === 'fulfilled') setLabs(l.value.data || []);
         if (r.status === 'fulfilled') setRuangan(r.value.data || []);
         if (k.status === 'fulfilled') setKelompokAset(k.value.data || []);
-        if (u.status === 'fulfilled' && Array.isArray(u.value?.data)) {
-          const staffPIC = u.value.data.filter((usr) => usr.pic === true || usr.pic === 1);
+        if (isAdmin && u.status === 'fulfilled' && Array.isArray(u.value?.data)) {
+          const staffPIC = u.value.data.filter((usr) => usr.pic === true || usr.pic === 1 || usr.pic === '1' || String(usr.pic).toLowerCase() === 'true');
           setPics(staffPIC.length > 0 ? staffPIC : u.value.data);
         } else {
-          // Fallback jika usersApi.getAll dibatasi oleh role backend
-          const currentUser = getCurrentUser();
+          // Fallback untuk staff PIC: otomatis gunakan akun sendiri sebagai PIC
           if (currentUser) {
             setPics([{
               id: currentUser.user_id || currentUser.id,
               user_id: currentUser.user_id || currentUser.id,
-              name: currentUser.name || currentUser.email,
+              name: currentUser.name || currentUser.nama || currentUser.email,
               position: currentUser.position || currentUser.role,
             }]);
           }
         }
 
-        const currentUser = getCurrentUser();
+        // const currentUser = getCurrentUser();
         const currentUserId = currentUser?.user_id || currentUser?.id;
         if (currentUser?.pic && currentUserId) {
           setForm((prev) => (prev.pic_id ? prev : { ...prev, pic_id: String(currentUserId) }));

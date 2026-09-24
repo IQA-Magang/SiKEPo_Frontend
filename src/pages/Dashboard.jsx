@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Package, Building2, DoorOpen, Users, FolderKanban, Plus, ArrowRight, Bell, RefreshCw, QrCode } from 'lucide-react';
 import QRScannerModal from '../components/QRScannerModal.jsx';
 import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi, STATUS_BADGE_CLASS } from '../utils/api.js';
+import { can, ACCESS, ACTIONS } from '../utils/permissions.js';
 
 // ------------------------------------------------------------------
 // Dashboard: tampilan berbeda berdasarkan role
@@ -516,9 +517,11 @@ function StaffDashboard({ onNavigate, user }) {
       </div>
 
       <div className="dash-action-group dash-actions-mb">
-        <button className="btn btn-primary" onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan-staff">
-          <Plus size={16} /> Tambah Peralatan Baru
-        </button>
+        {can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) && (
+          <button className="btn btn-primary" onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan-staff">
+            <Plus size={16} /> Tambah Peralatan Baru
+          </button>
+        )}
         <button className="btn btn-secondary" onClick={() => onNavigate('/peralatan')} id="btn-inventaris">
           <Package size={16} /> Lihat Inventaris
         </button>
