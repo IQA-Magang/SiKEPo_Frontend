@@ -250,24 +250,25 @@ export default function Login({ onNavigate }) {
                   </button>
                 </div>
 
-                {/* Test Credentials Helper */}
-                <div className="test-creds-box">
-                  <span className="test-creds-text">
-                    Akun Standar: <strong>admin@sikepo.local</strong>
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-test-creds"
-                    onClick={() => {
-                      setEmailOrNip('admin@sikepo.local');
-                      setPassword('password123');
-                      clearErrors('email');
-                      clearErrors('password');
-                    }}
-                  >
-                    Isi Kredensial Pengujian
-                  </button>
-                </div>
+                {import.meta.env.DEV && (
+                  <div className="test-creds-box">
+                    <span className="test-creds-text">
+                      Akun Standar: <strong>admin@sikepo.local</strong>
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-test-creds"
+                      onClick={() => {
+                        setEmailOrNip('admin@sikepo.local');
+                        setPassword('password123');
+                        clearErrors('email');
+                        clearErrors('password');
+                      }}
+                    >
+                      Isi Kredensial Pengujian
+                    </button>
+                  </div>
+                )}
               </form>
             </div>
           </div>

@@ -10,18 +10,14 @@ import {
   AlertTriangle,
   Package,
   Eraser,
-  FileDown,
-  ShieldCheck,
-  ShieldAlert,
-  PenTool,
-  RotateCcw,
-  Eye,
+  Printer,
+  X,
 } from 'lucide-react';
-import { getCurrentUser, verifikasiApi, peralatanApi, getEquipmentId, formatPhotoUrl, VERIFIKASI_PEMICU_OPTIONS } from '../utils/api.js';
+import { getCurrentUser, verifikasiApi, peralatanApi, getEquipmentId, formatPhotoUrl } from '../utils/api.js';
 import { useToast } from '../context/ToastContext.jsx';
-import { getUserRole } from '../utils/permissions.js';
+import { getUserRole, can, isStaffPic, ACCESS, ACTIONS } from '../utils/permissions.js';
 import { useNavigate } from '../router/Router.jsx';
-import { exportVerificationPdf } from '../utils/exportVerificationPdf.js';
+import { exportVerificationPdf } from '../utils/verificationPdf.js';
 
 const CHECKS = [
   'identitas',
@@ -35,17 +31,29 @@ const CHECKS = [
 ];
 
 const CHECK_LABELS = {
-  identitas: 'a. Identitas Peralatan',
-  kelengkapan: 'b. Kelengkapan Aksesori & Manual',
-  firmware: 'c. Versi Software / Firmware',
-  kondisi_fisik: 'd. Kondisi Fisik / Visual',
-  segel: 'e. Keutuhan Segel Kalibrasi / Penyetelan',
-  fungsi_awal: 'f. Fungsi Kerja / Operasional',
-  metrologi: 'g. Karakteristik Metrologi',
-  sertifikat: 'h. Bukti Kelayakan Metrologis / Sertifikat',
+  identitas: 'Identitas Alat Ukur',
+  kelengkapan: 'Kelengkapan Aksesoris',
+  firmware: 'Versi Firmware / Peranti Lunak',
+  kondisi_fisik: 'Kondisi Fisik / Visual',
+  segel: 'Keutuhan Segel Kalibrasi',
+  fungsi_awal: 'Pemeriksaan Fungsi Awal',
+  metrologi: 'Kesesuaian Spesifikasi Metrologi',
+  sertifikat: 'Validitas Sertifikat Kalibrasi',
 };
 
-const ACTIVITY_OPTIONS = VERIFIKASI_PEMICU_OPTIONS;
+const ACTIVITY_OPTIONS = [
+  ['P1', 'P1 — Peralatan baru diterima'],
+  ['P2', 'P2 — Setelah kalibrasi'],
+  ['P3', 'P3 — Setelah verifikasi fungsi'],
+  ['P4', 'P4 — Setelah pengecekan antara/karakterisasi ulang'],
+  ['P5', 'P5 — Setelah dipinjam/dipindahkan atau dikembalikan'],
+  ['P6', 'P6 — Setelah pemeliharaan'],
+  ['P7', 'P7 — Setelah penyesuaian'],
+  ['P8', 'P8 — Setelah perbaikan'],
+  ['P9', 'P9 — Kembali dari peninjauan tanpa perbaikan'],
+  ['P2+P5', 'P2+P5 — Kalibrasi dan pengembalian'],
+  ['P8+P2', 'P8+P2 — Perbaikan lalu kalibrasi'],
+];
 
 const FOLLOW_UP_OPTIONS = [
   'Masuk layanan - label diperbarui',
@@ -58,107 +66,103 @@ const FOLLOW_UP_OPTIONS = [
   'Lainnya',
 ];
 
-function DigitalSignaturePad({ value, onChange, label }) {
+function DigitalSignaturePad({ value, onChange, label, required = true }) {
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
 
-  // Muat ulang gambar tanda tangan jika value ada saat komponen mount atau berubah dari luar
+  // Inisialisasi canvas dengan DPI scaling agar garis tajam dan tidak buram di layar Retina / mobile
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const ratio = Math.max(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width || 600;
+    const height = 140;
+
+    canvas.width = Math.floor(width * ratio);
+    canvas.height = Math.floor(height * ratio);
     const ctx = canvas.getContext('2d');
+    ctx.scale(ratio, ratio);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#0f172a';
+
+    // Jika sudah ada data tanda tangan (base64 PNG), gambar ke canvas
     if (value) {
       const img = new Image();
       img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, width, height);
       };
       img.src = value;
-    } else {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-  }, [value]);
+  }, []);
 
-  function point(event) {
+  function getPoint(e) {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
     return {
-      x: (event.clientX - rect.left) * (canvas.width / rect.width),
-      y: (event.clientY - rect.top) * (canvas.height / rect.height),
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
     };
   }
 
-  function start(event) {
-    event.preventDefault();
-    drawingRef.current = true;
+  function handlePointerDown(e) {
+    e.preventDefault();
     try {
-      if (event?.target?.setPointerCapture && event?.pointerId) {
-        event.target.setPointerCapture(event.pointerId);
-      }
-    } catch {
-      // ignore
-    }
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    drawingRef.current = true;
+    const { x, y } = getPoint(e);
     const ctx = canvasRef.current.getContext('2d');
-    const { x, y } = point(event);
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#0f172a';
     ctx.beginPath();
     ctx.moveTo(x, y);
   }
 
-  function draw(event) {
+  function handlePointerMove(e) {
     if (!drawingRef.current) return;
-    event.preventDefault();
+    e.preventDefault();
+    const { x, y } = getPoint(e);
     const ctx = canvasRef.current.getContext('2d');
-    const { x, y } = point(event);
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#0f172a';
     ctx.lineTo(x, y);
     ctx.stroke();
-    onChange(canvasRef.current.toDataURL('image/png'));
   }
 
-  function stop(event) {
+  function handlePointerUp(e) {
     if (!drawingRef.current) return;
     drawingRef.current = false;
     try {
-      if (event?.target?.releasePointerCapture && event?.pointerId) {
-        event.target.releasePointerCapture(event.pointerId);
-      }
-    } catch {
-      // ignore
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    if (canvasRef.current) {
+      onChange(canvasRef.current.toDataURL('image/png'));
     }
   }
 
   function clear() {
     const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-    }
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
     onChange('');
   }
-
-  const isSigned = Boolean(value);
 
   return (
     <div className="form-group" style={{ marginBottom: 'var(--sp-3)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <label className="form-label" style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <PenTool size={14} color="#64748b" />
-          <span>{label}</span>
-          <span style={{ color: 'red' }}>*</span>
+        <label className="form-label" style={{ margin: 0, fontWeight: 'var(--fw-semibold)', fontSize: 'var(--text-xs)' }}>
+          {label} {required && <span style={{ color: 'var(--clr-error-500, #ef4444)' }}>*</span>}
         </label>
-        {isSigned ? (
-          <span className="badge badge-green" style={{ fontSize: 11 }}>
-            <CheckCircle2 size={11} /> Tanda Tangan Tersimpan
+        {value ? (
+          <span className="badge badge-aktif" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <CheckCircle2 size={12} /> Tanda tangan tercatat
           </span>
         ) : (
-          <span className="badge badge-gray" style={{ fontSize: 11 }}>
-            Belum Ditandatangani
+          <span className="badge badge-gray" style={{ fontSize: '11px' }}>
+            Belum ditandatangani
           </span>
         )}
       </div>
@@ -166,67 +170,130 @@ function DigitalSignaturePad({ value, onChange, label }) {
       <div
         style={{
           position: 'relative',
+          borderRadius: 'var(--radius-lg, 10px)',
+          border: '1.5px dashed var(--clr-dark-300, #cbd5e1)',
           background: '#ffffff',
-          borderRadius: 8,
-          border: isSigned ? '1.5px solid #10b981' : '1.5px dashed #cbd5e1',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
           overflow: 'hidden',
-          transition: 'border-color 0.2s ease',
+          boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.03)',
         }}
       >
+        {/* Garis batas panduan tanda tangan */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 20,
+            right: 20,
+            bottom: 32,
+            borderBottom: '1px dashed #cbd5e1',
+            pointerEvents: 'none',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <span style={{ fontSize: '10px', color: '#94a3b8', background: '#ffffff', padding: '0 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Tanda Tangan di Atas Garis Ini
+          </span>
+          <span style={{ fontSize: '10px', color: '#94a3b8' }}>✕</span>
+        </div>
+
         <canvas
           ref={canvasRef}
-          width={650}
-          height={160}
-          onPointerDown={start}
-          onPointerMove={draw}
-          onPointerUp={stop}
-          onPointerCancel={stop}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
           style={{
             width: '100%',
             height: 140,
             display: 'block',
             cursor: 'crosshair',
             touchAction: 'none',
+            position: 'relative',
+            zIndex: 2,
           }}
           aria-label={label}
         />
-
-        {/* Faint baseline guide */}
-        {!isSigned && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 26,
-              left: 20,
-              right: 20,
-              borderBottom: '1px dashed #e2e8f0',
-              pointerEvents: 'none',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-end',
-              paddingBottom: 2,
-            }}
-          >
-            <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>✕ Tanda tangan di sini</span>
-            <span style={{ fontSize: 9.5, color: '#cbd5e1' }}>Gunakan mouse / stylus / sentuhan</span>
-          </div>
-        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-        <small style={{ fontSize: '11px', color: 'var(--clr-dark-500)' }}>
-          {isSigned ? 'Tanda tangan digital sah untuk dokumen mutu TLKM13/F/003.' : 'Bubuhkan tanda tangan Anda pada bidang kanvas di atas.'}
-        </small>
-        {isSigned && (
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={clear}
-            style={{ padding: '2px 8px', fontSize: 11, color: '#dc2626', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-          >
-            <RotateCcw size={12} /> Hapus & Ulangi
-          </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm text-error"
+          onClick={clear}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', fontSize: '12px' }}
+        >
+          <Eraser size={14} /> Hapus & Goreskan Ulang
+        </button>
+        <span style={{ fontSize: '11px', color: 'var(--clr-dark-400)' }}>
+          Gunakan mouse, stylus, atau sentuhan layar
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Komponen kartu tampilan tanda tangan resmi untuk modal rincian & persetujuan
+function SignatureDisplayCard({ title, roleLabel, signature, signerName, signerNip, signedAt }) {
+  const isSigned = Boolean(signature);
+  return (
+    <div
+      style={{
+        border: '1px solid var(--clr-dark-200, #e2e8f0)',
+        borderRadius: 'var(--radius-lg, 10px)',
+        background: 'var(--clr-dark-50, #f8fafc)',
+        padding: 'var(--sp-4)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: '11px', fontWeight: 'var(--fw-bold)', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--clr-dark-600)' }}>
+          {title}
+        </span>
+        <span className={`badge ${isSigned ? 'badge-aktif' : 'badge-gray'}`} style={{ fontSize: '11px' }}>
+          {isSigned ? 'Terverifikasi Digital' : 'Belum Ditandatangani'}
+        </span>
+      </div>
+
+      <div
+        style={{
+          background: '#ffffff',
+          borderRadius: 'var(--radius-md, 6px)',
+          border: '1px solid var(--clr-dark-200, #e2e8f0)',
+          minHeight: 85,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 6,
+          marginBottom: 8,
+        }}
+      >
+        {isSigned ? (
+          <img
+            src={signature}
+            alt={title}
+            style={{ maxHeight: 70, maxWidth: '100%', objectFit: 'contain', display: 'block' }}
+          />
+        ) : (
+          <span style={{ fontSize: '12px', color: 'var(--clr-dark-400)', fontStyle: 'italic' }}>
+            Menunggu tanda tangan digital...
+          </span>
+        )}
+      </div>
+
+      <div style={{ borderTop: '1px dashed var(--clr-dark-200, #e2e8f0)', paddingTop: 6 }}>
+        <div style={{ fontWeight: 'var(--fw-bold)', fontSize: 'var(--text-xs)', color: 'var(--clr-dark-900)' }}>
+          {signerName || '-'}
+        </div>
+        <div style={{ fontSize: '11px', color: 'var(--clr-dark-500)', marginTop: 1 }}>
+          {signerNip || roleLabel || '-'}
+        </div>
+        {signedAt && (
+          <div style={{ fontSize: '10px', color: 'var(--clr-dark-400)', marginTop: 2 }}>
+            Tgl: {new Date(signedAt).toLocaleString('id-ID')}
+          </div>
         )}
       </div>
     </div>
@@ -246,7 +313,6 @@ const emptyForm = () => ({
   nilai_koreksi: 'TB Tidak berlaku',
   peninjauan: 'Alat belum digunakan sejak aktivitas',
   tb_alasan: {},
-  ts_alasan: {},
   hasil_verifikasi: Object.fromEntries(CHECKS.map((key) => [key, ''])),
 });
 
@@ -269,18 +335,16 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(() => ({ ...emptyForm(), id_peralatan: equipmentId || '' }));
   const [busy, setBusy] = useState(false);
-  const [equipmentInfo, setEquipmentInfo] = useState(null);
   const [loadingEquipment, setLoadingEquipment] = useState(false);
+  const [equipmentInfo, setEquipmentInfo] = useState(null);
   const [reviewLogs, setReviewLogs] = useState([]);
   const [picSignature, setPicSignature] = useState('');
   const [managerSignature, setManagerSignature] = useState('');
-  const [approvalModal, setApprovalModal] = useState(null);
-  const [approvalRejectMode, setApprovalRejectMode] = useState(false);
-  const [approvalReason, setApprovalReason] = useState('');
-  const [approvalNotes, setApprovalNotes] = useState('');
-  const [approvalSuccessItem, setApprovalSuccessItem] = useState(null);
-
-  const isRejected = equipmentInfo?.status_verifikasi === 'Ditolak';
+  const [approvalModalItem, setApprovalModalItem] = useState(null);
+  const [approvalMode, setApprovalMode] = useState('approve'); // 'approve' | 'reject'
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectCatatan, setRejectCatatan] = useState('');
+  const [affirmApproved, setAffirmApproved] = useState(false);
 
   // Memuat daftar verifikasi, log peninjauan, & daftar peralatan karantina/pending
   async function loadList() {
@@ -381,18 +445,10 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
       return;
     }
 
-    const tsKeys = CHECKS.filter((key) => form.hasil_verifikasi[key] === 'TS');
     const tbKeys = CHECKS.filter((key) => form.hasil_verifikasi[key] === 'TB');
     const missingKeys = CHECKS.filter((key) => !form.hasil_verifikasi[key]);
-
     if (missingKeys.length > 0) {
-      error('Semua aspek verifikasi (a–h) wajib dinilai dengan S, TS, atau TB.');
-      return;
-    }
-
-    // Aturan SRS 9.1 & UAT-04 & Dev Rule #8: Jika hasil TS atau TB, alasan wajib dicatat
-    if (tsKeys.some((key) => !form.ts_alasan[key]?.trim())) {
-      error('Setiap hasil TS (Tidak Sesuai) wajib disertai uraian alasan ketidaksesuaian.');
+      error('Semua aspek verifikasi wajib dinilai dengan S, TS, atau TB.');
       return;
     }
     if (tbKeys.some((key) => !form.tb_alasan[key]?.trim())) {
@@ -400,9 +456,8 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
       return;
     }
 
-    // Aturan SRS 9.2: jika ada TS, peralatan tidak dapat dinyatakan Layak
-    if (tsKeys.length > 0 && form.tindak_lanjut.includes('Masuk layanan')) {
-      error('Peralatan yang memiliki aspek TS tidak dapat langsung masuk layanan. Pilih tindak lanjut perbaikan/kalibrasi ulang.');
+    if (Object.values(form.hasil_verifikasi).includes('TS') && !form.tindak_lanjut) {
+      error('Hasil TS (Tidak Sesuai) harus disertai pemilihan tindak lanjut alat.');
       return;
     }
 
@@ -420,7 +475,6 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
         },
         peninjauan_hasil_sebelumnya: form.peninjauan,
         alasan_tb: form.tb_alasan,
-        alasan_ts: form.ts_alasan,
       });
 
       // 1. Buat verifikasi
@@ -432,7 +486,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
         catatan: catatanTerstruktur,
         hasil_verifikasi: {
           ...form.hasil_verifikasi,
-          catatan: JSON.stringify({ alasan_tb: form.tb_alasan, alasan_ts: form.ts_alasan }),
+          catatan: JSON.stringify({ alasan_tb: form.tb_alasan }),
         },
       });
 
@@ -458,39 +512,42 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
     }
   }
 
-  // Manager Approval Modal Actions (SRS 9.2 & 17.1)
+  // Manager Modal Actions
   function openApprovalModal(item) {
-    setApprovalModal(item);
-    setApprovalRejectMode(false);
-    setApprovalReason('');
-    setApprovalNotes('');
+    setApprovalModalItem(item);
+    setApprovalMode('approve');
     setManagerSignature('');
-    setApprovalSuccessItem(null);
+    setRejectReason('');
+    setRejectCatatan('');
+    setAffirmApproved(false);
   }
 
-  async function handleApproveModal(item) {
+  function closeApprovalModal() {
+    setApprovalModalItem(null);
+    setManagerSignature('');
+    setRejectReason('');
+    setRejectCatatan('');
+    setAffirmApproved(false);
+  }
+
+  async function handleApproveFromModal() {
+    if (!approvalModalItem) return;
     if (!managerSignature?.trim()) {
-      error('Tanda tangan digital Manager wajib dibubuhkan.');
+      error('Tanda tangan digital manager wajib digoreskan sebelum verifikasi disetujui.');
       return;
     }
-
-    const aspectValues = item?.hasil_verifikasi?.[0] || item?.hasil_verifikasi || {};
-    const hasTsAspect = CHECKS.some((key) => aspectValues[key] === 'TS');
-    if (hasTsAspect) {
-      error('Peralatan memiliki hasil TS (Tidak Sesuai). Sesuai SRS Klausul 9.2, peralatan tidak dapat disetujui Layak sebelum seluruh ketidaksesuaian diselesaikan.');
+    if (!affirmApproved) {
+      error('Harap centang pernyataan konfirmasi kelayakan peralatan.');
       return;
     }
 
     setBusy(true);
     try {
-      await verifikasiApi.approve(item.id_verifikasi ?? item.id, managerSignature.trim());
-      success('Verifikasi berhasil disetujui. Status peralatan kini Aktif dengan label CALIBRATION.');
-      const updatedItem = {
-        ...item,
-        status: 'Disetujui',
-        manager_signature: managerSignature.trim(),
-      };
-      setApprovalSuccessItem(updatedItem);
+      const verifikasiId = approvalModalItem.id_verifikasi ?? approvalModalItem.id;
+      await verifikasiApi.approve(verifikasiId, managerSignature.trim());
+      success('Verifikasi berhasil disetujui. Status peralatan kini Aktif dan masuk ke inventaris.');
+      closeApprovalModal();
+      setSelected(null);
       await loadList();
     } catch (err) {
       error(err.message || 'Gagal menyetujui verifikasi.');
@@ -499,20 +556,23 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
     }
   }
 
-  async function handleRejectModal(item) {
-    if (!approvalReason.trim()) {
-      error('Evaluasi dampak / alasan penolakan wajib diisi (SRS 17.1).');
+  async function handleRejectFromModal() {
+    if (!approvalModalItem) return;
+    if (!rejectReason.trim()) {
+      error('Alasan penolakan / evaluasi ketidaksesuaian wajib diisi.');
       return;
     }
 
     setBusy(true);
     try {
-      await verifikasiApi.reject(item.id_verifikasi ?? item.id, {
-        alasan: approvalReason.trim(),
-        catatan: approvalNotes.trim(),
+      const verifikasiId = approvalModalItem.id_verifikasi ?? approvalModalItem.id;
+      await verifikasiApi.reject(verifikasiId, {
+        alasan: rejectReason.trim(),
+        catatan: rejectCatatan.trim(),
       });
-      success('Verifikasi ditolak. Peralatan berstatus Dalam Peninjauan dengan label DO NOT USE (SRS 17.1).');
-      setApprovalModal(null);
+      success('Verifikasi ditolak dan dicatat pada log peninjauan (TLKM13/IK/012).');
+      closeApprovalModal();
+      setSelected(null);
       await loadList();
     } catch (err) {
       error(err.message || 'Gagal menolak verifikasi.');
@@ -788,22 +848,6 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                       <option value="TB">TB — Tidak Berlaku</option>
                     </select>
 
-                    {isTS && (
-                      <input
-                        className="form-input"
-                        style={{ marginTop: 6, fontSize: 'var(--text-xs)', borderColor: 'var(--clr-error-400, #f87171)' }}
-                        placeholder="Alasan Tidak Sesuai / Uraian Temuan (wajib diisi)..."
-                        value={form.ts_alasan[key] || ''}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            ts_alasan: { ...form.ts_alasan, [key]: e.target.value },
-                          })
-                        }
-                        required
-                      />
-                    )}
-
                     {isTB && (
                       <input
                         className="form-input"
@@ -1011,13 +1055,15 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
         </div>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => navigate('/peralatan/tambah')}
-            title="Tambah peralatan baru"
-          >
-            + Tambah Peralatan
-          </button>
+          {canSubmit && (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => navigate('/peralatan/tambah')}
+              title="Tambah peralatan baru"
+            >
+              + Tambah Peralatan
+            </button>
+          )}
           <button
             className="btn btn-secondary btn-icon"
             onClick={() => setShowLogs(!showLogs)}
@@ -1230,23 +1276,19 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {canApprove ? (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => setSelected(item)}
+                          >
+                            Rincian
+                          </button>
+                          {canApprove && (
                             <button
                               className="btn btn-primary btn-sm"
                               onClick={() => openApprovalModal(item)}
                               style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
                             >
-                              <ShieldCheck size={14} /> Tinjau & Setujui
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => {
-                                setSelected(item);
-                                setManagerSignature('');
-                              }}
-                            >
-                              <Eye size={14} /> Rincian
+                              <CheckCircle2 size={13} /> Tinjau
                             </button>
                           )}
                         </div>
@@ -1317,30 +1359,18 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <button
                             className="btn btn-ghost btn-sm"
-                            onClick={() => {
-                              setSelected(item);
-                              setManagerSignature('');
-                            }}
+                            onClick={() => setSelected(item)}
                           >
                             Rincian
                           </button>
-                          {item.status === 'Disetujui' && (
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => exportVerificationPdf(item)}
-                              title="Export Formulir Verifikasi ke PDF (TLKM13/F/003)"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                            >
-                              <FileDown size={13} /> Export PDF
-                            </button>
-                          )}
-                          {item.status === 'Disetujui' && (
+                          {item.status === 'Disetujui' && (canApprove || isStaffPIC) && (
                             <button
                               className="btn btn-ghost btn-sm"
-                              onClick={() => navigate('/peralatan')}
-                              title="Buka Daftar Peralatan"
+                              onClick={() => exportVerificationPdf(item)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                              title="Export PDF (TLKM13/F/003)"
                             >
-                              Lihat Alat
+                              <Printer size={13} /> Export PDF
                             </button>
                           )}
                         </div>
@@ -1363,15 +1393,16 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
       {/* Modal Rincian Verifikasi */}
       {selected && (
         <div
-          className="modal-overlay"
+          className="modal-backdrop"
           role="presentation"
           onClick={() => setSelected(null)}
         >
           <div
-            className="modal modal-lg"
+            className="modal-card"
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 700 }}
           >
             <div className="modal-header">
               <div>
@@ -1383,11 +1414,10 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
               </div>
               <button
                 type="button"
-                className="modal-close"
+                className="btn btn-ghost"
                 onClick={() => setSelected(null)}
-                aria-label="Tutup"
               >
-                ✕
+                Tutup
               </button>
             </div>
 
@@ -1506,46 +1536,31 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                       </p>
                     </div>
                   )}
-
-                  {canApprove && selected.status === 'Diajukan' && (
-                    <div style={{ marginTop: 'var(--sp-4)', padding: 'var(--sp-4)', background: '#eff6ff', borderRadius: 'var(--radius-md)', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
-                      <div>
-                        <strong style={{ fontSize: 'var(--text-sm)', color: '#1e40af' }}>Menunggu Persetujuan Manager</strong>
-                        <p style={{ margin: '2px 0 0', fontSize: 'var(--text-xs)', color: '#3b82f6' }}>
-                          Pengajuan verifikasi telah ditandatangani PIC dan siap disahkan oleh Manager Lab.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm"
-                        onClick={() => {
-                          const item = selected;
-                          setSelected(null);
-                          openApprovalModal(item);
-                        }}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
-                      >
-                        <ShieldCheck size={14} /> Buka Form Persetujuan
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
 
-            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-              <div>
-                {selected.status === 'Disetujui' && (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() => exportVerificationPdf(selected)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                  >
-                    <FileDown size={14} /> Cetak / Export PDF (TLKM13/F/003)
-                  </button>
-                )}
-              </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              {selected.status === 'Diajukan' && canApprove && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => { setSelected(null); openApprovalModal(selected); }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <CheckCircle2 size={15} /> Tinjau & Setujui
+                </button>
+              )}
+              {selected.status === 'Disetujui' && (canApprove || isStaffPIC) && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => exportVerificationPdf(selected)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Printer size={15} /> Export PDF
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1558,318 +1573,151 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
         </div>
       )}
 
-      {/* MODAL PERSETUJUAN MANAGER (SRS Klausul 9.2 & ISO/IEC 17025) */}
-      {approvalModal && (
+      {/* Modal Persetujuan Manager (Terpisah) */}
+      {approvalModalItem && (
         <div
-          className="modal-overlay"
+          className="modal-backdrop"
           role="presentation"
-          onClick={() => !busy && setApprovalModal(null)}
+          onClick={closeApprovalModal}
         >
           <div
-            className="modal modal-lg"
+            className="modal-card"
             role="dialog"
             aria-modal="true"
+            aria-labelledby="approval-modal-title"
             onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 560 }}
           >
-            {approvalSuccessItem ? (
-              <>
-                <div className="modal-header">
-                  <h2 className="modal-title">Verifikasi Disetujui</h2>
-                  <button
-                    type="button"
-                    className="modal-close"
-                    aria-label="Tutup"
-                    onClick={() => {
-                      setApprovalModal(null);
-                      setApprovalSuccessItem(null);
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="modal-body" style={{ textAlign: 'center', padding: 'var(--sp-6) var(--sp-4)' }}>
+            <div className="modal-header">
+              <div>
+                <h2 className="modal-title" id="approval-modal-title">Form Persetujuan Manager</h2>
+                <p className="page-subtitle" style={{ margin: '4px 0 0', fontSize: 'var(--text-xs)' }}>
+                  {approvalModalItem.peralatan?.nama_peralatan || `Peralatan ID ${approvalModalItem.id_peralatan}`}
+                  {approvalModalItem.peralatan?.nomor_aset ? ` (${approvalModalItem.peralatan.nomor_aset})` : ''}
+                </p>
+              </div>
+              <button type="button" className="btn btn-ghost btn-icon" onClick={closeApprovalModal}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {/* Toggle Approve / Reject */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--sp-4)' }}>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${approvalMode === 'approve' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setApprovalMode('approve')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                >
+                  <CheckCircle2 size={14} /> Setujui
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${approvalMode === 'reject' ? 'btn-ghost text-error' : 'btn-ghost'}`}
+                  onClick={() => setApprovalMode('reject')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                >
+                  <XCircle size={14} /> Tolak
+                </button>
+              </div>
+
+              {approvalMode === 'approve' ? (
+                <div>
+                  <div className="form-group">
+                    <label className="form-label">
+                      Tanda Tangan Digital Manager <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <DigitalSignaturePad
+                      value={managerSignature}
+                      onChange={setManagerSignature}
+                      label="Tanda Tangan Digital Manager"
+                    />
+                  </div>
+
                   <div
                     style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: '50%',
-                      background: '#dcfce7',
-                      color: '#15803d',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      margin: '0 auto var(--sp-4)',
+                      marginTop: 'var(--sp-3)',
+                      padding: 'var(--sp-3)',
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: 'var(--radius-md)',
                     }}
                   >
-                    <CheckCircle2 size={32} />
-                  </div>
-                  <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: '0 0 8px', color: '#0f172a' }}>
-                    Verifikasi Berhasil Disetujui & Disahkan!
-                  </h2>
-                  <p style={{ fontSize: 'var(--text-sm)', color: '#475569', maxWidth: 460, margin: '0 auto var(--sp-6)' }}>
-                    Peralatan <strong>{approvalSuccessItem.peralatan?.nama_peralatan || 'terkait'}</strong> telah dinyatakan <strong>LAYAK (CALIBRATION)</strong> dan status operasional kini aktif sesuai ISO/IEC 17025.
-                  </p>
-
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => exportVerificationPdf(approvalSuccessItem)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px' }}
-                    >
-                      <FileDown size={16} /> Export ke PDF (TLKM13/F/003)
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => {
-                        setApprovalModal(null);
-                        setApprovalSuccessItem(null);
-                      }}
-                    >
-                      Selesai
-                    </button>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: 'var(--text-xs)' }}>
+                      <input
+                        type="checkbox"
+                        checked={affirmApproved}
+                        onChange={(e) => setAffirmApproved(e.target.checked)}
+                        style={{ marginTop: 2, flexShrink: 0 }}
+                      />
+                      <span>
+                        Saya menyatakan bahwa peralatan ini <strong>telah diperiksa dan memenuhi seluruh kriteria kelayakan</strong> sesuai prosedur TLKM13/F/003.
+                        Persetujuan ini menjadi bukti sah yang terekam dalam sistem SiKEPo.
+                      </span>
+                    </label>
                   </div>
                 </div>
-              </>
-            ) : approvalRejectMode ? (
-              <>
-                <div className="modal-header">
-                  <div>
-                    <h2 className="modal-title" style={{ color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <AlertTriangle size={20} /> Penolakan Verifikasi (SRS 17.1)
-                    </h2>
-                    <p className="page-subtitle" style={{ margin: '4px 0 0', fontSize: 'var(--text-xs)' }}>
-                      Evaluasi ketidaksesuaian peralatan {approvalModal.peralatan?.nama_peralatan}
-                    </p>
-                  </div>
-                  <button type="button" className="modal-close" aria-label="Tutup" onClick={() => setApprovalRejectMode(false)}>
-                    ✕
-                  </button>
-                </div>
-                <div className="modal-body">
-                  <div className="alert alert-error" style={{ marginBottom: 'var(--sp-4)', fontSize: 'var(--text-xs)' }}>
-                    Peralatan yang ditolak akan dialihkan ke status <strong>Dalam Peninjauan</strong> dengan label <strong>DO NOT USE</strong> untuk penanganan ketidaksesuaian sesuai Klausul 17.1 SRS.
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 'var(--sp-4)' }}>
+              ) : (
+                <div>
+                  <div className="form-group">
                     <label className="form-label">
-                      Evaluasi Dampak & Alasan Penolakan <span style={{ color: 'red' }}>*</span>
+                      Alasan Penolakan / Evaluasi Ketidaksesuaian <span style={{ color: 'red' }}>*</span>
                     </label>
                     <textarea
                       className="form-textarea"
                       rows={3}
-                      placeholder="Jelaskan ketidaksesuaian teknis atau evaluasi terhadap hasil pengujian sebelumnya..."
-                      value={approvalReason}
-                      onChange={(e) => setApprovalReason(e.target.value)}
+                      placeholder="Tuliskan alasan penolakan dan aspek yang belum memenuhi kriteria..."
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      required
                     />
                   </div>
-
                   <div className="form-group">
-                    <label className="form-label">Catatan Tindak Lanjut / Isolasi Alat (Opsional)</label>
+                    <label className="form-label">Catatan Tindak Lanjut</label>
                     <textarea
                       className="form-textarea"
                       rows={2}
-                      placeholder="Instruksi isolasi alat, kalibrasi ulang, atau pengembalian ke vendor..."
-                      value={approvalNotes}
-                      onChange={(e) => setApprovalNotes(e.target.value)}
+                      placeholder="Catatan / instruksi perbaikan untuk PIC (opsional)..."
+                      value={rejectCatatan}
+                      onChange={(e) => setRejectCatatan(e.target.value)}
                     />
                   </div>
                 </div>
-                <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setApprovalRejectMode(false)}>
-                    Kembali
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{ background: '#dc2626', borderColor: '#dc2626' }}
-                    disabled={busy || !approvalReason.trim()}
-                    onClick={() => handleRejectModal(approvalModal)}
-                  >
-                    {busy ? 'Memproses...' : 'Konfirmasi Tolak Verifikasi'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="modal-header">
-                  <div>
-                    <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <ShieldCheck size={20} color="#15803d" /> Form Persetujuan Manager
-                    </h2>
-                    <p className="page-subtitle" style={{ margin: '4px 0 0', fontSize: 'var(--text-xs)' }}>
-                      Form No. TLKM13/F/003 • Pengesahan Kelayakan Alat Uji ISO/IEC 17025
-                    </p>
-                  </div>
-                  <button type="button" className="modal-close" aria-label="Tutup" onClick={() => setApprovalModal(null)}>
-                    ✕
-                  </button>
-                </div>
+              )}
+            </div>
 
-                <div className="modal-body">
-                  {/* Summary Card */}
-                  <div
-                    style={{
-                      background: 'var(--clr-dark-50, #f8fafc)',
-                      border: '1px solid var(--clr-dark-200, #e2e8f0)',
-                      borderRadius: 8,
-                      padding: 12,
-                      marginBottom: 'var(--sp-4)',
-                    }}
-                  >
-                    <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--clr-dark-900)' }}>
-                      {approvalModal.peralatan?.nama_peralatan || `Peralatan ID ${approvalModal.id_peralatan}`}
-                    </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginTop: 2, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                      <span>No. Aset: <strong>{approvalModal.peralatan?.nomor_aset || '-'}</strong></span>
-                      <span>Kode Aktivitas: <strong>{approvalModal.kode_aktivitas || 'P1'}</strong></span>
-                      <span>Pengaju PIC: <strong>{approvalModal.pic?.name || 'Staff PIC'}</strong></span>
-                      <span>Tgl Verifikasi: <strong>{approvalModal.tanggal_verifikasi ? new Date(approvalModal.tanggal_verifikasi).toLocaleDateString('id-ID') : '-'}</strong></span>
-                    </div>
-                  </div>
-
-                  {/* Detail 8 Aspek */}
-                  {(() => {
-                    const aspectValues = approvalModal.hasil_verifikasi?.[0] || approvalModal.hasil_verifikasi || {};
-                    const tsKeys = CHECKS.filter((k) => aspectValues[k] === 'TS');
-                    const tbKeys = CHECKS.filter((k) => aspectValues[k] === 'TB');
-                    const sKeys = CHECKS.filter((k) => aspectValues[k] === 'S');
-                    const hasTS = tsKeys.length > 0;
-                    let notes = {};
-                    try { notes = JSON.parse(approvalModal.catatan || '{}'); } catch { notes = {}; }
-
-                    return (
-                      <div style={{ marginBottom: 'var(--sp-4)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: '#334155' }}>
-                            Hasil Evaluasi 8 Aspek (a–h):
-                          </span>
-                          <div style={{ display: 'flex', gap: 6, fontSize: 11 }}>
-                            <span className="badge badge-aktif">{sKeys.length} Sesuai</span>
-                            {tbKeys.length > 0 && <span className="badge badge-gray">{tbKeys.length} TB</span>}
-                            {tsKeys.length > 0 && <span className="badge badge-rusak">{tsKeys.length} TS</span>}
-                          </div>
-                        </div>
-
-                        <div className="table-wrapper" style={{ marginBottom: 8 }}>
-                          <table className="data-table" style={{ fontSize: 11 }}>
-                            <thead>
-                              <tr>
-                                <th>Aspek</th>
-                                <th style={{ textAlign: 'center', width: 80 }}>Hasil</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {CHECKS.map((key) => {
-                                const val = aspectValues[key] || '-';
-                                return (
-                                  <tr key={key}>
-                                    <td style={{ fontSize: 11 }}>{CHECK_LABELS[key]}</td>
-                                    <td style={{ textAlign: 'center' }}>
-                                      <span className={`badge ${val === 'S' ? 'badge-aktif' : val === 'TS' ? 'badge-rusak' : 'badge-gray'}`}>
-                                        {val}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        {/* Tanda tangan PIC */}
-                        {approvalModal.pic_signature && (
-                          <div style={{ marginBottom: 8 }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: '#334155', marginBottom: 4 }}>Tanda Tangan PIC:</div>
-                            <img
-                              src={approvalModal.pic_signature}
-                              alt="TTD PIC"
-                              style={{ maxWidth: 200, height: 56, objectFit: 'contain', border: '1px solid var(--clr-dark-200)', borderRadius: 4 }}
-                            />
-                          </div>
-                        )}
-
-                        {/* Data sertifikat */}
-                        {notes.sertifikat?.nomor && (
-                          <div style={{ fontSize: 11, color: '#475569', background: '#f8fafc', borderRadius: 4, padding: '6px 10px', border: '1px solid #e2e8f0', marginBottom: 8 }}>
-                            <strong>Sertifikat:</strong> {notes.sertifikat.nomor}
-                            {notes.sertifikat.berlaku_sampai ? ` — Berlaku s/d ${notes.sertifikat.berlaku_sampai}` : ''}
-                          </div>
-                        )}
-
-                        {hasTS ? (
-                          <div className="alert alert-error" style={{ fontSize: 'var(--text-xs)', marginTop: 8 }}>
-                            <AlertTriangle size={15} style={{ flexShrink: 0 }} />
-                            <span>
-                              <strong>Klausul 9.2 SRS:</strong> Terdapat aspek berstatus <strong>TS (Tidak Sesuai)</strong>. Peralatan <strong>tidak dapat disahkan sebagai Layak</strong> sebelum seluruh ketidaksesuaian diselesaikan.
-                            </span>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-xs)', color: '#15803d', background: '#f0fdf4', padding: '6px 10px', borderRadius: 6, border: '1px solid #bbf7d0' }}>
-                            <CheckCircle2 size={14} />
-                            <span>Seluruh aspek memenuhi kriteria kelaikan operasional laboratorium.</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Tanda Tangan Digital Manager */}
-                  <div style={{ marginTop: 'var(--sp-3)', borderTop: '1px solid var(--clr-dark-200)', paddingTop: 'var(--sp-3)' }}>
-                    <DigitalSignaturePad
-                      value={managerSignature}
-                      onChange={setManagerSignature}
-                      label="Tanda Tangan Digital Manager Laboratorium"
-                    />
-                  </div>
-                </div>
-
-                <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm text-error"
-                    disabled={busy}
-                    onClick={() => {
-                      setApprovalRejectMode(true);
-                      setApprovalReason('');
-                      setApprovalNotes('');
-                    }}
-                  >
-                    <XCircle size={14} /> Tolak Verifikasi
-                  </button>
-
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => setApprovalModal(null)}
-                      disabled={busy}
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={
-                        busy ||
-                        !managerSignature ||
-                        CHECKS.some((k) => (approvalModal.hasil_verifikasi?.[0] || approvalModal.hasil_verifikasi || {})[k] === 'TS')
-                      }
-                      onClick={() => handleApproveModal(approvalModal)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                    >
-                      <CheckCircle2 size={16} />
-                      {busy ? 'Mengesahkan...' : 'Setujui & Sahkan'}
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
+            <div className="modal-footer" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={closeApprovalModal}>
+                Batal
+              </button>
+              {approvalMode === 'approve' ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={busy || !managerSignature?.trim() || !affirmApproved}
+                  onClick={handleApproveFromModal}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <CheckCircle2 size={15} />
+                  {busy ? 'Menyetujui...' : 'Konfirmasi Persetujuan'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-ghost text-error"
+                  disabled={busy || !rejectReason.trim()}
+                  onClick={handleRejectFromModal}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <XCircle size={15} />
+                  {busy ? 'Menolak...' : 'Konfirmasi Penolakan'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
-

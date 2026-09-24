@@ -30,7 +30,11 @@ const VIEW = [ACTIONS.VIEW];
 const CRUD = [ACTIONS.ADD, ACTIONS.EDIT, ACTIONS.DELETE, ACTIONS.VIEW];
 const ADD_EDIT_VIEW = [ACTIONS.ADD, ACTIONS.EDIT, ACTIONS.VIEW];
 
-// Matriks mengikuti dokumen hak akses: staff = Personel TTH.
+// Matriks mengikuti dokumen hak akses dan aturan backend:
+// - Admin: Semua modul CRUD
+// - Manager: Persetujuan verifikasi, pengawasan, dan master data tertentu
+// - Staff PIC: Boleh input peralatan (POST /api/peralatan) dan mengajukan/menandatangani verifikasi (TLKM13/F/003)
+// - Staff Biasa: Hanya dapat melihat (VIEW), tidak dapat menambah peralatan atau mengajukan verifikasi tanpa penugasan PIC oleh Admin
 const ROLE_PERMISSIONS = {
   staff: {
     [ACCESS.MASTER_EQUIPMENT]: VIEW,
@@ -43,16 +47,15 @@ const ROLE_PERMISSIONS = {
     [ACCESS.LOCATION_TRACKING]: VIEW,
     [ACCESS.LOAN_HISTORY]: VIEW,
     [ACCESS.LOCATION_HISTORY]: VIEW,
-    [ACCESS.EQUIPMENT_ELIGIBILITY]: ADD_EDIT_VIEW,
     [ACCESS.QR_CODE]: VIEW,
   },
   manager: {
     [ACCESS.MASTER_EQUIPMENT]: VIEW,
     [ACCESS.MASTER_LAB]: VIEW,
     [ACCESS.MASTER_USER_PIC]: VIEW,
-    [ACCESS.INPUT_EQUIPMENT]: CRUD,
+    [ACCESS.INPUT_EQUIPMENT]: VIEW,
     [ACCESS.EQUIPMENT_USAGE]: CRUD,
-    [ACCESS.EQUIPMENT_ELIGIBILITY]: CRUD,
+    [ACCESS.EQUIPMENT_ELIGIBILITY]: [ACTIONS.VIEW, ACTIONS.EDIT],
     [ACCESS.LOAN_REQUEST]: ADD_EDIT_VIEW,
     [ACCESS.RETURN_PROCESS]: ADD_EDIT_VIEW,
     [ACCESS.DIGITAL_CHECK_FORM]: ADD_EDIT_VIEW,
@@ -71,40 +74,44 @@ export function getUserRole(user = getCurrentUser()) {
   return (user?.role || 'staff').toLowerCase();
 }
 
-export function isUserPic(user = getCurrentUser()) {
-  if (!user) return false;
-  return Boolean(user.pic === true || user.pic === 1 || user.pic === '1' || user.pic === 'true');
-}
-
 export function isStaffPic(user = getCurrentUser()) {
-  return getUserRole(user) === 'staff' && isUserPic(user);
+  return getUserRole(user) === 'staff' && Boolean(user?.pic);
 }
 
 export function can(feature, action = ACTIONS.VIEW, user = getCurrentUser()) {
   const role = getUserRole(user);
-  const isPic = isUserPic(user);
+  const isPic = Boolean(user?.pic);
 
-  // Penambahan peralatan baru (INPUT_EQUIPMENT):
-  // - Seluruh role yang berhak dapat melihat (VIEW)
-  // - Admin: selalu diizinkan (CRUD)
-  // - Staff PIC: diizinkan menambah (ADD) dan melihat (VIEW)
-  // - Staff biasa: TIDAK diizinkan menambah (memerlukan hak PIC dari admin), hanya VIEW
-  // - Manager: diizinkan VIEW & EDIT
+  // 1. Admin memiliki hak penuh (CRUD) untuk semua fitur
+  if (role === 'admin') {
+    return true;
+  }
+
+  // 2. Input Peralatan (POST /api/peralatan):
+  // Berdasarkan backend RequireAdminOrStaffPIC(), hanya Admin dan Staff PIC yang diizinkan menambah.
+  // Staff biasa tidak diizinkan dan butuh akses (ditetapkan sebagai PIC) dari admin.
   if (feature === ACCESS.INPUT_EQUIPMENT) {
-    if (action === ACTIONS.VIEW) return true;
-    if (role === 'admin' || role === 'manager') return true;
-    if (role === 'staff') return isPic && action === ACTIONS.ADD;
+    if (action === ACTIONS.ADD) {
+      return role === 'staff' && isPic;
+    }
+    if (action === ACTIONS.VIEW) {
+      return true;
+    }
     return false;
   }
 
-  // Verifikasi kelayakan (EQUIPMENT_ELIGIBILITY):
-  // - Seluruh role dapat MELIHAT (VIEW) status & riwayat verifikasi
-  // - Pengisian / Pengajuan verifikasi (ADD/EDIT): hanya Staff PIC, Admin, dan Manager
+  // 3. Verifikasi Kelayakan Peralatan (TLKM13/F/003):
+  // - Staff biasa yang bukan PIC tidak diizinkan (harus dapat penugasan PIC dari admin).
+  // - Staff PIC boleh mengisi, menandatangani, dan mengajukan (ADD, EDIT, VIEW).
+  // - Manager dapat meninjau, menyetujui, dan menolak (VIEW, EDIT).
   if (feature === ACCESS.EQUIPMENT_ELIGIBILITY) {
-    if (action === ACTIONS.VIEW) return true;
-    if (role === 'admin' || role === 'manager') return true;
-    if (role === 'staff') return isPic;
-    return false;
+    if (role === 'staff') {
+      if (!isPic) return false;
+      return [ACTIONS.ADD, ACTIONS.EDIT, ACTIONS.VIEW].includes(action);
+    }
+    if (role === 'manager') {
+      return [ACTIONS.VIEW, ACTIONS.EDIT].includes(action);
+    }
   }
 
   return ROLE_PERMISSIONS[role]?.[feature]?.includes(action) || false;

@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { QrCode, Camera, Upload, X, CheckCircle, AlertCircle, Search, ArrowRight, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
+import { QrCode, Camera, Upload, X, CheckCircle, AlertCircle, Search, ArrowRight } from 'lucide-react';
 import jsQR from 'jsqr';
-import { getEquipmentId, peralatanApi, computeEligibility, STATUS_BADGE_CLASS } from '../utils/api.js';
+import { getEquipmentId, peralatanApi } from '../utils/api.js';
 
 export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
   const [activeTab, setActiveTab] = useState('camera'); // 'camera', 'upload', 'manual'
   const [manualInput, setManualInput] = useState('');
   const [scanResult, setScanResult] = useState(null);
-  const [previewEquipment, setPreviewEquipment] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -155,7 +154,7 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
       const list = res.data || [];
       const found = findEquipment(manualInput, list);
       if (found) {
-        navigateToEquipment(getEquipmentId(found), found);
+        navigateToEquipment(getEquipmentId(found));
       } else {
         setErrorMsg(`Peralatan dengan ID / Nomor Aset "${manualInput}" tidak ditemukan.`);
       }
@@ -177,7 +176,7 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
         animationFrameRef.current = requestAnimationFrame(() => startScanningLoop());
         return;
       }
-      navigateToEquipment(getEquipmentId(found), found);
+      navigateToEquipment(getEquipmentId(found));
     } catch (err) {
       setErrorMsg(`Gagal memvalidasi QR Code: ${err.message}`);
       scanInProgressRef.current = false;
@@ -235,18 +234,13 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
     reader.readAsDataURL(file);
   }
 
-  function navigateToEquipment(id, equipmentData) {
+  function navigateToEquipment(id) {
     setScanResult(`ID Terdeteksi: #${id}`);
-    setPreviewEquipment(equipmentData || null);
     stopCamera();
-  }
-
-  function handleGoToDetail() {
-    const id = previewEquipment ? getEquipmentId(previewEquipment) : null;
-    setPreviewEquipment(null);
-    setScanResult(null);
-    onClose();
-    if (id) onNavigate(`/peralatan/detail/${id}`);
+    setTimeout(() => {
+      onClose();
+      onNavigate(`/peralatan/detail/${id}`);
+    }, 600);
   }
 
   if (!isOpen) return null;
@@ -420,48 +414,9 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
                 marginBottom: 'var(--sp-4)',
               }}
             >
-              <CheckCircle size={18} /> {scanResult}
+              <CheckCircle size={18} /> {scanResult} — Mengalihkan...
             </div>
           )}
-
-          {/* SRS FR-M3-10 — Preview Kartu Kepatuhan setelah scan */}
-          {previewEquipment && (() => {
-            const elig = computeEligibility(previewEquipment);
-            const EligIcon = elig.statusKelayakan === 'Layak' ? ShieldCheck : elig.statusKelayakan === 'Terbatas' ? ShieldAlert : ShieldX;
-            return (
-              <div style={{
-                padding: 'var(--sp-4)', background: '#fff', borderRadius: 'var(--radius-lg)',
-                border: '1.5px solid var(--clr-dark-200)', marginBottom: 'var(--sp-4)',
-              }}>
-                <div style={{ fontWeight: 'var(--fw-bold)', fontSize: 'var(--text-base)', marginBottom: 8 }}>
-                  {previewEquipment.nama_peralatan}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', fontSize: 'var(--text-xs)', marginBottom: 12 }}>
-                  <div><strong>No. Aset:</strong> {previewEquipment.nomor_aset || '–'}</div>
-                  <div><strong>Status:</strong> <span className={`badge ${STATUS_BADGE_CLASS[previewEquipment.status_alat] || 'badge-gray'}`} style={{ fontSize: 'var(--text-xs)' }}>{previewEquipment.status_alat}</span></div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 12px',
-                    borderRadius: 'var(--radius-full)', background: elig.labelColor + '18',
-                    border: `1.5px solid ${elig.labelColor}`, fontWeight: 'var(--fw-bold)',
-                    fontSize: 'var(--text-xs)', color: elig.labelColor,
-                  }}>
-                    <EligIcon size={14} /> {elig.jenisLabel}
-                  </span>
-                  <span className={`badge ${elig.badgeClass}`} style={{ fontSize: 'var(--text-xs)' }}>
-                    Kelayakan: {elig.statusKelayakan}
-                  </span>
-                  <span className={`badge ${elig.isSealBroken ? 'badge-rusak' : 'badge-aktif'}`} style={{ fontSize: 'var(--text-xs)' }}>
-                    Segel: {elig.isSealBroken ? 'Rusak' : 'Utuh'}
-                  </span>
-                </div>
-                <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleGoToDetail}>
-                  Buka Detail Peralatan <ArrowRight size={14} />
-                </button>
-              </div>
-            );
-          })()}
 
           {errorMsg && (
             <div

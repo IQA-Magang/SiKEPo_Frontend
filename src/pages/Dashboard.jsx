@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Building2, DoorOpen, Users, FolderKanban, Plus, ArrowRight, Bell, RefreshCw, QrCode, Shield, ShieldCheck, ShieldAlert, ShieldX, Clock, CheckCircle2 } from 'lucide-react';
+import { Package, Building2, DoorOpen, Users, FolderKanban, Plus, ArrowRight, Bell, RefreshCw, QrCode } from 'lucide-react';
 import QRScannerModal from '../components/QRScannerModal.jsx';
-import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi, STATUS_BADGE_CLASS, computeEligibility, getDueStatus, getEquipmentId } from '../utils/api.js';
-import { can, ACCESS, ACTIONS } from '../utils/permissions.js';
+import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi, STATUS_BADGE_CLASS } from '../utils/api.js';
 
 // ------------------------------------------------------------------
 // Dashboard: tampilan berbeda berdasarkan role
@@ -36,7 +35,6 @@ function AdminDashboard({ onNavigate, user }) {
     kelompokAset: 0,
   });
   const [latestPeralatan, setLatestPeralatan] = useState([]);
-  const [allPeralatanList, setAllPeralatanList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isQrOpen, setIsQrOpen] = useState(false);
 
@@ -69,7 +67,6 @@ function AdminDashboard({ onNavigate, user }) {
         kelompokAset: k.status === 'fulfilled' ? (k.value.data?.length ?? 0) : 0,
       });
       setLatestPeralatan(pList.slice(0, 6));
-      setAllPeralatanList(pList);
     } finally {
       setLoading(false);
     }
@@ -209,7 +206,7 @@ function AdminDashboard({ onNavigate, user }) {
         </div>
       </div>
 
-      {/* Level 2: 2 Panel Detail (Distribusi Status & Kelayakan + Aksi Cepat) */}
+      {/* Level 2: 2 Panel Detail (Distribusi Status & Aksi Cepat Master Data) */}
       <div className="dash-level2-grid">
         {/* Panel A: Distribusi Status Peralatan */}
         <div className="card card-padded">
@@ -300,9 +297,6 @@ function AdminDashboard({ onNavigate, user }) {
           </div>
         </div>
       </div>
-
-      {/* SRS 22, FR-M7-01, FR-M13-05 — Kelayakan & Jatuh Tempo */}
-      <EligibilityAndDueDateCards peralatanList={allPeralatanList} onNavigate={onNavigate} loading={loading} />
 
       {/* Level 3: Tabel Peralatan Terbaru */}
       <div className="card card-padded">
@@ -418,18 +412,6 @@ function ManagerDashboard({ onNavigate, user }) {
         </div>
       </div>
 
-      <div className="dash-action-group dash-actions-mb" style={{ alignItems: 'center', marginBottom: 'var(--sp-4)' }}>
-        <button className="btn btn-primary" onClick={() => onNavigate('/verifikasi')} id="btn-manager-verifikasi">
-          <ShieldCheck size={16} /> Verifikasi &amp; Pengesahan Alat
-        </button>
-        <button className="btn btn-secondary" onClick={() => onNavigate('/peralatan/tambah')} id="btn-manager-tambah">
-          <Plus size={16} /> Tambah Peralatan
-        </button>
-        <button className="btn btn-secondary" onClick={() => onNavigate('/peralatan')} id="btn-manager-inventaris">
-          <Package size={16} /> Lihat Inventaris
-        </button>
-      </div>
-
       {/* Notifikasi terbaru */}
       {!loading && unread.length > 0 && (
         <div className="card dash-card-mb">
@@ -450,9 +432,6 @@ function ManagerDashboard({ onNavigate, user }) {
           </div>
         </div>
       )}
-
-      {/* SRS 22, FR-M7-01, FR-M13-05 — Kelayakan & Jatuh Tempo */}
-      <EligibilityAndDueDateCards peralatanList={peralatan} onNavigate={onNavigate} loading={loading} />
 
       <div className="card card-padded">
         <div className="dash-card-header-row">
@@ -520,18 +499,7 @@ function StaffDashboard({ onNavigate, user }) {
     <>
       <div className="page-header">
         <h1 className="page-title">Dashboard Staff Lab</h1>
-        <p className="page-subtitle">
-          Selamat datang, <strong>{user?.name}</strong>.
-          {user?.pic ? (
-            <span className="badge badge-green" style={{ marginLeft: 8 }}>
-              <ShieldCheck size={12} /> PIC Terdaftar
-            </span>
-          ) : (
-            <span className="badge badge-gray" style={{ marginLeft: 8 }}>
-              Staff Reguler
-            </span>
-          )}
-        </p>
+        <p className="page-subtitle">Selamat datang, <strong>{user?.name}</strong>.</p>
       </div>
 
       <div className="stats-grid dash-stats-mb">
@@ -547,24 +515,14 @@ function StaffDashboard({ onNavigate, user }) {
         </div>
       </div>
 
-      <div className="dash-action-group dash-actions-mb" style={{ alignItems: 'center' }}>
-        {can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) ? (
-          <button className="btn btn-primary" onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan-staff">
-            <Plus size={16} /> Tambah Peralatan Baru (PIC)
-          </button>
-        ) : (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-xs)', color: 'var(--clr-dark-600)', background: 'var(--clr-dark-100)', padding: '8px 14px', borderRadius: 'var(--radius-md)' }}>
-            <ShieldAlert size={14} color="#D97706" />
-            <span>Pendaftaran alat baru memerlukan hak akses PIC dari Administrator.</span>
-          </div>
-        )}
+      <div className="dash-action-group dash-actions-mb">
+        <button className="btn btn-primary" onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan-staff">
+          <Plus size={16} /> Tambah Peralatan Baru
+        </button>
         <button className="btn btn-secondary" onClick={() => onNavigate('/peralatan')} id="btn-inventaris">
           <Package size={16} /> Lihat Inventaris
         </button>
       </div>
-
-      {/* SRS 22, FR-M7-01, FR-M13-05 — Kelayakan & Jatuh Tempo */}
-      <EligibilityAndDueDateCards peralatanList={peralatan} onNavigate={onNavigate} loading={loading} />
 
       <div className="card">
         <div className="card-header">
@@ -603,221 +561,6 @@ function StaffDashboard({ onNavigate, user }) {
         )}
       </div>
     </>
-  );
-}
-
-// ------------------------------------------------------------------
-// Komponen Kartu Kelayakan & Jatuh Tempo (SRS 7.2, 20.1, 22, FR-M7-01, FR-M13-05)
-// ------------------------------------------------------------------
-function EligibilityAndDueDateCards({ peralatanList = [], onNavigate, loading }) {
-  if (loading) {
-    return (
-      <div className="dash-level2-grid">
-        <div className="card card-padded">
-          <div className="skeleton" style={{ height: 24, width: '50%', marginBottom: 16 }} />
-          <div className="skeleton" style={{ height: 120 }} />
-        </div>
-        <div className="card card-padded">
-          <div className="skeleton" style={{ height: 24, width: '50%', marginBottom: 16 }} />
-          <div className="skeleton" style={{ height: 120 }} />
-        </div>
-      </div>
-    );
-  }
-
-  const total = peralatanList.length;
-
-  let countLayak = 0;       // CALIBRATION
-  let countTerbatas = 0;    // LIMITED CALIBRATION
-  let countTidakLayak = 0;  // DO NOT USE
-
-  const overdueList = [];
-  const h7List = [];
-  const h30List = [];
-  const h90List = [];
-
-  peralatanList.forEach((item) => {
-    const elig = computeEligibility(item);
-    if (elig.jenisLabel === 'CALIBRATION') {
-      countLayak++;
-    } else if (elig.jenisLabel === 'LIMITED CALIBRATION') {
-      countTerbatas++;
-    } else {
-      countTidakLayak++;
-    }
-
-    const detail = item.detail || item.detail_alat_ukur || item.detail_alat_bantu || item.detail_artefak_acuan || item.detail_komponen_pendukung || {};
-    const dueDate = detail.tgl_jatuh_tempo || item.tgl_jatuh_tempo || detail.tgl_kedaluwarsa;
-    if (dueDate) {
-      const due = getDueStatus(dueDate);
-      if (due) {
-        const itemInfo = { ...item, dueStatus: due, dueDate };
-        if (due.level === 'overdue') overdueList.push(itemInfo);
-        else if (due.level === 'h7') h7List.push(itemInfo);
-        else if (due.level === 'h30') h30List.push(itemInfo);
-        else if (due.level === 'h90') h90List.push(itemInfo);
-      }
-    }
-  });
-
-  const pLayak = total > 0 ? Math.round((countLayak / total) * 100) : 0;
-  const pTerbatas = total > 0 ? Math.round((countTerbatas / total) * 100) : 0;
-  const pTidakLayak = total > 0 ? Math.round((countTidakLayak / total) * 100) : 0;
-
-  const urgentDueItems = [...overdueList, ...h7List, ...h30List];
-
-  return (
-    <div className="dash-level2-grid">
-      {/* Panel 1: Distribusi Status Kelayakan & Label (SRS 7.2 & Klausul 22) */}
-      <div className="card card-padded">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div>
-            <h2 className="card-title dash-section-title" style={{ marginBottom: 2 }}>Distribusi Status Kelayakan & Label</h2>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', margin: 0 }}>
-              Klausul 7.2 ISO/IEC 17025 (CALIBRATION / LIMITED / DO NOT USE)
-            </p>
-          </div>
-          <span className="badge badge-gray" style={{ fontSize: 'var(--text-xs)' }}>
-            {total} Total Unit
-          </span>
-        </div>
-
-        <div className="dash-category-list">
-          <div className="dash-cat-item">
-            <div className="dash-cat-header">
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <ShieldCheck size={14} color="#10B981" />
-                <span>Layak / CALIBRATION</span>
-              </span>
-              <strong>{countLayak} Unit ({pLayak}%)</strong>
-            </div>
-            <div className="dash-cat-bar">
-              <div className="dash-cat-progress" style={{ width: `${pLayak}%`, background: '#10B981' }} />
-            </div>
-          </div>
-
-          <div className="dash-cat-item">
-            <div className="dash-cat-header">
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <ShieldAlert size={14} color="#F59E0B" />
-                <span>Terbatas / LIMITED CALIBRATION</span>
-              </span>
-              <strong>{countTerbatas} Unit ({pTerbatas}%)</strong>
-            </div>
-            <div className="dash-cat-bar">
-              <div className="dash-cat-progress" style={{ width: `${pTerbatas}%`, background: '#F59E0B' }} />
-            </div>
-          </div>
-
-          <div className="dash-cat-item">
-            <div className="dash-cat-header">
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <ShieldX size={14} color="#EF4444" />
-                <span>Tidak Layak / DO NOT USE</span>
-              </span>
-              <strong>{countTidakLayak} Unit ({pTidakLayak}%)</strong>
-            </div>
-            <div className="dash-cat-bar">
-              <div className="dash-cat-progress" style={{ width: `${pTidakLayak}%`, background: '#EF4444' }} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Panel 2: Peringatan Jatuh Tempo (SRS 20.1 & FR-M13-05) */}
-      <div className="card card-padded">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div>
-            <h2 className="card-title dash-section-title" style={{ marginBottom: 2 }}>Peringatan Jatuh Tempo</h2>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', margin: 0 }}>
-              Monitoring kalibrasi / uji berkala (H-90 s/d Overdue)
-            </p>
-          </div>
-          <Clock size={16} color="var(--clr-dark-500)" />
-        </div>
-
-        {/* Mini Pill Stat Counters */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
-          <div style={{ textAlign: 'center', padding: '8px 4px', background: overdueList.length > 0 ? '#FEF2F2' : '#F9FAFB', borderRadius: 8, border: overdueList.length > 0 ? '1px solid #FCA5A5' : '1px solid #E5E7EB' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: overdueList.length > 0 ? '#DC2626' : '#6B7280' }}>{overdueList.length}</div>
-            <div style={{ fontSize: 10, fontWeight: 600, color: overdueList.length > 0 ? '#991B1B' : '#9CA3AF' }}>Overdue</div>
-          </div>
-          <div style={{ textAlign: 'center', padding: '8px 4px', background: h7List.length > 0 ? '#FFF7ED' : '#F9FAFB', borderRadius: 8, border: h7List.length > 0 ? '1px solid #FDBA74' : '1px solid #E5E7EB' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: h7List.length > 0 ? '#EA580C' : '#6B7280' }}>{h7List.length}</div>
-            <div style={{ fontSize: 10, fontWeight: 600, color: h7List.length > 0 ? '#9A3412' : '#9CA3AF' }}>H-7</div>
-          </div>
-          <div style={{ textAlign: 'center', padding: '8px 4px', background: h30List.length > 0 ? '#FEFCE8' : '#F9FAFB', borderRadius: 8, border: h30List.length > 0 ? '1px solid #FDE047' : '1px solid #E5E7EB' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: h30List.length > 0 ? '#D97706' : '#6B7280' }}>{h30List.length}</div>
-            <div style={{ fontSize: 10, fontWeight: 600, color: h30List.length > 0 ? '#854D0E' : '#9CA3AF' }}>H-30</div>
-          </div>
-          <div style={{ textAlign: 'center', padding: '8px 4px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#4B5563' }}>{h90List.length}</div>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#9CA3AF' }}>H-90</div>
-          </div>
-        </div>
-
-        {/* List of Urgent Items */}
-        {urgentDueItems.length === 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#F0FDF4', borderRadius: 8, border: '1px solid #BBF7D0', color: '#166534', fontSize: 'var(--text-xs)' }}>
-            <CheckCircle2 size={16} color="#16A34A" style={{ flexShrink: 0 }} />
-            <span>Seluruh peralatan berada dalam batas aman masa berlaku kalibrasi / pemeriksaan.</span>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {urgentDueItems.slice(0, 3).map((item) => {
-              const eqId = getEquipmentId(item);
-              return (
-                <div
-                  key={eqId || item.nomor_aset}
-                  onClick={() => eqId && onNavigate(`/peralatan/detail/${eqId}`)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 10px',
-                    background: '#F9FAFB',
-                    borderRadius: 6,
-                    border: '1px solid #E5E7EB',
-                    cursor: eqId ? 'pointer' : 'default',
-                    fontSize: 'var(--text-xs)',
-                  }}
-                >
-                  <div style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
-                    <div style={{ fontWeight: 600, color: 'var(--clr-dark-900)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {item.nama_peralatan}
-                    </div>
-                    <div style={{ color: 'var(--clr-dark-500)', fontSize: 11 }}>
-                      {item.nomor_aset}
-                    </div>
-                  </div>
-                  <span className={`badge ${item.dueStatus.badgeClass}`} style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                    {item.dueStatus.label}
-                  </span>
-                </div>
-              );
-            })}
-            {urgentDueItems.length > 3 && (
-              <button
-                type="button"
-                onClick={() => onNavigate('/peralatan')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--clr-primary-600)',
-                  fontSize: 'var(--text-xs)',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  paddingTop: 4,
-                }}
-              >
-                + {urgentDueItems.length - 3} peralatan lainnya memerlukan tindakan &rarr;
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
   );
 }
 

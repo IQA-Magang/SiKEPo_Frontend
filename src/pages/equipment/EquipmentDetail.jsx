@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ArrowLeft, Upload, FileText, Download, QrCode, AlertTriangle, ShieldCheck, ShieldAlert, ShieldX, FileDown } from 'lucide-react';
-import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE, computeEligibility, getDueStatus } from '../../utils/api.js';
+import { Package, ArrowLeft, Upload, FileText, Download, QrCode } from 'lucide-react';
+import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
-import { exportVerificationPdf } from '../../utils/exportVerificationPdf.js';
 
 // ------------------------------------------------------------------
 // Halaman Detail Peralatan
@@ -144,16 +143,6 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
     }
   }
 
-  async function handleExportPdf() {
-    try {
-      const res = await verifikasiApi.getByPeralatanId(canonicalEquipmentId);
-      const vData = res?.data?.[0] || res?.data || { peralatan, status: 'Disetujui' };
-      exportVerificationPdf(vData, peralatan);
-    } catch {
-      exportVerificationPdf({ peralatan, status: 'Disetujui' }, peralatan);
-    }
-  }
-
   return (
     <div className="page-container fade-in-up">
       {/* Back & Title */}
@@ -176,16 +165,6 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {isVerified && canViewVerification && (
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={handleExportPdf}
-              title="Export Formulir Verifikasi ke PDF (TLKM13/F/003)"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-            >
-              <FileDown size={14} /> Export PDF Verifikasi
-            </button>
-          )}
           {canViewVerification && (
             <button
               className="btn btn-secondary btn-sm"
@@ -197,48 +176,6 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
           )}
         </div>
       </div>
-
-      {/* SRS 7.2 — Lencana Kelayakan & Label Resmi */}
-      {(() => {
-        const elig = computeEligibility(peralatan);
-        const detail = peralatan.detail || peralatan.detail_alat_ukur || peralatan.detail_alat_bantu || peralatan.detail_artefak_acuan || peralatan.detail_komponen_pendukung || {};
-        const dueDate = detail.tgl_jatuh_tempo || peralatan.tgl_jatuh_tempo || detail.tgl_kedaluwarsa;
-        const dueInfo = dueDate ? getDueStatus(dueDate) : null;
-        const EligIcon = elig.statusKelayakan === 'Layak' ? ShieldCheck : elig.statusKelayakan === 'Terbatas' ? ShieldAlert : ShieldX;
-
-        return (
-          <>
-            <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', marginBottom: 'var(--sp-4)' }}>
-              {/* Label Resmi */}
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px',
-                borderRadius: 'var(--radius-lg)', background: elig.labelColor + '18',
-                border: `1.5px solid ${elig.labelColor}`, fontWeight: 'var(--fw-bold)',
-                fontSize: 'var(--text-sm)', color: elig.labelColor,
-              }}>
-                <EligIcon size={18} />
-                {elig.jenisLabel}
-              </div>
-              {/* Status Kelayakan */}
-              <span className={`badge ${elig.badgeClass}`} style={{ fontSize: 'var(--text-xs)' }}>
-                Kelayakan: {elig.statusKelayakan}
-              </span>
-              {/* Keutuhan Segel */}
-              <span className={`badge ${elig.isSealBroken ? 'badge-rusak' : 'badge-aktif'}`} style={{ fontSize: 'var(--text-xs)' }}>
-                Segel: {elig.isSealBroken ? 'Rusak' : 'Utuh'}
-              </span>
-            </div>
-
-            {/* Peringatan Jatuh Tempo (SRS 20.1) */}
-            {dueInfo && dueInfo.level !== 'safe' && (
-              <div className={`alert ${dueInfo.isOverdue ? 'alert-error' : dueInfo.level === 'h7' ? 'alert-error' : 'alert-warning'}`} style={{ marginBottom: 'var(--sp-4)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <AlertTriangle size={16} />
-                <span><strong>{dueInfo.isOverdue ? 'Jatuh Tempo Terlewati!' : 'Mendekati Jatuh Tempo'}</strong> — {dueInfo.label}</span>
-              </div>
-            )}
-          </>
-        );
-      })()}
 
       {!isVerified && <div className="alert alert-warning" style={{ marginBottom: 'var(--sp-5)' }}>
         <strong>{peralatan.status_verifikasi === 'Ditolak' ? 'Peralatan dalam peninjauan.' : 'Menunggu verifikasi.'}</strong> {peralatan.status_verifikasi === 'Ditolak' ? 'Alat tidak layak digunakan hingga tindak lanjut selesai dan verifikasi ulang dilakukan.' : 'Alat berstatus karantina dan tidak dapat digunakan atau diproses dengan QR sebelum Manager Lab menyetujui verifikasi.'}
