@@ -1016,7 +1016,21 @@ function DetailTeknis({ form, setField, kategoriId }) {
   if (kategoriId === 2) return (
     <div className="form-grid-2">
       <DetailInputField id="d-fungsi" label="Fungsi / Kegunaan" value={form.fungsi_kegunaan} onChange={(e) => setField('fungsi_kegunaan', e.target.value)} />
-      <DetailInputField id="d-jenis-pemeriksaan" label="Jenis Pemeriksaan Berkala" value={form.jenis_pemeriksaan_berkala} onChange={(e) => setField('jenis_pemeriksaan_berkala', e.target.value)} />
+      <div className="form-group">
+        <label className="form-label" htmlFor="d-jenis-pemeriksaan">
+          Jenis Pemeriksaan Berkala <span className="required">*</span>
+        </label>
+        <select
+          id="d-jenis-pemeriksaan"
+          className="form-select"
+          value={form.jenis_pemeriksaan_berkala || 'Kalibrasi'}
+          onChange={(e) => setField('jenis_pemeriksaan_berkala', e.target.value)}
+        >
+          <option value="Kalibrasi">Kalibrasi</option>
+          <option value="Verifikasi Fungsi">Verifikasi Fungsi</option>
+          <option value="Pemeriksaan lain">Pemeriksaan lain</option>
+        </select>
+      </div>
       <DetailInputField id="d-interval-ab" label="Interval (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} />
       <DetailInputField id="d-jatuh-ab" label="Tgl. Jatuh Tempo" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
       <DetailInputField id="d-tgl-pemeriksaan" label="Tgl. Pemeriksaan Terakhir" type="date" value={form.tgl_pemeriksaan_terakhir} onChange={(e) => setField('tgl_pemeriksaan_terakhir', e.target.value)} />
@@ -1032,7 +1046,23 @@ function DetailTeknis({ form, setField, kategoriId }) {
   if (kategoriId === 3) return (
     <div className="form-grid-2">
       <DetailInputField id="d-jenis-aa" label="Jenis / Deskripsi Acuan" value={form.jenis_deskripsi} onChange={(e) => setField('jenis_deskripsi', e.target.value)} />
-      <DetailInputField id="d-karakteristik" label="Karakteristik yang Diacu" value={form.karakteristik_yang_diacu} onChange={(e) => setField('karakteristik_yang_diacu', e.target.value)} />
+      <div className="form-group">
+        <label className="form-label" htmlFor="d-karakteristik">
+          Karakteristik yang Diacu <span className="required">*</span>
+        </label>
+        <select
+          id="d-karakteristik"
+          className="form-select"
+          value={form.karakteristik_yang_diacu || 'visual'}
+          onChange={(e) => setField('karakteristik_yang_diacu', e.target.value)}
+        >
+          <option value="visual">visual</option>
+          <option value="dimension">dimension</option>
+          <option value="kinerja funngsional">kinerja funngsional</option>
+          <option value="visual & dimension">visual &amp; dimension</option>
+          <option value="dimension & kinerja">dimension &amp; kinerja</option>
+        </select>
+      </div>
       <DetailInputField id="d-nilai-spec" label="Nilai Spesifikasi Karakterisasi" value={form.nilai_spesifikasi_karakterisasi} onChange={(e) => setField('nilai_spesifikasi_karakterisasi', e.target.value)} />
       <DetailInputField id="d-metode-kar" label="Metode Karakterisasi" value={form.metode_karakterisasi} onChange={(e) => setField('metode_karakterisasi', e.target.value)} />
       <DetailInputField id="d-no-laporan" label="No. Laporan Karakterisasi" value={form.no_laporan_karakterisasi} onChange={(e) => setField('no_laporan_karakterisasi', e.target.value)} />
@@ -1045,7 +1075,21 @@ function DetailTeknis({ form, setField, kategoriId }) {
   if (kategoriId === 4) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
       <div className="form-grid-2">
-        <DetailInputField id="d-subkat" label="Sub Kategori" value={form.sub_kategori} onChange={(e) => setField('sub_kategori', e.target.value)} />
+        <div className="form-group">
+          <label className="form-label" htmlFor="d-subkat">
+            Sub Kategori <span className="required">*</span>
+          </label>
+          <select
+            id="d-subkat"
+            className="form-select"
+            value={form.sub_kategori || 'data acuan'}
+            onChange={(e) => setField('sub_kategori', e.target.value)}
+          >
+            <option value="data acuan">data acuan</option>
+            <option value="pereaksi">pereaksi</option>
+            <option value="bahan habis pakai">bahan habis pakai</option>
+          </select>
+        </div>
         <DetailInputField id="d-pemasok" label="Sumber / Pemasok" value={form.sumber_pemasok} onChange={(e) => setField('sumber_pemasok', e.target.value)} />
         <DetailInputField id="d-lot" label="No. Lot / Batch / Edisi" value={form.no_lot_batch_edisi} onChange={(e) => setField('no_lot_batch_edisi', e.target.value)} />
         <DetailInputField id="d-grade" label="Grade Mutu" value={form.grade_mutu} onChange={(e) => setField('grade_mutu', e.target.value)} />
