@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/layout/Sidebar.jsx';
 import Topbar from './components/layout/Topbar.jsx';
 import {
@@ -93,8 +93,29 @@ function GlobalAuthListener() {
 function AppShell({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
+  const hamburgerRef = useRef(null);
   const { pathname } = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!sidebarOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setSidebarOpen(false);
+        hamburgerRef.current?.focus();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [sidebarOpen]);
 
   return (
     <div className="app-shell">
@@ -102,7 +123,9 @@ function AppShell({ children }) {
       <div
         className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`}
         onClick={() => setSidebarOpen(false)}
-        role="presentation"
+        role="button"
+        aria-label="Tutup menu navigasi"
+        aria-hidden={!sidebarOpen}
       />
 
       {/* Sidebar Navigasi Berbasis Role */}
@@ -121,6 +144,7 @@ function AppShell({ children }) {
         currentPath={pathname}
         onNavigate={navigate}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        hamburgerRef={hamburgerRef}
         onScanQr={() => setIsQrOpen(true)}
       />
 

@@ -172,7 +172,7 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'active' 
         </div>
       ) : (
         <div className="table-wrapper">
-          <table className="data-table">
+          <table className="data-table data-table-mobile-priority">
             <thead>
               <tr>
                 <th>#</th>

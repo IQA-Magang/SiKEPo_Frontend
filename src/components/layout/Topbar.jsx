@@ -7,7 +7,7 @@ import NotificationBell from '../NotificationBell.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useConfirm } from '../../context/ConfirmContext.jsx';
 
-export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSearch, onScanQr }) {
+export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSearch, onScanQr, hamburgerRef }) {
   const [profileOpen, setProfileOpen] = useState(false);
 
   const [user, setUser] = useState(getCurrentUser);
@@ -64,6 +64,7 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
       <div className="topbar-left">
         <button
           className="topbar-hamburger"
+          ref={hamburgerRef}
           onClick={onToggleSidebar}
           aria-label="Buka menu navigasi"
           title="Buka Menu"

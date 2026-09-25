@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LayoutDashboard,
   Wrench,
@@ -34,8 +34,24 @@ function NavGroup({ label, icon: Icon, children, defaultOpen = true }) {
 }
 
 export default function Sidebar({ currentPath, onNavigate, onClose, open: mobileOpen }) {
+  const sidebarRef = useRef(null);
+  const [isMobileDrawer, setIsMobileDrawer] = useState(false);
   const userRole = getUserRole();
   const canView = (feature) => can(feature, ACTIONS.VIEW);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const updateDrawerMode = () => setIsMobileDrawer(mediaQuery.matches);
+    updateDrawerMode();
+    mediaQuery.addEventListener('change', updateDrawerMode);
+    return () => mediaQuery.removeEventListener('change', updateDrawerMode);
+  }, []);
+
+  useEffect(() => {
+    if (mobileOpen && isMobileDrawer) {
+      sidebarRef.current?.querySelector('button:not([disabled])')?.focus();
+    }
+  }, [mobileOpen, isMobileDrawer]);
 
   const isManajemenAlatActive =
     currentPath === '/peralatan' ||
@@ -93,7 +109,11 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
 
   return (
     <>
-      <aside className={`sidebar ${mobileOpen ? 'sidebar-mobile-open' : ''}`}>
+      <aside
+        ref={sidebarRef}
+        className={`sidebar ${mobileOpen ? 'sidebar-mobile-open' : ''}`}
+        aria-hidden={isMobileDrawer && !mobileOpen}
+      >
         {/* Mobile Header with close button */}
         <div className="sidebar-mobile-header">
           <span className="sidebar-brand">SiKEPo</span>
