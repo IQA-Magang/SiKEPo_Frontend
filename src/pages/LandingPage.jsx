@@ -1,6 +1,22 @@
 import React, { useState } from 'react';
-import { QrCode } from 'lucide-react';
+import {
+  ArrowRight,
+  BarChart3,
+  Check,
+  Database,
+  FileCheck2,
+  FileText,
+  Menu,
+  Package,
+  QrCode,
+  ShieldCheck,
+  UserCheck,
+  Users,
+  X,
+} from 'lucide-react';
 import QRScannerModal from '../components/QRScannerModal.jsx';
+import tthLogo from '../assets/logo/tth-logo.png';
+import '../styles/landing-page.css';
 
 const features = [
   {
@@ -29,11 +45,32 @@ const features = [
   },
 ];
 
+const featureIcons = [Package, FileCheck2, FileText, UserCheck, BarChart3, Users];
+
+const faqs = [
+  {
+    question: 'Siapa yang dapat menggunakan SiKEPo?',
+    answer: 'SiKEPo digunakan oleh administrator, manajer laboratorium, PIC, dan staf sesuai hak akses masing-masing.',
+  },
+  {
+    question: 'Apa fungsi QR Code pada peralatan?',
+    answer: 'QR Code membantu pengguna membuka identitas, status, dan riwayat peralatan dengan cepat saat melakukan pemeriksaan.',
+  },
+  {
+    question: 'Apakah SiKEPo dapat digunakan dari ponsel?',
+    answer: 'Ya. Tampilan SiKEPo dirancang responsif dan pemindaian QR dapat dilakukan melalui kamera perangkat yang kompatibel.',
+  },
+  {
+    question: 'Bagaimana dokumen peralatan dikelola?',
+    answer: 'Sertifikat, foto, dan dokumen pendukung disimpan bersama data alat agar lebih mudah ditemukan saat verifikasi atau audit.',
+  },
+];
+
 const stats = [
-  { label: 'Aset Terdata', value: '2.4K+' },
-  { label: 'Laboratorium', value: '18' },
-  { label: 'Kepatuhan Proses', value: '98.7%' },
-  { label: 'Tingkat Efisiensi', value: '2.3x' },
+  { label: 'Data inventaris', value: 'Terpusat' },
+  { label: 'Dokumen teknis', value: 'Terintegrasi' },
+  { label: 'Status peralatan', value: 'Terpantau' },
+  { label: 'Kebutuhan audit', value: 'Siap' },
 ];
 
 const steps = [
@@ -45,568 +82,47 @@ const steps = [
 
 export default function LandingPage({ onNavigate }) {
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState(null);
 
   function openQrScanner() {
+    setIsMobileMenuOpen(false);
     setIsQrScannerOpen(false);
     requestAnimationFrame(() => setIsQrScannerOpen(true));
   }
 
+  function navigateTo(section) {
+    setIsMobileMenuOpen(false);
+    const target = document.getElementById(section);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function handleSectionNavigation(event, section) {
+    event.preventDefault();
+    navigateTo(section);
+  }
+
   return (
     <div className="landing-page">
-      <style>{`
-        .landing-page {
-          min-height: 100vh;
-          background:
-            linear-gradient(180deg, #f8fafc 0%, #edf3ff 100%);
-          color: #0f172a;
-          font-family: Inter, 'Segoe UI', sans-serif;
-        }
-
-        .landing-container {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 22px 22px 64px;
-        }
-
-        .landing-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          padding: 8px 0 30px;
-        }
-
-        .brand {
-          display: inline-flex;
-          align-items: center;
-          gap: 12px;
-          font-weight: 800;
-          font-size: 1.4rem;
-          letter-spacing: -0.04em;
-        }
-
-        .brand-mark {
-          width: 40px;
-          height: 40px;
-          border-radius: 12px;
-          background: linear-gradient(135deg, #ee2e24 0%, #c81e1e 100%);
-          color: #fff;
-          display: grid;
-          place-items: center;
-          font-size: 1.15rem;
-          box-shadow: 0 12px 24px rgba(238, 46, 36, 0.2);
-        }
-
-        .landing-nav {
-          display: flex;
-          align-items: center;
-          gap: 28px;
-          font-size: 0.92rem;
-          font-weight: 600;
-          color: #475569;
-        }
-
-        .landing-nav a {
-          color: #475569;
-          transition: color 0.2s ease;
-        }
-
-        .landing-nav a:hover {
-          color: #0f172a;
-        }
-
-        .button-primary,
-        .button-secondary,
-        .button-light,
-        .button-qr {
-          border-radius: 999px;
-          padding: 13px 22px;
-          font-weight: 700;
-          font-size: 0.95rem;
-          cursor: pointer;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-          border: none;
-        }
-
-        .button-primary {
-          background: linear-gradient(135deg, #ee2e24, #c81e1e);
-          color: #fff;
-          box-shadow: 0 14px 26px rgba(238, 46, 36, 0.22);
-        }
-
-        .button-secondary {
-          background: rgba(255,255,255,0.9);
-          color: #0f172a;
-          border: 1px solid rgba(15, 23, 42, 0.08);
-        }
-
-        .button-light {
-          background: rgba(255,255,255,0.12);
-          color: #fff;
-          border: 1px solid rgba(255,255,255,0.16);
-        }
-
-        .button-qr {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          background: #fff;
-          color: #991b1b;
-          border: 1px solid rgba(153, 27, 27, 0.16);
-        }
-
-        .button-primary:hover,
-        .button-secondary:hover,
-        .button-light:hover,
-        .button-qr:hover {
-          transform: translateY(-1px);
-        }
-
-        .hero {
-          display: grid;
-          grid-template-columns: 1.1fr 0.9fr;
-          align-items: center;
-          gap: 34px;
-          padding: 20px 0 18px;
-        }
-
-        .eyebrow {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          border-radius: 999px;
-          padding: 8px 14px;
-          background: rgba(238,46,36,0.08);
-          color: #991b1b;
-          font-size: 0.72rem;
-          letter-spacing: 0.08em;
-          font-weight: 700;
-          text-transform: uppercase;
-        }
-
-        .hero-copy {
-          max-width: 620px;
-        }
-
-        .hero h1 {
-          margin-top: 18px;
-          font-size: clamp(2.8rem, 5vw, 5rem);
-          line-height: 0.98;
-          letter-spacing: -0.07em;
-          font-weight: 900;
-          color: #0f172a;
-        }
-
-        .hero h1 span {
-          color: #ee2e24;
-        }
-
-        .hero p {
-          margin-top: 18px;
-          font-size: 1.05rem;
-          line-height: 1.8;
-          color: #475569;
-          max-width: 560px;
-        }
-
-        .hero-actions {
-          margin-top: 28px;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 14px;
-        }
-
-        .hero-metrics {
-          margin-top: 28px;
-          display: grid;
-          grid-template-columns: repeat(4, minmax(120px, 1fr));
-          gap: 16px;
-        }
-
-        .metric {
-          background: rgba(255,255,255,0.72);
-          border: 1px solid rgba(148,163,184,0.18);
-          border-radius: 18px;
-          padding: 16px 14px;
-          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.03);
-        }
-
-        .metric strong {
-          display: block;
-          font-size: 1.5rem;
-          font-weight: 900;
-          color: #0f172a;
-          letter-spacing: -0.06em;
-        }
-
-        .metric span {
-          font-size: 0.76rem;
-          color: #64748b;
-          font-weight: 600;
-        }
-
-        .hero-panel {
-          position: relative;
-          padding: 20px;
-          background: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(255,255,255,0.98));
-          border: 1px solid rgba(148,163,184,0.18);
-          border-radius: 26px;
-          box-shadow: 0 30px 70px rgba(15, 23, 42, 0.08);
-          overflow: hidden;
-        }
-
-        .hero-panel::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(238,46,36,0.04), rgba(59,130,246,0.04));
-          pointer-events: none;
-        }
-
-        .panel-body {
-          position: relative;
-          z-index: 1;
-          background: rgba(255,255,255,0.92);
-          border: 1px solid rgba(148,163,184,0.18);
-          border-radius: 22px;
-          padding: 18px;
-        }
-
-        .panel-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 18px;
-          color: #475569;
-          font-size: 0.8rem;
-          font-weight: 700;
-        }
-
-        .status-pill {
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-          background: #22c55e;
-          box-shadow: 0 0 0 6px rgba(34,197,94,0.12);
-        }
-
-        .bar-grid {
-          display: grid;
-          grid-template-columns: repeat(6, minmax(0, 1fr));
-          align-items: end;
-          gap: 12px;
-          height: 160px;
-          padding-top: 10px;
-        }
-
-        .bar {
-          border-radius: 10px 10px 0 0;
-          background: linear-gradient(180deg, #ef4444 0%, #fca5a5 100%);
-          min-height: 38px;
-          opacity: 0.94;
-        }
-
-        .bar:nth-child(1) { height: 42%; }
-        .bar:nth-child(2) { height: 58%; }
-        .bar:nth-child(3) { height: 72%; }
-        .bar:nth-child(4) { height: 80%; }
-        .bar:nth-child(5) { height: 92%; }
-        .bar:nth-child(6) { height: 66%; }
-
-        .panel-list {
-          margin-top: 18px;
-          display: grid;
-          gap: 12px;
-        }
-
-        .panel-list-item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          color: #334155;
-          font-size: 0.82rem;
-          font-weight: 600;
-        }
-
-        .panel-list-item span {
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          display: grid;
-          place-items: center;
-          background: rgba(34,197,94,0.12);
-          color: #16a34a;
-          font-size: 0.75rem;
-          font-weight: 800;
-        }
-
-        .hero-score {
-          position: absolute;
-          right: 22px;
-          bottom: 18px;
-          background: #0f172a;
-          color: #fff;
-          border-radius: 16px;
-          padding: 12px 14px;
-          box-shadow: 0 18px 32px rgba(15,23,42,0.15);
-          z-index: 2;
-        }
-
-        .hero-score small {
-          display: block;
-          color: rgba(255,255,255,0.7);
-          font-size: 0.68rem;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-        }
-
-        .hero-score strong {
-          display: block;
-          font-size: 1.2rem;
-          letter-spacing: -0.04em;
-        }
-
-        .section {
-          padding-top: 72px;
-        }
-
-        .section-head {
-          max-width: 760px;
-          margin: 0 auto 30px;
-          text-align: center;
-        }
-
-        .section-head h2 {
-          font-size: clamp(2rem, 3vw, 3.2rem);
-          line-height: 1.15;
-          letter-spacing: -0.06em;
-          font-weight: 900;
-          margin-bottom: 12px;
-        }
-
-        .section-head p {
-          color: #64748b;
-          font-size: 1.02rem;
-          line-height: 1.8;
-        }
-
-        .feature-grid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 20px;
-        }
-
-        .feature-card {
-          background: rgba(255,255,255,0.82);
-          border: 1px solid rgba(148,163,184,0.18);
-          border-radius: 24px;
-          padding: 24px 20px;
-          box-shadow: 0 18px 34px rgba(15, 23, 42, 0.04);
-        }
-
-        .feature-icon {
-          width: 54px;
-          height: 54px;
-          border-radius: 16px;
-          display: grid;
-          place-items: center;
-          background: linear-gradient(135deg, rgba(238,46,36,0.08), rgba(59,130,246,0.08));
-          color: #ee2e24;
-          font-size: 1.4rem;
-          margin-bottom: 16px;
-        }
-
-        .feature-card h3 {
-          font-size: 1.15rem;
-          font-weight: 800;
-          margin-bottom: 8px;
-          color: #0f172a;
-        }
-
-        .feature-card p {
-          color: #64748b;
-          line-height: 1.75;
-          font-size: 0.95rem;
-        }
-
-        .showcase {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-        }
-
-        .showcase-card {
-          border-radius: 24px;
-          padding: 26px 22px;
-          box-shadow: 0 18px 34px rgba(15, 23, 42, 0.05);
-        }
-
-        .showcase-card.dark {
-          background: linear-gradient(135deg, #0f172a, #1d293c 65%, #1e293b 100%);
-          color: #fff;
-        }
-
-        .showcase-card.light {
-          background: linear-gradient(135deg, #ffffff, #eef4ff 100%);
-          border: 1px solid rgba(148,163,184,0.18);
-          color: #0f172a;
-        }
-
-        .showcase-card h3 {
-          font-size: clamp(1.5rem, 2vw, 2rem);
-          letter-spacing: -0.05em;
-          margin-bottom: 10px;
-          font-weight: 800;
-        }
-
-        .showcase-card p {
-          line-height: 1.7;
-          font-size: 0.98rem;
-        }
-
-        .showcase-card.dark p {
-          color: rgba(255,255,255,0.76);
-        }
-
-        .showcase-card.light p {
-          color: #475569;
-        }
-
-        .checklist {
-          margin-top: 18px;
-          display: grid;
-          gap: 12px;
-        }
-
-        .checklist-item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 0.94rem;
-          font-weight: 600;
-        }
-
-        .checklist-item .tick {
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          background: rgba(34,197,94,0.12);
-          color: #16a34a;
-          display: grid;
-          place-items: center;
-          font-weight: 900;
-          font-size: 0.72rem;
-        }
-
-        .steps {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 18px;
-        }
-
-        .step-card {
-          background: rgba(255,255,255,0.8);
-          border: 1px solid rgba(148,163,184,0.18);
-          border-radius: 22px;
-          padding: 22px 18px;
-          box-shadow: 0 14px 28px rgba(15,23,42,0.03);
-        }
-
-        .step-no {
-          display: inline-block;
-          font-size: 0.72rem;
-          font-weight: 800;
-          letter-spacing: 0.08em;
-          color: #ee2e24;
-          background: rgba(238,46,36,0.08);
-          padding: 7px 9px;
-          border-radius: 999px;
-          margin-bottom: 10px;
-        }
-
-        .step-card h3 {
-          font-size: 1.2rem;
-          font-weight: 800;
-          margin-bottom: 8px;
-          color: #0f172a;
-        }
-
-        .step-card p {
-          color: #64748b;
-          line-height: 1.7;
-          font-size: 0.94rem;
-        }
-
-        .cta-panel {
-          margin-top: 60px;
-          background: linear-gradient(135deg, #0f172a, #1e293b 42%, #7f1d1d 100%);
-          color: #fff;
-          border-radius: 30px;
-          padding: 32px 28px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 20px;
-          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14);
-        }
-
-        .cta-panel h3 {
-          font-size: clamp(1.65rem, 2.6vw, 2.6rem);
-          letter-spacing: -0.06em;
-          font-weight: 800;
-          margin-bottom: 8px;
-        }
-
-        .cta-panel p {
-          color: rgba(255,255,255,0.76);
-          line-height: 1.7;
-        }
-
-        .landing-footer {
-          padding-top: 28px;
-          text-align: center;
-          font-size: 0.9rem;
-          color: #64748b;
-        }
-
-        @media (max-width: 900px) {
-          .landing-nav {
-            display: none;
-          }
-
-          .hero,
-          .showcase,
-          .feature-grid,
-          .steps {
-            grid-template-columns: 1fr;
-          }
-
-          .hero-metrics {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-
-          .cta-panel {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-        }
-      `}</style>
+      
 
       <div className="landing-container">
         <header className="landing-header">
           <div className="brand" aria-label="SiKEPo logo">
-            <div className="brand-mark">S</div>
+            <img className="brand-logo" src={tthLogo} alt="Telkom Test House" />
             <span>SiKEPo</span>
           </div>
 
-          <nav className="landing-nav" aria-label="Main navigation">
-            <a href="#fitur">Fitur</a>
-            <a href="#proses">Proses</a>
-            <a href="#kontak">Kontak</a>
+          <nav className={`landing-nav${isMobileMenuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
+            <a href="#tentang" onClick={(event) => handleSectionNavigation(event, 'tentang')}>Tentang</a>
+            <a href="#fitur" onClick={(event) => handleSectionNavigation(event, 'fitur')}>Fitur</a>
+            <a href="#proses" onClick={(event) => handleSectionNavigation(event, 'proses')}>Proses</a>
+            <a href="#kontak" onClick={(event) => handleSectionNavigation(event, 'kontak')}>Kontak</a>
           </nav>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="header-actions">
             <button
               className="button-qr"
               onClick={openQrScanner}
@@ -619,6 +135,14 @@ export default function LandingPage({ onNavigate }) {
             <button className="button-secondary" onClick={() => onNavigate('/login')}>
               Masuk
             </button>
+            <button
+              className="mobile-menu-button"
+              onClick={() => setIsMobileMenuOpen((open) => !open)}
+              aria-label={isMobileMenuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
+              aria-expanded={isMobileMenuOpen}
+            >
+              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
         </header>
 
@@ -627,19 +151,23 @@ export default function LandingPage({ onNavigate }) {
             <div className="hero-copy">
               <div className="eyebrow">Laboratorium Modern</div>
               <h1>
-                Sistem tata kelola <span>aset</span> laboratorium yang lebih terukur.
+                Kelola <span>aset</span> dan kelaikan laboratorium dalam satu sistem.
               </h1>
               <p>
-                SiKEPo dirancang untuk membantu institusi dan laboratorium mengelola peralatan, proses verifikasi,
-                dan dokumentasi teknis dengan pendekatan yang lebih rapi, konsisten, dan profesional.
+                SiKEPo membantu Telkom Test House mencatat aset, memantau kalibrasi, mengelola dokumen,
+                dan mempercepat proses verifikasi kelaikan secara terpusat.
               </p>
+              <div className="hero-support">
+                <ShieldCheck size={17} aria-hidden="true" />
+                Dibangun untuk tata kelola laboratorium yang tertib dan siap diaudit
+              </div>
 
               <div className="hero-actions">
                 <button className="button-primary" onClick={() => onNavigate('/login')}>
-                  Mulai Sekarang
+                  Masuk ke Sistem <ArrowRight size={17} />
                 </button>
-                <button className="button-secondary" onClick={() => onNavigate('/login')}>
-                  Lihat Demo
+                <button className="button-secondary" onClick={() => navigateTo('proses')}>
+                  Lihat Cara Kerja
                 </button>
               </div>
 
@@ -659,6 +187,11 @@ export default function LandingPage({ onNavigate }) {
                   <span>Monitoring Aset</span>
                   <span className="status-pill" aria-hidden="true" />
                 </div>
+                <div className="dashboard-summary">
+                  <div><strong>1,248</strong><span>Total aset</span></div>
+                  <div><strong>86%</strong><span>Aktif</span></div>
+                  <div><strong>12</strong><span>Perlu tindak lanjut</span></div>
+                </div>
 
                 <div className="bar-grid" aria-label="chart data">
                   <div className="bar" />
@@ -670,15 +203,42 @@ export default function LandingPage({ onNavigate }) {
                 </div>
 
                 <div className="panel-list">
-                  <div className="panel-list-item"><span>✓</span> 120 aset aktif terpantau</div>
-                  <div className="panel-list-item"><span>✓</span> Jadwal verifikasi teratur</div>
-                  <div className="panel-list-item"><span>✓</span> Dokumen pendukung terintegrasi</div>
+                  <div className="panel-list-item"><span><Check size={13} /></span> Inventaris tersimpan terpusat</div>
+                  <div className="panel-list-item"><span><Check size={13} /></span> Jadwal verifikasi mudah dipantau</div>
+                  <div className="panel-list-item"><span><Check size={13} /></span> Dokumen pendukung terintegrasi</div>
                 </div>
               </div>
 
               <div className="hero-score">
-                <small>Verifikasi</small>
-                <strong>96.8%</strong>
+                <small>Status sistem</small>
+                <strong>Terpantau</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="section" id="tentang">
+            <div className="section-head">
+              <h2>Dari data yang tersebar menjadi pengelolaan yang terarah</h2>
+              <p>
+                SiKEPo menyatukan informasi peralatan, dokumen, dan proses verifikasi agar tim dapat bekerja dengan data yang sama.
+              </p>
+            </div>
+            <div className="problem-grid">
+              <div className="problem-card before">
+                <h3><Database size={20} /> Tantangan yang sering terjadi</h3>
+                <ul className="problem-list">
+                  <li>Data aset dan dokumen tersimpan di banyak tempat</li>
+                  <li>Jadwal kalibrasi atau verifikasi sulit dipantau</li>
+                  <li>Riwayat peralatan membutuhkan waktu untuk ditelusuri</li>
+                </ul>
+              </div>
+              <div className="problem-card after">
+                <h3><FileCheck2 size={20} /> Dengan SiKEPo</h3>
+                <ul className="problem-list">
+                  <li>Seluruh informasi aset tersedia dalam satu sumber data</li>
+                  <li>Status dan tahapan verifikasi terlihat lebih jelas</li>
+                  <li>Dokumen dan riwayat alat lebih siap untuk evaluasi</li>
+                </ul>
               </div>
             </div>
           </section>
@@ -692,13 +252,16 @@ export default function LandingPage({ onNavigate }) {
             </div>
 
             <div className="feature-grid">
-              {features.map((feature, index) => (
+              {features.map((feature, index) => {
+                const Icon = featureIcons[index];
+                return (
                 <div key={feature.title} className="feature-card">
-                  <div className="feature-icon">{['📦', '✅', '📄', '👤', '📊', '🔗'][index]}</div>
+                  <div className="feature-icon"><Icon size={24} aria-hidden="true" /></div>
                   <h3>{feature.title}</h3>
                   <p>{feature.text}</p>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </section>
 
@@ -731,9 +294,9 @@ export default function LandingPage({ onNavigate }) {
                 </p>
 
                 <div className="checklist">
-                  <div className="checklist-item"><span className="tick">✓</span> Inventaris lebih terorganisir</div>
-                  <div className="checklist-item"><span className="tick">✓</span> Status aset lebih mudah dipantau</div>
-                  <div className="checklist-item"><span className="tick">✓</span> Keputusan berbasis data</div>
+                  <div className="checklist-item"><span className="tick"><Check size={13} /></span> Inventaris lebih terorganisir</div>
+                  <div className="checklist-item"><span className="tick"><Check size={13} /></span> Status aset lebih mudah dipantau</div>
+                  <div className="checklist-item"><span className="tick"><Check size={13} /></span> Keputusan berbasis data</div>
                 </div>
               </div>
 
@@ -745,11 +308,41 @@ export default function LandingPage({ onNavigate }) {
                 </p>
 
                 <div className="checklist">
-                  <div className="checklist-item"><span className="tick">✓</span> Proses verifikasi lebih terstruktur</div>
-                  <div className="checklist-item"><span className="tick">✓</span> Dokumen lebih aman dan rapi</div>
-                  <div className="checklist-item"><span className="tick">✓</span> Komunikasi tim lebih efektif</div>
+                  <div className="checklist-item"><span className="tick"><Check size={13} /></span> Proses verifikasi lebih terstruktur</div>
+                  <div className="checklist-item"><span className="tick"><Check size={13} /></span> Dokumen lebih aman dan rapi</div>
+                  <div className="checklist-item"><span className="tick"><Check size={13} /></span> Komunikasi tim lebih efektif</div>
                 </div>
               </div>
+            </div>
+          </section>
+
+          <section className="section" id="keamanan">
+            <div className="section-head">
+              <h2>Akses yang aman dan sesuai peran</h2>
+              <p>Setiap pengguna melihat fitur dan data sesuai tanggung jawabnya, sehingga proses tetap terkendali.</p>
+            </div>
+            <div className="security-grid">
+              <div className="security-card"><ShieldCheck size={24} /><h3>Role-based access</h3><p>Hak akses administrator, manajer, PIC, dan staf dibedakan sesuai kebutuhan kerja.</p></div>
+              <div className="security-card"><FileCheck2 size={24} /><h3>Dokumen terkelola</h3><p>Dokumen teknis terhubung dengan aset dan lebih mudah ditelusuri saat evaluasi.</p></div>
+              <div className="security-card"><Database size={24} /><h3>Riwayat terpusat</h3><p>Perubahan status dan aktivitas peralatan dapat dipantau dari satu sistem.</p></div>
+            </div>
+          </section>
+
+          <section className="section faq-section" id="faq">
+            <div className="section-head">
+              <h2>Pertanyaan yang sering diajukan</h2>
+              <p>Informasi singkat untuk membantu pengguna memahami fungsi utama SiKEPo.</p>
+            </div>
+            <div className="faq-list">
+              {faqs.map((faq, index) => (
+                <div className="faq-item" key={faq.question}>
+                  <button className="faq-question" onClick={() => setOpenFaq(openFaq === index ? null : index)} aria-expanded={openFaq === index}>
+                    <span>{faq.question}</span>
+                    {openFaq === index ? <X size={18} /> : <ArrowRight size={18} />}
+                  </button>
+                  {openFaq === index && <p className="faq-answer">{faq.answer}</p>}
+                </div>
+              ))}
             </div>
           </section>
 
@@ -768,7 +361,19 @@ export default function LandingPage({ onNavigate }) {
         </main>
 
         <footer className="landing-footer" id="kontak">
-          © 2026 SiKEPo — Sistem Kelola Inventaris & Pengujian Laboratorium
+          <div className="footer-main">
+            <div className="footer-brand">
+              <img src={tthLogo} alt="Telkom Test House" />
+              <div><strong>SiKEPo</strong><span>Sistem pengelolaan inventaris dan kelaikan peralatan laboratorium.</span></div>
+            </div>
+            <div className="footer-links">
+              <a href="#fitur" onClick={(event) => handleSectionNavigation(event, 'fitur')}>Fitur</a>
+              <a href="#proses" onClick={(event) => handleSectionNavigation(event, 'proses')}>Cara Kerja</a>
+              <a href="#faq" onClick={(event) => handleSectionNavigation(event, 'faq')}>FAQ</a>
+              <a href="mailto:admin@sikepo.local">Hubungi Admin</a>
+            </div>
+          </div>
+          <div className="footer-bottom">© 2026 SiKEPo - Telkom Test House</div>
         </footer>
       </div>
 
