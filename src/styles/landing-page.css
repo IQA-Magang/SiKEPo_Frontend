@@ -351,9 +351,11 @@
           color: #334155;
           font-size: 0.82rem;
           font-weight: 600;
+          min-width: 0;
         }
 
         .panel-list-item span {
+          flex: 0 0 22px;
           width: 22px;
           height: 22px;
           border-radius: 50%;
@@ -366,9 +368,9 @@
         }
 
         .hero-score {
-          position: absolute;
-          right: 22px;
-          bottom: 18px;
+          position: relative;
+          width: fit-content;
+          margin: 18px 0 0 auto;
           background: #0f172a;
           color: #fff;
           border-radius: 16px;
@@ -928,8 +930,7 @@
           }
 
           .hero-score {
-            right: 12px;
-            bottom: 12px;
+            margin-top: 14px;
           }
 
           .section {
