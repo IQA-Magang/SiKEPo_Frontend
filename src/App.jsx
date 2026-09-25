@@ -32,6 +32,7 @@ import Settings from './pages/Settings.jsx';
 import NotFound from './pages/NotFound.jsx';
 import Forbidden from './pages/Forbidden.jsx';
 import VerificationManagement from './pages/VerificationManagement.jsx';
+import LandingPage from './pages/LandingPage.jsx';
 import QRScannerModal from './components/QRScannerModal.jsx';
 
 // Wrapper for parameterized Equipment Detail
@@ -143,6 +144,10 @@ function AppContent() {
   const navigate = useNavigate();
   const token = getToken();
 
+  if (pathname === '/') {
+    return <LandingPage onNavigate={navigate} />;
+  }
+
   // Login page rendered without AppShell
   if (pathname === '/login') {
     if (token) {
@@ -153,7 +158,7 @@ function AppContent() {
 
   // If user has no token and is accessing anything else, ProtectedRoute will redirect to /login
   if (!token) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/" />;
   }
 
   return (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { QrCode, Camera, Upload, X, CheckCircle, AlertCircle, Search, ArrowRight } from 'lucide-react';
+import { QrCode, Camera, Upload, X, CheckCircle, AlertCircle, Search, ArrowRight, SwitchCamera } from 'lucide-react';
 import jsQR from 'jsqr';
 import { getEquipmentId, peralatanApi } from '../utils/api.js';
 
@@ -11,6 +11,9 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState('environment');
+  const [cameraDevices, setCameraDevices] = useState([]);
+  const [cameraDeviceId, setCameraDeviceId] = useState('');
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -21,6 +24,11 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
   const scannerTypeRef = useRef(null);
 
   useEffect(() => {
+    if (isOpen) {
+      setActiveTab('camera');
+      setScanResult(null);
+      setErrorMsg('');
+    }
     if (isOpen && activeTab === 'camera') {
       startCamera();
     } else {
@@ -29,18 +37,45 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
     return () => {
       stopCamera();
     };
-  }, [isOpen, activeTab]);
+  }, [isOpen, activeTab, cameraFacing]);
 
   // Handle camera start
   async function startCamera() {
     setErrorMsg('');
     setCameraActive(false);
     scanInProgressRef.current = false;
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErrorMsg('Browser ini tidak mendukung akses kamera. Gunakan Chrome/Edge atau tab Unggah File.');
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
-      });
+      let stream;
+      try {
+        const videoConstraints = cameraDeviceId
+          ? { deviceId: { exact: cameraDeviceId }, width: { ideal: 640 }, height: { ideal: 480 } }
+          : { facingMode: { ideal: cameraFacing }, width: { ideal: 640 }, height: { ideal: 480 } };
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: false,
+        });
+      } catch (preferredError) {
+        // Some desktop webcams reject facingMode even though video access works.
+        if (preferredError.name === 'NotFoundError' || preferredError.name === 'OverconstrainedError') {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        } else {
+          throw preferredError;
+        }
+      }
       streamRef.current = stream;
+      const devices = (await navigator.mediaDevices.enumerateDevices())
+        .filter((device) => device.kind === 'videoinput');
+      setCameraDevices(devices);
+      if (!cameraDeviceId) {
+        const activeTrack = stream.getVideoTracks()[0];
+        setCameraDeviceId(activeTrack?.getSettings?.().deviceId || '');
+      }
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
@@ -60,7 +95,13 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
       }
     } catch (err) {
       console.warn('Kamera tidak tersedia:', err);
-      setErrorMsg('Kamera tidak dapat diakses. Gunakan tab Unggah Gambar QR atau Input ID Manual.');
+      const messageByName = {
+        NotAllowedError: 'Izin kamera ditolak. Klik ikon kamera di address bar Chrome, pilih Izinkan, lalu tekan Aktifkan Kamera.',
+        NotFoundError: 'Kamera tidak ditemukan. Pastikan kamera terpasang dan tidak sedang digunakan aplikasi lain.',
+        NotReadableError: 'Kamera sedang digunakan aplikasi lain. Tutup aplikasi tersebut lalu coba lagi.',
+        SecurityError: 'Akses kamera diblokir browser. Buka aplikasi melalui http://localhost:5174/.',
+      };
+      setErrorMsg(messageByName[err.name] || 'Kamera tidak dapat diakses. Periksa izin kamera atau gunakan tab Unggah File.');
     }
   }
 
@@ -78,6 +119,20 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
     scannerTypeRef.current = null;
     scanInProgressRef.current = false;
     setCameraActive(false);
+  }
+
+  function toggleCamera() {
+    if (cameraDevices.length < 2) {
+      setErrorMsg('Hanya satu kamera yang terdeteksi pada perangkat ini. Sambungkan webcam kedua untuk berpindah kamera.');
+      return;
+    }
+
+    const currentIndex = cameraDevices.findIndex((device) => device.deviceId === cameraDeviceId);
+    const nextDevice = cameraDevices[(currentIndex + 1) % cameraDevices.length];
+    stopCamera();
+    setErrorMsg('');
+    setCameraDeviceId(nextDevice.deviceId);
+    setCameraFacing((currentFacing) => (currentFacing === 'environment' ? 'user' : 'environment'));
   }
 
   // Loop scan frame
@@ -340,7 +395,9 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
               color: activeTab === 'camera' ? 'var(--clr-primary-600)' : 'var(--clr-dark-600)',
               borderBottom: activeTab === 'camera' ? '2px solid var(--clr-primary-500)' : 'none',
               background: activeTab === 'camera' ? '#fff' : 'transparent',
-              border: 'none',
+              borderTop: 'none',
+              borderRight: 'none',
+              borderLeft: 'none',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -359,7 +416,9 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
               color: activeTab === 'upload' ? 'var(--clr-primary-600)' : 'var(--clr-dark-600)',
               borderBottom: activeTab === 'upload' ? '2px solid var(--clr-primary-500)' : 'none',
               background: activeTab === 'upload' ? '#fff' : 'transparent',
-              border: 'none',
+              borderTop: 'none',
+              borderRight: 'none',
+              borderLeft: 'none',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -378,7 +437,9 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
               color: activeTab === 'manual' ? 'var(--clr-primary-600)' : 'var(--clr-dark-600)',
               borderBottom: activeTab === 'manual' ? '2px solid var(--clr-primary-500)' : 'none',
               background: activeTab === 'manual' ? '#fff' : 'transparent',
-              border: 'none',
+              borderTop: 'none',
+              borderRight: 'none',
+              borderLeft: 'none',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -463,6 +524,31 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
                 />
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
 
+                <button
+                  type="button"
+                  onClick={toggleCamera}
+                  aria-label={`Gunakan kamera ${cameraFacing === 'environment' ? 'depan' : 'belakang'}`}
+                  title={`Gunakan kamera ${cameraFacing === 'environment' ? 'depan' : 'belakang'}`}
+                  style={{
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                    width: 38,
+                    height: 38,
+                    border: '1px solid rgba(255,255,255,0.35)',
+                    borderRadius: 'var(--radius-full)',
+                    background: 'rgba(15, 23, 42, 0.75)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    zIndex: 2,
+                  }}
+                >
+                  <SwitchCamera size={18} />
+                </button>
+
                 {/* Camera Viewfinder Overlay Box */}
                 <div
                   style={{
@@ -488,6 +574,17 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
                   />
                 </div>
               </div>
+
+              {!cameraActive && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={startCamera}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Camera size={15} /> Aktifkan Kamera
+                </button>
+              )}
 
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', textAlign: 'center', margin: 0 }}>
                 Arahkan kamera perangkat Anda tepat ke <strong>QR Code ID Peralatan</strong>
