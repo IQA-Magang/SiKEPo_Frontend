@@ -363,6 +363,8 @@ export const kelompokAssetApi = {
 // =============================================================
 export const peralatanApi = {
   getAll: () => fetchWithAuth('/api/peralatan'),
+  getByAssetNumber: (assetNumber) =>
+    fetchWithAuth(`/api/peralatan/${encodeURIComponent(assetNumber)}`),
   create: (body) =>
     fetchWithAuth('/api/peralatan/', { method: 'POST', body: JSON.stringify(body) }),
   uploadFoto: (id, file) => {
@@ -449,7 +451,7 @@ export const notificationApi = {
 
 
 export const STATUS_ALAT_OPTIONS = [
-  'Karantina', 'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak', 'Dihapuskan'
+  'Karantina', 'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak'
 ];
 
 export const STATUS_BADGE_CLASS = {
@@ -457,6 +459,5 @@ export const STATUS_BADGE_CLASS = {
   'Dipinjam': 'badge-dipinjam',
   'Dalam Kalibrasi': 'badge-kalibrasi',
   'Rusak': 'badge-rusak',
-  'Dihapuskan': 'badge-dihapuskan',
   'Karantina': 'badge-rusak',
 };

@@ -71,12 +71,16 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
     if (onClose) onClose();
   }
 
-  const NavItem = ({ label, path, feature, roles, disabled = false }) => {
+  const NavItem = ({ label, path, feature, roles, disabled = false, excludeActivePaths = [] }) => {
     if (feature && !canView(feature)) return null;
     if (roles && Array.isArray(roles) && !roles.includes(userRole)) return null;
 
+    const isExcludedPath = excludeActivePaths.some(
+      (excludedPath) => currentPath === excludedPath || currentPath.startsWith(`${excludedPath}/`)
+    );
     const isActive =
-      currentPath === path || (path !== '/dashboard' && currentPath.startsWith(path + '/'));
+      currentPath === path ||
+      (path !== '/dashboard' && !isExcludedPath && currentPath.startsWith(`${path}/`));
 
     return (
       <button
@@ -133,7 +137,12 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
               icon={Wrench}
               defaultOpen={isManajemenAlatActive}
             >
-              <NavItem label="Peralatan" path="/peralatan" feature={ACCESS.MASTER_EQUIPMENT} />
+              <NavItem
+                label="Peralatan"
+                path="/peralatan"
+                feature={ACCESS.MASTER_EQUIPMENT}
+                excludeActivePaths={['/peralatan/dalam-peninjauan']}
+              />
               <NavItem label="Verifikasi Peralatan" path="/verifikasi" feature={ACCESS.EQUIPMENT_ELIGIBILITY} />
               <NavItem label="Peminjaman" path="/peminjaman" feature={ACCESS.LOAN_REQUEST} disabled />
               <NavItem label="Peninjauan Peralatan" path="/peralatan/dalam-peninjauan" feature={ACCESS.EQUIPMENT_ELIGIBILITY} />
@@ -161,6 +170,7 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
                 <NavItem label="Kelompok Lab" path="/admin/labs" feature={ACCESS.MASTER_LAB} roles={['admin', 'manager']} />
                 <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin', 'manager']} />
                 <NavItem label="Kelompok Lokasi" path="/admin/ruangan" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin', 'manager']} />
+                <NavItem label="Manajemen Pengguna" path="/admin/users" feature={ACCESS.MASTER_USER_PIC} roles={['admin', 'manager']} />
               </NavGroup>
             )}
           </nav>

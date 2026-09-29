@@ -336,6 +336,53 @@
   transition: width 0.4s ease;
 }
 
+.dash-process-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 12px;
+}
+
+.dash-process-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--clr-dark-200);
+  border-radius: var(--radius-lg);
+  background: #fff;
+}
+
+.dash-process-card.gray { color: #475569; }
+.dash-process-card.blue { color: #1d4ed8; }
+.dash-process-card.amber { color: #b45309; }
+.dash-process-card.red { color: #b91c1c; }
+.dash-process-card.green { color: #15803d; }
+
+.dash-process-icon {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.dash-process-count {
+  color: var(--clr-dark-900);
+  font-size: var(--text-xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.2;
+}
+
+.dash-process-label {
+  margin-top: 5px;
+  color: var(--clr-dark-800);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.dash-process-description {
+  margin-top: 4px;
+  color: var(--clr-dark-500);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
 /* ---- ADMIN MANAGEMENT PAGES STANDARDIZATION ---- */
 .page-header-row {
   display: flex;

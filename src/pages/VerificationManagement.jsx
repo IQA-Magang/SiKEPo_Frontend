@@ -448,7 +448,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
         const all = equipmentResult.value?.data || [];
         // Peralatan yang perlu verifikasi awal (belum disetujui, belum diajukan, dan belum dihapus)
         const pending = all.filter(
-          (p) => p.status_verifikasi !== 'Disetujui' && p.status_verifikasi !== 'Diajukan' && p.status_alat !== 'Dihapuskan'
+          (p) => p.status_verifikasi !== 'Disetujui' && p.status_verifikasi !== 'Diajukan'
         );
         const visiblePending = role === 'staff'
           ? pending.filter((p) => String(p.pic_id) === String(currentUserId))

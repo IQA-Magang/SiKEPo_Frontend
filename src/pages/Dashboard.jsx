@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Building2, DoorOpen, Users, FolderKanban, Plus, ArrowRight, Bell, RefreshCw, QrCode } from 'lucide-react';
-import QRScannerModal from '../components/QRScannerModal.jsx';
-import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi, STATUS_BADGE_CLASS } from '../utils/api.js';
+import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2 } from 'lucide-react';
+import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi } from '../utils/api.js';
 import { can, ACCESS, ACTIONS } from '../utils/permissions.js';
 
 // ------------------------------------------------------------------
@@ -13,17 +12,71 @@ export default function Dashboard({ onNavigate }) {
 
   return (
     <div className="page-container fade-in-up">
-      {role === 'admin'   && <AdminDashboard onNavigate={onNavigate} user={user} />}
+      {role === 'admin'   && <AdminDashboard onNavigate={onNavigate} />}
       {role === 'manager' && <ManagerDashboard onNavigate={onNavigate} user={user} />}
       {role === 'staff'   && <StaffDashboard onNavigate={onNavigate} user={user} />}
     </div>
   );
 }
 
+function getProcessStage(equipment) {
+  switch (equipment.status_verifikasi) {
+    case 'Disetujui':
+      return { label: 'Verifikasi selesai', description: 'Persetujuan manager sudah diberikan', tone: 'badge-aktif' };
+    case 'Diajukan':
+      return { label: 'Menunggu persetujuan', description: 'Pengajuan sedang menunggu manager', tone: 'badge-kalibrasi' };
+    case 'Ditolak':
+      return { label: 'Perlu tindak lanjut', description: 'Perbaiki catatan lalu ajukan ulang', tone: 'badge-rusak' };
+    case 'Draft':
+      return { label: 'Draft verifikasi', description: 'Belum diajukan untuk persetujuan manager', tone: 'badge-gray' };
+    case 'Belum Diverifikasi':
+    default:
+      return { label: 'Belum diverifikasi', description: 'PIC perlu memulai pemeriksaan alat', tone: 'badge-gray' };
+  }
+}
+
+function getCalibrationDueDate(equipment) {
+  const detail = equipment.detail
+    || equipment.detail_alat_ukur
+    || equipment.detail_alat_bantu
+    || equipment.detail_artefak_acuan
+    || equipment.detail_komponen_pendukung
+    || {};
+  const date = detail.tgl_jatuh_tempo
+    || detail.tgl_karakterisasi
+    || detail.tgl_kedaluwarsa
+    || equipment.tgl_jatuh_tempo
+    || equipment.tgl_karakterisasi;
+  if (!date) return null;
+  const parsed = new Date(`${String(date).slice(0, 10)}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDueDate(date) {
+  if (!date) return 'Jadwal belum tersedia';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.ceil((date.getTime() - today.getTime()) / 86400000);
+  if (days < 0) return `Terlambat ${Math.abs(days)} hari`;
+  if (days === 0) return 'Jatuh tempo hari ini';
+  if (days <= 30) return `${days} hari lagi`;
+  return `Jatuh tempo ${date.toLocaleDateString('id-ID')}`;
+}
+
+function getDueDateBadgeClass(date) {
+  if (!date) return 'badge-gray';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.ceil((date.getTime() - today.getTime()) / 86400000);
+  if (days <= 0) return 'badge-rusak';
+  if (days <= 30) return 'badge-kalibrasi';
+  return 'badge-aktif';
+}
+
 // ------------------------------------------------------------------
 // Admin Dashboard
 // ------------------------------------------------------------------
-function AdminDashboard({ onNavigate, user }) {
+function AdminDashboard({ onNavigate }) {
   const [stats, setStats] = useState({
     users: 0,
     labs: 0,
@@ -34,10 +87,9 @@ function AdminDashboard({ onNavigate, user }) {
     alatKalibrasi: 0,
     alatDipinjam: 0,
     kelompokAset: 0,
+    processItems: [],
   });
-  const [latestPeralatan, setLatestPeralatan] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isQrOpen, setIsQrOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -66,8 +118,8 @@ function AdminDashboard({ onNavigate, user }) {
         alatKalibrasi: kalibrasiCount,
         alatDipinjam: dipinjamCount,
         kelompokAset: k.status === 'fulfilled' ? (k.value.data?.length ?? 0) : 0,
+        processItems: pList,
       });
-      setLatestPeralatan(pList.slice(0, 6));
     } finally {
       setLoading(false);
     }
@@ -159,59 +211,10 @@ function AdminDashboard({ onNavigate, user }) {
         </div>
       </div>
 
-      {/* QR Scanner Card */}
-      <div
-        className="card card-padded"
-        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--sp-4)' }}
-        onClick={() => setIsQrOpen(true)}
-        id="card-scan-qr"
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 'var(--radius-xl)',
-              background: 'linear-gradient(135deg, var(--clr-primary-600), var(--clr-primary-500))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              flexShrink: 0,
-            }}
-          >
-            <QrCode size={22} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 'var(--fw-bold)', fontSize: 'var(--text-sm)', color: 'var(--clr-dark-900)' }}>
-              Scan QR Code Peralatan
-            </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginTop: 2 }}>
-              Pindai kode QR untuk langsung membuka detail peralatan
-            </div>
-          </div>
-        </div>
-        <div
-          style={{
-            padding: '6px 16px',
-            background: 'var(--clr-primary-600)',
-            color: '#fff',
-            borderRadius: 'var(--radius-full)',
-            fontSize: 'var(--text-xs)',
-            fontWeight: 'var(--fw-semibold)',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-          }}
-        >
-          Buka Scanner
-        </div>
-      </div>
-
-      {/* Level 2: 2 Panel Detail (Distribusi Status & Aksi Cepat Master Data) */}
+      {/* Level 2: Ringkasan kondisi peralatan */}
       <div className="dash-level2-grid">
-        {/* Panel A: Distribusi Status Peralatan */}
         <div className="card card-padded">
-          <h2 className="card-title dash-section-title">Distribusi Status Peralatan</h2>
+          <h2 className="card-title dash-section-title">Kondisi & Tata Kelola Peralatan</h2>
           <div className="dash-category-list">
             <div className="dash-cat-item">
               <div className="dash-cat-header">
@@ -279,77 +282,19 @@ function AdminDashboard({ onNavigate, user }) {
           </div>
         </div>
 
-        {/* Panel B: Aksi Cepat Master Data */}
         <div className="card card-padded">
-          <h2 className="card-title dash-section-title">Aksi Cepat Master Data</h2>
-          <div className="dash-action-group">
-            <button className="btn btn-secondary" onClick={() => onNavigate('/admin/labs')} id="btn-kelola-lab">
-              <Building2 size={16} /> Kelola Laboratorium
-            </button>
-            <button className="btn btn-secondary" onClick={() => onNavigate('/admin/ruangan')} id="btn-kelola-ruangan">
-              <DoorOpen size={16} /> Kelola Ruangan
-            </button>
-            <button className="btn btn-secondary" onClick={() => onNavigate('/admin/kelompok-aset')} id="btn-kelola-kelompok">
-              <FolderKanban size={16} /> Kelola Kelompok Aset
-            </button>
-            <button className="btn btn-secondary" onClick={() => onNavigate('/admin/users')} id="btn-kelola-user">
-              <Users size={16} /> Kelola Pengguna
+          <div className="dash-card-header-row">
+            <div>
+              <h2 className="card-title dash-section-title">Tahapan Verifikasi</h2>
+              <p className="page-subtitle">Status proses dan tindak lanjut setiap pengajuan</p>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/verifikasi')}>
+              Buka Verifikasi
             </button>
           </div>
+          <ProcessSummary peralatan={loading ? [] : stats.processItems} />
         </div>
       </div>
-
-      {/* Level 3: Tabel Peralatan Terbaru */}
-      <div className="card card-padded">
-        <div className="dash-card-header-row">
-          <div>
-            <h2 className="card-title">Inventaris Peralatan Terbaru</h2>
-            <p className="page-subtitle">Daftar peralatan yang baru didaftarkan ke sistem SiKEPo</p>
-          </div>
-          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/peralatan')} id="btn-admin-lihat-semua">
-            Lihat Seluruh Peralatan <ArrowRight size={14} />
-          </button>
-        </div>
-
-        {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
-            {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: 44 }} />)}
-          </div>
-        ) : latestPeralatan.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon"><Package size={28} /></div>
-            <p className="empty-state-title">Belum ada peralatan terdaftar</p>
-          </div>
-        ) : (
-          <div className="table-wrapper" style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>No. Aset</th>
-                  <th>Nama Peralatan</th>
-                  <th>Kategori / Kelompok</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {latestPeralatan.map((p) => (
-                  <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => onNavigate(`/peralatan/detail/${p.id}`)}>
-                    <td><code style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-600)', fontWeight: 600 }}>{p.nomor_aset}</code></td>
-                    <td style={{ fontWeight: 'var(--fw-semibold)' }}>{p.nama_peralatan}</td>
-                    <td><span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>{p.kategori || p.kelompok_aset?.nama || '-'}</span></td>
-                    <td><StatusBadge status={p.status_alat} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-      <QRScannerModal
-        isOpen={isQrOpen}
-        onClose={() => setIsQrOpen(false)}
-        onNavigate={onNavigate}
-      />
     </>
   );
 }
@@ -380,7 +325,6 @@ function ManagerDashboard({ onNavigate, user }) {
 
   const unread = notifications.filter((n) => !n.is_read);
   const aktif = peralatan.filter((p) => p.status_alat === 'Aktif').length;
-  const rusak = peralatan.filter((p) => p.status_alat === 'Rusak').length;
   const kalibrasi = peralatan.filter((p) => p.status_alat === 'Dalam Kalibrasi').length;
 
   return (
@@ -417,7 +361,7 @@ function ManagerDashboard({ onNavigate, user }) {
       {!loading && unread.length > 0 && (
         <div className="card dash-card-mb">
           <div className="card-header">
-            <h2 className="card-title">Notifikasi Peralatan Baru</h2>
+            <h2 className="card-title">Notifikasi Terbaru</h2>
             <span className="badge badge-red">{unread.length} belum dibaca</span>
           </div>
           <div className="notif-list-container">
@@ -431,46 +375,26 @@ function ManagerDashboard({ onNavigate, user }) {
               </div>
             ))}
           </div>
+          <div style={{ padding: '0 var(--sp-4) var(--sp-4)', display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/verifikasi')}>
+              Buka Proses Verifikasi
+            </button>
+          </div>
         </div>
       )}
 
       <div className="card card-padded">
         <div className="dash-card-header-row">
-          <h2 className="card-title">Inventaris Peralatan</h2>
-          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/peralatan')} id="btn-lihat-semua-peralatan">
-            Lihat Semua <ArrowRight size={14} />
+          <div>
+            <h2 className="card-title">Tahapan Proses Peralatan</h2>
+            <p className="page-subtitle">Pantau verifikasi dari pengajuan PIC sampai keputusan manager.</p>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/verifikasi')}>
+            Buka Verifikasi
           </button>
         </div>
-        {loading ? (
-          <div className="skeleton-list">
-            {[...Array(4)].map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
-          </div>
-        ) : peralatan.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon"><Package size={28} /></div>
-            <p className="empty-state-title">Belum ada peralatan</p>
-          </div>
-        ) : (
-          <div className="table-wrapper table-borderless">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Nama Peralatan</th>
-                  <th>No. Aset</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {peralatan.slice(0, 8).map((p) => (
-                  <tr key={p.id} className="cursor-pointer" onClick={() => onNavigate(`/peralatan/detail/${p.id}`)}>
-                    <td style={{ fontWeight: 'var(--fw-medium)' }}>{p.nama_peralatan}</td>
-                    <td><code className="text-mono-xs">{p.nomor_aset}</code></td>
-                    <td><StatusBadge status={p.status_alat} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {loading ? <div className="skeleton-list">{[...Array(4)].map((_, i) => <div key={i} className="skeleton skeleton-row" />)}</div> : (
+          <ProcessSummary peralatan={peralatan} />
         )}
       </div>
     </>
@@ -483,12 +407,46 @@ function ManagerDashboard({ onNavigate, user }) {
 function StaffDashboard({ onNavigate, user }) {
   const [peralatan, setPeralatan] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [detailLoadError, setDetailLoadError] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
         const res = await peralatanApi.getAll();
-        setPeralatan(res.data || []);
+        const equipmentList = res.data || [];
+        const detailedItems = [];
+        let failedDetailRequests = 0;
+
+        for (let index = 0; index < equipmentList.length; index += 8) {
+          const batch = equipmentList.slice(index, index + 8);
+          const results = await Promise.allSettled(batch.map(async (equipment) => {
+            if (!equipment.nomor_aset) return equipment;
+            const detailResponse = await peralatanApi.getByAssetNumber(equipment.nomor_aset);
+            return { ...equipment, detail: detailResponse.data?.detail || null };
+          }));
+
+          results.forEach((result, batchIndex) => {
+            if (result.status === 'fulfilled') {
+              detailedItems.push(result.value);
+            } else {
+              failedDetailRequests += 1;
+              detailedItems.push(batch[batchIndex]);
+              console.warn(`Gagal memuat jadwal peralatan ${batch[batchIndex].nomor_aset || batchIndex + 1}:`, result.reason);
+            }
+          });
+        }
+
+        detailedItems.sort((a, b) => {
+          const dueA = getCalibrationDueDate(a);
+          const dueB = getCalibrationDueDate(b);
+          if (!dueA && !dueB) return String(a.nama_peralatan || '').localeCompare(String(b.nama_peralatan || ''));
+          if (!dueA) return 1;
+          if (!dueB) return -1;
+          return dueA.getTime() - dueB.getTime();
+        });
+
+        setPeralatan(detailedItems);
+        setDetailLoadError(failedDetailRequests > 0);
       } finally {
         setLoading(false);
       }
@@ -516,21 +474,26 @@ function StaffDashboard({ onNavigate, user }) {
         </div>
       </div>
 
-      <div className="dash-action-group dash-actions-mb">
-        {can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) && (
+      {can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) && (
+        <div className="dash-action-group dash-actions-mb">
           <button className="btn btn-primary" onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan-staff">
             <Plus size={16} /> Tambah Peralatan Baru
           </button>
-        )}
-        <button className="btn btn-secondary" onClick={() => onNavigate('/peralatan')} id="btn-inventaris">
-          <Package size={16} /> Lihat Inventaris
-        </button>
-      </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Peralatan Terbaru</h2>
+          <div>
+            <h2 className="card-title">Prioritas Kalibrasi & Tahapan Proses</h2>
+            <p className="page-subtitle">Diurutkan dari tanggal jatuh tempo terdekat; jadwal yang belum tersedia ditampilkan terakhir.</p>
+          </div>
         </div>
+        {detailLoadError && (
+          <div className="alert alert-warning" role="status" style={{ margin: '0 var(--sp-4) var(--sp-3)' }}>
+            Sebagian jadwal jatuh tempo gagal dimuat. Tanggal tersebut mungkin belum tampil di daftar.
+          </div>
+        )}
         {loading ? (
           <div className="skeleton-list">
             {[...Array(5)].map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
@@ -547,17 +510,32 @@ function StaffDashboard({ onNavigate, user }) {
                 <tr>
                   <th>Nama Peralatan</th>
                   <th>No. Aset</th>
-                  <th>Status</th>
+                  <th>Jatuh Tempo</th>
+                  <th>Status Proses</th>
                 </tr>
               </thead>
               <tbody>
-                {peralatan.slice(0, 10).map((p) => (
+                {peralatan.map((p) => {
+                  const dueDate = getCalibrationDueDate(p);
+                  const process = getProcessStage(p);
+                  return (
                   <tr key={p.id} className="cursor-pointer" onClick={() => onNavigate(`/peralatan/detail/${p.id}`)}>
                     <td style={{ fontWeight: 'var(--fw-medium)' }}>{p.nama_peralatan}</td>
                     <td><code className="text-mono-xs">{p.nomor_aset}</code></td>
-                    <td><StatusBadge status={p.status_alat} /></td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                        <span className={`badge ${getDueDateBadgeClass(dueDate)}`}>{formatDueDate(dueDate)}</span>
+                        {dueDate && <small style={{ color: 'var(--clr-dark-500)' }}>{dueDate.toLocaleDateString('id-ID')}</small>}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                        <span className={`badge ${process.tone}`}>{process.label}</span>
+                        <small style={{ color: 'var(--clr-dark-500)' }}>{process.description}</small>
+                      </div>
+                    </td>
                   </tr>
-                ))}
+                );})}
               </tbody>
             </table>
           </div>
@@ -567,14 +545,29 @@ function StaffDashboard({ onNavigate, user }) {
   );
 }
 
+function ProcessSummary({ peralatan }) {
+  const stages = [
+    { status: 'Belum Diverifikasi', label: 'Belum dimulai', description: 'PIC perlu melakukan pemeriksaan', icon: ClipboardCheck, tone: 'gray' },
+    { status: 'Draft', label: 'Draft', description: 'Pengajuan belum dikirim ke manager', icon: Clock3, tone: 'blue' },
+    { status: 'Diajukan', label: 'Menunggu keputusan', description: 'Menunggu persetujuan manager', icon: Clock3, tone: 'amber' },
+    { status: 'Ditolak', label: 'Perlu tindak lanjut', description: 'PIC perlu memperbaiki dan mengajukan ulang', icon: AlertTriangle, tone: 'red' },
+    { status: 'Disetujui', label: 'Selesai disetujui', description: 'Verifikasi telah disetujui manager', icon: CheckCircle2, tone: 'green' },
+  ];
+
+  return (
+    <div className="dash-process-grid">
+      {stages.map(({ status, label, description, icon: Icon, tone }) => (
+        <div className={`dash-process-card ${tone}`} key={status}>
+          <div className="dash-process-icon"><Icon size={18} /></div>
+          <div className="dash-process-count">{peralatan.filter((item) => (item.status_verifikasi || 'Belum Diverifikasi') === status).length}</div>
+          <div className="dash-process-label">{label}</div>
+          <div className="dash-process-description">{description}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------
 // Status Badge helper
 // ------------------------------------------------------------------
-function StatusBadge({ status }) {
-  return (
-    <span className={`badge ${STATUS_BADGE_CLASS[status] || 'badge-gray'}`}>
-      <span className="badge-dot" />
-      {status || 'Tidak diketahui'}
-    </span>
-  );
-}

@@ -7,9 +7,10 @@ export default function NotificationBell({ onNavigate }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const drawerRef = useRef(null);
 
-  const isManager = user?.role === 'manager';
+  const isManager = user?.role?.toLowerCase() === 'manager';
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
@@ -36,14 +37,24 @@ export default function NotificationBell({ onNavigate }) {
   async function loadNotifications() {
     if (!user?.user_id || !isManager) return;
     setLoading(true);
+    setLoadError('');
     try {
       const res = await notificationApi.getByUserId(user.user_id);
       setNotifications(res.data || []);
-    } catch {
-      // Gracefully ignore error jika offline atau role tidak sesuai
+    } catch (err) {
+      setLoadError(err.message || 'Gagal memuat notifikasi. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
+  }
+
+  function getNotificationTarget(notif) {
+    if (notif.peralatan_id) return `/peralatan/detail/${notif.peralatan_id}`;
+    if (notif.type === 'peralatan_created') return '/peralatan';
+    if (notif.type === 'verification_submitted' || notif.type === 'peralatan_verification_updated') {
+      return '/verifikasi';
+    }
+    return null;
   }
 
   async function handleMarkRead(notif) {
@@ -53,21 +64,32 @@ export default function NotificationBell({ onNavigate }) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n))
         );
-      } catch {
-        // ignore
+        setLoadError('');
+      } catch (err) {
+        setLoadError(err.message || 'Gagal menandai notifikasi sebagai dibaca.');
       }
     }
 
-    if (notif.peralatan_id && onNavigate) {
+    const target = getNotificationTarget(notif);
+    if (target && onNavigate) {
       setOpen(false);
-      onNavigate(`/peralatan/detail/${notif.peralatan_id}`);
+      onNavigate(target);
     }
   }
 
   async function markAllRead() {
     const unread = notifications.filter((n) => !n.is_read);
-    await Promise.allSettled(unread.map((n) => notificationApi.markRead(n.id)));
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    const results = await Promise.allSettled(unread.map((n) => notificationApi.markRead(n.id)));
+    const succeededIds = new Set(
+      results.flatMap((result, index) => result.status === 'fulfilled' ? [unread[index].id] : [])
+    );
+    setNotifications((prev) => prev.map((n) => (
+      succeededIds.has(n.id) ? { ...n, is_read: true } : n
+    )));
+    const failedCount = results.filter((result) => result.status === 'rejected').length;
+    setLoadError(failedCount
+      ? `${failedCount} notifikasi gagal ditandai dibaca. Coba lagi.`
+      : '');
   }
 
   function formatTime(dateStr) {
@@ -191,13 +213,12 @@ export default function NotificationBell({ onNavigate }) {
 
           {/* Notification List */}
           <div style={{ flex: 1, overflowY: 'auto', maxHeight: '380px' }}>
-            {!isManager ? (
-              <div style={{ padding: '28px 20px', textAlign: 'center', color: '#6B7280' }}>
-                <p style={{ fontSize: '13px', margin: 0, fontWeight: 500 }}>
-                  Notifikasi alur masuk peralatan ditujukan khusus untuk akun <strong>Manager Lab</strong>.
-                </p>
+            {loadError && (
+              <div role="alert" style={{ padding: '10px 18px', color: '#B91C1C', background: '#FEF2F2', fontSize: '12px' }}>
+                {loadError}
               </div>
-            ) : loading && notifications.length === 0 ? (
+            )}
+            {loading && notifications.length === 0 ? (
               <div style={{ padding: '32px', textAlign: 'center', color: '#6B7280' }}>
                 <div className="spinner-mini" style={{ margin: '0 auto 8px' }} />
                 <span style={{ fontSize: '12.5px' }}>Memeriksa notifikasi lab...</span>
@@ -208,10 +229,20 @@ export default function NotificationBell({ onNavigate }) {
                 <p style={{ fontSize: '13px', margin: 0 }}>Belum ada notifikasi baru untuk Anda</p>
               </div>
             ) : (
-              notifications.map((n) => (
+              notifications.map((n) => {
+                const target = getNotificationTarget(n);
+                return (
                 <div
                   key={n.id}
                   onClick={() => handleMarkRead(n)}
+                  role={target ? 'button' : undefined}
+                  tabIndex={target ? 0 : undefined}
+                  onKeyDown={(event) => {
+                    if (target && (event.key === 'Enter' || event.key === ' ')) {
+                      event.preventDefault();
+                      handleMarkRead(n);
+                    }
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'flex-start',
@@ -289,15 +320,16 @@ export default function NotificationBell({ onNavigate }) {
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                         <Clock size={11} /> {formatTime(n.created_at)}
                       </span>
-                      {n.peralatan_id && (
+                      {target && (
                         <span style={{ color: '#DC2626', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                          Buka Alat <ExternalLink size={10} />
+                          {target === '/verifikasi' ? 'Buka Verifikasi' : 'Buka Alat'} <ExternalLink size={10} />
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

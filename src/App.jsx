@@ -14,7 +14,7 @@ import {
 import { ToastProvider, useToast } from './context/ToastContext.jsx';
 import { ConfirmProvider } from './context/ConfirmContext.jsx';
 import { getToken } from './utils/api.js';
-import { ACCESS, ACTIONS } from './utils/permissions.js';
+import { ACCESS, ACTIONS, getUserRole } from './utils/permissions.js';
 
 // Pages
 import Login from './pages/Login.jsx';
@@ -233,8 +233,6 @@ function AppContent() {
         />
         <Route path="/peralatan/menunggu-verifikasi" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="pending" /></ProtectedRoute>} />
         <Route path="/peralatan/dalam-peninjauan" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="review" /></ProtectedRoute>} />
-        <Route path="/peralatan/arsip" element={<ProtectedRoute feature={ACCESS.MASTER_EQUIPMENT}><EquipmentLifecycleRoute lifecycle="archived" /></ProtectedRoute>} />
-
         <Route
           path="/verifikasi"
           element={
@@ -256,8 +254,8 @@ function AppContent() {
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute roles={['admin']}>
-              <UserManagement onNavigate={navigate} />
+            <ProtectedRoute roles={['admin', 'manager']}>
+              <UserManagement onNavigate={navigate} viewOnly={getUserRole() === 'manager'} />
             </ProtectedRoute>
           }
         />
