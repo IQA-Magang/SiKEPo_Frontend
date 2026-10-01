@@ -61,21 +61,14 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
           audio: false,
         });
       } catch (preferredError) {
-        // Some desktop webcams reject facingMode even though video access works.
-        if (preferredError.name === 'NotFoundError' || preferredError.name === 'OverconstrainedError') {
+        // Some desktop webcams reject facingMode or a stale deviceId even though video access works.
+        if (['NotFoundError', 'OverconstrainedError', 'AbortError'].includes(preferredError.name)) {
           stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         } else {
           throw preferredError;
         }
       }
       streamRef.current = stream;
-      const devices = (await navigator.mediaDevices.enumerateDevices())
-        .filter((device) => device.kind === 'videoinput');
-      setCameraDevices(devices);
-      if (!cameraDeviceId) {
-        const activeTrack = stream.getVideoTracks()[0];
-        setCameraDeviceId(activeTrack?.getSettings?.().deviceId || '');
-      }
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
@@ -92,6 +85,19 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
           scannerTypeRef.current = 'jsqr';
         }
         startScanningLoop();
+      }
+
+      // Device labels and IDs are available after permission is granted.
+      try {
+        const devices = (await navigator.mediaDevices.enumerateDevices())
+          .filter((device) => device.kind === 'videoinput');
+        setCameraDevices(devices);
+        if (!cameraDeviceId) {
+          const activeTrack = stream.getVideoTracks()[0];
+          setCameraDeviceId(activeTrack?.getSettings?.().deviceId || '');
+        }
+      } catch (deviceError) {
+        console.warn('Daftar kamera tidak dapat dibaca:', deviceError);
       }
     } catch (err) {
       console.warn('Kamera tidak tersedia:', err);
@@ -520,6 +526,7 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
                   ref={videoRef}
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   playsInline
+                  autoPlay
                   muted
                 />
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
