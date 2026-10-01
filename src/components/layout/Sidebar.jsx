@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LayoutDashboard,
   Wrench,
@@ -34,8 +34,24 @@ function NavGroup({ label, icon: Icon, children, defaultOpen = true }) {
 }
 
 export default function Sidebar({ currentPath, onNavigate, onClose, open: mobileOpen }) {
+  const sidebarRef = useRef(null);
+  const [isMobileDrawer, setIsMobileDrawer] = useState(false);
   const userRole = getUserRole();
   const canView = (feature) => can(feature, ACTIONS.VIEW);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const updateDrawerMode = () => setIsMobileDrawer(mediaQuery.matches);
+    updateDrawerMode();
+    mediaQuery.addEventListener('change', updateDrawerMode);
+    return () => mediaQuery.removeEventListener('change', updateDrawerMode);
+  }, []);
+
+  useEffect(() => {
+    if (mobileOpen && isMobileDrawer) {
+      sidebarRef.current?.querySelector('button:not([disabled])')?.focus();
+    }
+  }, [mobileOpen, isMobileDrawer]);
 
   const isManajemenAlatActive =
     currentPath === '/peralatan' ||
@@ -55,12 +71,16 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
     if (onClose) onClose();
   }
 
-  const NavItem = ({ label, path, feature, roles, disabled = false }) => {
+  const NavItem = ({ label, path, feature, roles, disabled = false, excludeActivePaths = [] }) => {
     if (feature && !canView(feature)) return null;
     if (roles && Array.isArray(roles) && !roles.includes(userRole)) return null;
 
+    const isExcludedPath = excludeActivePaths.some(
+      (excludedPath) => currentPath === excludedPath || currentPath.startsWith(`${excludedPath}/`)
+    );
     const isActive =
-      currentPath === path || (path !== '/dashboard' && currentPath.startsWith(path + '/'));
+      currentPath === path ||
+      (path !== '/dashboard' && !isExcludedPath && currentPath.startsWith(`${path}/`));
 
     return (
       <button
@@ -93,7 +113,11 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
 
   return (
     <>
-      <aside className={`sidebar ${mobileOpen ? 'sidebar-mobile-open' : ''}`}>
+      <aside
+        ref={sidebarRef}
+        className={`sidebar ${mobileOpen ? 'sidebar-mobile-open' : ''}`}
+        aria-hidden={isMobileDrawer && !mobileOpen}
+      >
         {/* Mobile Header with close button */}
         <div className="sidebar-mobile-header">
           <span className="sidebar-brand">SiKEPo</span>
@@ -113,7 +137,12 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
               icon={Wrench}
               defaultOpen={isManajemenAlatActive}
             >
-              <NavItem label="Peralatan" path="/peralatan" feature={ACCESS.MASTER_EQUIPMENT} />
+              <NavItem
+                label="Peralatan"
+                path="/peralatan"
+                feature={ACCESS.MASTER_EQUIPMENT}
+                excludeActivePaths={['/peralatan/dalam-peninjauan']}
+              />
               <NavItem label="Verifikasi Peralatan" path="/verifikasi" feature={ACCESS.EQUIPMENT_ELIGIBILITY} />
               <NavItem label="Peminjaman" path="/peminjaman" feature={ACCESS.LOAN_REQUEST} disabled />
               <NavItem label="Peninjauan Peralatan" path="/peralatan/dalam-peninjauan" feature={ACCESS.EQUIPMENT_ELIGIBILITY} />
@@ -141,6 +170,7 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
                 <NavItem label="Kelompok Lab" path="/admin/labs" feature={ACCESS.MASTER_LAB} roles={['admin', 'manager']} />
                 <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin', 'manager']} />
                 <NavItem label="Kelompok Lokasi" path="/admin/ruangan" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin', 'manager']} />
+                <NavItem label="Manajemen Pengguna" path="/admin/users" feature={ACCESS.MASTER_USER_PIC} roles={['admin', 'manager']} />
               </NavGroup>
             )}
           </nav>

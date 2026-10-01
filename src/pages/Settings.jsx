@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
-  User, Shield, KeyRound, AlertCircle,
-  LogOut, Users, Server, CheckCircle2, Check
+  User, KeyRound, AlertCircle,
+  LogOut, Users, CheckCircle2, Check
 } from 'lucide-react';
 import { getCurrentUser, usersApi } from '../utils/api.js';
 import UserManagement from './admin/UserManagement.jsx';
@@ -10,7 +10,7 @@ export default function Settings({ onNavigate }) {
   const user = getCurrentUser();
   const role = (user?.role || 'staff').toLowerCase();
 
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'users' | 'system'
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'users'
   const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -99,7 +99,7 @@ export default function Settings({ onNavigate }) {
       <div className="page-header" style={{ marginBottom: '20px' }}>
         <h1 className="page-title">Pengaturan Sistem & Akun</h1>
         <p className="page-subtitle">
-          Kelola profil pengguna, kredensial, hak akses, dan status koneksi sistem
+          Kelola profil dan kredensial akun
         </p>
       </div>
 
@@ -157,26 +157,6 @@ export default function Settings({ onNavigate }) {
           </button>
         )}
 
-        <button
-          onClick={() => setActiveTab('system')}
-          style={{
-            padding: '10px 18px',
-            fontSize: '14px',
-            fontWeight: 700,
-            border: 'none',
-            background: 'none',
-            cursor: 'pointer',
-            color: activeTab === 'system' ? '#E30613' : '#6B7280',
-            borderBottom: activeTab === 'system' ? '3px solid #E30613' : '3px solid transparent',
-            marginBottom: '-2px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-          id="tab-btn-system"
-        >
-          <Server size={16} /> Status Sistem & Matriks Akses
-        </button>
       </div>
 
       {/* Tab 1: Profile & Password */}
@@ -343,106 +323,6 @@ export default function Settings({ onNavigate }) {
         </div>
       )}
 
-      {/* Tab 3: System Status & Access Matrix */}
-      {activeTab === 'system' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="card" style={{ padding: 'var(--sp-6)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-4)' }}>
-              <Server size={20} style={{ color: '#E30613' }} />
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)' }}>
-                Status Sistem & Konfigurasi Backend
-              </h3>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--sp-4)' }}>
-              <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 4 }}>Backend API Endpoint</div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold)', fontFamily: 'monospace' }}>{API_BASE}</div>
-              </div>
-
-              <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 4 }}>Standar Kepatuhan</div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold)', color: '#E30613' }}>ISO/IEC 17025:2017</div>
-              </div>
-
-              <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 4 }}>Organisasi Lab</div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold)' }}>Telkom Test House (TTH)</div>
-              </div>
-
-              <div style={{ background: 'var(--clr-dark-50)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 4 }}>Versi Frontend</div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold)' }}>SiKEPo v2.0 (React 18 + Vite)</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Akses Fitur Berdasarkan Modul Card */}
-          <div className="card" style={{ padding: 'var(--sp-6)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-4)' }}>
-              <Shield size={20} style={{ color: '#E30613' }} />
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)' }}>
-                Matriks Hak Akses Modul SiKEPo
-              </h3>
-            </div>
-
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', marginBottom: 'var(--sp-4)' }}>
-              Pemetaan wewenang operasional antara <strong>Staff Lab (Personel TTH)</strong>, <strong>Manager Lab</strong>, dan <strong>Administrator</strong> sesuai prosedur ISO/IEC 17025 Telkom Test House.
-            </p>
-
-            <div className="table-wrapper">
-              <table className="data-table" style={{ fontSize: '13px' }}>
-                <thead>
-                  <tr>
-                    <th>Modul / Fitur</th>
-                    <th>Staff Lab</th>
-                    <th>Manager Lab</th>
-                    <th>Administrator</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>Data Master (Peralatan, Lab)</strong></td>
-                    <td><span className="badge badge-gray">Lihat</span></td>
-                    <td><span className="badge badge-gray">Lihat</span></td>
-                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
-                  </tr>
-                  <tr>
-                    <td><strong>Input Alat Ukur Baru & Status</strong></td>
-                    <td><span style={{ color: '#9CA3AF' }}>–</span></td>
-                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
-                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
-                  </tr>
-                  <tr>
-                    <td><strong>Peminjaman & Pengembalian</strong></td>
-                    <td><span className="badge badge-blue">Tambah & Ubah</span></td>
-                    <td><span className="badge badge-blue">Tambah & Ubah</span></td>
-                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
-                  </tr>
-                  <tr>
-                    <td><strong>Tracking Lokasi & Histori</strong></td>
-                    <td><span className="badge badge-gray">Lihat</span></td>
-                    <td><span className="badge badge-gray">Lihat</span></td>
-                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
-                  </tr>
-                  <tr>
-                    <td><strong>Laporan & Dokumen Kalibrasi</strong></td>
-                    <td><span className="badge badge-gray">Unduh / Lihat</span></td>
-                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
-                    <td><span className="badge badge-green">Penuh (CRUD)</span></td>
-                  </tr>
-                  <tr>
-                    <td><strong>Manajemen Pengguna</strong></td>
-                    <td><span style={{ color: '#9CA3AF' }}>–</span></td>
-                    <td><span className="badge badge-gray">Lihat di Pengaturan</span></td>
-                    <td><span className="badge badge-green">Penuh di Pengaturan</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

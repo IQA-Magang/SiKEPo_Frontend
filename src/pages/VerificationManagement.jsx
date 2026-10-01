@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -13,7 +14,7 @@ import {
   Printer,
   X,
 } from 'lucide-react';
-import { getCurrentUser, verifikasiApi, peralatanApi, getEquipmentId, formatPhotoUrl } from '../utils/api.js';
+import { getCurrentUser, getSavedSignature, saveSignature, removeSavedSignature, verifikasiApi, peralatanApi, getEquipmentId, formatPhotoUrl } from '../utils/api.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { getUserRole, can, isStaffPic, ACCESS, ACTIONS } from '../utils/permissions.js';
 import { useNavigate } from '../router/Router.jsx';
@@ -66,7 +67,15 @@ const FOLLOW_UP_OPTIONS = [
   'Lainnya',
 ];
 
-function DigitalSignaturePad({ value, onChange, label, required = true }) {
+function DigitalSignaturePad({
+  value,
+  onChange,
+  label,
+  required = true,
+  savedSignature = '',
+  onRestore,
+  onForgetSaved,
+}) {
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
 
@@ -88,15 +97,37 @@ function DigitalSignaturePad({ value, onChange, label, required = true }) {
     ctx.lineWidth = 2.5;
     ctx.strokeStyle = '#0f172a';
 
-    // Jika sudah ada data tanda tangan (base64 PNG), gambar ke canvas
-    if (value) {
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, width, height);
-      };
-      img.src = value;
-    }
   }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+
+    const ratio = Math.max(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width || 600;
+    const height = 140;
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    if (!value) return undefined;
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.save();
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.drawImage(img, 0, 0, width, height);
+      ctx.restore();
+    };
+    img.src = value;
+
+    return () => {
+      img.onload = null;
+    };
+  }, [value]);
 
   function getPoint(e) {
     const canvas = canvasRef.current;
@@ -168,6 +199,7 @@ function DigitalSignaturePad({ value, onChange, label, required = true }) {
       </div>
 
       <div
+        className="verification-signature-pad-frame"
         style={{
           position: 'relative',
           borderRadius: 'var(--radius-lg, 10px)',
@@ -225,6 +257,33 @@ function DigitalSignaturePad({ value, onChange, label, required = true }) {
         >
           <Eraser size={14} /> Hapus & Goreskan Ulang
         </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {!value && savedSignature && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={onRestore}
+              style={{ padding: '2px 8px', fontSize: '12px' }}
+            >
+              Gunakan Tersimpan
+            </button>
+          )}
+          {savedSignature && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm text-error"
+              onClick={onForgetSaved}
+              style={{ padding: '2px 8px', fontSize: '12px' }}
+            >
+              Hapus Tersimpan
+            </button>
+          )}
+        </div>
+      </div>
+      <div style={{ marginTop: 4, fontSize: '11px', color: 'var(--clr-dark-400)' }}>
+        Tanda tangan tersimpan di sesi tab ini untuk akun Anda dan dihapus saat logout.
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
         <span style={{ fontSize: '11px', color: 'var(--clr-dark-400)' }}>
           Gunakan mouse, stylus, atau sentuhan layar
         </span>
@@ -238,6 +297,7 @@ function SignatureDisplayCard({ title, roleLabel, signature, signerName, signerN
   const isSigned = Boolean(signature);
   return (
     <div
+      className="verification-signature-card"
       style={{
         border: '1px solid var(--clr-dark-200, #e2e8f0)',
         borderRadius: 'var(--radius-lg, 10px)',
@@ -326,6 +386,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   const canSubmit = isStaffPIC || role === 'admin';
   const canApprove = role === 'manager' || role === 'admin';
   const currentUserId = currentUser?.user_id ?? currentUser?.id;
+  const [savedSignature, setSavedSignature] = useState(() => getSavedSignature(currentUser));
 
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'review' | 'history'
   const [items, setItems] = useState([]);
@@ -338,13 +399,35 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   const [loadingEquipment, setLoadingEquipment] = useState(false);
   const [equipmentInfo, setEquipmentInfo] = useState(null);
   const [reviewLogs, setReviewLogs] = useState([]);
-  const [picSignature, setPicSignature] = useState('');
-  const [managerSignature, setManagerSignature] = useState('');
+  const [picSignature, setPicSignature] = useState(() => getSavedSignature(currentUser));
+  const [managerSignature, setManagerSignature] = useState(() => getSavedSignature(currentUser));
   const [approvalModalItem, setApprovalModalItem] = useState(null);
   const [approvalMode, setApprovalMode] = useState('approve'); // 'approve' | 'reject'
   const [rejectReason, setRejectReason] = useState('');
   const [rejectCatatan, setRejectCatatan] = useState('');
   const [affirmApproved, setAffirmApproved] = useState(false);
+
+  function handleSignatureChange(setSignature, signature) {
+    setSignature(signature);
+    if (!signature) return;
+
+    try {
+      saveSignature(signature, currentUser);
+      setSavedSignature(signature);
+    } catch (err) {
+      error(err.message || 'Tanda tangan digunakan, tetapi gagal disimpan untuk penggunaan berikutnya.');
+    }
+  }
+
+  function forgetSavedSignature() {
+    try {
+      removeSavedSignature(currentUser);
+      setSavedSignature('');
+      success('Tanda tangan tersimpan telah dihapus dari sesi ini.');
+    } catch (err) {
+      error(err.message || 'Gagal menghapus tanda tangan tersimpan.');
+    }
+  }
 
   // Memuat daftar verifikasi, log peninjauan, & daftar peralatan karantina/pending
   async function loadList() {
@@ -365,7 +448,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
         const all = equipmentResult.value?.data || [];
         // Peralatan yang perlu verifikasi awal (belum disetujui, belum diajukan, dan belum dihapus)
         const pending = all.filter(
-          (p) => p.status_verifikasi !== 'Disetujui' && p.status_verifikasi !== 'Diajukan' && p.status_alat !== 'Dihapuskan'
+          (p) => p.status_verifikasi !== 'Disetujui' && p.status_verifikasi !== 'Diajukan'
         );
         const visiblePending = role === 'staff'
           ? pending.filter((p) => String(p.pic_id) === String(currentUserId))
@@ -441,7 +524,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
     event.preventDefault();
 
     if (!picSignature) {
-      error('Tanda tangan PIC wajib diisi sebelum verifikasi diajukan.');
+      error('Tanda tangan PIC wajib tersedia sebelum verifikasi diajukan.');
       return;
     }
 
@@ -502,7 +585,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
         navigate('/verifikasi');
       } else {
         setForm(emptyForm());
-        setPicSignature('');
+        setPicSignature(getSavedSignature(currentUser));
         await loadList();
       }
     } catch (err) {
@@ -516,7 +599,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   function openApprovalModal(item) {
     setApprovalModalItem(item);
     setApprovalMode('approve');
-    setManagerSignature('');
+    setManagerSignature(getSavedSignature(currentUser));
     setRejectReason('');
     setRejectCatatan('');
     setAffirmApproved(false);
@@ -524,7 +607,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
 
   function closeApprovalModal() {
     setApprovalModalItem(null);
-    setManagerSignature('');
+    setManagerSignature(getSavedSignature(currentUser));
     setRejectReason('');
     setRejectCatatan('');
     setAffirmApproved(false);
@@ -534,7 +617,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
     const target = selected || approvalModalItem;
     if (!target) return;
     if (!managerSignature?.trim()) {
-      error('Tanda tangan digital manager wajib digoreskan sebelum verifikasi disetujui.');
+      error('Tanda tangan digital manager wajib tersedia sebelum verifikasi disetujui.');
       return;
     }
     if (!affirmApproved) {
@@ -994,8 +1077,11 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
               </label>
               <DigitalSignaturePad
                 value={picSignature}
-                onChange={setPicSignature}
+                onChange={(signature) => handleSignatureChange(setPicSignature, signature)}
                 label="Tanda Tangan Digital PIC"
+                savedSignature={savedSignature}
+                onRestore={() => setPicSignature(savedSignature)}
+                onForgetSaved={forgetSavedSignature}
               />
             </div>
           </div>
@@ -1279,7 +1365,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                       <td>
                         <button
                           className="btn btn-primary btn-sm"
-                          onClick={() => { setManagerSignature(''); setApprovalMode('approve'); setRejectReason(''); setRejectCatatan(''); setAffirmApproved(false); setSelected(item); }}
+                          onClick={() => { setManagerSignature(getSavedSignature(currentUser)); setApprovalMode('approve'); setRejectReason(''); setRejectCatatan(''); setAffirmApproved(false); setSelected(item); }}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
                         >
                           <ClipboardCheck size={13} /> Tinjau
@@ -1383,18 +1469,17 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
       </div>
 
       {/* Modal Rincian Verifikasi */}
-      {selected && (
+      {selected && createPortal(
         <div
-          className="modal-backdrop"
+          className="modal-overlay verification-review-overlay"
           role="presentation"
           onClick={() => setSelected(null)}
         >
           <div
-            className="modal-card"
+            className="modal modal-xl verification-review-modal"
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 700 }}
           >
             <div className="modal-header">
               <div>
@@ -1414,7 +1499,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
             </div>
 
             <div className="modal-body">
-              <div className="form-grid-2" style={{ marginBottom: 'var(--sp-3)' }}>
+              <div className="form-grid-2 verification-review-summary" style={{ marginBottom: 'var(--sp-3)' }}>
                 <div>
                   <strong>Kode Aktivitas:</strong>
                   <p style={{ margin: '2px 0 0' }}>{selected.kode_aktivitas || '-'}</p>
@@ -1449,7 +1534,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--sp-3)', marginBottom: 'var(--sp-4)' }}>
+              <div className="verification-review-signatures">
                 <SignatureDisplayCard
                   title="Tanda Tangan PIC Penguji"
                   roleLabel="Staff PIC Penguji"
@@ -1510,7 +1595,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                   <h4 style={{ margin: '0 0 var(--sp-2)', fontSize: 'var(--text-sm)' }}>
                     Data Pendukung
                   </h4>
-                  <div className="form-grid-2" style={{ fontSize: 'var(--text-xs)' }}>
+                  <div className="form-grid-2 verification-review-notes" style={{ fontSize: 'var(--text-xs)' }}>
                     <div>
                       <strong>Acuan Kriteria:</strong>
                       <p style={{ margin: '2px 0' }}>{officialNotes(selected).acuan_kriteria || '-'}</p>
@@ -1579,8 +1664,11 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                     <div>
                       <DigitalSignaturePad
                         value={managerSignature}
-                        onChange={setManagerSignature}
+                        onChange={(signature) => handleSignatureChange(setManagerSignature, signature)}
                         label="Tanda Tangan Digital Manager"
+                        savedSignature={savedSignature}
+                        onRestore={() => setManagerSignature(savedSignature)}
+                        onForgetSaved={forgetSavedSignature}
                       />
                       <div
                         style={{
@@ -1632,12 +1720,12 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
               )}
             </div>
 
-            <div className="modal-footer" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div className="modal-footer verification-review-footer">
               {canApprove && selected.status === 'Diajukan' && (
                 approvalMode === 'approve' ? (
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-primary verification-review-confirm"
                     disabled={busy || !managerSignature?.trim() || !affirmApproved}
                     onClick={handleApproveFromModal}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
@@ -1677,9 +1765,9 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 }
-

@@ -202,7 +202,7 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
       ) : (
         <div className="table-card">
           <div className="table-wrapper table-borderless">
-            <table className="data-table">
+            <table className="data-table data-table-mobile-priority data-table-users">
               <thead>
                 <tr>
                   <th>NIP</th>

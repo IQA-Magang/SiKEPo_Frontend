@@ -33,6 +33,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .brand-wrap-clickable {
@@ -93,6 +94,7 @@
   font-weight: 800;
   color: #FFFFFF;
   letter-spacing: -0.4px;
+  white-space: nowrap;
 }
 
 /* Topbar Center Search (Minimal & Fokus Terang) */
@@ -659,7 +661,7 @@
 }
 
 /* ---- RESPONSIVE ---- */
-@media (max-width: 1024px) {
+@media (max-width: 767px) {
   .topbar {
     padding: 0 16px;
   }
@@ -694,6 +696,55 @@
   }
 }
 
+@media (min-width: 768px) and (max-width: 1024px) {
+  .sidebar {
+    width: 76px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .sidebar-section-label,
+  .nav-group-label,
+  .nav-group-chevron,
+  .nav-label,
+  .nav-badge-soon,
+  .sidebar-system-card,
+  .sidebar-mobile-header {
+    display: none;
+  }
+
+  .nav-item,
+  .nav-group-header {
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .nav-group-left {
+    justify-content: center;
+  }
+
+  .nav-group-children {
+    padding-left: 0;
+    margin-left: 0;
+    border-left: 0;
+  }
+
+  .main-content {
+    margin-left: 76px;
+    width: calc(100% - 76px);
+    padding: 28px 24px 48px;
+  }
+
+  .topbar-hamburger {
+    display: none;
+  }
+
+  .topbar-search {
+    max-width: 300px;
+  }
+}
+
 @media (max-width: 640px) {
   .topbar {
     padding: 0 12px;
@@ -723,5 +774,47 @@
 
   .brand-name {
     font-size: 18px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 420px) {
+  .topbar {
+    gap: 8px;
+  }
+
+  .topbar-left {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .brand-wrap {
+    gap: 8px;
+  }
+
+  .topbar-tth-logo {
+    display: none;
+  }
+
+  .topbar-right {
+    gap: 6px;
+  }
+
+  .topbar-qr-btn {
+    padding: 6px 8px;
+  }
+
+  .icon-badge-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .sidebar {
+    width: min(300px, calc(100vw - 24px));
+  }
+
+  .main-content {
+    padding: 20px 12px 40px;
   }
 }

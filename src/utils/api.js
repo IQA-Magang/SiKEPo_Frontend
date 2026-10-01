@@ -1,7 +1,9 @@
-export const API_BASE = (import.meta.env.VITE_API_BASE || 'sikepo-be.odeandialamsyah.my.id').replace(/\/+$/, '');
+// export const API_BASE = (import.meta.env.VITE_API_BASE || 'sikepo-be.odeandialamsyah.my.id').replace(/\/+$/, '');
+export const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:5000').replace(/\/+$/, '');
 
 const TOKEN_KEY = 'sikepo_token';
 const USER_KEY = 'sikepo_user';
+const SIGNATURE_KEY_PREFIX = 'sikepo_signature_';
 
 // ------------------------------------------------------------------
 // Helper: ambil token dari sessionStorage (dengan migrasi legacy localStorage)
@@ -38,6 +40,29 @@ export function getCurrentUser() {
   } catch {
     return null;
   }
+}
+
+function getSignatureStorageKey(user) {
+  const userId = user?.user_id ?? user?.id;
+  return userId == null ? null : `${SIGNATURE_KEY_PREFIX}${userId}`;
+}
+
+export function getSavedSignature(user = getCurrentUser()) {
+  const key = getSignatureStorageKey(user);
+  return key ? sessionStorage.getItem(key) || '' : '';
+}
+
+export function saveSignature(signature, user = getCurrentUser()) {
+  const key = getSignatureStorageKey(user);
+  if (!key) {
+    throw new Error('Tanda tangan tidak dapat disimpan karena identitas pengguna tidak tersedia.');
+  }
+  sessionStorage.setItem(key, signature);
+}
+
+export function removeSavedSignature(user = getCurrentUser()) {
+  const key = getSignatureStorageKey(user);
+  if (key) sessionStorage.removeItem(key);
 }
 
 // ------------------------------------------------------------------
@@ -87,6 +112,7 @@ export async function fetchWithAuth(endpoint, options = {}) {
   if (!res.ok) {
     // 401: Auto Logout & cleanup
     if (res.status === 401) {
+      removeSavedSignature();
       sessionStorage.removeItem(TOKEN_KEY);
       sessionStorage.removeItem(USER_KEY);
       localStorage.removeItem(TOKEN_KEY);
@@ -212,6 +238,7 @@ export const STATIC_EQUIPMENT_CATEGORIES = [
 export const authApi = {
   login: async ({ email, password, recaptcha_token }) => {
     // Bersihkan sesi lama sebelum mengirim request login baru
+    removeSavedSignature();
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
     localStorage.removeItem(TOKEN_KEY);
@@ -243,6 +270,7 @@ export const authApi = {
 
   logout: () => {
     // Hapus seluruh data sesi dan kredensial sensitif dari semua tempat
+    removeSavedSignature();
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
     localStorage.removeItem(TOKEN_KEY);
@@ -335,7 +363,8 @@ export const kelompokAssetApi = {
 // =============================================================
 export const peralatanApi = {
   getAll: () => fetchWithAuth('/api/peralatan'),
-  update: (id, body) => fetchWithAuth(`/api/peralatan/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  getByAssetNumber: (assetNumber) =>
+    fetchWithAuth(`/api/peralatan/${encodeURIComponent(assetNumber)}`),
   create: (body) =>
     fetchWithAuth('/api/peralatan/', { method: 'POST', body: JSON.stringify(body) }),
   uploadFoto: (id, file) => {
@@ -422,7 +451,7 @@ export const notificationApi = {
 
 
 export const STATUS_ALAT_OPTIONS = [
-  'Karantina', 'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak', 'Dihapuskan'
+  'Karantina', 'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak'
 ];
 
 export const STATUS_BADGE_CLASS = {
@@ -430,6 +459,5 @@ export const STATUS_BADGE_CLASS = {
   'Dipinjam': 'badge-dipinjam',
   'Dalam Kalibrasi': 'badge-kalibrasi',
   'Rusak': 'badge-rusak',
-  'Dihapuskan': 'badge-dihapuskan',
   'Karantina': 'badge-rusak',
 };

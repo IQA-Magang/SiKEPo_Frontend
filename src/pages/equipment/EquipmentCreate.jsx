@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, Package, Upload, FileText, Trash2, Info, Layers, CheckCircle, Plus, HardDrive, UserCheck, ShieldCheck } from 'lucide-react';
-import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, usersApi, getCurrentUser, STATIC_EQUIPMENT_CATEGORIES } from '../../utils/api.js';
+import { ArrowLeft, ArrowRight, Package, Upload, FileText, Trash2, Info, Layers, CheckCircle, Plus, HardDrive, ShieldCheck } from 'lucide-react';
+import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, STATIC_EQUIPMENT_CATEGORIES } from '../../utils/api.js';
 import { useToast } from '../../context/ToastContext.jsx';
 
 // Langkah-langkah stepper
-const STEPS = ['Info Dasar', 'Lokasi & PIC', 'Detail Teknis', 'Dokumen Wajib', 'Konfirmasi'];
+const STEPS = ['Info Dasar', 'Lokasi', 'Detail Teknis', 'Dokumen Wajib', 'Konfirmasi'];
 
 // ------------------------------------------------------------------
 // Form Tambah Peralatan
@@ -23,7 +23,6 @@ export default function EquipmentCreate({ onNavigate }) {
   const [labs, setLabs]               = useState([]);
   const [ruangan, setRuangan]         = useState([]);
   const [kelompokAset, setKelompokAset] = useState([]);
-  const [pics, setPics]               = useState([]);
   const [categories]                   = useState(STATIC_EQUIPMENT_CATEGORIES);
   const [loadingOpts, setLoadingOpts] = useState(true);
 
@@ -38,11 +37,10 @@ export default function EquipmentCreate({ onNavigate }) {
     peranti_lunak_versi: '',
     keterangan: '',
     status_alat: 'Karantina',
-    // Step 1: Lokasi & PIC
+    // Step 1: Lokasi
     lab_id: '',
     ruangan_id: '',
     kelompok_aset_id: '',
-    pic_id: '',
     // Step 2: Detail Teknis (dinamis per kategori)
     // Alat Ukur
     parameter_rentang_ukur: '',
@@ -86,39 +84,14 @@ export default function EquipmentCreate({ onNavigate }) {
   useEffect(() => {
     async function loadOptions() {
       try {
-        const currentUser = getCurrentUser();
-        const role = (currentUser?.role || '').toLowerCase();
-        const isAdmin = role === 'admin';
-
-        const [l, r, k, u] = await Promise.allSettled([
+        const [l, r, k] = await Promise.allSettled([
           labsApi.getAll(),
           ruanganApi.getAll(),
           kelompokAssetApi.getAll(),
-          isAdmin ? usersApi.getAll() : Promise.resolve({ data: [] }),
         ]);
         if (l.status === 'fulfilled') setLabs(l.value.data || []);
         if (r.status === 'fulfilled') setRuangan(r.value.data || []);
         if (k.status === 'fulfilled') setKelompokAset(k.value.data || []);
-        if (isAdmin && u.status === 'fulfilled' && Array.isArray(u.value?.data)) {
-          const staffPIC = u.value.data.filter((usr) => usr.pic === true || usr.pic === 1 || usr.pic === '1' || String(usr.pic).toLowerCase() === 'true');
-          setPics(staffPIC.length > 0 ? staffPIC : u.value.data);
-        } else {
-          // Fallback untuk staff PIC: otomatis gunakan akun sendiri sebagai PIC
-          if (currentUser) {
-            setPics([{
-              id: currentUser.user_id || currentUser.id,
-              user_id: currentUser.user_id || currentUser.id,
-              name: currentUser.name || currentUser.nama || currentUser.email,
-              position: currentUser.position || currentUser.role,
-            }]);
-          }
-        }
-
-        // const currentUser = getCurrentUser();
-        const currentUserId = currentUser?.user_id || currentUser?.id;
-        if (currentUser?.pic && currentUserId) {
-          setForm((prev) => (prev.pic_id ? prev : { ...prev, pic_id: String(currentUserId) }));
-        }
       } finally {
         setLoadingOpts(false);
       }
@@ -207,10 +180,6 @@ export default function EquipmentCreate({ onNavigate }) {
       }
       if (!form.kelompok_aset_id) {
         setError('Kelompok aset wajib dipilih.');
-        return false;
-      }
-      if (!form.pic_id) {
-        setError('Penanggung Jawab (PIC) wajib dipilih.');
         return false;
       }
     }
@@ -353,7 +322,6 @@ export default function EquipmentCreate({ onNavigate }) {
         kategori_peralatan_id: catId,
         kelompok_aset_id: Number(form.kelompok_aset_id),
         ruangan_id: Number(form.ruangan_id),
-        pic_id: Number(form.pic_id),
         merek: form.merek,
         tipe_model: form.tipe_model,
         nomor_seri: form.nomor_seri,
@@ -691,20 +659,20 @@ export default function EquipmentCreate({ onNavigate }) {
           </div>
         )}
 
-        {/* ---- STEP 1: Lokasi & PIC ---- */}
+        {/* ---- STEP 1: Lokasi ---- */}
         {step === 1 && (
           <div key="step-lokasi-pic" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', borderBottom: '1px solid var(--clr-dark-100)', paddingBottom: 'var(--sp-4)' }}>
-              <UserCheck size={22} style={{ color: 'var(--clr-primary-500)' }} />
+              <Package size={22} style={{ color: 'var(--clr-primary-500)' }} />
               <div>
-                <h2 className="section-title" style={{ margin: 0, fontSize: 'var(--text-lg)' }}>Lokasi & Penanggung Jawab (PIC)</h2>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', margin: 0 }}>Tentukan posisi laboratorium, ruangan fisik, kelompok aset, dan PIC alat</p>
+                <h2 className="section-title" style={{ margin: 0, fontSize: 'var(--text-lg)' }}>Lokasi Peralatan</h2>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', margin: 0 }}>Tentukan laboratorium, ruangan fisik, dan kelompok aset</p>
               </div>
             </div>
 
             {loadingOpts ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-                {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: 48, borderRadius: 'var(--radius-md)' }} />)}
+                {[...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: 48, borderRadius: 'var(--radius-md)' }} />)}
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--sp-5)' }}>
@@ -748,19 +716,6 @@ export default function EquipmentCreate({ onNavigate }) {
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="select-pic">
-                    Penanggung Jawab (PIC) <span className="required">*</span>
-                  </label>
-                  <select id="select-pic" className="form-select" value={form.pic_id} onChange={(e) => setField('pic_id', e.target.value)}>
-                    <option value="">– Pilih Staff / Officer PIC –</option>
-                    {pics.map((u) => (
-                      <option key={u.user_id || u.id} value={u.user_id || u.id}>
-                        {u.name} — {u.position || u.email}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
             )}
           </div>
@@ -944,7 +899,6 @@ export default function EquipmentCreate({ onNavigate }) {
               <ConfirmRow label="Software / Versi" value={form.peranti_lunak_versi || '–'} />
               <ConfirmRow label="Ruangan ID" value={form.ruangan_id || '–'} />
               <ConfirmRow label="Kelompok Aset ID" value={form.kelompok_aset_id || '–'} />
-              <ConfirmRow label="PIC ID" value={form.pic_id || '–'} />
               <ConfirmRow label="Jumlah Dokumen" value={`${documentFiles.length} file terlampir`} />
             </div>
 

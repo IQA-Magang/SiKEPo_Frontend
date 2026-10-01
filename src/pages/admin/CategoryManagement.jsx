@@ -9,15 +9,12 @@ import {
   RefreshCw,
   FileCheck,
   Edit3,
-  ArrowRight,
 } from 'lucide-react';
 import {
   getCurrentUser,
   getEquipmentCategoryId,
   kategoriPeralatanApi,
   peralatanApi,
-  STATUS_ALAT_OPTIONS,
-  STATUS_BADGE_CLASS,
 } from '../../utils/api.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { getUserRole } from '../../utils/permissions.js';
@@ -114,7 +111,6 @@ export default function CategoryManagement({ onNavigate }) {
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCat, setSelectedCat] = useState(1);
-  const [editing, setEditing] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -152,28 +148,6 @@ export default function CategoryManagement({ onNavigate }) {
   const activeMeta = selectedMeta;
   const ActiveIcon = activeMeta.icon;
   const selectedEquipment = equipment.filter((item) => getEquipmentCategoryId(item) === selectedCat);
-
-  async function saveEquipment(event) {
-    event.preventDefault();
-    setSaving(true);
-    try {
-      const response = await peralatanApi.update(editing.id, {
-        nama_peralatan: editing.nama_peralatan,
-        merek: editing.merek,
-        tipe_model: editing.tipe_model,
-        nomor_seri: editing.nomor_seri,
-        status_alat: editing.status_alat,
-        keterangan: editing.keterangan,
-      });
-      setEquipment((previous) => previous.map((item) => item.id === response.data.id ? response.data : item));
-      setEditing(null);
-      success('Data alat ukur berhasil diperbarui.');
-    } catch (err) {
-      error(err.message || 'Gagal memperbarui alat ukur.');
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function saveCategory(event) {
     event.preventDefault();
@@ -339,29 +313,6 @@ export default function CategoryManagement({ onNavigate }) {
         </div>
 
       </div>
-
-      {editing && (
-        <div className="modal-overlay" role="presentation" onClick={() => setEditing(null)}>
-          <form className="modal" role="dialog" aria-modal="true" onSubmit={saveEquipment} onClick={(event) => event.stopPropagation()}>
-            <div className="modal-header"><h2 className="modal-title">Edit Alat Ukur</h2><button type="button" className="btn btn-ghost" onClick={() => setEditing(null)}>Tutup</button></div>
-            <div className="modal-body">
-              <div className="form-group"><label className="form-label">Nama Peralatan</label><input className="form-input" value={editing.nama_peralatan || ''} onChange={(event) => setEditing({ ...editing, nama_peralatan: event.target.value })} required /></div>
-              <div className="form-grid-2">
-                <div className="form-group"><label className="form-label">Merek</label><input className="form-input" value={editing.merek || ''} onChange={(event) => setEditing({ ...editing, merek: event.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Tipe / Model</label><input className="form-input" value={editing.tipe_model || ''} onChange={(event) => setEditing({ ...editing, tipe_model: event.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Nomor Seri</label><input className="form-input" value={editing.nomor_seri || ''} onChange={(event) => setEditing({ ...editing, nomor_seri: event.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Status</label><select className="form-select" value={editing.status_alat || ''} onChange={(event) => setEditing({ ...editing, status_alat: event.target.value })}>
-                  {STATUS_ALAT_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select></div>
-              </div>
-              <div className="form-group"><label className="form-label">Keterangan</label><textarea className="form-textarea" value={editing.keterangan || ''} onChange={(event) => setEditing({ ...editing, keterangan: event.target.value })} /></div>
-            </div>
-            <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setEditing(null)}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Perubahan'}</button></div>
-          </form>
-        </div>
-      )}
 
       {editingCategory && (
         <div className="modal-overlay" role="presentation" onClick={() => setEditingCategory(null)}>

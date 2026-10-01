@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/layout/Sidebar.jsx';
 import Topbar from './components/layout/Topbar.jsx';
 import {
@@ -14,7 +14,7 @@ import {
 import { ToastProvider, useToast } from './context/ToastContext.jsx';
 import { ConfirmProvider } from './context/ConfirmContext.jsx';
 import { getToken } from './utils/api.js';
-import { ACCESS, ACTIONS } from './utils/permissions.js';
+import { ACCESS, ACTIONS, getUserRole } from './utils/permissions.js';
 
 // Pages
 import Login from './pages/Login.jsx';
@@ -93,8 +93,29 @@ function GlobalAuthListener() {
 function AppShell({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
+  const hamburgerRef = useRef(null);
   const { pathname } = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!sidebarOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setSidebarOpen(false);
+        hamburgerRef.current?.focus();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [sidebarOpen]);
 
   return (
     <div className="app-shell">
@@ -102,7 +123,9 @@ function AppShell({ children }) {
       <div
         className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`}
         onClick={() => setSidebarOpen(false)}
-        role="presentation"
+        role="button"
+        aria-label="Tutup menu navigasi"
+        aria-hidden={!sidebarOpen}
       />
 
       {/* Sidebar Navigasi Berbasis Role */}
@@ -121,6 +144,7 @@ function AppShell({ children }) {
         currentPath={pathname}
         onNavigate={navigate}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        hamburgerRef={hamburgerRef}
         onScanQr={() => setIsQrOpen(true)}
       />
 
@@ -209,8 +233,6 @@ function AppContent() {
         />
         <Route path="/peralatan/menunggu-verifikasi" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="pending" /></ProtectedRoute>} />
         <Route path="/peralatan/dalam-peninjauan" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="review" /></ProtectedRoute>} />
-        <Route path="/peralatan/arsip" element={<ProtectedRoute feature={ACCESS.MASTER_EQUIPMENT}><EquipmentLifecycleRoute lifecycle="archived" /></ProtectedRoute>} />
-
         <Route
           path="/verifikasi"
           element={
@@ -232,8 +254,8 @@ function AppContent() {
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute roles={['admin']}>
-              <UserManagement onNavigate={navigate} />
+            <ProtectedRoute roles={['admin', 'manager']}>
+              <UserManagement onNavigate={navigate} viewOnly={getUserRole() === 'manager'} />
             </ProtectedRoute>
           }
         />

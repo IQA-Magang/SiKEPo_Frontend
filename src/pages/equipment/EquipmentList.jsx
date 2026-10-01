@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Search, Plus, ChevronRight, RefreshCw, QrCode } from 'lucide-react';
-import { getEquipmentId, getEquipmentCategoryId, formatPhotoUrl, peralatanApi, STATUS_ALAT_OPTIONS, STATUS_BADGE_CLASS } from '../../utils/api.js';
+import { getEquipmentId, getEquipmentCategoryId, formatPhotoUrl, peralatanApi, STATUS_BADGE_CLASS } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
 
 // ------------------------------------------------------------------
 // Daftar Peralatan
 // ------------------------------------------------------------------
-export default function EquipmentList({ onNavigate, initialLifecycle = 'active' }) {
+export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) {
   const canCreate = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD);
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const [list, setList]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [filterKat, setFilterKat] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
   const [lifecycleView, setLifecycleView] = useState(initialLifecycle);
 
 
@@ -43,16 +42,13 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'active' 
       p.merek?.toLowerCase().includes(q);
     const catId = getEquipmentCategoryId(p);
     const matchKat = !filterKat || String(catId) === filterKat;
-    const matchStatus = !filterStatus || p.status_alat === filterStatus;
     const approved = p.status_verifikasi === 'Disetujui';
+    const active = p.status_alat === 'Aktif';
     const rejected = p.status_verifikasi === 'Ditolak';
-    const archived = p.status_alat === 'Dihapuskan';
-    const pending = !approved && !rejected && !archived;
-    const matchLifecycle = lifecycleView === 'active' ? approved && !archived
-      : lifecycleView === 'pending' ? pending
-        : lifecycleView === 'review' ? rejected
-          : lifecycleView === 'archived' ? archived : true;
-    return matchQ && matchKat && matchStatus && matchLifecycle;
+    const pending = !approved && !rejected;
+    const matchLifecycle = lifecycleView === 'pending' ? pending
+      : lifecycleView === 'review' ? rejected : true;
+    return matchQ && matchKat && active && approved && matchLifecycle;
   });
 
   const categories = Array.from(
@@ -62,18 +58,10 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'active' 
         .map((item) => [item.kategori_peralatan.id, item.kategori_peralatan])
     ).values()
   );
-  const counts = {
-    active: list.filter((item) => item.status_verifikasi === 'Disetujui' && item.status_alat !== 'Dihapuskan').length,
-    pending: list.filter((item) => item.status_verifikasi !== 'Disetujui' && item.status_verifikasi !== 'Ditolak' && item.status_alat !== 'Dihapuskan').length,
-    review: list.filter((item) => item.status_verifikasi === 'Ditolak').length,
-    archived: list.filter((item) => item.status_alat === 'Dihapuskan').length,
-  };
   const lifecycleCopy = {
-    active: ['Daftar Peralatan', 'alat telah disetujui dan dapat digunakan'],
     pending: ['Menunggu Verifikasi', 'alat berada di karantina dan belum dapat digunakan'],
     review: ['Peralatan dalam Peninjauan', 'alat ditolak dan membutuhkan tindak lanjut'],
-    archived: ['Arsip Peralatan', 'alat telah dihapuskan dari layanan'],
-    all: ['Seluruh Peralatan', 'seluruh status siklus hidup peralatan'],
+    all: ['Daftar Peralatan', 'peralatan aktif yang telah disetujui manager'],
   };
   const [title, description] = lifecycleCopy[lifecycleView];
 
@@ -99,13 +87,6 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'active' 
             </button>
           )}
         </div>
-      </div>
-
-      <div className="card" style={{ padding: 6, display: 'flex', gap: 6, width: 'fit-content', marginBottom: 'var(--sp-5)' }}>
-        <button className={`btn btn-sm ${lifecycleView === 'active' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLifecycleView('active')}>Daftar Peralatan ({counts.active})</button>
-        <button className={`btn btn-sm ${lifecycleView === 'pending' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLifecycleView('pending')}>Menunggu Verifikasi ({counts.pending})</button>
-        <button className={`btn btn-sm ${lifecycleView === 'review' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLifecycleView('review')}>Dalam Peninjauan ({counts.review})</button>
-        <button className={`btn btn-sm ${lifecycleView === 'archived' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLifecycleView('archived')}>Arsip ({counts.archived})</button>
       </div>
 
       {/* Filters */}
@@ -135,17 +116,6 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'active' 
           ))}
         </select>
 
-        <select
-          id="select-filter-status"
-          className="form-select"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          style={{ width: 'auto', minWidth: 160 }}
-        >
-          <option value="">Semua Status</option>
-          {STATUS_ALAT_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-
         <button
           className="btn btn-secondary btn-icon"
           onClick={loadData}
@@ -165,14 +135,14 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'active' 
         <div className="empty-state">
           <div className="empty-state-icon"><Package size={32} /></div>
           <p className="empty-state-title">Tidak ada peralatan ditemukan</p>
-          <p className="empty-state-desc">Tidak ada peralatan pada tahap ini.</p>
+          <p className="empty-state-desc">Daftar ini hanya menampilkan peralatan berstatus aktif yang telah disetujui manager.</p>
           {canCreate && <button className="btn btn-primary" onClick={() => onNavigate('/peralatan/tambah')} style={{ marginTop: 'var(--sp-2)' }}>
             <Plus size={16} /> Tambah Peralatan Pertama
           </button>}
         </div>
       ) : (
         <div className="table-wrapper">
-          <table className="data-table">
+          <table className="data-table data-table-mobile-priority">
             <thead>
               <tr>
                 <th>#</th>
