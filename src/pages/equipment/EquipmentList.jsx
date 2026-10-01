@@ -147,8 +147,7 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
               <tr>
                 <th>#</th>
                 <th>Foto</th>
-                <th>Nama Peralatan</th>
-                <th>No. Aset</th>
+                <th>Peralatan</th>
                 <th>Kategori</th>
                 <th>Status Proses</th>
                 <th>Aksi</th>
@@ -163,7 +162,21 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                 const rejected = p.status_verifikasi === 'Ditolak';
                 const verificationLabel = p.status_verifikasi || 'Belum Diverifikasi';
                 return (
-                  <tr key={equipmentId}>
+                  <tr
+                    key={equipmentId}
+                    className="cursor-pointer"
+                    onClick={() => onNavigate(`/peralatan/detail/${equipmentId}`)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onNavigate(`/peralatan/detail/${equipmentId}`);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="link"
+                    aria-label={`Lihat detail ${p.nama_peralatan}`}
+                  >
                     <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{i + 1}</td>
                     <td style={{ width: 56 }}>
                       {photoUrl ? (
@@ -182,13 +195,11 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                       )}
                     </td>
                     <td>
-                      <div style={{ fontWeight: 'var(--fw-medium)', color: 'var(--clr-dark-900)' }}>{p.nama_peralatan}</div>
-                      {p.merek && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-400)' }}>{p.merek}{p.tipe_model ? ` — ${p.tipe_model}` : ''}</div>}
-                    </td>
-                    <td>
                       <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
                         {p.nomor_aset}
                       </code>
+                      <div style={{ marginTop: 6, fontWeight: 'var(--fw-medium)', color: 'var(--clr-dark-900)' }}>{p.nama_peralatan}</div>
+                      {(p.merek || p.tipe_model) && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-400)' }}>{[p.merek, p.tipe_model].filter(Boolean).join(' — ')}</div>}
                     </td>
                     <td>
                       <span className="badge badge-gray" style={{ fontSize: 'var(--text-xs)' }}>
@@ -206,7 +217,7 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                         </span>
                       </div>
                     </td>
-                    <td>
+                    <td onClick={(event) => event.stopPropagation()}>
                       <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>
                         <button
                           className="btn btn-ghost btn-sm"
