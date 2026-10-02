@@ -55,12 +55,15 @@ export default function EquipmentCreate({ onNavigate }) {
     nilai_koreksi: '',
     ketidakpastian: '',
     status_kelayakan: 'Layak',
+    fungsi_sbg_alat_standar: false,
+    jenis_label: 'calibration',
     // Alat Bantu
     fungsi_kegunaan: '',
     jenis_pemeriksaan_berkala: '',
     kriteria_pemeriksaan: '',
     tgl_pemeriksaan_terakhir: '',
     jadwal_karakterisasi_ulang: '',
+    karakteristik_acuan: '',
     // Artefak Acuan
     jenis_deskripsi: '',
     karakteristik_yang_diacu: '',
@@ -69,6 +72,7 @@ export default function EquipmentCreate({ onNavigate }) {
     no_laporan_karakterisasi: '',
     tgl_karakterisasi_terakhir: '',
     kondisi_penyimpanan: '',
+    status_artefak: 'aktif',
     // Komponen Pendukung
     sub_kategori: '',
     deskripsi_spesifikasi: '',
@@ -80,18 +84,6 @@ export default function EquipmentCreate({ onNavigate }) {
     tgl_kedaluwarsa: '',
     status_ketersediaan: 'Tersedia',
   });
-
-  const selectedRoom = ruangan.find(
-    (room) => String(room.id) === String(form.ruangan_id),
-  );
-  const selectedRoomLabId = selectedRoom?.labs_id ?? selectedRoom?.labs?.id;
-  const selectedRoomLab = labs.find(
-    (lab) => String(lab.id) === String(selectedRoomLabId),
-  );
-  const selectedManager =
-    selectedRoom?.labs?.manager || selectedRoomLab?.manager;
-  const selectedManagerId =
-    selectedRoom?.labs?.manager_id ?? selectedRoomLab?.manager_id;
 
   useEffect(() => {
     async function loadOptions() {
@@ -112,27 +104,7 @@ export default function EquipmentCreate({ onNavigate }) {
   }, []);
 
   function setField(name, value) {
-    setForm((prev) => {
-      const next = { ...prev, [name]: value };
-
-      if (prev.kategori_id === 1 && name === 'interval_bulan') {
-        const interval = Number(value);
-        if (Number.isInteger(interval) && interval > 0) {
-          const calibrationDate = prev.tgl_kalibrasi || getLocalDateString();
-          next.tgl_kalibrasi = calibrationDate;
-          next.tgl_jatuh_tempo = addMonthsToDate(calibrationDate, interval);
-        }
-      } else if (prev.kategori_id === 1 && name === 'tgl_kalibrasi') {
-        const interval = Number(prev.interval_bulan);
-        if (value && Number.isInteger(interval) && interval > 0) {
-          next.tgl_jatuh_tempo = addMonthsToDate(value, interval);
-        } else if (!value) {
-          next.tgl_jatuh_tempo = '';
-        }
-      }
-
-      return next;
-    });
+    setForm((prev) => ({ ...prev, [name]: value }));
     if (error) setError('');
   }
 
@@ -210,10 +182,6 @@ export default function EquipmentCreate({ onNavigate }) {
         setError('Lokasi ruangan wajib dipilih.');
         return false;
       }
-      if (selectedManagerId == null) {
-        setError('Ruangan yang dipilih belum memiliki Manager Lab sebagai PIC.');
-        return false;
-      }
       if (!form.kelompok_aset_id) {
         setError('Kelompok aset wajib dipilih.');
         return false;
@@ -222,11 +190,7 @@ export default function EquipmentCreate({ onNavigate }) {
     if (step === 2) {
       if (form.kategori_id === 1) {
         if (!form.no_sertifikat.trim()) { setError('No. sertifikat kalibrasi wajib diisi.'); return false; }
-        const calibrationInterval = Number(form.interval_bulan);
-        if (!Number.isInteger(calibrationInterval) || calibrationInterval <= 0) {
-          setError('Interval kalibrasi harus berupa bilangan bulan lebih dari 0.');
-          return false;
-        }
+        if (!form.interval_bulan) { setError('Interval kalibrasi (bulan) wajib diisi.'); return false; }
         if (!form.tgl_kalibrasi) { setError('Tanggal kalibrasi terakhir wajib diisi.'); return false; }
         if (!form.tgl_jatuh_tempo) { setError('Tanggal jatuh tempo kalibrasi wajib diisi.'); return false; }
       }
@@ -308,6 +272,8 @@ export default function EquipmentCreate({ onNavigate }) {
           tgl_jatuh_tempo: toIsoDate(form.tgl_jatuh_tempo),
           interval_bulan: Number(form.interval_bulan) || 0,
           fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
+          jenis_label: form.jenis_label || 'calibration',
+          status_kelayakan: form.status_kelayakan || 'Layak',
           parameter_rentang_ukur: form.parameter_rentang_ukur || '',
           resolusi: form.resolusi || '',
           akurasi_spesifikasi: form.akurasi_spesifikasi || '',
@@ -359,6 +325,7 @@ export default function EquipmentCreate({ onNavigate }) {
       const payload = {
         nama_peralatan: form.nama_peralatan,
         kategori_id: catId,
+        kategori_peralatan_id: catId,
         kelompok_aset_id: Number(form.kelompok_aset_id),
         ruangan_id: Number(form.ruangan_id),
         merek: form.merek,
@@ -385,12 +352,9 @@ export default function EquipmentCreate({ onNavigate }) {
         await dokumenApi.upload(equipmentId, file);
       }
 
-      setSuccess({
-        id: equipmentId,
-        nomor_aset: res.nomor_aset || res.data?.nomor_aset,
-        pic_id: res.pic_id ?? res.data?.pic_id,
-      });
+      // Peralatan baru berstatus Karantina dan masuk ke daftar verifikasi (menunggu verifikasi)
       toastSuccess(`Peralatan "${form.nama_peralatan}" berhasil ditambahkan dan masuk ke daftar verifikasi.`);
+      onNavigate('/verifikasi');
     } catch (err) {
       setError(err.message || 'Gagal menyimpan peralatan.');
     } finally {
@@ -439,11 +403,6 @@ export default function EquipmentCreate({ onNavigate }) {
           <p style={{ marginTop: 'var(--sp-3)', fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>
             ID Sistem: <strong>{success.id}</strong>
           </p>
-          {success.pic_id != null && (
-            <p style={{ marginTop: 'var(--sp-2)', fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>
-              PIC otomatis (Manager Lab): <strong>{success.pic_id}</strong>
-            </p>
-          )}
           <div style={{ display: 'flex', gap: 'var(--sp-3)', justifyContent: 'center', marginTop: 'var(--sp-8)' }}>
             <button className="btn btn-secondary" onClick={() => onNavigate('/peralatan')} id="btn-kembali-daftar">
               <ArrowLeft size={16} /> Daftar Peralatan
@@ -540,16 +499,18 @@ export default function EquipmentCreate({ onNavigate }) {
 
             <div className="form-group">
               <label className="form-label" htmlFor="input-nama">
-                Peralatan <span className="required">*</span>
+                Nama Peralatan <span className="required">*</span>
               </label>
               <input
                 id="input-nama"
                 className="form-input"
+                aria-describedby="help-input-nama"
                 placeholder="Contoh: Digital Multimeter / Spektrofotometer UV-Vis"
                 value={form.nama_peralatan}
                 onChange={(e) => setField('nama_peralatan', e.target.value)}
                 style={{ fontSize: 'var(--text-base)', padding: '10px 14px' }}
               />
+              <FieldHelp id="help-input-nama">Gunakan nama jenis alat yang mudah dikenali. Merek, tipe, dan nomor seri diisi pada kolom masing-masing.</FieldHelp>
             </div>
 
             {/* Upload Foto Peralatan */}
@@ -557,6 +518,7 @@ export default function EquipmentCreate({ onNavigate }) {
               <label className="form-label">
                 Foto Peralatan <span className="required">*</span>
               </label>
+              <FieldHelp id="help-foto">Unggah foto alat secara utuh dan jelas agar mudah dicocokkan saat inventarisasi.</FieldHelp>
               {photoPreview ? (
                 <div style={{ position: 'relative', display: 'inline-block', maxWidth: 280 }}>
                   <img
@@ -607,6 +569,7 @@ export default function EquipmentCreate({ onNavigate }) {
                       accept="image/*"
                       style={{ display: 'none' }}
                       onChange={handleSelectPhoto}
+                      aria-describedby="help-foto"
                     />
                   </label>
                 </div>
@@ -662,18 +625,21 @@ export default function EquipmentCreate({ onNavigate }) {
                   Merek / Pabrikan <span className="required">*</span>
                 </label>
                 <input id="input-merek" className="form-input" placeholder="Fluke, Hioki, Keysight..." value={form.merek} onChange={(e) => setField('merek', e.target.value)} />
+                <FieldHelp id="help-input-merek">Isi nama produsen, bukan tipe atau nomor seri alat.</FieldHelp>
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="input-tipe">
                   Tipe / Model <span className="required">*</span>
                 </label>
                 <input id="input-tipe" className="form-input" placeholder="179, MR6000..." value={form.tipe_model} onChange={(e) => setField('tipe_model', e.target.value)} />
+                <FieldHelp id="help-input-tipe">Isi kode model yang tercetak pada label atau badan alat.</FieldHelp>
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="input-seri">
                   Nomor Seri (Serial Number) <span className="required">*</span>
                 </label>
                 <input id="input-seri" className="form-input" placeholder="SN-88492019" value={form.nomor_seri} onChange={(e) => setField('nomor_seri', e.target.value)} />
+                <FieldHelp id="help-input-seri">Gunakan nomor unik unit yang tercetak pada badan alat; jangan isi nomor aset internal.</FieldHelp>
               </div>
             </div>
 
@@ -684,10 +650,12 @@ export default function EquipmentCreate({ onNavigate }) {
               <input
                 id="input-software"
                 className="form-input"
+                aria-describedby="help-input-software"
                 placeholder="Contoh: LabVIEW v2023 / Firmware v1.4.2"
                 value={form.peranti_lunak_versi}
                 onChange={(e) => setField('peranti_lunak_versi', e.target.value)}
               />
+              <FieldHelp id="help-input-software">Isi versi firmware yang tertanam di alat atau versi software yang digunakan untuk mengoperasikannya.</FieldHelp>
             </div>
 
             <div className="form-group">
@@ -697,11 +665,13 @@ export default function EquipmentCreate({ onNavigate }) {
               <textarea
                 id="input-keterangan"
                 className="form-textarea"
+                aria-describedby="help-input-keterangan"
                 placeholder="Catatan kondisi, kelengkapan aksesoris, atau riwayat penggunaan..."
                 value={form.keterangan}
                 onChange={(e) => setField('keterangan', e.target.value)}
                 style={{ minHeight: 90 }}
               />
+              <FieldHelp id="help-input-keterangan">Tambahkan kondisi khusus, kelengkapan, atau informasi identifikasi yang belum tercakup di kolom lain.</FieldHelp>
             </div>
           </div>
         )}
@@ -727,31 +697,20 @@ export default function EquipmentCreate({ onNavigate }) {
                   <label className="form-label" htmlFor="select-lab">
                     Laboratorium <span className="required">*</span>
                   </label>
-                  <select
-                    id="select-lab"
-                    className="form-select"
-                    value={form.lab_id}
-                    onChange={(e) => {
-                      setForm((prev) => ({
-                        ...prev,
-                        lab_id: e.target.value,
-                        ruangan_id: '',
-                      }));
-                      if (error) setError('');
-                    }}
-                  >
+                  <select id="select-lab" className="form-select" value={form.lab_id} onChange={(e) => setField('lab_id', e.target.value)} aria-describedby="help-select-lab">
                     <option value="">– Pilih Laboratorium –</option>
                     {labs.map((l) => (
                       <option key={l.id} value={l.id}>{l.nama_labs} ({l.kode_labs})</option>
                     ))}
                   </select>
+                  <FieldHelp id="help-select-lab">Pilih laboratorium pemilik atau pengguna utama peralatan.</FieldHelp>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-ruangan">
                     Lokasi <span className="required">*</span>
                   </label>
-                  <select id="select-ruangan" className="form-select" value={form.ruangan_id} onChange={(e) => setField('ruangan_id', e.target.value)}>
+                  <select id="select-ruangan" className="form-select" value={form.ruangan_id} onChange={(e) => setField('ruangan_id', e.target.value)} aria-describedby="help-select-ruangan">
                     <option value="">– Pilih Lokasi –</option>
                     {ruangan
                       .filter((r) => !form.lab_id || String(r.labs_id) === String(form.lab_id))
@@ -761,55 +720,23 @@ export default function EquipmentCreate({ onNavigate }) {
                         </option>
                       ))}
                   </select>
+                  <FieldHelp id="help-select-ruangan">Pilih ruangan fisik tempat alat disimpan; pilihan mengikuti laboratorium di atas.</FieldHelp>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="select-kelompok">
                     Kelompok Aset <span className="required">*</span>
                   </label>
-                  <select id="select-kelompok" className="form-select" value={form.kelompok_aset_id} onChange={(e) => setField('kelompok_aset_id', e.target.value)}>
+                  <select id="select-kelompok" className="form-select" value={form.kelompok_aset_id} onChange={(e) => setField('kelompok_aset_id', e.target.value)} aria-describedby="help-select-kelompok">
                     <option value="">– Pilih Kelompok Aset –</option>
                     {kelompokAset.map((k) => (
                       <option key={k.id} value={k.id}>{k.nama} ({k.kode})</option>
                     ))}
                   </select>
+                  <FieldHelp id="help-select-kelompok">Kelompok aset menentukan pengelompokan inventaris dan awalan nomor aset.</FieldHelp>
                 </div>
 
               </div>
-            )}
-
-            {form.ruangan_id && (
-              selectedManagerId != null ? (
-                <div
-                  className="alert alert-info"
-                  style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: 'var(--sp-3)' }}
-                  role="status"
-                >
-                  <ShieldCheck size={18} style={{ flexShrink: 0, marginTop: 2 }} />
-                  <div>
-                    <strong>PIC Otomatis (Manager Lab)</strong>
-                    <div style={{ marginTop: 'var(--sp-1)' }}>
-                      {selectedManager?.name
-                        || selectedManager?.nama_lengkap
-                        || selectedManager?.username
-                        || 'Manager Lab'}
-                      {' · ID: '}
-                      {selectedManagerId}
-                    </div>
-                    <div style={{ marginTop: 'var(--sp-1)', fontSize: 'var(--text-xs)' }}>
-                      PIC ditetapkan otomatis berdasarkan ruangan dan tidak dapat diubah di form ini.
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className="alert alert-warning"
-                  style={{ margin: 0 }}
-                  role="alert"
-                >
-                  Laboratorium dari ruangan ini belum memiliki Manager Lab. Pilih ruangan lain atau minta admin menetapkan Manager Lab sebelum menyimpan peralatan.
-                </div>
-              )
             )}
           </div>
         )}
@@ -983,7 +910,7 @@ export default function EquipmentCreate({ onNavigate }) {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)', background: 'var(--clr-dark-50)', padding: 'var(--sp-5)', borderRadius: 'var(--radius-lg)' }}>
-              <ConfirmRow label="Peralatan" value={form.nama_peralatan} />
+              <ConfirmRow label="Nama Peralatan" value={form.nama_peralatan} />
 
               <ConfirmRow label="Foto Peralatan" value={photoFile ? photoFile.name : '–'} />
               <ConfirmRow label="Kategori" value={categories.find((k) => k.id === form.kategori_id)?.label || '–'} />
@@ -1034,33 +961,24 @@ export default function EquipmentCreate({ onNavigate }) {
 // ------------------------------------------------------------------
 // Komponen Input Stabil untuk Detail Teknis (Module-level agar fokus tidak hilang saat mengetik)
 // ------------------------------------------------------------------
-function DetailInputField({ id, label, type = 'text', value, onChange, placeholder }) {
+function DetailInputField({ id, label, type = 'text', value, onChange, placeholder, helpText, required = true }) {
   return (
     <div className="form-group">
       <label className="form-label" htmlFor={id}>
-        {label} <span className="required">*</span>
+        {label} {required && <span className="required">*</span>}
       </label>
-      <input id={id} type={type} className="form-input" placeholder={placeholder} value={value} onChange={onChange} />
+      <input id={id} type={type} className="form-input" placeholder={placeholder} value={value} onChange={onChange} aria-describedby={helpText ? `${id}-help` : undefined} />
+      {helpText && <FieldHelp id={`${id}-help`}>{helpText}</FieldHelp>}
     </div>
   );
 }
 
-function getLocalDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function addMonthsToDate(dateString, months) {
-  const [year, month, day] = dateString.split('-').map(Number);
-  const targetMonthIndex = month - 1 + months;
-  const targetYear = year + Math.floor(targetMonthIndex / 12);
-  const normalizedMonth = targetMonthIndex % 12;
-  const lastDayOfTargetMonth = new Date(targetYear, normalizedMonth + 1, 0).getDate();
-  const targetDay = Math.min(day, lastDayOfTargetMonth);
-
-  return getLocalDateString(new Date(targetYear, normalizedMonth, targetDay));
+function FieldHelp({ id, children }) {
+  return (
+    <p id={id} style={{ fontSize: 'var(--text-xs)', lineHeight: 1.45, color: 'var(--clr-dark-500)', margin: 'var(--sp-1) 0 0' }}>
+      {children}
+    </p>
+  );
 }
 
 // ------------------------------------------------------------------
@@ -1070,17 +988,47 @@ function DetailTeknis({ form, setField, kategoriId }) {
   if (kategoriId === 1) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
       <div className="form-grid-2">
-        <DetailInputField id="d-sertifikat" label="No. Sertifikat Kalibrasi" value={form.no_sertifikat} onChange={(e) => setField('no_sertifikat', e.target.value)} placeholder="CAL-2026-0012" />
-        <DetailInputField id="d-interval" label="Interval Kalibrasi (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} placeholder="12" />
-        <DetailInputField id="d-tgl-kalibrasi" label="Tgl. Kalibrasi Terakhir" type="date" value={form.tgl_kalibrasi} onChange={(e) => setField('tgl_kalibrasi', e.target.value)} />
-        <DetailInputField id="d-tgl-jatuh" label="Tgl. Jatuh Tempo Kalibrasi" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
+        <DetailInputField id="d-sertifikat" label="No. Sertifikat Kalibrasi" value={form.no_sertifikat} onChange={(e) => setField('no_sertifikat', e.target.value)} placeholder="CAL-2026-0012" helpText="Salin nomor yang tercantum pada sertifikat kalibrasi terbaru." />
+        <DetailInputField id="d-interval" label="Interval Kalibrasi (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} placeholder="12" helpText="Jarak waktu kalibrasi dalam bulan, dihitung dari tanggal kalibrasi terakhir." />
+        <DetailInputField id="d-tgl-kalibrasi" label="Tgl. Kalibrasi Terakhir" type="date" value={form.tgl_kalibrasi} onChange={(e) => setField('tgl_kalibrasi', e.target.value)} helpText="Tanggal pelaksanaan yang tertera pada sertifikat." />
+        <DetailInputField id="d-tgl-jatuh" label="Tgl. Jatuh Tempo Kalibrasi" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} helpText="Tanggal kalibrasi berikutnya sesuai interval atau ketentuan sertifikat." />
+        <div className="form-group">
+          <label className="form-label" htmlFor="d-metode-kelayakan">Metode Kelayakan</label>
+          <select id="d-metode-kelayakan" className="form-select" value={form.metode_kelayakan || 'kalibrasi eksternal'} onChange={(e) => setField('metode_kelayakan', e.target.value)} aria-describedby="d-metode-kelayakan-help">
+            <option value="kalibrasi internal">Kalibrasi internal</option>
+            <option value="kalibrasi eksternal">Kalibrasi eksternal</option>
+            <option value="verifikasi fungsi (metode tertentu)">Verifikasi fungsi (metode tertentu)</option>
+            <option value="verifikasi fungsi (uji banding)">Verifikasi fungsi (uji banding)</option>
+          </select>
+          <FieldHelp id="d-metode-kelayakan-help">Pilih cara penetapan kelayakan yang digunakan untuk alat ini.</FieldHelp>
+        </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="d-status-kelayakan">Status Kelayakan</label>
+          <select id="d-status-kelayakan" className="form-select" value={form.status_kelayakan} onChange={(e) => setField('status_kelayakan', e.target.value)}>
+            <option value="Layak">Layak</option>
+            <option value="Terbatas">Terbatas</option>
+            <option value="Tidak layak">Tidak layak</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="d-jenis-label">Jenis Label</label>
+          <select id="d-jenis-label" className="form-select" value={form.jenis_label} onChange={(e) => setField('jenis_label', e.target.value)}>
+            <option value="calibration">Kalibrasi</option>
+            <option value="limited calibration">Kalibrasi terbatas</option>
+            <option value="do not use">Jangan digunakan</option>
+          </select>
+        </div>
+        <label className="form-group" htmlFor="d-alat-standar" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+          <input id="d-alat-standar" type="checkbox" checked={form.fungsi_sbg_alat_standar} onChange={(e) => setField('fungsi_sbg_alat_standar', e.target.checked)} />
+          <span>Digunakan sebagai alat standar</span>
+        </label>
       </div>
     </div>
   );
 
   if (kategoriId === 2) return (
     <div className="form-grid-2">
-      <DetailInputField id="d-fungsi" label="Fungsi / Kegunaan" value={form.fungsi_kegunaan} onChange={(e) => setField('fungsi_kegunaan', e.target.value)} />
+      <DetailInputField id="d-fungsi" label="Fungsi / Kegunaan" value={form.fungsi_kegunaan} onChange={(e) => setField('fungsi_kegunaan', e.target.value)} helpText="Jelaskan pekerjaan atau pengukuran yang dibantu alat ini." />
       <div className="form-group">
         <label className="form-label" htmlFor="d-jenis-pemeriksaan">
           Jenis Pemeriksaan Berkala <span className="required">*</span>
@@ -1088,17 +1036,24 @@ function DetailTeknis({ form, setField, kategoriId }) {
         <select
           id="d-jenis-pemeriksaan"
           className="form-select"
-          value={form.jenis_pemeriksaan_berkala || 'Kalibrasi'}
+          value={form.jenis_pemeriksaan_berkala || 'kalibrasi'}
           onChange={(e) => setField('jenis_pemeriksaan_berkala', e.target.value)}
         >
-          <option value="Kalibrasi">Kalibrasi</option>
-          <option value="Verifikasi Fungsi">Verifikasi Fungsi</option>
-          <option value="Pemeriksaan lain">Pemeriksaan lain</option>
+          <option value="kalibrasi">Kalibrasi</option>
+          <option value="verifikasi fungsi">Verifikasi fungsi</option>
+          <option value="pemeriksaan lain">Pemeriksaan lain</option>
         </select>
+        <FieldHelp id="d-jenis-pemeriksaan-help">Pilih aktivitas berkala yang digunakan untuk memastikan alat bantu tetap berfungsi.</FieldHelp>
       </div>
-      <DetailInputField id="d-interval-ab" label="Interval (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} />
+      <DetailInputField id="d-interval-ab" label="Interval (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} helpText="Jarak antar pemeriksaan berkala dalam bulan." />
       <DetailInputField id="d-jatuh-ab" label="Tgl. Jatuh Tempo" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
       <DetailInputField id="d-tgl-pemeriksaan" label="Tgl. Pemeriksaan Terakhir" type="date" value={form.tgl_pemeriksaan_terakhir} onChange={(e) => setField('tgl_pemeriksaan_terakhir', e.target.value)} />
+      <DetailInputField id="d-karakteristik-acuan" label="Karakteristik Acuan" value={form.karakteristik_acuan} onChange={(e) => setField('karakteristik_acuan', e.target.value)} required={false} helpText="Besaran atau karakteristik yang dijadikan acuan saat pemeriksaan." />
+      <DetailInputField id="d-jadwal-karakterisasi" label="Jadwal Karakterisasi Ulang" value={form.jadwal_karakterisasi_ulang} onChange={(e) => setField('jadwal_karakterisasi_ulang', e.target.value)} required={false} helpText="Isi jadwal atau interval karakterisasi ulang bila berlaku." />
+      <label className="form-group" htmlFor="d-alat-standar-ab" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+        <input id="d-alat-standar-ab" type="checkbox" checked={form.fungsi_sbg_alat_standar} onChange={(e) => setField('fungsi_sbg_alat_standar', e.target.checked)} />
+        <span>Digunakan sebagai alat standar</span>
+      </label>
       <div className="form-group" style={{ gridColumn: '1/-1' }}>
         <label className="form-label" htmlFor="d-kriteria">
           Kriteria Pemeriksaan <span className="required">*</span>
@@ -1133,7 +1088,16 @@ function DetailTeknis({ form, setField, kategoriId }) {
       <DetailInputField id="d-no-laporan" label="No. Laporan Karakterisasi" value={form.no_laporan_karakterisasi} onChange={(e) => setField('no_laporan_karakterisasi', e.target.value)} />
       <DetailInputField id="d-tgl-kar" label="Tgl. Karakterisasi Terakhir" type="date" value={form.tgl_karakterisasi_terakhir} onChange={(e) => setField('tgl_karakterisasi_terakhir', e.target.value)} />
       <DetailInputField id="d-jatuh-aa" label="Tgl. Jatuh Tempo" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} />
-      <DetailInputField id="d-kondisi" label="Kondisi Penyimpanan" value={form.kondisi_penyimpanan} onChange={(e) => setField('kondisi_penyimpanan', e.target.value)} />
+      <DetailInputField id="d-kondisi" label="Kondisi Penyimpanan" value={form.kondisi_penyimpanan} onChange={(e) => setField('kondisi_penyimpanan', e.target.value)} helpText="Tulis batas suhu, kelembapan, atau kondisi penyimpanan yang dipersyaratkan." />
+      <DetailInputField id="d-interval-aa" label="Interval Karakterisasi (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} required={false} helpText="Jarak waktu sampai karakterisasi ulang berikutnya." />
+      <div className="form-group">
+        <label className="form-label" htmlFor="d-status-artefak">Status Artefak</label>
+        <select id="d-status-artefak" className="form-select" value={form.status_artefak} onChange={(e) => setField('status_artefak', e.target.value)}>
+          <option value="aktif">Aktif</option>
+          <option value="karantina">Karantina</option>
+          <option value="dihapuskan">Dihapuskan</option>
+        </select>
+      </div>
     </div>
   );
 
@@ -1155,18 +1119,20 @@ function DetailTeknis({ form, setField, kategoriId }) {
             <option value="bahan habis pakai">bahan habis pakai</option>
           </select>
         </div>
-        <DetailInputField id="d-pemasok" label="Sumber / Pemasok" value={form.sumber_pemasok} onChange={(e) => setField('sumber_pemasok', e.target.value)} />
-        <DetailInputField id="d-lot" label="No. Lot / Batch / Edisi" value={form.no_lot_batch_edisi} onChange={(e) => setField('no_lot_batch_edisi', e.target.value)} />
+        <DetailInputField id="d-pemasok" label="Sumber / Pemasok" value={form.sumber_pemasok} onChange={(e) => setField('sumber_pemasok', e.target.value)} helpText="Nama produsen, pemasok, atau sumber penerbitan bahan." />
+        <DetailInputField id="d-lot" label="No. Lot / Batch / Edisi" value={form.no_lot_batch_edisi} onChange={(e) => setField('no_lot_batch_edisi', e.target.value)} helpText="Nomor identifikasi lot pada label atau kemasan." />
         <DetailInputField id="d-grade" label="Grade Mutu" value={form.grade_mutu} onChange={(e) => setField('grade_mutu', e.target.value)} />
         <DetailInputField id="d-satuan-kemasan" label="Satuan Kemasan" value={form.satuan_kemasan} onChange={(e) => setField('satuan_kemasan', e.target.value)} />
         <DetailInputField id="d-tgl-terima" label="Tgl. Terima / Terbit" type="date" value={form.tgl_terima_terbit} onChange={(e) => setField('tgl_terima_terbit', e.target.value)} />
-        <DetailInputField id="d-tgl-kadaluarsa" label="Tgl. Kedaluwarsa" type="date" value={form.tgl_kedaluwarsa} onChange={(e) => setField('tgl_kedaluwarsa', e.target.value)} />
+        <DetailInputField id="d-tgl-kadaluarsa" label="Tgl. Kedaluwarsa" type="date" value={form.tgl_kedaluwarsa} onChange={(e) => setField('tgl_kedaluwarsa', e.target.value)} helpText="Tanggal batas penggunaan sesuai label atau sertifikat bahan." />
+        <DetailInputField id="d-kondisi-kp" label="Kondisi Penyimpanan" value={form.kondisi_penyimpanan} onChange={(e) => setField('kondisi_penyimpanan', e.target.value)} required={false} helpText="Cantumkan suhu, kelembapan, atau perlindungan khusus yang diperlukan." />
       </div>
       <div className="form-group">
         <label className="form-label" htmlFor="d-deskripsi-kp">
           Deskripsi / Spesifikasi <span className="required">*</span>
         </label>
-        <textarea id="d-deskripsi-kp" className="form-textarea" value={form.deskripsi_spesifikasi} onChange={(e) => setField('deskripsi_spesifikasi', e.target.value)} style={{ minHeight: 80 }} />
+        <textarea id="d-deskripsi-kp" className="form-textarea" value={form.deskripsi_spesifikasi} onChange={(e) => setField('deskripsi_spesifikasi', e.target.value)} style={{ minHeight: 80 }} aria-describedby="d-deskripsi-kp-help" />
+        <FieldHelp id="d-deskripsi-kp-help">Tuliskan spesifikasi penting seperti konsentrasi, ukuran, atau karakteristik yang membedakan bahan ini.</FieldHelp>
       </div>
       <div className="form-group">
         <label className="form-label" htmlFor="d-ketersediaan">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, ArrowLeft, Upload, FileText, Download, QrCode } from 'lucide-react';
-import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
+import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, kelompokAssetApi, ruanganApi, labsApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
 // ------------------------------------------------------------------
@@ -16,6 +16,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
   const [msg, setMsg]             = useState('');
   const [qrSrc, setQrSrc]         = useState('');
   const [reviewLogs, setReviewLogs] = useState([]);
+  const [references, setReferences] = useState({ groups: [], rooms: [], labs: [] });
 
   useEffect(() => {
     loadData();
@@ -44,19 +45,29 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
 
   async function loadData() {
     setLoading(true);
+    setPeralatan(null);
     try {
-      // Ambil dari daftar semua (backend belum punya GET /api/peralatan/:id)
-      const [allRes, docRes, reviewRes] = await Promise.allSettled([
+      const [equipmentRes, docRes, reviewRes, groupsRes, roomsRes, labsRes] = await Promise.allSettled([
         peralatanApi.getAll(),
         dokumenApi.getByPeralatanId(equipmentId),
         verifikasiApi.getLogByPeralatanId(equipmentId),
+        kelompokAssetApi.getAll(),
+        ruanganApi.getAll(),
+        labsApi.getAll(),
       ]);
-      if (allRes.status === 'fulfilled') {
-        const found = (allRes.value.data || []).find((p) => String(getEquipmentId(p)) === String(equipmentId));
+      if (equipmentRes.status === 'fulfilled') {
+        const found = (equipmentRes.value.data || []).find(
+          (item) => String(getEquipmentId(item)) === String(equipmentId)
+        );
         setPeralatan(found || null);
       }
       if (docRes.status === 'fulfilled') setDokumen(docRes.value.data || []);
       if (reviewRes.status === 'fulfilled') setReviewLogs(reviewRes.value.data || []);
+      setReferences({
+        groups: groupsRes.status === 'fulfilled' ? groupsRes.value.data || [] : [],
+        rooms: roomsRes.status === 'fulfilled' ? roomsRes.value.data || [] : [],
+        labs: labsRes.status === 'fulfilled' ? labsRes.value.data || [] : [],
+      });
     } finally {
       setLoading(false);
     }
@@ -101,6 +112,14 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
   const photoUrl = formatPhotoUrl(peralatan.foto);
   const canonicalEquipmentId = getEquipmentId(peralatan);
   const isVerified = peralatan.status_verifikasi === 'Disetujui';
+  const technicalRows = getEquipmentDetailRows(peralatan);
+  const assetGroup = references.groups.find((item) => String(item.id) === String(peralatan.kelompok_aset_id));
+  const room = references.rooms.find((item) => String(item.id) === String(peralatan.ruangan_id));
+  const labId = room?.labs_id ?? room?.labs?.id ?? assetGroup?.lab_id ?? assetGroup?.lab?.id;
+  const lab = references.labs.find((item) => String(item.id) === String(labId)) || room?.labs || assetGroup?.lab;
+  const pic = [room?.pic_user, assetGroup?.pic].find(
+    (person) => person && String(person.user_id ?? person.id) === String(peralatan.pic_id)
+  );
 
   async function handleDownloadQR() {
     const imgEl = document.getElementById(`qr-img-${canonicalEquipmentId}`);
@@ -259,89 +278,19 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
               <InfoRow label="Merek" value={peralatan.merek || '–'} />
               <InfoRow label="Tipe/Model" value={peralatan.tipe_model || '–'} />
               <InfoRow label="No. Seri" value={peralatan.nomor_seri || '–'} />
-              <InfoRow label="Perangkat Lunak / Software" value={peralatan.peranti_lunak_versi || '–'} />
+              <InfoRow label="Perangkat Lunak / Software" value={peralatan.detail?.peranti_lunak_versi || peralatan.peranti_lunak_versi || '–'} />
               <InfoRow label="Status" value={peralatan.status_alat} />
               <InfoRow label="Keterangan" value={peralatan.keterangan || '–'} />
+              <InfoRow label="Kelompok Aset" value={assetGroup ? `${assetGroup.nama}${assetGroup.kode ? ` (${assetGroup.kode})` : ''}` : 'Belum tersedia'} />
+              <InfoRow label="Ruangan" value={room ? `${room.nama_ruangan}${room.kode_ruangan ? ` (${room.kode_ruangan})` : ''}` : 'Belum tersedia'} />
+              <InfoRow label="PIC Peralatan" value={pic?.name || 'Belum tersedia'} />
+              <InfoRow label="Laboratorium" value={lab ? `${lab.nama_labs}${lab.kode_labs ? ` (${lab.kode_labs})` : ''}` : 'Belum tersedia'} />
+              <InfoRow label="Terdaftar Pada" value={formatDate(peralatan.created_at)} />
+              {technicalRows.map(({ label, value }) => (
+                <InfoRow key={label} label={label} value={value} />
+              ))}
             </div>
           </div>
-
-          {/* Detail Kategori / Teknis */}
-          {(() => {
-            const catId = getEquipmentCategoryId(peralatan);
-            const detail = peralatan.detail || peralatan.detail_alat_ukur || peralatan.detail_alat_bantu || peralatan.detail_artefak_acuan || peralatan.detail_komponen_pendukung;
-            if (!detail) return null;
-
-            if (catId === 1) {
-              return (
-                <div className="card card-padded">
-                  <h2 className="section-title">Detail Teknis Alat Ukur</h2>
-                  <div className="form-grid-2">
-                    <InfoRow label="No. Sertifikat" value={detail.no_sertifikat || '–'} />
-                    <InfoRow label="Metode Kelayakan" value={detail.metode_kelayakan || '–'} />
-                    <InfoRow label="Tgl. Kalibrasi" value={formatDate(detail.tgl_kalibrasi)} />
-                    <InfoRow label="Jatuh Tempo" value={formatDate(detail.tgl_jatuh_tempo)} />
-                    <InfoRow label="Interval (Bulan)" value={detail.interval_bulan ? `${detail.interval_bulan} Bulan` : '–'} />
-                    <InfoRow label="Status Kelayakan" value={detail.status_kelayakan || '–'} />
-                    <InfoRow label="Rentang Ukur" value={detail.parameter_rentang_ukur || '–'} />
-                    <InfoRow label="Akurasi / Resolusi" value={[detail.akurasi_spesifikasi, detail.resolusi].filter(Boolean).join(' / ') || '–'} />
-                  </div>
-                </div>
-              );
-            }
-
-            if (catId === 2) {
-              return (
-                <div className="card card-padded">
-                  <h2 className="section-title">Detail Teknis Alat Bantu</h2>
-                  <div className="form-grid-2">
-                    <InfoRow label="Fungsi / Kegunaan" value={detail.fungsi_kegunaan || '–'} />
-                    <InfoRow label="Jenis Pemeriksaan" value={detail.jenis_pemeriksaan_berkala || '–'} />
-                    <InfoRow label="Tgl. Pemeriksaan" value={formatDate(detail.tgl_pemeriksaan_terakhir)} />
-                    <InfoRow label="Jatuh Tempo" value={formatDate(detail.tgl_jatuh_tempo)} />
-                    <InfoRow label="Interval (Bulan)" value={detail.interval_bulan ? `${detail.interval_bulan} Bulan` : '–'} />
-                    <InfoRow label="Kriteria Pemeriksaan" value={detail.kriteria_pemeriksaan || '–'} />
-                  </div>
-                </div>
-              );
-            }
-
-            if (catId === 3) {
-              return (
-                <div className="card card-padded">
-                  <h2 className="section-title">Detail Teknis Artefak Acuan</h2>
-                  <div className="form-grid-2">
-                    <InfoRow label="Jenis Deskripsi" value={detail.jenis_deskripsi || '–'} />
-                    <InfoRow label="Karakteristik yang Diacu" value={detail.karakteristik_yang_diacu || '–'} />
-                    <InfoRow label="Nilai Spesifikasi" value={detail.nilai_spesifikasi_karakterisasi || '–'} />
-                    <InfoRow label="Metode Karakterisasi" value={detail.metode_karakterisasi || '–'} />
-                    <InfoRow label="No. Laporan" value={detail.no_laporan_karakterisasi || '–'} />
-                    <InfoRow label="Tgl. Karakterisasi" value={formatDate(detail.tgl_karakterisasi_terakhir)} />
-                    <InfoRow label="Kondisi Penyimpanan" value={detail.kondisi_penyimpanan || '–'} />
-                  </div>
-                </div>
-              );
-            }
-
-            if (catId === 4) {
-              return (
-                <div className="card card-padded">
-                  <h2 className="section-title">Detail Komponen Pendukung</h2>
-                  <div className="form-grid-2">
-                    <InfoRow label="Sub Kategori" value={detail.sub_kategori || '–'} />
-                    <InfoRow label="Sumber / Pemasok" value={detail.sumber_pemasok || '–'} />
-                    <InfoRow label="No. Lot / Batch" value={detail.no_lot_batch_edisi || '–'} />
-                    <InfoRow label="Satuan Kemasan" value={detail.satuan_kemasan || '–'} />
-                    <InfoRow label="Tgl. Terima / Terbit" value={formatDate(detail.tgl_terima_terbit)} />
-                    <InfoRow label="Tgl. Kedaluwarsa" value={formatDate(detail.tgl_kedaluwarsa)} />
-                    <InfoRow label="Status Ketersediaan" value={detail.status_ketersediaan || '–'} />
-                    <InfoRow label="Kondisi Penyimpanan" value={detail.kondisi_penyimpanan || '–'} />
-                  </div>
-                </div>
-              );
-            }
-
-            return null;
-          })()}
 
           {/* Dokumen */}
           <div className="card">
@@ -468,6 +417,81 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
 }
 
 // helpers
+function getEquipmentDetailRows(peralatan) {
+  const categoryId = getEquipmentCategoryId(peralatan);
+  const detail = peralatan.detail || peralatan.detail_alat_ukur || peralatan.detail_alat_bantu || peralatan.detail_artefak_acuan || peralatan.detail_komponen_pendukung || peralatan;
+  const fieldsByCategory = {
+    1: [
+      ['Metode Kelayakan', 'metode_kelayakan'],
+      ['No. Sertifikat', 'no_sertifikat'],
+      ['Kalibrasi Terakhir', 'tgl_kalibrasi', 'date'],
+      ['Jatuh Tempo Kalibrasi', 'tgl_jatuh_tempo', 'date'],
+      ['Interval Kalibrasi', 'interval_bulan', 'months'],
+      ['Fungsi sebagai Alat Standar', 'fungsi_sbg_alat_standar', 'boolean'],
+      ['Parameter / Rentang Ukur', 'parameter_rentang_ukur'],
+      ['Resolusi', 'resolusi'],
+      ['Akurasi Spesifikasi', 'akurasi_spesifikasi'],
+      ['Satuan', 'satuan'],
+      ['Nilai Koreksi', 'nilai_koreksi'],
+      ['Ketidakpastian', 'ketidakpastian'],
+      ['Jenis Label', 'jenis_label'],
+      ['Status Kelayakan', 'status_kelayakan'],
+    ],
+    2: [
+      ['Fungsi / Kegunaan', 'fungsi_kegunaan'],
+      ['Jenis Pemeriksaan Berkala', 'jenis_pemeriksaan_berkala'],
+      ['Kriteria Pemeriksaan', 'kriteria_pemeriksaan'],
+      ['Tgl. Pemeriksaan Terakhir', 'tgl_pemeriksaan_terakhir', 'date'],
+      ['Jatuh Tempo Pemeriksaan', 'tgl_jatuh_tempo', 'date'],
+      ['Interval Pemeriksaan', 'interval_bulan', 'months'],
+      ['Fungsi sebagai Alat Standar', 'fungsi_sbg_alat_standar', 'boolean'],
+      ['Karakteristik Acuan', 'karakteristik_acuan'],
+      ['Jadwal Karakterisasi Ulang', 'jadwal_karakterisasi_ulang'],
+    ],
+    3: [
+      ['Jenis Deskripsi', 'jenis_deskripsi'],
+      ['Karakteristik yang Diacu', 'karakteristik_yang_diacu'],
+      ['Nilai Spesifikasi Karakterisasi', 'nilai_spesifikasi_karakterisasi'],
+      ['Metode Karakterisasi', 'metode_karakterisasi'],
+      ['No. Laporan Karakterisasi', 'no_laporan_karakterisasi'],
+      ['Tgl. Karakterisasi Terakhir', 'tgl_karakterisasi_terakhir', 'date'],
+      ['Tgl. Karakterisasi Ulang', 'tgl_karakterisasi', 'date'],
+      ['Interval Karakterisasi', 'interval_bulan', 'months'],
+      ['Kondisi Penyimpanan', 'kondisi_penyimpanan'],
+      ['Status Artefak', 'status'],
+    ],
+    4: [
+      ['Sub Kategori', 'sub_kategori'],
+      ['Deskripsi / Spesifikasi', 'deskripsi_spesifikasi'],
+      ['Grade Mutu', 'grade_mutu'],
+      ['Sumber / Pemasok', 'sumber_pemasok'],
+      ['No. Lot / Batch / Edisi', 'no_lot_batch_edisi'],
+      ['Satuan Kemasan', 'satuan_kemasan'],
+      ['Tgl. Terima / Terbit', 'tgl_terima_terbit', 'date'],
+      ['Tgl. Kedaluwarsa', 'tgl_kedaluwarsa', 'date'],
+      ['Kondisi Penyimpanan', 'kondisi_penyimpanan'],
+      ['Status Ketersediaan', 'status_ketersediaan'],
+    ],
+  };
+
+  return (fieldsByCategory[categoryId] || []).flatMap(([label, key, type]) => {
+    const rawValue = detail[key];
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+      if (categoryId === 1 && ['tgl_kalibrasi', 'tgl_jatuh_tempo'].includes(key)) {
+        return [{ label, value: 'Belum tersedia' }];
+      }
+      return [];
+    }
+
+    let value = rawValue;
+    if (type === 'date') value = formatDate(rawValue);
+    if (type === 'months') value = rawValue ? `${rawValue} Bulan` : '';
+    if (type === 'boolean') value = rawValue ? 'Ya' : 'Tidak';
+    if (value === '') return [];
+    return [{ label, value }];
+  });
+}
+
 function InfoRow({ label, value, mono }) {
   return (
     <div style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
