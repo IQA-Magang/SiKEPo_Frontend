@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Pencil, Trash2, X, RefreshCw, Shield } from 'lucide-react';
-import { usersApi } from '../../utils/api.js';
-import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
-import { useToast } from '../../context/ToastContext.jsx';
-import { useConfirm } from '../../context/ConfirmContext.jsx';
+import { labsApi, usersApi } from '../utils/api.js';
+import { ACCESS, ACTIONS, can, getUserRole } from '../utils/permissions.js';
+import { useToast } from '../context/ToastContext.jsx';
+import { useConfirm } from '../context/ConfirmContext.jsx';
 
-const EMPTY_FORM = { nip: '', name: '', email: '', password: '', role: 'staff', position: '', pic: false };
+const EMPTY_FORM = { nip: '', name: '', email: '', password: '', role: 'staff', position: '', pengelola: false, labs_id: '' };
 
 const ROLE_BADGE = {
   admin:   'badge-role-admin',
@@ -14,14 +14,22 @@ const ROLE_BADGE = {
 };
 
 export default function UserManagement({ onNavigate, viewOnly = false }) {
-  const canManage = !viewOnly && can(ACCESS.MASTER_USER_PIC, ACTIONS.ADD) && can(ACCESS.MASTER_USER_PIC, ACTIONS.EDIT) && can(ACCESS.MASTER_USER_PIC, ACTIONS.DELETE);
+  const role = getUserRole();
+  const isAdmin = role === 'admin';
+  const isManager = role === 'manager';
+  const canCreate = !viewOnly && can(ACCESS.MASTER_USERS, ACTIONS.ADD);
+  const canEdit = !viewOnly && isAdmin && can(ACCESS.MASTER_USERS, ACTIONS.EDIT);
+  const canDelete = !viewOnly && isAdmin && can(ACCESS.MASTER_USERS, ACTIONS.DELETE);
+  const canSetPengelola = !viewOnly && isManager;
   const [users, setUsers]   = useState([]);
+  const [labs, setLabs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal]   = useState(null); // null | { mode: 'create'|'edit', data }
   const [form, setForm]     = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
   const [deleting, setDeleting] = useState(null);
+  const [updatingPengelola, setUpdatingPengelola] = useState(null);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
 
@@ -44,8 +52,12 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
   async function loadData() {
     setLoading(true);
     try {
-      const res = await usersApi.getAll();
+      const [res, labsRes] = await Promise.all([
+        usersApi.getAll(),
+        isAdmin ? labsApi.getAll() : Promise.resolve({ data: [] }),
+      ]);
       setUsers(res.data || []);
+      setLabs(labsRes.data || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -67,7 +79,8 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
       password: '',
       role: user.role || 'staff',
       position: user.position || '',
-      pic: user.pic || false,
+      pengelola: user.pengelola ?? false,
+      labs_id: user.labs_id == null ? '' : String(user.labs_id),
     });
     setError('');
     setModal({ mode: 'edit', id: user.user_id });
@@ -78,10 +91,18 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
       setError('Semua field wajib diisi kecuali password (saat edit).');
       return;
     }
+    if (form.role !== 'admin' && !form.labs_id) {
+      setError('Laboratorium wajib dipilih untuk pengguna dengan role Staff atau Manager.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      const payload = { ...form, pic: Boolean(form.pic) };
+      const payload = {
+        ...form,
+        pengelola: Boolean(form.pengelola),
+        labs_id: form.labs_id ? Number(form.labs_id) : null,
+      };
       if (modal.mode === 'create') {
         if (!form.password) { setError('Password wajib diisi saat membuat akun baru.'); setSaving(false); return; }
         await usersApi.create(payload);
@@ -125,6 +146,23 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
     }
   }
 
+  async function handleTogglePengelola(user) {
+    const nextValue = !Boolean(user.pengelola);
+    setUpdatingPengelola(user.user_id);
+    try {
+      const response = await usersApi.setPengelola(user.user_id, nextValue);
+      const updatedUser = response.data;
+      setUsers((previous) => previous.map((item) => (
+        item.user_id === user.user_id ? updatedUser : item
+      )));
+      toast.success(nextValue ? 'Pengguna ditetapkan sebagai pengelola.' : 'Status pengelola berhasil dilepas.');
+    } catch (err) {
+      toast.error(err.message || 'Gagal memperbarui status pengelola.');
+    } finally {
+      setUpdatingPengelola(null);
+    }
+  }
+
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
     const matchQ = !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.nip?.includes(q);
@@ -139,11 +177,12 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1 className="page-title">Manajemen Pengguna</h1>
-            {viewOnly && <span className="badge badge-gray">Mode Lihat (Manager)</span>}
+            {viewOnly && <span className="badge badge-gray">Mode Lihat</span>}
+            {isManager && <span className="badge badge-gray">Pengguna di laboratorium Anda</span>}
           </div>
           <p className="page-subtitle">Kelola akun personel laboratorium dan hak akses SiKEPo</p>
         </div>
-        {canManage && (
+        {canCreate && (
           <button className="btn btn-primary" onClick={openCreate} id="btn-tambah-user">
             <Plus size={16} /> Tambah Pengguna
           </button>
@@ -193,7 +232,7 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
         <div className="empty-state">
           <div className="empty-state-icon"><Users size={32} /></div>
           <p className="empty-state-title">Tidak ada pengguna ditemukan</p>
-          {canManage && (
+          {canCreate && (
             <button className="btn btn-primary" onClick={openCreate}>
               <Plus size={16} /> Tambah Pengguna
             </button>
@@ -210,8 +249,8 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
                   <th>Email</th>
                   <th>Role</th>
                   <th>Jabatan</th>
-                  <th>PIC</th>
-                  {canManage && <th style={{ width: 100 }}>Aksi</th>}
+                  <th>Pengelola</th>
+                  {(canEdit || canDelete || canSetPengelola) && <th style={{ width: 180 }}>Aksi</th>}
                 </tr>
               </thead>
               <tbody>
@@ -223,28 +262,46 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
                     <td><span className={`badge ${ROLE_BADGE[u.role] || 'badge-gray'}`}>{u.role}</span></td>
                     <td style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>{u.position}</td>
                     <td>
-                      {u.pic && <span className="badge badge-green"><Shield size={10} /> PIC</span>}
+                      {u.pengelola && <span className="badge badge-green"><Shield size={10} /> Pengelola</span>}
                     </td>
-                    {canManage && (
+                    {(canEdit || canDelete || canSetPengelola) && (
                       <td>
-                        <div className="table-action-btns">
-                          <button
-                            className="btn-action-icon"
-                            onClick={() => openEdit(u)}
-                            id={`btn-edit-user-${u.user_id}`}
-                            title="Edit pengguna"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            className="btn-action-icon btn-action-delete"
-                            onClick={() => handleDelete(u.user_id)}
-                            disabled={deleting === u.user_id}
-                            id={`btn-hapus-user-${u.user_id}`}
-                            title="Hapus pengguna"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                        <div className="table-action-btns" style={canSetPengelola ? { flexWrap: 'wrap' } : undefined}>
+                          {canSetPengelola && u.role === 'staff' && (
+                            <button
+                              className={`btn btn-sm ${u.pengelola ? 'btn-secondary' : 'btn-primary'}`}
+                              onClick={() => handleTogglePengelola(u)}
+                              disabled={updatingPengelola === u.user_id}
+                              id={`btn-toggle-pengelola-user-${u.user_id}`}
+                              title={u.pengelola ? 'Lepas status pengelola' : 'Tetapkan sebagai pengelola'}
+                            >
+                              <Shield size={13} />
+                              {updatingPengelola === u.user_id
+                                ? 'Menyimpan...'
+                                : u.pengelola ? 'Lepas Pengelola' : 'Tetapkan Pengelola'}
+                            </button>
+                          )}
+                          {canEdit && (
+                            <button
+                              className="btn-action-icon"
+                              onClick={() => openEdit(u)}
+                              id={`btn-edit-user-${u.user_id}`}
+                              title="Edit pengguna"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              className="btn-action-icon btn-action-delete"
+                              onClick={() => handleDelete(u.user_id)}
+                              disabled={deleting === u.user_id}
+                              id={`btn-hapus-user-${u.user_id}`}
+                              title="Hapus pengguna"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     )}
@@ -257,13 +314,13 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">
             <span>Menampilkan <strong>{filtered.length}</strong> dari <strong>{users.length}</strong> total pengguna terdaftar</span>
-            <span>Total PIC Aktif: <strong>{users.filter(u => u.pic).length}</strong></span>
+            <span>Total Pengelola Aktif: <strong>{users.filter((u) => u.pengelola).length}</strong></span>
           </div>
         </div>
       )}
 
       {/* Modal */}
-      {modal && canManage && (
+      {modal && ((modal.mode === 'create' && canCreate) || (modal.mode === 'edit' && canEdit)) && (
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setModal(null)}>
           <div className="modal" id="modal-user">
             <div className="modal-header">
@@ -284,18 +341,42 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
                   </div>
                   <div className="form-group">
                     <label className="form-label" htmlFor="modal-email">Email <span className="required">*</span></label>
-                    <input id="modal-email" type="email" className="form-input" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+                    <input
+                      id="modal-email"
+                      type="email"
+                      className="form-input"
+                      value={form.email}
+                      onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                    />
                   </div>
-                  <div className="form-group">
+                  {isAdmin && <div className="form-group">
                     <label className="form-label" htmlFor="modal-password">Password {modal.mode === 'edit' && <span style={{ color: 'var(--clr-dark-400)', fontWeight: 400 }}>(kosongkan jika tidak diubah)</span>}</label>
                     <input id="modal-password" type="password" className="form-input" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} autoComplete="new-password" />
-                  </div>
+                  </div>}
                   <div className="form-group">
                     <label className="form-label" htmlFor="modal-role">Role <span className="required">*</span></label>
-                    <select id="modal-role" className="form-select" value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
+                    <select id="modal-role" className="form-select" value={form.role} disabled={!isAdmin} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
                       <option value="admin">Administrator</option>
                       <option value="manager">Manager</option>
                       <option value="staff">Staff</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="modal-lab">Laboratorium {form.role !== 'admin' && <span className="required">*</span>}</label>
+                    <select
+                      id="modal-lab"
+                      className="form-select"
+                      value={form.labs_id}
+                      disabled={!isAdmin}
+                      onChange={e => setForm(p => ({ ...p, labs_id: e.target.value }))}
+                    >
+                      <option value="">{form.role === 'admin' ? 'Tanpa laboratorium' : 'Pilih laboratorium'}</option>
+                      {!isAdmin && form.labs_id && !labs.some((lab) => String(lab.id) === form.labs_id) && (
+                        <option value={form.labs_id}>Laboratorium #{form.labs_id}</option>
+                      )}
+                      {labs.map((lab) => (
+                        <option key={lab.id} value={String(lab.id)}>{lab.nama_labs}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="form-group">
@@ -304,8 +385,8 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
                   </div>
                 </div>
                 <label className="checkbox-label">
-                  <input type="checkbox" checked={form.pic} onChange={e => setForm(p => ({ ...p, pic: e.target.checked }))} id="modal-pic" />
-                  Tetapkan sebagai PIC (Penanggung Jawab Alat)
+                  <input type="checkbox" checked={Boolean(form.pengelola)} disabled={!isAdmin} onChange={e => setForm(p => ({ ...p, pengelola: e.target.checked }))} id="modal-pengelola" />
+                  Tetapkan sebagai Pengelola
                 </label>
               </div>
             </div>

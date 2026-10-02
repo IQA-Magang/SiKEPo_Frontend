@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Package, ShieldCheck, CircleAlert } from 'lucide-react';
-import { getToken, peralatanApi } from '../../utils/api.js';
+import { ArrowLeft, ArrowUpRight, CircleAlert, Package, ShieldCheck } from 'lucide-react';
+import { formatPhotoUrl, getToken, peralatanApi } from '../../utils/api.js';
+import './guest-equipment.css';
 
 export default function GuestEquipmentPage({ equipmentNumber, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [responseData, setResponseData] = useState(null);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const apiData = responseData?.data || responseData;
   const peralatan = apiData?.peralatan || apiData;
+  const guestEquipmentData = peralatan ? getGuestEquipmentDisplayData(peralatan) : null;
+  const photoUrl = formatPhotoUrl(peralatan?.foto);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +58,10 @@ export default function GuestEquipmentPage({ equipmentNumber, onNavigate }) {
   const hasToken = useMemo(() => !!getToken(), []);
 
   useEffect(() => {
+    setPhotoFailed(false);
+  }, [photoUrl]);
+
+  useEffect(() => {
     if (hasToken && peralatan?.id) {
       onNavigate?.(`/peralatan/detail/${peralatan.id}`);
     }
@@ -61,18 +69,11 @@ export default function GuestEquipmentPage({ equipmentNumber, onNavigate }) {
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f7f7f7 0%, #f0f2f5 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-        color: '#1f2937',
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <Package size={42} style={{ opacity: 0.7 }} />
-          <p style={{ marginTop: 16, fontSize: 18, fontWeight: 700 }}>Memuat data peralatan...</p>
+      <div className="guest-equipment-page guest-equipment-state" role="status" aria-live="polite">
+        <div className="guest-state-mark"><Package size={25} /></div>
+        <div className="guest-state-copy">
+          <strong>Memuat data peralatan</strong>
+          <span>Mohon tunggu sebentar</span>
         </div>
       </div>
     );
@@ -80,46 +81,23 @@ export default function GuestEquipmentPage({ equipmentNumber, onNavigate }) {
 
   if (error || !peralatan) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#f7f7f7',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-      }}>
-        <div style={{
-          width: '100%',
-          maxWidth: 640,
-          background: '#fff',
-          borderRadius: 24,
-          boxShadow: '0 18px 48px rgba(15, 23, 42, 0.08)',
-          border: '1px solid #e5e7eb',
-          padding: '32px 28px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-            <CircleAlert size={24} color="#dc2626" />
-            <h2 style={{ margin: 0, fontSize: 28 }}>Peralatan tidak tersedia</h2>
+      <div className="guest-equipment-page guest-equipment-state">
+        <div className="guest-state-panel">
+          <div className="guest-error-mark"><CircleAlert size={22} /></div>
+          <div>
+            <p className="guest-kicker">AKSES PUBLIK</p>
+            <h1>Peralatan tidak tersedia</h1>
           </div>
-          <p style={{ margin: 0, fontSize: 16, lineHeight: 1.7, color: '#374151' }}>
+          <p className="guest-state-message">
             {error || 'Data peralatan tidak ditemukan untuk akses guest.'}
           </p>
           <button
             type="button"
+            className="guest-back-button"
             onClick={() => onNavigate?.('/')}
-            style={{
-              marginTop: 24,
-              background: '#111827',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 12,
-              padding: '12px 18px',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
           >
-            <ArrowLeft size={16} style={{ marginRight: 8 }} />
-            Kembali ke Landing Page
+            <ArrowLeft size={17} />
+            Kembali
           </button>
         </div>
       </div>
@@ -127,124 +105,134 @@ export default function GuestEquipmentPage({ equipmentNumber, onNavigate }) {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)',
-      padding: '16px 14px 28px',
-      color: '#111827',
-      fontFamily: 'Inter, system-ui, sans-serif',
-    }}>
-      <div style={{ maxWidth: 980, margin: '0 auto' }}>
-        <button
-          type="button"
-          onClick={() => onNavigate?.('/')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: '1px solid #e5e7eb',
-            borderRadius: 12,
-            padding: '10px 14px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            color: '#111827',
-            marginBottom: 14,
-            width: 'auto',
-            minHeight: 42,
-          }}
-        >
-          <ArrowLeft size={16} />
-          Kembali
-        </button>
+    <div className="guest-equipment-page">
+      <div className="guest-equipment-shell">
+        <header className="guest-page-header">
+          <button type="button" className="guest-back-button" onClick={() => onNavigate?.('/')}>
+            <ArrowLeft size={17} />
+            Kembali
+          </button>
+          <span className="guest-header-brand"><span className="guest-brand-mark"><Package size={16} /></span>SiKEPo</span>
+        </header>
 
-        <div style={{
-          background: '#fff',
-          borderRadius: 22,
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 12px 30px rgba(15, 23, 42, 0.08)',
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            padding: '18px 18px 16px',
-            background: 'linear-gradient(135deg, #111827 0%, #1f2937 100%)',
-            color: '#fff',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <ShieldCheck size={18} />
-              <span style={{ fontWeight: 700, fontSize: 12, letterSpacing: 0.4 }}>INFORMASI PUBLIK</span>
+        <main>
+          <section className="guest-asset-intro">
+            <div className="guest-asset-copy">
+              <div className="guest-kicker"><ShieldCheck size={15} /> INFORMASI PUBLIK</div>
+              <h1>{peralatan.nama_peralatan || 'Peralatan'}</h1>
+              <p className="guest-asset-subtitle">
+                Data identitas dan kelayakan aset laboratorium
+              </p>
             </div>
-            <h1 style={{ margin: 0, fontSize: 'clamp(1.7rem, 6vw, 2.6rem)', lineHeight: 1.2, wordBreak: 'break-word' }}>
-              {peralatan.nama_peralatan || 'Peralatan'}
-            </h1>
-          </div>
-
-          <div style={{ padding: '18px 16px 20px' }}>
-            {(responseData?.status || responseData?.message) && (
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                gap: '6px 12px',
-                marginBottom: 18,
-                padding: '11px 13px',
-                borderLeft: '3px solid #16836b',
-                background: '#eff8f5',
-                color: '#28584d',
-                fontSize: 13,
-                lineHeight: 1.5,
-              }}>
-                {responseData.status && <strong>Status API: {responseData.status}</strong>}
-                {responseData.message && <span>{responseData.message}</span>}
+            <figure className="guest-asset-photo">
+              {photoUrl && !photoFailed ? (
+                <img
+                  src={photoUrl}
+                  alt={`Foto ${peralatan.nama_peralatan || 'peralatan'}`}
+                  onError={() => setPhotoFailed(true)}
+                />
+              ) : (
+                <div className="guest-photo-placeholder" aria-label="Foto belum tersedia">
+                  <Package size={30} strokeWidth={1.5} />
+                  <span>{photoUrl ? 'Foto gagal dimuat' : 'Foto belum diunggah'}</span>
+                </div>
+              )}
+              <figcaption>Foto peralatan</figcaption>
+            </figure>
+            <div className="guest-asset-summary">
+              <div className="guest-asset-number">
+                <span>Nomor aset</span>
+                <strong>{peralatan.nomor_aset || 'Tidak tersedia'}</strong>
               </div>
-            )}
-
-            <DataSection title="Data Peralatan" data={peralatan} />
-            {apiData?.detail && <DataSection title="Detail Kalibrasi dan Kelayakan" data={apiData.detail} />}
-
-            <div style={{ marginTop: 20, display: 'flex', justifyContent: 'stretch' }}>
-              <button
-                type="button"
-                onClick={() => onNavigate?.('/login')}
-                style={{
-                  background: '#111827',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 12,
-                  padding: '14px 18px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  width: '100%',
-                  minHeight: 46,
-                }}
-              >
-                Masuk ke Sistem
-              </button>
+              <div className="guest-status-pill">
+                <span className="guest-status-dot" />
+                {peralatan.status_alat || 'Status tidak tersedia'}
+              </div>
             </div>
+          </section>
+
+          {(responseData?.status || responseData?.message) && (
+            <div className="guest-api-notice" role="status">
+              <span className="guest-api-indicator" />
+              {responseData.status && <strong>{responseData.status}</strong>}
+              {responseData.message && <span>{responseData.message}</span>}
+            </div>
+          )}
+
+          <div className="guest-data-layout">
+            <DataSection title="Identitas Peralatan" data={guestEquipmentData} number="01" hideId />
+            {apiData?.detail && <DataSection title="Detail Kalibrasi & Kelayakan" data={apiData.detail} number="02" />}
           </div>
-        </div>
+
+          <footer className="guest-page-footer">
+            <span>Informasi aset laboratorium</span>
+            <button type="button" onClick={() => onNavigate?.('/login')}>
+              Masuk ke SiKEPo <ArrowUpRight size={16} />
+            </button>
+          </footer>
+        </main>
       </div>
     </div>
   );
 }
 
-function DataSection({ title, data }) {
+function getGuestEquipmentDisplayData(equipment) {
+  const displayData = { ...equipment };
+  const categoryName = equipment.kategori_peralatan?.nama_kategori
+    || equipment.kategori?.nama_kategori;
+  const roomName = equipment.ruangan?.nama_ruangan
+    || equipment.ruangan?.nama;
+  const assetGroupName = equipment.kelompok_aset?.nama_kelompok_aset
+    || equipment.kelompok_aset?.nama_kelompok
+    || equipment.kelompok_aset?.nama;
+  const picName = equipment.pic?.nama_lengkap
+    || equipment.pic?.nama
+    || equipment.pic_user?.nama_lengkap
+    || equipment.pic_user?.nama;
+
+  [
+    'id',
+    'foto',
+    'kategori_id',
+    'kategori_peralatan_id',
+    'ruangan_id',
+    'kelompok_aset_id',
+    'pic_id',
+    'kategori_peralatan',
+    'kategori',
+    'ruangan',
+    'kelompok_aset',
+    'pic',
+    'pic_user',
+  ].forEach((key) => delete displayData[key]);
+
+  return {
+    ...displayData,
+    kategori: categoryName || 'Nama kategori tidak tersedia',
+    ruangan: roomName || 'Tidak tersedia untuk guest',
+    kelompok_aset: assetGroupName || 'Tidak tersedia untuk guest',
+    pic: picName || 'Tidak tersedia untuk guest',
+  };
+}
+
+function DataSection({ title, data, number, hideId = false }) {
   return (
-    <section style={{ marginTop: 18, paddingTop: 17, borderTop: '1px solid #dce3e8' }}>
-      <h2 style={{ margin: '0 0 10px', color: '#17252d', fontSize: 16, lineHeight: 1.35 }}>
-        {title}
-      </h2>
-      <DataFields data={data} />
+    <section className="guest-data-section">
+      <header className="guest-section-heading">
+        <span className="guest-section-number">{number}</span>
+        <h2>{title}</h2>
+      </header>
+      <DataFields data={data} hideId={hideId} />
     </section>
   );
 }
 
-function DataFields({ data }) {
+function DataFields({ data, hideId = false }) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '0 16px' }}>
-      {Object.entries(data).map(([key, value]) => {
+    <div className="guest-fields-grid">
+      {Object.entries(data).filter(([key]) => key !== 'foto' && key !== 'peralatan_id' && (!hideId || key !== 'id')).map(([key, value]) => {
         const label = key
           .replace(/_/g, ' ')
           .replace(/\b\w/g, (character) => character.toUpperCase());
@@ -255,8 +243,8 @@ function DataFields({ data }) {
             : value;
 
           return (
-            <div key={key} style={{ gridColumn: '1 / -1', margin: '8px 0', padding: '10px 12px', background: '#f3f6f7', borderLeft: '2px solid #d35643' }}>
-              <h3 style={{ margin: '0 0 4px', color: '#35464e', fontSize: 13, lineHeight: 1.4 }}>{label}</h3>
+            <div key={key} className="guest-nested-field">
+              <h3>{label}</h3>
               <DataFields data={nestedData} />
             </div>
           );
@@ -268,11 +256,11 @@ function DataFields({ data }) {
         else if (value === '') displayValue = 'Kosong';
 
         return (
-          <div key={key} style={{ minWidth: 0, padding: '10px 0', borderBottom: '1px solid #edf0f2' }}>
-            <div style={{ marginBottom: 4, color: '#6b7880', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', overflowWrap: 'anywhere' }}>
+          <div key={key} className="guest-data-field">
+            <div className="guest-data-label">
               {label}
             </div>
-            <div style={{ color: '#192a32', fontSize: 14, fontWeight: 600, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+            <div className="guest-data-value">
               {String(displayValue)}
             </div>
           </div>

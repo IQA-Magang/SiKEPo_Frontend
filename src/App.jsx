@@ -23,7 +23,7 @@ import EquipmentList from './pages/equipment/EquipmentList.jsx';
 import EquipmentDetail from './pages/equipment/EquipmentDetail.jsx';
 import EquipmentCreate from './pages/equipment/EquipmentCreate.jsx';
 import EquipmentQrPage from './pages/equipment/EquipmentQrPage.jsx';
-import UserManagement from './pages/admin/UserManagement.jsx';
+import UserManagement from './pages/UserManagement.jsx';
 import LabsManagement from './pages/admin/LabsManagement.jsx';
 import RuanganManagement from './pages/admin/RuanganManagement.jsx';
 import AssetGroupManagement from './pages/admin/AssetGroupManagement.jsx';
@@ -273,7 +273,7 @@ function AppContent() {
           path="/admin/users"
           element={
             <ProtectedRoute roles={['admin', 'manager']}>
-              <UserManagement onNavigate={navigate} viewOnly={getUserRole() === 'manager'} />
+              <UserManagement onNavigate={navigate} />
             </ProtectedRoute>
           }
         />

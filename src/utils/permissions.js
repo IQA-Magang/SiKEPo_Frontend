@@ -3,7 +3,7 @@ import { getCurrentUser } from './api.js';
 export const ACCESS = {
   MASTER_EQUIPMENT: 'master_equipment',
   MASTER_LAB: 'master_lab',
-  MASTER_USER_PIC: 'master_user_pic',
+  MASTER_USERS: 'master_users',
   INPUT_EQUIPMENT: 'input_equipment',
   EQUIPMENT_USAGE: 'equipment_usage',
   EQUIPMENT_ELIGIBILITY: 'equipment_eligibility',
@@ -33,13 +33,13 @@ const ADD_EDIT_VIEW = [ACTIONS.ADD, ACTIONS.EDIT, ACTIONS.VIEW];
 // Matriks mengikuti dokumen hak akses dan aturan backend:
 // - Admin: Semua modul CRUD
 // - Manager: Mengisi/mengajukan dan menyetujui verifikasi, pengawasan, dan master data tertentu
-// - Staff PIC: Boleh input peralatan (POST /api/peralatan) dan mengajukan/menandatangani verifikasi (TLKM13/F/003)
-// - Staff biasa: Dapat melihat verifikasi (VIEW), tetapi hanya Staff PIC yang dapat mengisi/mengajukan
+// - Staff pengelola: Boleh input peralatan dan mengajukan/menandatangani verifikasi (TLKM13/F/003)
+// - Staff biasa: Dapat melihat verifikasi, tetapi hanya pengelola yang dapat mengisi/mengajukan
 const ROLE_PERMISSIONS = {
   staff: {
     [ACCESS.MASTER_EQUIPMENT]: VIEW,
     [ACCESS.MASTER_LAB]: VIEW,
-    [ACCESS.MASTER_USER_PIC]: VIEW,
+    [ACCESS.MASTER_USERS]: VIEW,
     [ACCESS.REPORTS]: VIEW,
     [ACCESS.LOAN_REQUEST]: ADD_EDIT_VIEW,
     [ACCESS.RETURN_PROCESS]: ADD_EDIT_VIEW,
@@ -52,7 +52,7 @@ const ROLE_PERMISSIONS = {
   manager: {
     [ACCESS.MASTER_EQUIPMENT]: VIEW,
     [ACCESS.MASTER_LAB]: VIEW,
-    [ACCESS.MASTER_USER_PIC]: VIEW,
+    [ACCESS.MASTER_USERS]: [ACTIONS.VIEW, ACTIONS.EDIT],
     [ACCESS.INPUT_EQUIPMENT]: VIEW,
     [ACCESS.EQUIPMENT_USAGE]: CRUD,
     [ACCESS.EQUIPMENT_ELIGIBILITY]: [ACTIONS.VIEW, ACTIONS.EDIT],
@@ -74,16 +74,16 @@ export function getUserRole(user = getCurrentUser()) {
   return (user?.role || 'staff').toLowerCase();
 }
 
-export function isStaffPic(user = getCurrentUser()) {
+export function isStaffPengelola(user = getCurrentUser()) {
   const role = getUserRole(user);
   if (role !== 'staff') return false;
-  const p = user?.pic;
-  return p === true || p === 1 || p === '1' || String(p).toLowerCase() === 'true';
+  const pengelola = user?.pengelola;
+  return pengelola === true || pengelola === 1 || pengelola === '1' || String(pengelola).toLowerCase() === 'true';
 }
 
 export function can(feature, action = ACTIONS.VIEW, user = getCurrentUser()) {
   const role = getUserRole(user);
-  const isPic = isStaffPic(user);
+  const isPengelola = isStaffPengelola(user);
 
   // 1. Admin memiliki hak penuh (CRUD) untuk semua fitur
   if (role === 'admin') {
@@ -91,11 +91,11 @@ export function can(feature, action = ACTIONS.VIEW, user = getCurrentUser()) {
   }
 
   // 2. Input Peralatan (POST /api/peralatan):
-  // Berdasarkan backend RequireAdminOrStaffPIC(), hanya Admin dan Staff PIC yang diizinkan menambah.
-  // Staff biasa tidak diizinkan dan butuh akses (ditetapkan sebagai PIC) dari admin.
+  // Berdasarkan backend RequireAdminOrStaffPengelola(), hanya Admin dan Staff Pengelola yang diizinkan menambah.
+  // Staff biasa tidak diizinkan dan memerlukan penetapan pengelola dari manager.
   if (feature === ACCESS.INPUT_EQUIPMENT) {
     if (action === ACTIONS.ADD) {
-      return role === 'staff' && isPic;
+      return role === 'staff' && isPengelola;
     }
     if (action === ACTIONS.VIEW) {
       return true;
@@ -104,13 +104,13 @@ export function can(feature, action = ACTIONS.VIEW, user = getCurrentUser()) {
   }
 
   // 3. Verifikasi Kelayakan Peralatan (TLKM13/F/003):
-  // - Semua staff dapat melihat, tetapi hanya Staff PIC yang dapat mengisi dan mengajukan.
-  // - Staff PIC boleh mengisi, menandatangani, dan mengajukan (ADD, EDIT, VIEW).
+  // - Semua staff dapat melihat, tetapi hanya staff pengelola yang dapat mengisi dan mengajukan.
+  // - Staff pengelola boleh mengisi, menandatangani, dan mengajukan (ADD, EDIT, VIEW).
   // - Manager dapat mengisi/mengajukan serta meninjau, menyetujui, dan menolak.
   if (feature === ACCESS.EQUIPMENT_ELIGIBILITY) {
     if (role === 'staff') {
       if (action === ACTIONS.VIEW) return true;
-      return isPic && [ACTIONS.ADD, ACTIONS.EDIT].includes(action);
+      return isPengelola && [ACTIONS.ADD, ACTIONS.EDIT].includes(action);
     }
     if (role === 'manager') {
       return [ACTIONS.ADD, ACTIONS.VIEW, ACTIONS.EDIT].includes(action);

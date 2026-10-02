@@ -4,7 +4,7 @@ import {
   LogOut, Users, CheckCircle2, Check
 } from 'lucide-react';
 import { getCurrentUser, usersApi } from '../utils/api.js';
-import UserManagement from './admin/UserManagement.jsx';
+import UserManagement from './UserManagement.jsx';
 
 export default function Settings({ onNavigate }) {
   const user = getCurrentUser();
@@ -71,7 +71,8 @@ export default function Settings({ onNavigate }) {
             email: user.email,
             role: user.role,
             position: user.position,
-            pic: Boolean(user.pic),
+            pengelola: Boolean(user.pengelola),
+            labs_id: user.labs_id ?? null,
             password: password,
           });
           setPwdSuccess('Password berhasil diperbarui!');
@@ -190,7 +191,7 @@ export default function Settings({ onNavigate }) {
                   <span className={`badge ${user?.role === 'admin' ? 'badge-role-admin' : user?.role === 'manager' ? 'badge-role-manager' : 'badge-role-staff'}`}>
                     {user?.role?.toUpperCase() || 'STAFF'}
                   </span>
-                  {user?.pic && <span className="badge badge-green">PIC ALAT</span>}
+                  {user?.pengelola && <span className="badge badge-green">PENGELOLA</span>}
                 </div>
               </div>
             </div>
@@ -319,7 +320,7 @@ export default function Settings({ onNavigate }) {
       {/* Tab 2: Manajemen Pengguna (Admin: Full, Manager: View Only) */}
       {activeTab === 'users' && canViewUsers && (
         <div style={{ marginTop: '10px' }}>
-          <UserManagement onNavigate={onNavigate} viewOnly={role !== 'admin'} />
+          <UserManagement onNavigate={onNavigate} />
         </div>
       )}
 
