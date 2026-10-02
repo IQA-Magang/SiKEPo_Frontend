@@ -291,20 +291,28 @@ export const authApi = {
 
 // =============================================================
 // USERS  — /api/users
-// GET /          → { success, data: User[] }
+// GET /          → { success, data: User[] } [admin]
+// GET /manager/  → { success, data: User[] } [manager, scoped to lab]
 // GET /:id       → { success, data: User }
 // POST /         → { success, data: User }  [admin]
 // PUT /:id       → { success, data: User }  [admin]
+// PUT /manager/:id → { success, data: User } [manager]
 // PUT /me/password → { success, message }
 // DELETE /:id    → { success }              [admin]
 // =============================================================
+function usersPath() {
+  return getCurrentUser()?.role?.trim().toLowerCase() === 'manager'
+    ? '/api/users/manager'
+    : '/api/users';
+}
+
 export const usersApi = {
-  getAll: () => fetchWithAuth('/api/users'),
-  getById: (id) => fetchWithAuth(`/api/users/${id}`),
+  getAll: () => fetchWithAuth(`${usersPath()}/`),
+  getById: (id) => fetchWithAuth(`${usersPath()}/${id}`),
   create: (body) =>
     fetchWithAuth('/api/users/', { method: 'POST', body: JSON.stringify(body) }),
   update: (id, body) =>
-    fetchWithAuth(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    fetchWithAuth(`${usersPath()}/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   changePassword: (body) =>
     fetchWithAuth('/api/users/me/password', {
       method: 'PUT',

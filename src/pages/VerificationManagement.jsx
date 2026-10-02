@@ -382,7 +382,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   const { success, error } = useToast();
   const currentUser = getCurrentUser();
   const role = getUserRole(currentUser);
-  const isStaffPIC = role === 'staff' && Boolean(currentUser?.pic);
+  const isStaffPIC = role === 'staff' && isStaffPic(currentUser);
   const canSubmit = isStaffPIC || role === 'manager' || role === 'admin';
   const canApprove = role === 'manager' || role === 'admin';
   const currentUserId = currentUser?.user_id ?? currentUser?.id;
