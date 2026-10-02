@@ -81,6 +81,18 @@ export default function EquipmentCreate({ onNavigate }) {
     status_ketersediaan: 'Tersedia',
   });
 
+  const selectedRoom = ruangan.find(
+    (room) => String(room.id) === String(form.ruangan_id),
+  );
+  const selectedRoomLabId = selectedRoom?.labs_id ?? selectedRoom?.labs?.id;
+  const selectedRoomLab = labs.find(
+    (lab) => String(lab.id) === String(selectedRoomLabId),
+  );
+  const selectedManager =
+    selectedRoom?.labs?.manager || selectedRoomLab?.manager;
+  const selectedManagerId =
+    selectedRoom?.labs?.manager_id ?? selectedRoomLab?.manager_id;
+
   useEffect(() => {
     async function loadOptions() {
       try {
@@ -100,7 +112,27 @@ export default function EquipmentCreate({ onNavigate }) {
   }, []);
 
   function setField(name, value) {
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+
+      if (prev.kategori_id === 1 && name === 'interval_bulan') {
+        const interval = Number(value);
+        if (Number.isInteger(interval) && interval > 0) {
+          const calibrationDate = prev.tgl_kalibrasi || getLocalDateString();
+          next.tgl_kalibrasi = calibrationDate;
+          next.tgl_jatuh_tempo = addMonthsToDate(calibrationDate, interval);
+        }
+      } else if (prev.kategori_id === 1 && name === 'tgl_kalibrasi') {
+        const interval = Number(prev.interval_bulan);
+        if (value && Number.isInteger(interval) && interval > 0) {
+          next.tgl_jatuh_tempo = addMonthsToDate(value, interval);
+        } else if (!value) {
+          next.tgl_jatuh_tempo = '';
+        }
+      }
+
+      return next;
+    });
     if (error) setError('');
   }
 
@@ -178,6 +210,10 @@ export default function EquipmentCreate({ onNavigate }) {
         setError('Lokasi ruangan wajib dipilih.');
         return false;
       }
+      if (selectedManagerId == null) {
+        setError('Ruangan yang dipilih belum memiliki Manager Lab sebagai PIC.');
+        return false;
+      }
       if (!form.kelompok_aset_id) {
         setError('Kelompok aset wajib dipilih.');
         return false;
@@ -186,7 +222,11 @@ export default function EquipmentCreate({ onNavigate }) {
     if (step === 2) {
       if (form.kategori_id === 1) {
         if (!form.no_sertifikat.trim()) { setError('No. sertifikat kalibrasi wajib diisi.'); return false; }
-        if (!form.interval_bulan) { setError('Interval kalibrasi (bulan) wajib diisi.'); return false; }
+        const calibrationInterval = Number(form.interval_bulan);
+        if (!Number.isInteger(calibrationInterval) || calibrationInterval <= 0) {
+          setError('Interval kalibrasi harus berupa bilangan bulan lebih dari 0.');
+          return false;
+        }
         if (!form.tgl_kalibrasi) { setError('Tanggal kalibrasi terakhir wajib diisi.'); return false; }
         if (!form.tgl_jatuh_tempo) { setError('Tanggal jatuh tempo kalibrasi wajib diisi.'); return false; }
       }
@@ -319,7 +359,6 @@ export default function EquipmentCreate({ onNavigate }) {
       const payload = {
         nama_peralatan: form.nama_peralatan,
         kategori_id: catId,
-        kategori_peralatan_id: catId,
         kelompok_aset_id: Number(form.kelompok_aset_id),
         ruangan_id: Number(form.ruangan_id),
         merek: form.merek,
@@ -346,9 +385,12 @@ export default function EquipmentCreate({ onNavigate }) {
         await dokumenApi.upload(equipmentId, file);
       }
 
-      // Peralatan baru berstatus Karantina dan masuk ke daftar verifikasi (menunggu verifikasi)
+      setSuccess({
+        id: equipmentId,
+        nomor_aset: res.nomor_aset || res.data?.nomor_aset,
+        pic_id: res.pic_id ?? res.data?.pic_id,
+      });
       toastSuccess(`Peralatan "${form.nama_peralatan}" berhasil ditambahkan dan masuk ke daftar verifikasi.`);
-      onNavigate('/verifikasi');
     } catch (err) {
       setError(err.message || 'Gagal menyimpan peralatan.');
     } finally {
@@ -397,6 +439,11 @@ export default function EquipmentCreate({ onNavigate }) {
           <p style={{ marginTop: 'var(--sp-3)', fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>
             ID Sistem: <strong>{success.id}</strong>
           </p>
+          {success.pic_id != null && (
+            <p style={{ marginTop: 'var(--sp-2)', fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>
+              PIC otomatis (Manager Lab): <strong>{success.pic_id}</strong>
+            </p>
+          )}
           <div style={{ display: 'flex', gap: 'var(--sp-3)', justifyContent: 'center', marginTop: 'var(--sp-8)' }}>
             <button className="btn btn-secondary" onClick={() => onNavigate('/peralatan')} id="btn-kembali-daftar">
               <ArrowLeft size={16} /> Daftar Peralatan
@@ -680,7 +727,19 @@ export default function EquipmentCreate({ onNavigate }) {
                   <label className="form-label" htmlFor="select-lab">
                     Laboratorium <span className="required">*</span>
                   </label>
-                  <select id="select-lab" className="form-select" value={form.lab_id} onChange={(e) => setField('lab_id', e.target.value)}>
+                  <select
+                    id="select-lab"
+                    className="form-select"
+                    value={form.lab_id}
+                    onChange={(e) => {
+                      setForm((prev) => ({
+                        ...prev,
+                        lab_id: e.target.value,
+                        ruangan_id: '',
+                      }));
+                      if (error) setError('');
+                    }}
+                  >
                     <option value="">– Pilih Laboratorium –</option>
                     {labs.map((l) => (
                       <option key={l.id} value={l.id}>{l.nama_labs} ({l.kode_labs})</option>
@@ -717,6 +776,40 @@ export default function EquipmentCreate({ onNavigate }) {
                 </div>
 
               </div>
+            )}
+
+            {form.ruangan_id && (
+              selectedManagerId != null ? (
+                <div
+                  className="alert alert-info"
+                  style={{ margin: 0, display: 'flex', alignItems: 'flex-start', gap: 'var(--sp-3)' }}
+                  role="status"
+                >
+                  <ShieldCheck size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <strong>PIC Otomatis (Manager Lab)</strong>
+                    <div style={{ marginTop: 'var(--sp-1)' }}>
+                      {selectedManager?.name
+                        || selectedManager?.nama_lengkap
+                        || selectedManager?.username
+                        || 'Manager Lab'}
+                      {' · ID: '}
+                      {selectedManagerId}
+                    </div>
+                    <div style={{ marginTop: 'var(--sp-1)', fontSize: 'var(--text-xs)' }}>
+                      PIC ditetapkan otomatis berdasarkan ruangan dan tidak dapat diubah di form ini.
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="alert alert-warning"
+                  style={{ margin: 0 }}
+                  role="alert"
+                >
+                  Laboratorium dari ruangan ini belum memiliki Manager Lab. Pilih ruangan lain atau minta admin menetapkan Manager Lab sebelum menyimpan peralatan.
+                </div>
+              )
             )}
           </div>
         )}
@@ -950,6 +1043,24 @@ function DetailInputField({ id, label, type = 'text', value, onChange, placehold
       <input id={id} type={type} className="form-input" placeholder={placeholder} value={value} onChange={onChange} />
     </div>
   );
+}
+
+function getLocalDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addMonthsToDate(dateString, months) {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const targetMonthIndex = month - 1 + months;
+  const targetYear = year + Math.floor(targetMonthIndex / 12);
+  const normalizedMonth = targetMonthIndex % 12;
+  const lastDayOfTargetMonth = new Date(targetYear, normalizedMonth + 1, 0).getDate();
+  const targetDay = Math.min(day, lastDayOfTargetMonth);
+
+  return getLocalDateString(new Date(targetYear, normalizedMonth, targetDay));
 }
 
 // ------------------------------------------------------------------

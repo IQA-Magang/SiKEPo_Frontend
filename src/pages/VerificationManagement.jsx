@@ -383,7 +383,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   const currentUser = getCurrentUser();
   const role = getUserRole(currentUser);
   const isStaffPIC = role === 'staff' && Boolean(currentUser?.pic);
-  const canSubmit = isStaffPIC || role === 'admin';
+  const canSubmit = isStaffPIC || role === 'manager' || role === 'admin';
   const canApprove = role === 'manager' || role === 'admin';
   const currentUserId = currentUser?.user_id ?? currentUser?.id;
   const [savedSignature, setSavedSignature] = useState(() => getSavedSignature(currentUser));
@@ -689,8 +689,8 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
           <div className="card card-padded">
             <h1 className="page-title">Akses Pengajuan Verifikasi</h1>
             <p className="page-subtitle">
-              Hanya staff yang ditandai sebagai PIC yang dapat mengisi dan mengajukan verifikasi.
-              Staff lainnya tetap dapat melihat verifikasi beserta detailnya.
+              Staff PIC dan Manager dapat mengisi dan mengajukan verifikasi. Staff lainnya tetap dapat
+              melihat verifikasi beserta detailnya.
             </p>
             <button className="btn btn-secondary" type="button" onClick={() => navigate('/verifikasi')}>
               <ArrowLeft size={16} /> Kembali ke Verifikasi

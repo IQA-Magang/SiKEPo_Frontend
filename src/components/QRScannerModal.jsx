@@ -205,9 +205,7 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
     setScanning(true);
 
     try {
-      const res = await peralatanApi.getAll();
-      const list = res.data || [];
-      const found = findEquipment(manualInput, list);
+      const found = await lookupEquipment(manualInput);
       if (found) {
         navigateToEquipment(getEquipmentId(found));
       } else {
@@ -223,8 +221,7 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
 
   async function handleScanPayload(rawValue) {
     try {
-      const res = await peralatanApi.getAll();
-      const found = findEquipment(rawValue, res.data || []);
+      const found = await lookupEquipment(rawValue);
       if (!found) {
         setErrorMsg(`QR Code "${rawValue}" tidak cocok dengan peralatan di sistem.`);
         scanInProgressRef.current = false;
@@ -236,6 +233,20 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
       setErrorMsg(`Gagal memvalidasi QR Code: ${err.message}`);
       scanInProgressRef.current = false;
     }
+  }
+
+  async function lookupEquipment(input) {
+    try {
+      const response = await peralatanApi.getByAssetNumber(String(input || '').trim());
+      const equipment = response.data?.peralatan;
+      if (equipment) return equipment;
+    } catch (err) {
+      if (err.status !== 404) throw err;
+    }
+
+    // QR lama berisi ID sistem atau URL; pertahankan dukungan format tersebut.
+    const response = await peralatanApi.getAll();
+    return findEquipment(input, response.data || []);
   }
 
   function findEquipment(input, list) {
