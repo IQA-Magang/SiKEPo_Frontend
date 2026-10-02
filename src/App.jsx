@@ -16,7 +16,7 @@ import { ConfirmProvider } from './context/ConfirmContext.jsx';
 import { getToken } from './utils/api.js';
 import { ACCESS, ACTIONS, getUserRole } from './utils/permissions.js';
 
-// Pages
+// Pagesss
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import EquipmentList from './pages/equipment/EquipmentList.jsx';
