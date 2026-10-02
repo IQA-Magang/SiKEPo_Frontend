@@ -147,7 +147,7 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
               <tr>
                 <th>#</th>
                 <th>Foto</th>
-                <th>Nama Peralatan</th>
+                <th>Peralatan</th>
                 <th>No. Aset</th>
                 <th>Kategori</th>
                 <th>Status Proses</th>

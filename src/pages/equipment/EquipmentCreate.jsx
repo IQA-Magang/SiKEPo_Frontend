@@ -540,7 +540,7 @@ export default function EquipmentCreate({ onNavigate }) {
 
             <div className="form-group">
               <label className="form-label" htmlFor="input-nama">
-                Nama Peralatan <span className="required">*</span>
+                Peralatan <span className="required">*</span>
               </label>
               <input
                 id="input-nama"
@@ -983,7 +983,7 @@ export default function EquipmentCreate({ onNavigate }) {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)', background: 'var(--clr-dark-50)', padding: 'var(--sp-5)', borderRadius: 'var(--radius-lg)' }}>
-              <ConfirmRow label="Nama Peralatan" value={form.nama_peralatan} />
+              <ConfirmRow label="Peralatan" value={form.nama_peralatan} />
 
               <ConfirmRow label="Foto Peralatan" value={photoFile ? photoFile.name : '–'} />
               <ConfirmRow label="Kategori" value={categories.find((k) => k.id === form.kategori_id)?.label || '–'} />
