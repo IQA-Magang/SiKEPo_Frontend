@@ -11,10 +11,22 @@ const RouteParamsContext = createContext({});
 // ------------------------------------------------------------------
 export function getHashPath() {
   const hash = window.location.hash || '';
-  if (!hash || hash === '#' || hash === '#/') return '/';
-  const clean = hash.startsWith('#') ? hash.slice(1) : hash;
-  const pathWithoutQuery = clean.split('?')[0];
-  return pathWithoutQuery.startsWith('/') ? pathWithoutQuery : `/${pathWithoutQuery}`;
+  if (hash && hash !== '#' && hash !== '#/') {
+    const clean = hash.startsWith('#') ? hash.slice(1) : hash;
+    const pathWithoutQuery = clean.split('?')[0];
+    return pathWithoutQuery.startsWith('/') ? pathWithoutQuery : `/${pathWithoutQuery}`;
+  }
+
+  const pathname = window.location.pathname || '/';
+  if (pathname === '/' || pathname === '/login') {
+    return pathname;
+  }
+
+  if (pathname.startsWith('/guest/peralatan/')) {
+    return pathname;
+  }
+
+  return '/';
 }
 
 // ------------------------------------------------------------------
