@@ -357,7 +357,8 @@ export const kelompokAssetApi = {
 // =============================================================
 // PERALATAN  — /api/peralatan
 // GET /      → { status, data: Peralatan[] }
-// POST /     → { status, nomor_aset, id }
+// GET /:nomor_aset → { status, data: { peralatan, detail } }
+// POST /     → { status, nomor_aset, id, pic_id }
 // POST /:id/foto   → multipart upload
 // GET  /:id/qr     → image/png
 // =============================================================

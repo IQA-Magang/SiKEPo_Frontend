@@ -422,7 +422,7 @@ function StaffDashboard({ onNavigate, user }) {
           const results = await Promise.allSettled(batch.map(async (equipment) => {
             if (!equipment.nomor_aset) return equipment;
             const detailResponse = await peralatanApi.getByAssetNumber(equipment.nomor_aset);
-            return { ...equipment, detail: detailResponse.data?.detail || null };
+            return { ...equipment, detail: detailResponse.data?.data?.detail || null };
           }));
 
           results.forEach((result, batchIndex) => {
