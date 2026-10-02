@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { getCurrentUser, getSavedSignature, saveSignature, removeSavedSignature, verifikasiApi, peralatanApi, ruanganApi, getEquipmentId, formatPhotoUrl } from '../utils/api.js';
 import { useToast } from '../context/ToastContext.jsx';
-import { getUserRole, can, isStaffPic, ACCESS, ACTIONS } from '../utils/permissions.js';
+import { getUserRole, can, isStaffPengelola, ACCESS, ACTIONS } from '../utils/permissions.js';
 import { useNavigate } from '../router/Router.jsx';
 import { exportVerificationPdf } from '../utils/verificationPdf.js';
 
@@ -393,8 +393,8 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   const { success, error } = useToast();
   const currentUser = getCurrentUser();
   const role = getUserRole(currentUser);
-  const isStaffPIC = role === 'staff' && isStaffPic(currentUser);
-  const canSubmit = isStaffPIC || role === 'manager' || role === 'admin';
+  const staffIsPengelola = role === 'staff' && isStaffPengelola(currentUser);
+  const canSubmit = staffIsPengelola || role === 'manager' || role === 'admin';
   const canApprove = role === 'manager' || role === 'admin';
   const currentUserLabId = currentUser?.labs_id ?? currentUser?.labs?.id;
   const [savedSignature, setSavedSignature] = useState(() => getSavedSignature(currentUser));
@@ -736,7 +736,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
           <div className="card card-padded">
             <h1 className="page-title">Akses Pengajuan Verifikasi</h1>
             <p className="page-subtitle">
-              Staff PIC dan Manager dapat mengisi dan mengajukan verifikasi. Staff lainnya tetap dapat
+              Staff pengelola dan Manager dapat mengisi dan mengajukan verifikasi. Staff lainnya tetap dapat
               melihat verifikasi beserta detailnya.
             </p>
             <button className="btn btn-secondary" type="button" onClick={() => navigate('/verifikasi')}>
@@ -1360,7 +1360,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            {isStaffPIC || role === 'admin' ? (
+                            {staffIsPengelola || role === 'admin' ? (
                             <button
                               className="btn btn-primary btn-sm"
                               onClick={() => navigate(`/verifikasi/${eqId}`)}
@@ -1515,7 +1515,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                           >
                             Tinjau
                           </button>
-                          {item.status === 'Disetujui' && (canApprove || isStaffPIC) && (
+                          {item.status === 'Disetujui' && (canApprove || staffIsPengelola) && (
                             <button
                               className="btn btn-ghost btn-sm"
                               onClick={() => exportVerificationPdf(item)}
@@ -1611,7 +1611,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
               <div className="verification-review-signatures">
                 <SignatureDisplayCard
                   title="Tanda Tangan PIC Penguji"
-                  roleLabel="Staff PIC Penguji"
+                  roleLabel="Staff Pengelola Penguji"
                   signature={selected.pic_signature}
                   signerName={selected.pic_user?.nama_lengkap || selected.pic?.nama_lengkap || selected.pic?.nama || '-'}
                   signerNip={selected.pic_user?.nip ? `NIP: ${selected.pic_user.nip}` : (selected.pic_user?.username ? `@${selected.pic_user.username}` : null)}
@@ -1820,7 +1820,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                   </button>
                 )
               )}
-              {selected.status === 'Disetujui' && (canApprove || isStaffPIC) && (
+              {selected.status === 'Disetujui' && (canApprove || staffIsPengelola) && (
                 <button
                   type="button"
                   className="btn btn-secondary"

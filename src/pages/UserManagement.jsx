@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Pencil, Trash2, X, RefreshCw, Shield } from 'lucide-react';
-import { getCurrentUser, labsApi, usersApi } from '../../utils/api.js';
-import { ACCESS, ACTIONS, can, getUserRole } from '../../utils/permissions.js';
-import { useToast } from '../../context/ToastContext.jsx';
-import { useConfirm } from '../../context/ConfirmContext.jsx';
+import { labsApi, usersApi } from '../utils/api.js';
+import { ACCESS, ACTIONS, can, getUserRole } from '../utils/permissions.js';
+import { useToast } from '../context/ToastContext.jsx';
+import { useConfirm } from '../context/ConfirmContext.jsx';
 
 const EMPTY_FORM = { nip: '', name: '', email: '', password: '', role: 'staff', position: '', pengelola: false, labs_id: '' };
 
@@ -15,12 +15,12 @@ const ROLE_BADGE = {
 
 export default function UserManagement({ onNavigate, viewOnly = false }) {
   const role = getUserRole();
-  const currentUser = getCurrentUser();
   const isAdmin = role === 'admin';
   const isManager = role === 'manager';
   const canCreate = !viewOnly && can(ACCESS.MASTER_USERS, ACTIONS.ADD);
-  const canEdit = !viewOnly && can(ACCESS.MASTER_USERS, ACTIONS.EDIT);
-  const canDelete = !viewOnly && can(ACCESS.MASTER_USERS, ACTIONS.DELETE);
+  const canEdit = !viewOnly && isAdmin && can(ACCESS.MASTER_USERS, ACTIONS.EDIT);
+  const canDelete = !viewOnly && isAdmin && can(ACCESS.MASTER_USERS, ACTIONS.DELETE);
+  const canSetPengelola = !viewOnly && isManager;
   const [users, setUsers]   = useState([]);
   const [labs, setLabs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +29,7 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
   const [deleting, setDeleting] = useState(null);
+  const [updatingPengelola, setUpdatingPengelola] = useState(null);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
 
@@ -78,7 +79,7 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
       password: '',
       role: user.role || 'staff',
       position: user.position || '',
-      pengelola: user.pengelola ?? user.pic ?? false,
+      pengelola: user.pengelola ?? false,
       labs_id: user.labs_id == null ? '' : String(user.labs_id),
     });
     setError('');
@@ -145,6 +146,23 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
     }
   }
 
+  async function handleTogglePengelola(user) {
+    const nextValue = !Boolean(user.pengelola);
+    setUpdatingPengelola(user.user_id);
+    try {
+      const response = await usersApi.setPengelola(user.user_id, nextValue);
+      const updatedUser = response.data;
+      setUsers((previous) => previous.map((item) => (
+        item.user_id === user.user_id ? updatedUser : item
+      )));
+      toast.success(nextValue ? 'Pengguna ditetapkan sebagai pengelola.' : 'Status pengelola berhasil dilepas.');
+    } catch (err) {
+      toast.error(err.message || 'Gagal memperbarui status pengelola.');
+    } finally {
+      setUpdatingPengelola(null);
+    }
+  }
+
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
     const matchQ = !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.nip?.includes(q);
@@ -160,7 +178,7 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1 className="page-title">Manajemen Pengguna</h1>
             {viewOnly && <span className="badge badge-gray">Mode Lihat</span>}
-            {!viewOnly && isManager && <span className="badge badge-gray">Pengguna di laboratorium Anda</span>}
+            {isManager && <span className="badge badge-gray">Pengguna di laboratorium Anda</span>}
           </div>
           <p className="page-subtitle">Kelola akun personel laboratorium dan hak akses SiKEPo</p>
         </div>
@@ -232,7 +250,7 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
                   <th>Role</th>
                   <th>Jabatan</th>
                   <th>Pengelola</th>
-                  {(canEdit || canDelete) && <th style={{ width: 100 }}>Aksi</th>}
+                  {(canEdit || canDelete || canSetPengelola) && <th style={{ width: 180 }}>Aksi</th>}
                 </tr>
               </thead>
               <tbody>
@@ -244,11 +262,25 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
                     <td><span className={`badge ${ROLE_BADGE[u.role] || 'badge-gray'}`}>{u.role}</span></td>
                     <td style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>{u.position}</td>
                     <td>
-                      {(u.pengelola ?? u.pic) && <span className="badge badge-green"><Shield size={10} /> Pengelola</span>}
+                      {u.pengelola && <span className="badge badge-green"><Shield size={10} /> Pengelola</span>}
                     </td>
-                    {(canEdit || canDelete) && (
+                    {(canEdit || canDelete || canSetPengelola) && (
                       <td>
-                        <div className="table-action-btns">
+                        <div className="table-action-btns" style={canSetPengelola ? { flexWrap: 'wrap' } : undefined}>
+                          {canSetPengelola && u.role === 'staff' && (
+                            <button
+                              className={`btn btn-sm ${u.pengelola ? 'btn-secondary' : 'btn-primary'}`}
+                              onClick={() => handleTogglePengelola(u)}
+                              disabled={updatingPengelola === u.user_id}
+                              id={`btn-toggle-pengelola-user-${u.user_id}`}
+                              title={u.pengelola ? 'Lepas status pengelola' : 'Tetapkan sebagai pengelola'}
+                            >
+                              <Shield size={13} />
+                              {updatingPengelola === u.user_id
+                                ? 'Menyimpan...'
+                                : u.pengelola ? 'Lepas Pengelola' : 'Tetapkan Pengelola'}
+                            </button>
+                          )}
                           {canEdit && (
                             <button
                               className="btn-action-icon"
@@ -282,7 +314,7 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">
             <span>Menampilkan <strong>{filtered.length}</strong> dari <strong>{users.length}</strong> total pengguna terdaftar</span>
-            <span>Total Pengelola Aktif: <strong>{users.filter(u => u.pengelola ?? u.pic).length}</strong></span>
+            <span>Total Pengelola Aktif: <strong>{users.filter((u) => u.pengelola).length}</strong></span>
           </div>
         </div>
       )}
@@ -314,7 +346,6 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
                       type="email"
                       className="form-input"
                       value={form.email}
-                      disabled={isManager && String(modal.id) === String(currentUser?.user_id)}
                       onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
                     />
                   </div>
@@ -355,7 +386,7 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
                 </div>
                 <label className="checkbox-label">
                   <input type="checkbox" checked={Boolean(form.pengelola)} disabled={!isAdmin} onChange={e => setForm(p => ({ ...p, pengelola: e.target.checked }))} id="modal-pengelola" />
-                  Tetapkan sebagai Pengelola (PIC alat)
+                  Tetapkan sebagai Pengelola
                 </label>
               </div>
             </div>

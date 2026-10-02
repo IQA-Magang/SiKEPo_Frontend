@@ -296,7 +296,7 @@ export const authApi = {
 // GET /:id       → { success, data: User }
 // POST /         → { success, data: User }  [admin]
 // PUT /:id       → { success, data: User }  [admin]
-// PUT /manager/:id → { success, data: User } [manager]
+// PATCH /manager/:id/pengelola → { success, data: User } [manager]
 // PUT /me/password → { success, message }
 // DELETE /:id    → { success }              [admin]
 // =============================================================
@@ -312,7 +312,12 @@ export const usersApi = {
   create: (body) =>
     fetchWithAuth('/api/users/', { method: 'POST', body: JSON.stringify(body) }),
   update: (id, body) =>
-    fetchWithAuth(`${usersPath()}/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    fetchWithAuth(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  setPengelola: (id, pengelola) =>
+    fetchWithAuth(`/api/users/manager/${id}/pengelola`, {
+      method: 'PATCH',
+      body: JSON.stringify({ pengelola }),
+    }),
   changePassword: (body) =>
     fetchWithAuth('/api/users/me/password', {
       method: 'PUT',
