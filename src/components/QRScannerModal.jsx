@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { QrCode, Camera, Upload, X, CheckCircle, AlertCircle, Search, ArrowRight, SwitchCamera } from 'lucide-react';
 import jsQR from 'jsqr';
-import { getEquipmentId, peralatanApi } from '../utils/api.js';
+import { getEquipmentId, getToken, peralatanApi } from '../utils/api.js';
 
 export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
   const [activeTab, setActiveTab] = useState('camera'); // 'camera', 'upload', 'manual'
@@ -211,6 +211,17 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
     setScanning(true);
 
     try {
+      const token = getToken();
+      if (!token) {
+        const guestData = await peralatanApi.getByAssetNumber(manualInput.trim());
+        const guestItem = guestData?.data?.peralatan || guestData?.data || guestData;
+        if (!guestItem?.nomor_aset) {
+          throw new Error(`Peralatan dengan nomor aset "${manualInput.trim()}" tidak ditemukan.`);
+        }
+        navigateToGuestEquipment(guestItem.nomor_aset);
+        return;
+      }
+
       const res = await peralatanApi.getAll();
       const list = res.data || [];
       const found = findEquipment(manualInput, list);
@@ -228,7 +239,19 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
   }
 
   async function handleScanPayload(rawValue) {
+    const token = getToken();
+
     try {
+      if (!token) {
+        const guestData = await peralatanApi.getByAssetNumber(rawValue.trim());
+        const guestItem = guestData?.data?.peralatan || guestData?.data || guestData;
+        if (!guestItem?.nomor_aset) {
+          throw new Error(`QR "${rawValue}" tidak cocok dengan nomor aset yang tersedia untuk guest.`);
+        }
+        navigateToGuestEquipment(guestItem.nomor_aset);
+        return;
+      }
+
       const res = await peralatanApi.getAll();
       const found = findEquipment(rawValue, res.data || []);
       if (!found) {
@@ -301,6 +324,18 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
     setTimeout(() => {
       onClose();
       onNavigate(`/peralatan/detail/${id}`);
+    }, 600);
+  }
+
+  function navigateToGuestEquipment(assetNumber) {
+    const safeAssetNumber = String(assetNumber || '').trim();
+    if (!safeAssetNumber) return;
+
+    setScanResult(`Nomor aset terdeteksi: ${safeAssetNumber}`);
+    stopCamera();
+    setTimeout(() => {
+      onClose();
+      onNavigate(`/guest/peralatan/${encodeURIComponent(safeAssetNumber)}`);
     }, 600);
   }
 

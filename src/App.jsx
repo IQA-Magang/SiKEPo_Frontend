@@ -16,7 +16,7 @@ import { ConfirmProvider } from './context/ConfirmContext.jsx';
 import { getToken } from './utils/api.js';
 import { ACCESS, ACTIONS, getUserRole } from './utils/permissions.js';
 
-// Pagesss
+// Pages
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import EquipmentList from './pages/equipment/EquipmentList.jsx';
@@ -33,6 +33,7 @@ import NotFound from './pages/NotFound.jsx';
 import Forbidden from './pages/Forbidden.jsx';
 import VerificationManagement from './pages/VerificationManagement.jsx';
 import LandingPage from './pages/LandingPage.jsx';
+import GuestEquipmentPage from './pages/guest/GuestEquipmentPage.jsx';
 import QRScannerModal from './components/QRScannerModal.jsx';
 
 // Wrapper for parameterized Equipment Detail
@@ -53,6 +54,12 @@ function VerificationRoute() {
   const { id } = useParams();
   const navigate = useNavigate();
   return <VerificationManagement equipmentId={id} onNavigate={navigate} />;
+}
+
+function GuestEquipmentRoute() {
+  const { nomor_aset } = useParams();
+  const navigate = useNavigate();
+  return <GuestEquipmentPage equipmentNumber={nomor_aset || ''} onNavigate={navigate} />;
 }
 
 function EquipmentLifecycleRoute({ lifecycle }) {
@@ -178,6 +185,17 @@ function AppContent() {
       return <Navigate to="/dashboard" />;
     }
     return <Login onNavigate={navigate} />;
+  }
+
+  if (pathname.startsWith('/guest/peralatan/')) {
+    return (
+      <Routes fallback={<NotFound />}>
+        <Route
+          path="/guest/peralatan/:nomor_aset"
+          element={<GuestEquipmentRoute />}
+        />
+      </Routes>
+    );
   }
 
   // If user has no token and is accessing anything else, ProtectedRoute will redirect to /login

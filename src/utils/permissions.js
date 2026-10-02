@@ -32,9 +32,9 @@ const ADD_EDIT_VIEW = [ACTIONS.ADD, ACTIONS.EDIT, ACTIONS.VIEW];
 
 // Matriks mengikuti dokumen hak akses dan aturan backend:
 // - Admin: Semua modul CRUD
-// - Manager: Persetujuan verifikasi, pengawasan, dan master data tertentu
+// - Manager: Mengisi/mengajukan dan menyetujui verifikasi, pengawasan, dan master data tertentu
 // - Staff PIC: Boleh input peralatan (POST /api/peralatan) dan mengajukan/menandatangani verifikasi (TLKM13/F/003)
-// - Staff Biasa: Hanya dapat melihat (VIEW), tidak dapat menambah peralatan atau mengajukan verifikasi tanpa penugasan PIC oleh Admin
+// - Staff biasa: Dapat melihat verifikasi (VIEW), tetapi hanya Staff PIC yang dapat mengisi/mengajukan
 const ROLE_PERMISSIONS = {
   staff: {
     [ACCESS.MASTER_EQUIPMENT]: VIEW,
@@ -104,16 +104,16 @@ export function can(feature, action = ACTIONS.VIEW, user = getCurrentUser()) {
   }
 
   // 3. Verifikasi Kelayakan Peralatan (TLKM13/F/003):
-  // - Staff biasa yang bukan PIC tidak diizinkan (harus dapat penugasan PIC dari admin).
+  // - Semua staff dapat melihat, tetapi hanya Staff PIC yang dapat mengisi dan mengajukan.
   // - Staff PIC boleh mengisi, menandatangani, dan mengajukan (ADD, EDIT, VIEW).
-  // - Manager dapat meninjau, menyetujui, dan menolak (VIEW, EDIT).
+  // - Manager dapat mengisi/mengajukan serta meninjau, menyetujui, dan menolak.
   if (feature === ACCESS.EQUIPMENT_ELIGIBILITY) {
     if (role === 'staff') {
-      if (!isPic) return false;
-      return [ACTIONS.ADD, ACTIONS.EDIT, ACTIONS.VIEW].includes(action);
+      if (action === ACTIONS.VIEW) return true;
+      return isPic && [ACTIONS.ADD, ACTIONS.EDIT].includes(action);
     }
     if (role === 'manager') {
-      return [ACTIONS.VIEW, ACTIONS.EDIT].includes(action);
+      return [ACTIONS.ADD, ACTIONS.VIEW, ACTIONS.EDIT].includes(action);
     }
   }
 
