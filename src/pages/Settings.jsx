@@ -71,7 +71,8 @@ export default function Settings({ onNavigate }) {
             email: user.email,
             role: user.role,
             position: user.position,
-            pic: Boolean(user.pic),
+            pengelola: Boolean(user.pengelola ?? user.pic),
+            labs_id: user.labs_id ?? null,
             password: password,
           });
           setPwdSuccess('Password berhasil diperbarui!');
@@ -190,7 +191,7 @@ export default function Settings({ onNavigate }) {
                   <span className={`badge ${user?.role === 'admin' ? 'badge-role-admin' : user?.role === 'manager' ? 'badge-role-manager' : 'badge-role-staff'}`}>
                     {user?.role?.toUpperCase() || 'STAFF'}
                   </span>
-                  {user?.pic && <span className="badge badge-green">PIC ALAT</span>}
+                  {(user?.pengelola ?? user?.pic) && <span className="badge badge-green">PENGELOLA (PIC ALAT)</span>}
                 </div>
               </div>
             </div>

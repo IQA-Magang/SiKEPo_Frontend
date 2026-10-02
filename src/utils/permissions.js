@@ -3,7 +3,7 @@ import { getCurrentUser } from './api.js';
 export const ACCESS = {
   MASTER_EQUIPMENT: 'master_equipment',
   MASTER_LAB: 'master_lab',
-  MASTER_USER_PIC: 'master_user_pic',
+  MASTER_USERS: 'master_users',
   INPUT_EQUIPMENT: 'input_equipment',
   EQUIPMENT_USAGE: 'equipment_usage',
   EQUIPMENT_ELIGIBILITY: 'equipment_eligibility',
@@ -39,7 +39,7 @@ const ROLE_PERMISSIONS = {
   staff: {
     [ACCESS.MASTER_EQUIPMENT]: VIEW,
     [ACCESS.MASTER_LAB]: VIEW,
-    [ACCESS.MASTER_USER_PIC]: VIEW,
+    [ACCESS.MASTER_USERS]: VIEW,
     [ACCESS.REPORTS]: VIEW,
     [ACCESS.LOAN_REQUEST]: ADD_EDIT_VIEW,
     [ACCESS.RETURN_PROCESS]: ADD_EDIT_VIEW,
@@ -52,7 +52,7 @@ const ROLE_PERMISSIONS = {
   manager: {
     [ACCESS.MASTER_EQUIPMENT]: VIEW,
     [ACCESS.MASTER_LAB]: VIEW,
-    [ACCESS.MASTER_USER_PIC]: VIEW,
+    [ACCESS.MASTER_USERS]: [ACTIONS.VIEW, ACTIONS.EDIT],
     [ACCESS.INPUT_EQUIPMENT]: VIEW,
     [ACCESS.EQUIPMENT_USAGE]: CRUD,
     [ACCESS.EQUIPMENT_ELIGIBILITY]: [ACTIONS.VIEW, ACTIONS.EDIT],
@@ -77,7 +77,7 @@ export function getUserRole(user = getCurrentUser()) {
 export function isStaffPic(user = getCurrentUser()) {
   const role = getUserRole(user);
   if (role !== 'staff') return false;
-  const p = user?.pic;
+  const p = user?.pengelola ?? user?.pic;
   return p === true || p === 1 || p === '1' || String(p).toLowerCase() === 'true';
 }
 

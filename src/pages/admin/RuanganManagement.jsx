@@ -458,7 +458,7 @@ export default function RuanganManagement({ onNavigate }) {
                       <option value="">-- Pilih PIC Ruangan --</option>
                       {users.map((u) => (
                         <option key={u.user_id} value={u.user_id}>
-                          {u.name} {u.pic ? '(PIC)' : ''} - {u.role}
+                          {u.name} {(u.pengelola ?? u.pic) ? '(Pengelola)' : ''} - {u.role}
                         </option>
                       ))}
                     </select>
