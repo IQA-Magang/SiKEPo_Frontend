@@ -14,7 +14,7 @@ import {
   Printer,
   X,
 } from 'lucide-react';
-import { getCurrentUser, getSavedSignature, saveSignature, removeSavedSignature, verifikasiApi, peralatanApi, getEquipmentId, formatPhotoUrl } from '../utils/api.js';
+import { getCurrentUser, getSavedSignature, saveSignature, removeSavedSignature, verifikasiApi, peralatanApi, ruanganApi, getEquipmentId, formatPhotoUrl } from '../utils/api.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { getUserRole, can, isStaffPic, ACCESS, ACTIONS } from '../utils/permissions.js';
 import { useNavigate } from '../router/Router.jsx';
@@ -66,6 +66,17 @@ const FOLLOW_UP_OPTIONS = [
   'Usulan penghapusan',
   'Lainnya',
 ];
+
+function isEquipmentInUserLab(equipment, roomsById, userLabId) {
+  if (userLabId == null) return false;
+
+  const equipmentRoom = equipment?.ruangan;
+  const roomId = equipment?.ruangan_id ?? equipment?.room_id ?? equipmentRoom?.id;
+  const room = roomsById.get(String(roomId)) || equipmentRoom;
+  const roomLabId = room?.labs_id ?? room?.labs?.id;
+
+  return roomLabId != null && String(roomLabId) === String(userLabId);
+}
 
 function DigitalSignaturePad({
   value,
@@ -385,7 +396,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   const isStaffPIC = role === 'staff' && isStaffPic(currentUser);
   const canSubmit = isStaffPIC || role === 'manager' || role === 'admin';
   const canApprove = role === 'manager' || role === 'admin';
-  const currentUserId = currentUser?.user_id ?? currentUser?.id;
+  const currentUserLabId = currentUser?.labs_id ?? currentUser?.labs?.id;
   const [savedSignature, setSavedSignature] = useState(() => getSavedSignature(currentUser));
 
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'review' | 'history'
@@ -396,7 +407,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(() => ({ ...emptyForm(), id_peralatan: equipmentId || '' }));
   const [busy, setBusy] = useState(false);
-  const [loadingEquipment, setLoadingEquipment] = useState(false);
+  const [loadingEquipment, setLoadingEquipment] = useState(Boolean(equipmentId));
   const [equipmentInfo, setEquipmentInfo] = useState(null);
   const [reviewLogs, setReviewLogs] = useState([]);
   const [picSignature, setPicSignature] = useState(() => getSavedSignature(currentUser));
@@ -433,25 +444,47 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   async function loadList() {
     setBusy(true);
     try {
-      const [verificationResult, logResult, equipmentResult] = await Promise.allSettled([
+      if (role === 'staff' && currentUserLabId == null) {
+        throw new Error('Akun staff belum terhubung dengan lab.');
+      }
+
+      const [verificationResult, logResult, equipmentResult, roomsResult] = await Promise.allSettled([
         verifikasiApi.getAll(),
         verifikasiApi.getLogPeninjauan(),
         peralatanApi.getAll(),
+        role === 'staff' ? ruanganApi.getAll() : Promise.resolve({ data: [] }),
       ]);
+      if (role === 'staff' && roomsResult.status !== 'fulfilled') {
+        throw roomsResult.reason || new Error('Gagal memuat data ruangan untuk memeriksa lab pengguna.');
+      }
+      const roomList = roomsResult.status === 'fulfilled' ? roomsResult.value?.data || [] : [];
+      const roomsById = new Map(roomList.map((room) => [String(room.id), room]));
+      const allEquipment = equipmentResult.status === 'fulfilled'
+        ? equipmentResult.value?.data || []
+        : [];
+      const equipmentById = new Map(
+        allEquipment.map((equipment) => [String(getEquipmentId(equipment)), equipment])
+      );
+
       if (verificationResult.status === 'fulfilled') {
-        setItems(verificationResult.value?.data || []);
+        const allVerifications = verificationResult.value?.data || [];
+        setItems(role === 'staff'
+          ? allVerifications.filter((item) => {
+            const equipment = item.peralatan || equipmentById.get(String(item.id_peralatan));
+            return isEquipmentInUserLab(equipment, roomsById, currentUserLabId);
+          })
+          : allVerifications);
       }
       if (logResult.status === 'fulfilled') {
         setLogs(logResult.value?.data || []);
       }
       if (equipmentResult.status === 'fulfilled') {
-        const all = equipmentResult.value?.data || [];
         // Peralatan yang perlu verifikasi awal (belum disetujui, belum diajukan, dan belum dihapus)
-        const pending = all.filter(
+        const pending = allEquipment.filter(
           (p) => p.status_verifikasi !== 'Disetujui' && p.status_verifikasi !== 'Diajukan'
         );
         const visiblePending = role === 'staff'
-          ? pending.filter((p) => String(p.pic_id) === String(currentUserId))
+          ? pending.filter((p) => isEquipmentInUserLab(p, roomsById, currentUserLabId))
           : pending;
         setPendingEquipment(visiblePending);
       }
@@ -471,21 +504,35 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   // Saat equipmentId tersedia (setelah input data peralatan atau klik tombol Verifikasi)
   useEffect(() => {
     if (!equipmentId) return;
+    setEquipmentInfo(null);
     setForm((prev) => ({ ...prev, id_peralatan: String(equipmentId) }));
 
     async function fetchEquipment() {
       setLoadingEquipment(true);
       try {
-        const [res, logRes] = await Promise.allSettled([
+        if (role === 'staff' && currentUserLabId == null) {
+          throw new Error('Akun staff belum terhubung dengan lab.');
+        }
+
+        const [res, logRes, roomsRes] = await Promise.allSettled([
           peralatanApi.getAll(),
           verifikasiApi.getLogByPeralatanId(equipmentId),
+          role === 'staff' ? ruanganApi.getAll() : Promise.resolve({ data: [] }),
         ]);
+        if (role === 'staff' && roomsRes.status !== 'fulfilled') {
+          throw roomsRes.reason || new Error('Gagal memuat data ruangan untuk memeriksa lab pengguna.');
+        }
+        const roomList = roomsRes.status === 'fulfilled' ? roomsRes.value?.data || [] : [];
+        const roomsById = new Map(roomList.map((room) => [String(room.id), room]));
 
         if (res.status === 'fulfilled') {
           const found = (res.value.data || []).find(
             (p) => String(getEquipmentId(p)) === String(equipmentId)
           );
-          if (found) {
+          if (
+            found
+            && (role !== 'staff' || isEquipmentInUserLab(found, roomsById, currentUserLabId))
+          ) {
             setEquipmentInfo(found);
             const isRejected = found.status_verifikasi === 'Ditolak';
             const detail = found.detail || {};
@@ -510,7 +557,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
           setReviewLogs(logRes.value.data);
         }
       } catch (err) {
-        console.error('Gagal mengambil data peralatan:', err);
+        error(err.message || 'Gagal mengambil data peralatan.');
       } finally {
         setLoadingEquipment(false);
       }
@@ -702,6 +749,33 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
 
     const isRejected = equipmentInfo?.status_verifikasi === 'Ditolak';
     const hasTS = Object.values(form.hasil_verifikasi).includes('TS');
+
+    const equipmentInfoMatchesRoute = String(getEquipmentId(equipmentInfo)) === String(equipmentId);
+    if (role === 'staff' && loadingEquipment) {
+      return (
+        <div className="page-container fade-in-up">
+          <div className="card card-padded">
+            <div className="skeleton" style={{ height: 48 }} />
+          </div>
+        </div>
+      );
+    }
+
+    if (role === 'staff' && (!equipmentInfo || !equipmentInfoMatchesRoute)) {
+      return (
+        <div className="page-container fade-in-up">
+          <div className="card card-padded">
+            <h1 className="page-title">Peralatan tidak tersedia</h1>
+            <p className="page-subtitle">
+              Data verifikasi hanya dapat dilihat oleh staff dari lab yang memiliki ruangan peralatan tersebut.
+            </p>
+            <button className="btn btn-secondary" type="button" onClick={() => navigate('/verifikasi')}>
+              <ArrowLeft size={16} /> Kembali ke Verifikasi
+            </button>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="page-container fade-in-up">
