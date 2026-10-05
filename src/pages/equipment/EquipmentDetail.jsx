@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, ArrowLeft, Upload, FileText, Download, QrCode, Printer } from 'lucide-react';
+import { Package, ArrowLeft, Upload, FileText, Download, QrCode, Printer, Hand } from 'lucide-react';
 import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, kelompokAssetApi, ruanganApi, labsApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can, getUserRole, isStaffPengelola } from '../../utils/permissions.js';
 import { exportVerificationPdf } from '../../utils/verificationPdf.js';
@@ -11,6 +11,7 @@ import { exportVerificationPdf } from '../../utils/verificationPdf.js';
 export default function EquipmentDetail({ equipmentId, onNavigate, initialSection = 'informasi' }) {
   const canEditEquipment = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.EDIT);
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
+  const canRequestLoan = can(ACCESS.LOAN_REQUEST, ACTIONS.ADD);
   const canExportVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.EDIT)
     && (getUserRole() !== 'staff' || isStaffPengelola());
   const [peralatan, setPeralatan] = useState(null);
@@ -251,6 +252,17 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {canRequestLoan && isVerified && peralatan.status_alat === 'Aktif' && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => onNavigate(`/peminjaman/${canonicalEquipmentId}`)}
+              title="Pinjam peralatan (TLKM13/IK/005)"
+              id="btn-pinjam-detail"
+            >
+              <Hand size={14} /> Pinjam Peralatan
+            </button>
+          )}
           {canViewVerification && !isVerified && (
             <button
               className="btn btn-secondary btn-sm"

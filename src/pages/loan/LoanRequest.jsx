@@ -41,9 +41,10 @@ const DOKUMEN_PENDUKUNG = [
 ];
 
 const emptyForm = (user) => ({
-  // B. Peminjam (butir 3.c)
+  // B. Peminjam (butir 3.c & dokumen peminjaman-peralatan.md)
   nama_peminjam: user?.name || '',
   nama_lab_asal: '',
+  atasan_peminjam: '',
   nama_operator: '',
   // C. Tujuan Penggunaan (butir 8.1.a.2)
   tujuan_penggunaan: '',
@@ -57,7 +58,7 @@ const emptyForm = (user) => ({
   // F. Kelengkapan (butir 8.1.c.2)
   kebutuhan_kelengkapan: '',
   kebutuhan_aksesori: '',
-  dokumen_pendukung: [],
+  dokumen_pendukung: ['logbook'],
   catatan: '',
 });
 
@@ -86,6 +87,13 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
   const [equipmentDetail, setEquipmentDetail] = useState({});
   const [listLoading, setListLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // Sync selectedId when equipmentId prop changes
+  useEffect(() => {
+    if (equipmentId) {
+      setSelectedId(equipmentId);
+    }
+  }, [equipmentId]);
 
   // Muat daftar peralatan dan unit asal; unit asal peminjam diisi otomatis dari akun.
   useEffect(() => {
@@ -164,12 +172,26 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
     }));
   }
 
+  function handleExternalChange(checked) {
+    setForm((prev) => {
+      const docs = new Set(prev.dokumen_pendukung);
+      if (checked) {
+        docs.add('surat_keterangan_membawa');
+      }
+      return {
+        ...prev,
+        di_luar_tth: checked,
+        dokumen_pendukung: Array.from(docs),
+      };
+    });
+  }
+
   // Tanggal minimum memakai tanggal lokal (WIB), bukan UTC, agar tidak menggeser satu hari.
   const now = new Date();
   const hariIni = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const nextInspection = getNextInspectionDate(selectedEquipment, equipmentDetail);
-  const isExternal = form.di_luar_teth;
+  const isExternal = Boolean(form.di_luar_tth);
   // Butir 7.d: rencana tanggal kembali tidak boleh melampaui jatuh tempo pemeriksaan berikutnya.
   const returnBeyondDueDate = Boolean(
     nextInspection && form.rencana_tanggal_kembali
@@ -177,7 +199,6 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
   );
   // Butir 7.f: peminjaman eksternal disertai TLKM13/F/006 yang telah disetujui.
   const missingSuratKeterangan = isExternal
-    && form.lokasi_penggunaan.trim() !== ''
     && !form.dokumen_pendukung.includes('surat_keterangan_membawa');
 
   function validate() {
@@ -196,7 +217,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
     }
     // Butir 8.1.a.4: rencana tanggal keluar dan kembali sudah diketahui oleh atasan Peminjam.
     if (!form.tanggal_disetujui_atasan) {
-      return 'Rencana tanggal keluar dan kembali harus sudah diketahui oleh atasan peminjam (butir 8.1.a).';
+      return 'Rencana tanggal keluar dan kembali harus sudah diketahui oleh atasan peminjam (TLKM13/IK/005 butir 8.1.a).';
     }
     if (missingSuratKeterangan) {
       return 'Peminjaman eksternal wajib disertai TLKM13/F/006 Surat Keterangan Membawa Peralatan (butir 7.f).';
@@ -411,11 +432,11 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
           </div>
         </div>
 
-        {/* B. Peminjam — butir 3.c dan 8.6 */}
+        {/* B. Peminjam & Atasan Peminjam — butir 3.c dan dokumen peminjaman-peralatan.md */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
           <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <User size={18} style={{ color: 'var(--clr-primary-500)' }} />
-            B. Peminjam
+            B. Data Peminjam & Atasan Peminjam
           </h3>
           <div className="form-grid-2">
             <div className="form-group">
@@ -444,13 +465,26 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                   <option key={lab.id} value={lab.nama_labs}>{lab.nama_labs}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="input-atasan-peminjam">
+                Atasan / Manajer Peminjam <span className="form-hint" style={{ display: 'inline' }}>(Untuk Validasi Pengajuan)</span>
+              </label>
+              <input
+                id="input-atasan-peminjam"
+                className="form-input"
+                type="text"
+                placeholder="Nama atasan langsung / Manajer peminjam..."
+                value={form.atasan_peminjam}
+                onChange={(e) => setForm({ ...form, atasan_peminjam: e.target.value })}
+              />
               <span className="form-hint">
-                Diisi otomatis dari akun peminjam. Hanya staff yang dapat mengajukan peminjaman,
-                dan setiap staff terhubung ke laboratorium asal (butir 3.c).
+                Sistem akan mengirim notifikasi validasi ke Manajer Peminjam sebelum diteruskan ke Pengelola Peralatan (Tahap 2 Swimlane).
               </span>
             </div>
 
-            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+            <div className="form-group">
               <label className="form-label" htmlFor="input-nama-operator">
                 Pelaksana / Operator bila berbeda dengan Peminjam
               </label>
@@ -463,8 +497,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 onChange={(e) => setForm({ ...form, nama_operator: e.target.value })}
               />
               <span className="form-hint">
-                Peminjam harus personel TTH yang kompeten dan berwenang mengoperasikan peralatan
-                (butir 7.b). TLKM13/F/010 memuat peminjam atau pelaksana (butir 8.6).
+                Peminjam/operator harus personel TTH yang kompeten dan berwenang mengoperasikan peralatan (butir 7.b).
               </span>
             </div>
           </div>
@@ -482,7 +515,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               id="input-tujuan"
               className="form-textarea"
               rows={3}
-              placeholder="Uraikan kegiatan yang akan menggunakan peralatan tersebut..."
+              placeholder="Uraikan kegiatan pengujian / proyek yang akan menggunakan peralatan tersebut..."
               value={form.tujuan_penggunaan}
               onChange={(e) => setForm({ ...form, tujuan_penggunaan: e.target.value })}
               required
@@ -502,14 +535,14 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               id="input-lokasi-penggunaan"
               className="form-input"
               type="text"
-              placeholder="Lab tujuan, lokasi pelanggan, atau lokasi lapangan"
+              placeholder="Ruangan lab tujuan, lokasi pelanggan, atau site lapangan..."
               value={form.lokasi_penggunaan}
               onChange={(e) => setForm({ ...form, lokasi_penggunaan: e.target.value })}
               required
             />
             <span className="form-hint">
               Lokasi tercatat tidak berubah selama peminjaman; peralatan wajib dikembalikan ke lokasi
-              tercatat (butir 6.b).
+              tercatat semula (butir 6.b).
             </span>
           </div>
 
@@ -517,14 +550,13 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             <input
               type="checkbox"
               checked={form.di_luar_tth}
-              onChange={(e) => setForm({ ...form, di_luar_tth: e.target.checked })}
+              onChange={(e) => handleExternalChange(e.target.checked)}
               style={{ marginTop: 3 }}
             />
             <span>
               Peralatan dibawa keluar lingkungan TTH (peminjaman eksternal).
               <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500, #64748B)' }}>
-                Peminjaman eksternal disertai TLKM13/F/006 yang telah disetujui (butir 7.f) dan
-                TLKM13/F/010 disiapkan serta dibawa bersama peralatan (butir 8.1.e).
+                Peminjaman eksternal otomatis menyertakan <strong>TLKM13/F/006 Surat Keterangan Membawa Peralatan</strong> yang wajib dicetak dan dibawa bersama alat (butir 7.f &amp; 8.1.e).
               </span>
             </span>
           </label>
@@ -537,7 +569,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             E. Rencana Tanggal Keluar dan Kembali
           </h3>
           <p className="page-subtitle" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--sp-3)' }}>
-            Rencana tanggal harus sudah diketahui oleh atasan Peminjam sebelum permohonan diajukan.
+            Rencana tanggal harus sudah diketahui oleh atasan Peminjam sebelum permohonan diajukan (TLKM13/IK/005 butir 8.1.a).
           </p>
           <div className="form-grid-2">
             <div className="form-group">
@@ -566,7 +598,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               />
               {nextInspection && (
                 <span className="form-hint" style={{ color: returnBeyondDueDate ? '#b91c1c' : undefined }}>
-                  Tidak boleh melewati {nextInspection.toLocaleDateString('id-ID')} (butir 7.d).
+                  Jatuh tempo kalibrasi berikutnya: <strong>{nextInspection.toLocaleDateString('id-ID')}</strong> (rencana kembali tidak boleh melampaui tanggal ini).
                 </span>
               )}
             </div>
@@ -580,9 +612,9 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               style={{ marginTop: 3 }}
             />
             <span>
-              Rencana tanggal keluar dan kembali sudah diketahui oleh atasan Peminjam. <span className="required">*</span>
+              <strong>Rencana tanggal keluar dan kembali sudah dikoordinasikan dan diketahui oleh atasan Peminjam.</strong> <span className="required">*</span>
               <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500, #64748B)' }}>
-                Peminjaman hanya dilaksanakan setelah disetujui Mgr. Lab yang membawahi peralatan (butir 7.c).
+                Dengan mencentang ini, Anda menyatakan jadwal peminjaman telah selaras dengan penugasan kerja dan siap divalidasi oleh Atasan / Manajer Peminjam.
               </span>
             </span>
           </label>
@@ -601,7 +633,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 id="input-kelengkapan"
                 className="form-textarea"
                 rows={2}
-                placeholder="Contoh: selang, adaptor, probe,ricket ukur..."
+                placeholder="Contoh: modul pengujian, probe, kabel optik, bracket..."
                 value={form.kebutuhan_kelengkapan}
                 onChange={(e) => setForm({ ...form, kebutuhan_kelengkapan: e.target.value })}
               />
@@ -613,7 +645,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 id="input-aksesori"
                 className="form-textarea"
                 rows={2}
-                placeholder="Contoh: 2 unit kabel, adaptor AC, baterai cadangan..."
+                placeholder="Contoh: adaptor daya AC/DC, kabel grounding, baterai cadangan..."
                 value={form.kebutuhan_aksesori}
                 onChange={(e) => setForm({ ...form, kebutuhan_aksesori: e.target.value })}
               />
@@ -652,7 +684,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             </div>
             {missingSuratKeterangan && (
               <span className="form-error-msg" style={{ display: 'block', marginTop: 6 }}>
-                Peminjaman eksternal wajib disertai TLKM13/F/006 (butir 7.f).
+                Peminjaman eksternal wajib menyertakan TLKM13/F/006 Surat Keterangan Membawa Peralatan (butir 7.f).
               </span>
             )}
           </div>
@@ -663,46 +695,42 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               id="input-catatan"
               className="form-textarea"
               rows={3}
-              placeholder="Keterangan lain yang perlu diketahui Pengelola peralatan..."
+              placeholder="Keterangan atau instruksi khusus penanganan yang perlu diketahui Pengelola peralatan..."
               value={form.catatan}
               onChange={(e) => setForm({ ...form, catatan: e.target.value })}
             />
           </div>
         </div>
 
-        {/* G. Tata Kelola Permohonan — butir 8.1.b sampai 8.1.f dan 7.c */}
+        {/* G. Alur Proses Peminjaman — Swimlane SiKEPo */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
           <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <FileCheck size={18} style={{ color: 'var(--clr-primary-500)' }} />
-            G. Tata Kelola Permohonan
+            G. Alur Proses Persetujuan &amp; Serah Terima (TLKM13/IK/005)
           </h3>
           <div
             className="alert alert-info"
-            style={{ display: 'block', fontSize: 'var(--text-xs)', lineHeight: 1.7 }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 'var(--text-xs)', lineHeight: 1.6 }}
           >
-            <div>
-              <Hand size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-              Pengelola peralatan memeriksa status kelayakan dan ketersediaan, lalu meneruskan
-              permohonan untuk disetujui atasan Pengelola (butir 8.1.b). Persetujuan diberikan
-              Mgr. Lab yang membawahi peralatan (butir 3.a dan 7.c).
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>1</span>
+              <div><strong>Pengajuan Peminjam:</strong> Peminjam mengisi form permohonan dengan jadwal yang diketahui atasannya. Sistem mencatat logbook dan mengirim notifikasi.</div>
             </div>
-            <div>
-              Setelah disetujui, Pengelola peralatan dan Peminjam melakukan serah terima dengan
-              memeriksa identitas peralatan dan label status, kondisi fisik dan kelengkapan, serta
-              fungsi dasar peralatan (butir 8.1.c).
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>2</span>
+              <div><strong>Validasi Manajer Peminjam:</strong> Manajer peminjam memvalidasi urgensi dan jadwal kebutuhan pengujian.</div>
             </div>
-            <div>
-              Hasil serah terima dicatat pada TLKM13/F/010 dan diparaf oleh PIC peralatan serta
-              Peminjam (butir 8.1.d).
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>3</span>
+              <div><strong>Pemeriksaan Pengelola (PIC):</strong> PIC alat memeriksa ketersediaan, kelayakan fungsi, dan operator, lalu meneruskan ke Manager Lab pemilik.</div>
             </div>
-            <div>
-              PIC peralatan memberi keterangan &quot;Dipinjam&quot; pada TLKM13/F/001 tanpa
-              mengubah lokasi tercatat (butir 8.1.f).
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>4</span>
+              <div><strong>Persetujuan Manager Lab Pemilik:</strong> Mgr. Lab mereview dan menyetujui peminjaman (butir 3.a &amp; 7.c).</div>
             </div>
-            <div>
-              {isExternal
-                ? 'Untuk peminjaman eksternal, Peminjam wajib personel TTH (butir 7.b dan 8.1.e); TLKM13/F/006 telah disetujui dan TLKM13/F/010 dibawa bersama peralatan.'
-                : 'Peminjaman internal tidak memerlukan TLKM13/F/006. Peminjam tetap mencatat penggunaan pada TLKM13/F/010 (butir 8.1.f).'}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>5</span>
+              <div><strong>Serah Terima &amp; Checklist Lampiran A:</strong> PIC dan peminjam memeriksa identitas, fisik, kelengkapan, dan fungsi alat sebelum digunakan.</div>
             </div>
           </div>
         </div>

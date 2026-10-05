@@ -144,7 +144,6 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
                 excludeActivePaths={['/peralatan/dalam-peninjauan']}
               />
               <NavItem label="Verifikasi Peralatan" path="/verifikasi" feature={ACCESS.EQUIPMENT_ELIGIBILITY} />
-              <NavItem label="Peminjaman" path="/peminjaman" feature={ACCESS.LOAN_REQUEST} roles={['staff']} />
               <NavItem label="Peninjauan Peralatan" path="/peralatan/dalam-peninjauan" feature={ACCESS.EQUIPMENT_ELIGIBILITY} />
               <NavItem label="Peralatan Usang" path="/peralatan-usang" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />
               <NavItem label="Perbaikan" path="/perbaikan" feature={ACCESS.EQUIPMENT_USAGE} disabled />
