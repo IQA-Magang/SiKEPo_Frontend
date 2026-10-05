@@ -4,6 +4,7 @@ import { labsApi, usersApi } from '../utils/api.js';
 import { ACCESS, ACTIONS, can, getUserRole } from '../utils/permissions.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { useConfirm } from '../context/ConfirmContext.jsx';
+import Pagination, { usePagination } from '../components/ui/Pagination.jsx';
 
 const EMPTY_FORM = { nip: '', name: '', email: '', password: '', role: 'staff', position: '', pengelola: false, labs_id: '' };
 
@@ -169,6 +170,8 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
     const matchRole = !filterRole || u.role === filterRole;
     return matchQ && matchRole;
   });
+  const pagination = usePagination(filtered.length, `${search}\u0000${filterRole}`);
+  const pageItems = filtered.slice(pagination.startIndex, pagination.endIndex);
 
   return (
     <div className="page-container fade-in-up">
@@ -244,6 +247,7 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
             <table className="data-table data-table-mobile-priority data-table-users">
               <thead>
                 <tr>
+                  <th style={{ width: 48 }}>#</th>
                   <th>NIP</th>
                   <th>Nama</th>
                   <th>Email</th>
@@ -254,8 +258,9 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((u) => (
+                {pageItems.map((u, i) => (
                   <tr key={u.user_id}>
+                    <td style={{ color: 'var(--clr-dark-400)' }}>{pagination.startIndex + i + 1}</td>
                     <td><code className="text-mono-xs">{u.nip}</code></td>
                     <td style={{ fontWeight: 'var(--fw-medium)' }}>{u.name}</td>
                     <td style={{ color: 'var(--clr-dark-500)', fontSize: 'var(--text-sm)' }}>{u.email}</td>
@@ -313,9 +318,17 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
 
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">
-            <span>Menampilkan <strong>{filtered.length}</strong> dari <strong>{users.length}</strong> total pengguna terdaftar</span>
+            <span>Total pengguna terdaftar: <strong>{filtered.length}</strong> dari <strong>{users.length}</strong></span>
             <span>Total Pengelola Aktif: <strong>{users.filter((u) => u.pengelola).length}</strong></span>
           </div>
+          <Pagination
+            totalItems={filtered.length}
+            currentPage={pagination.currentPage}
+            onPageChange={pagination.setCurrentPage}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            totalPages={pagination.totalPages}
+          />
         </div>
       )}
 

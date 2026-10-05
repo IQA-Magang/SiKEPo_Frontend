@@ -4,6 +4,7 @@ import { kelompokAssetApi, labsApi, usersApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useConfirm } from '../../context/ConfirmContext.jsx';
+import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
 
 const EMPTY_FORM = {
   kode: '',
@@ -173,6 +174,8 @@ export default function AssetGroupManagement({ onNavigate }) {
 
     return matchQ && matchLab;
   });
+  const pagination = usePagination(filtered.length, `${search}\u0000${filterLab}`);
+  const pageItems = filtered.slice(pagination.startIndex, pagination.endIndex);
 
   return (
     <div className="page-container fade-in-up">
@@ -254,6 +257,7 @@ export default function AssetGroupManagement({ onNavigate }) {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th style={{ width: 48 }}>#</th>
                   <th style={{ width: 130 }}>Kode Kelompok</th>
                   <th>Nama Kelompok Aset</th>
                   <th>Laboratorium</th>
@@ -262,12 +266,13 @@ export default function AssetGroupManagement({ onNavigate }) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((g) => {
+                {pageItems.map((g, i) => {
                   const labObj = g.lab || labs.find((l) => l.id === g.lab_id);
                   const picObj = g.pic || users.find((u) => u.user_id === g.pic_id);
 
                   return (
                     <tr key={g.id}>
+                      <td style={{ color: 'var(--clr-dark-400)' }}>{pagination.startIndex + i + 1}</td>
                       <td>
                         <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>
                           {g.kode}
@@ -349,9 +354,17 @@ export default function AssetGroupManagement({ onNavigate }) {
 
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">
-            <span>Menampilkan <strong>{filtered.length}</strong> dari <strong>{assetGroups.length}</strong> total kelompok aset</span>
+            <span>Total kelompok aset: <strong>{filtered.length}</strong> dari <strong>{assetGroups.length}</strong></span>
             <span>Laboratorium Terkait: <strong>{labs.length}</strong></span>
           </div>
+          <Pagination
+            totalItems={filtered.length}
+            currentPage={pagination.currentPage}
+            onPageChange={pagination.setCurrentPage}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            totalPages={pagination.totalPages}
+          />
         </div>
       )}
 

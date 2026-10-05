@@ -371,12 +371,32 @@ export const kelompokAssetApi = {
 // PERALATAN  — /api/peralatan
 // GET /      → { status, data: Peralatan[] }
 // GET /:nomor_aset → { status, data: { peralatan, detail } }
+// getById resolves the frontend's numeric ID through GET / before requesting by nomor_aset.
 // POST /     → { status, nomor_aset, id, pic_id }
 // POST /:id/foto   → multipart upload
 // GET  /:id/qr     → image/png
 // =============================================================
 export const peralatanApi = {
   getAll: () => fetchWithAuth('/api/peralatan'),
+  getById: async (id) => {
+    const response = await fetchWithAuth('/api/peralatan/');
+    const items = response?.data;
+    if (!Array.isArray(items)) {
+      throw new Error('Format respons daftar peralatan tidak valid.');
+    }
+
+    const equipment = items.find(
+      (item) => String(getEquipmentId(item)) === String(id)
+    );
+    if (!equipment) {
+      throw new Error('Peralatan tidak ditemukan.');
+    }
+    if (!equipment.nomor_aset) {
+      throw new Error('Nomor aset peralatan tidak tersedia.');
+    }
+
+    return fetchWithAuth(`/api/peralatan/${encodeURIComponent(equipment.nomor_aset)}`);
+  },
   getByAssetNumber: (assetNumber) =>
     fetchWithAuth(`/api/peralatan/${encodeURIComponent(assetNumber)}`),
   create: (body) =>

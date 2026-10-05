@@ -19,6 +19,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { getUserRole, can, isStaffPengelola, ACCESS, ACTIONS } from '../utils/permissions.js';
 import { useNavigate } from '../router/Router.jsx';
 import { exportVerificationPdf } from '../utils/verificationPdf.js';
+import Pagination, { usePagination } from '../components/ui/Pagination.jsx';
 
 const CHECKS = [
   'identitas',
@@ -716,6 +717,12 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
   const id = (item) => item.id_verifikasi ?? item.id;
   const reviewItems = items.filter((item) => item.status === 'Diajukan');
   const historyItems = items.filter((item) => item.status === 'Disetujui' || item.status === 'Ditolak');
+  const pendingPagination = usePagination(pendingEquipment.length);
+  const reviewPagination = usePagination(reviewItems.length);
+  const historyPagination = usePagination(historyItems.length);
+  const pendingPageItems = pendingEquipment.slice(pendingPagination.startIndex, pendingPagination.endIndex);
+  const reviewPageItems = reviewItems.slice(reviewPagination.startIndex, reviewPagination.endIndex);
+  const historyPageItems = historyItems.slice(historyPagination.startIndex, historyPagination.endIndex);
   const officialNotes = (item) => {
     try {
       const data = JSON.parse(item.catatan || '{}');
@@ -1293,6 +1300,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
       <div className="card">
         {/* TAB 1: MENUNGGU VERIFIKASI (Alat Perlu Verifikasi) */}
         {activeTab === 'pending' && (
+          <>
           <div className="table-wrapper">
             <table className="data-table">
               <thead>
@@ -1308,13 +1316,13 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
               </thead>
               <tbody>
                 {pendingEquipment.length ? (
-                  pendingEquipment.map((p, idx) => {
+                  pendingPageItems.map((p, idx) => {
                     const eqId = getEquipmentId(p);
                     const photoUrl = formatPhotoUrl(p.foto);
                     const isRejected = p.status_verifikasi === 'Ditolak';
                     return (
                       <tr key={eqId}>
-                        <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{idx + 1}</td>
+                        <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{pendingPagination.startIndex + idx + 1}</td>
                         <td style={{ width: 52 }}>
                           {photoUrl ? (
                             <img
@@ -1393,14 +1401,25 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
               </tbody>
             </table>
           </div>
+          <Pagination
+            totalItems={pendingEquipment.length}
+            currentPage={pendingPagination.currentPage}
+            onPageChange={pendingPagination.setCurrentPage}
+            startIndex={pendingPagination.startIndex}
+            endIndex={pendingPagination.endIndex}
+            totalPages={pendingPagination.totalPages}
+          />
+          </>
         )}
 
         {/* TAB 2: PERSETUJUAN VERIFIKASI (Menunggu Persetujuan Manager) */}
         {activeTab === 'review' && (
+          <>
           <div className="table-wrapper">
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>#</th>
                   <th>Peralatan</th>
                   <th>Tanggal Pengajuan</th>
                   <th>Kode Aktivitas</th>
@@ -1410,8 +1429,9 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
               </thead>
               <tbody>
                 {reviewItems.length ? (
-                  reviewItems.map((item) => (
+                  reviewPageItems.map((item, index) => (
                     <tr key={id(item)}>
+                      <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{reviewPagination.startIndex + index + 1}</td>
                       <td>
                         <div style={{ fontWeight: 'var(--fw-medium)' }}>
                           {item.peralatan?.nama_peralatan || `Peralatan ID ${item.id_peralatan}`}
@@ -1449,7 +1469,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: 'var(--sp-6)', color: 'var(--clr-dark-500)' }}>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: 'var(--sp-6)', color: 'var(--clr-dark-500)' }}>
                       {busy ? 'Memuat data verifikasi...' : 'Belum ada pengajuan verifikasi yang menunggu persetujuan Manager.'}
                     </td>
                   </tr>
@@ -1457,14 +1477,25 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
               </tbody>
             </table>
           </div>
+          <Pagination
+            totalItems={reviewItems.length}
+            currentPage={reviewPagination.currentPage}
+            onPageChange={reviewPagination.setCurrentPage}
+            startIndex={reviewPagination.startIndex}
+            endIndex={reviewPagination.endIndex}
+            totalPages={reviewPagination.totalPages}
+          />
+          </>
         )}
 
         {/* TAB 3: RIWAYAT VERIFIKASI (Disetujui / Ditolak) */}
         {activeTab === 'history' && (
+          <>
           <div className="table-wrapper">
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>#</th>
                   <th>Peralatan</th>
                   <th>Tanggal Verifikasi</th>
                   <th>Kode Aktivitas</th>
@@ -1474,8 +1505,9 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
               </thead>
               <tbody>
                 {historyItems.length ? (
-                  historyItems.map((item) => (
+                  historyPageItems.map((item, index) => (
                     <tr key={id(item)}>
+                      <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{historyPagination.startIndex + index + 1}</td>
                       <td>
                         <div style={{ fontWeight: 'var(--fw-medium)' }}>
                           {item.peralatan?.nama_peralatan || `Peralatan ID ${item.id_peralatan}`}
@@ -1531,7 +1563,7 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: 'var(--sp-6)', color: 'var(--clr-dark-500)' }}>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: 'var(--sp-6)', color: 'var(--clr-dark-500)' }}>
                       {busy ? 'Memuat data verifikasi...' : 'Belum ada riwayat verifikasi yang selesai.'}
                     </td>
                   </tr>
@@ -1539,6 +1571,15 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
               </tbody>
             </table>
           </div>
+          <Pagination
+            totalItems={historyItems.length}
+            currentPage={historyPagination.currentPage}
+            onPageChange={historyPagination.setCurrentPage}
+            startIndex={historyPagination.startIndex}
+            endIndex={historyPagination.endIndex}
+            totalPages={historyPagination.totalPages}
+          />
+          </>
         )}
       </div>
 
