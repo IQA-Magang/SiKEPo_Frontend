@@ -34,6 +34,7 @@ import VerificationManagement from './pages/VerificationManagement.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import GuestEquipmentPage from './pages/guest/GuestEquipmentPage.jsx';
 import LoanRequest from './pages/loan/LoanRequest.jsx';
+import LoanApproval from './pages/loan/LoanApproval.jsx';
 import QRScannerModal from './components/QRScannerModal.jsx';
 
 // Wrapper for parameterized Equipment Detail
@@ -251,15 +252,31 @@ function AppContent() {
         <Route
           path="/peminjaman"
           element={
+            <ProtectedRoute feature={ACCESS.LOAN_REQUEST}>
+              <LoanApproval onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/peminjaman/tambah"
+          element={
             <ProtectedRoute feature={ACCESS.LOAN_REQUEST} action={ACTIONS.ADD}>
               <LoanRequest onNavigate={navigate} />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/peminjaman/:id"
+          path="/peminjaman/tambah/:id"
           element={
             <ProtectedRoute feature={ACCESS.LOAN_REQUEST} action={ACTIONS.ADD}>
+              <LoanRequestRoute />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/peminjaman/:id"
+          element={
+            <ProtectedRoute feature={ACCESS.LOAN_REQUEST}>
               <LoanRequestRoute />
             </ProtectedRoute>
           }
