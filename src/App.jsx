@@ -22,7 +22,6 @@ import Dashboard from './pages/Dashboard.jsx';
 import EquipmentList from './pages/equipment/EquipmentList.jsx';
 import EquipmentDetail from './pages/equipment/EquipmentDetail.jsx';
 import EquipmentCreate from './pages/equipment/EquipmentCreate.jsx';
-import EquipmentQrPage from './pages/equipment/EquipmentQrPage.jsx';
 import UserManagement from './pages/UserManagement.jsx';
 import LabsManagement from './pages/admin/LabsManagement.jsx';
 import RuanganManagement from './pages/admin/RuanganManagement.jsx';
@@ -37,17 +36,10 @@ import GuestEquipmentPage from './pages/guest/GuestEquipmentPage.jsx';
 import QRScannerModal from './components/QRScannerModal.jsx';
 
 // Wrapper for parameterized Equipment Detail
-function EquipmentDetailRoute() {
+function EquipmentDetailRoute({ initialSection = 'informasi' }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  return <EquipmentDetail equipmentId={id} onNavigate={navigate} />;
-}
-
-// Wrapper for parameterized Equipment QR
-function EquipmentQrRoute() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  return <EquipmentQrPage equipmentId={id} onNavigate={navigate} />;
+  return <EquipmentDetail equipmentId={id} onNavigate={navigate} initialSection={initialSection} />;
 }
 
 function VerificationRoute() {
@@ -245,7 +237,7 @@ function AppContent() {
           path="/peralatan/qr/:id"
           element={
             <ProtectedRoute feature={ACCESS.QR_CODE}>
-              <EquipmentQrRoute />
+              <EquipmentDetailRoute initialSection="qr" />
             </ProtectedRoute>
           }
         />

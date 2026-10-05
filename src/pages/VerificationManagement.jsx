@@ -11,14 +11,12 @@ import {
   AlertTriangle,
   Package,
   Eraser,
-  Printer,
   X,
 } from 'lucide-react';
 import { getCurrentUser, getSavedSignature, saveSignature, removeSavedSignature, verifikasiApi, peralatanApi, ruanganApi, getEquipmentId, formatPhotoUrl } from '../utils/api.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { getUserRole, can, isStaffPengelola, ACCESS, ACTIONS } from '../utils/permissions.js';
 import { useNavigate } from '../router/Router.jsx';
-import { exportVerificationPdf } from '../utils/verificationPdf.js';
 import Pagination, { usePagination } from '../components/ui/Pagination.jsx';
 
 const CHECKS = [
@@ -716,13 +714,10 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
 
   const id = (item) => item.id_verifikasi ?? item.id;
   const reviewItems = items.filter((item) => item.status === 'Diajukan');
-  const historyItems = items.filter((item) => item.status === 'Disetujui' || item.status === 'Ditolak');
   const pendingPagination = usePagination(pendingEquipment.length);
   const reviewPagination = usePagination(reviewItems.length);
-  const historyPagination = usePagination(historyItems.length);
   const pendingPageItems = pendingEquipment.slice(pendingPagination.startIndex, pendingPagination.endIndex);
   const reviewPageItems = reviewItems.slice(reviewPagination.startIndex, reviewPagination.endIndex);
-  const historyPageItems = historyItems.slice(historyPagination.startIndex, historyPagination.endIndex);
   const officialNotes = (item) => {
     try {
       const data = JSON.parse(item.catatan || '{}');
@@ -1265,12 +1260,6 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
         >
           Persetujuan Manager ({reviewItems.length})
         </button>
-        <button
-          className={`btn btn-sm ${activeTab === 'history' ? 'btn-primary' : 'btn-ghost'}`}
-          onClick={() => setActiveTab('history')}
-        >
-          Riwayat Verifikasi ({historyItems.length})
-        </button>
       </div>
 
       {/* Log Peninjauan Ketidaksesuaian */}
@@ -1488,99 +1477,6 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
           </>
         )}
 
-        {/* TAB 3: RIWAYAT VERIFIKASI (Disetujui / Ditolak) */}
-        {activeTab === 'history' && (
-          <>
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Peralatan</th>
-                  <th>Tanggal Verifikasi</th>
-                  <th>Kode Aktivitas</th>
-                  <th>Status Akhir</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyItems.length ? (
-                  historyPageItems.map((item, index) => (
-                    <tr key={id(item)}>
-                      <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{historyPagination.startIndex + index + 1}</td>
-                      <td>
-                        <div style={{ fontWeight: 'var(--fw-medium)' }}>
-                          {item.peralatan?.nama_peralatan || `Peralatan ID ${item.id_peralatan}`}
-                        </div>
-                        {item.peralatan?.nomor_aset && (
-                          <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 4px', borderRadius: 4 }}>
-                            {item.peralatan.nomor_aset}
-                          </code>
-                        )}
-                      </td>
-                      <td>
-                        {item.tanggal_verifikasi
-                          ? new Date(item.tanggal_verifikasi).toLocaleDateString('id-ID')
-                          : '-'}
-                      </td>
-                      <td>
-                        <span className="badge badge-gray">{item.kode_aktivitas || '-'}</span>
-                      </td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            item.status === 'Disetujui'
-                              ? 'badge-aktif'
-                              : item.status === 'Ditolak'
-                              ? 'badge-rusak'
-                              : 'badge-gray'
-                          }`}
-                        >
-                          {item.status || '-'}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => setSelected(item)}
-                          >
-                            Tinjau
-                          </button>
-                          {item.status === 'Disetujui' && (canApprove || staffIsPengelola) && (
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              onClick={() => exportVerificationPdf(item)}
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                              title="Export PDF (TLKM13/F/003)"
-                            >
-                              <Printer size={13} /> Export PDF
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: 'var(--sp-6)', color: 'var(--clr-dark-500)' }}>
-                      {busy ? 'Memuat data verifikasi...' : 'Belum ada riwayat verifikasi yang selesai.'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <Pagination
-            totalItems={historyItems.length}
-            currentPage={historyPagination.currentPage}
-            onPageChange={historyPagination.setCurrentPage}
-            startIndex={historyPagination.startIndex}
-            endIndex={historyPagination.endIndex}
-            totalPages={historyPagination.totalPages}
-          />
-          </>
-        )}
       </div>
 
       {/* Modal Rincian Verifikasi */}
@@ -1860,16 +1756,6 @@ export default function VerificationManagement({ equipmentId = null, onNavigate 
                     {busy ? 'Menolak...' : 'Konfirmasi Penolakan'}
                   </button>
                 )
-              )}
-              {selected.status === 'Disetujui' && (canApprove || staffIsPengelola) && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => exportVerificationPdf(selected)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                >
-                  <Printer size={15} /> Export PDF
-                </button>
               )}
               <button
                 type="button"

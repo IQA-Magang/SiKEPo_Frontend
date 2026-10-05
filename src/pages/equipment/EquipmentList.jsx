@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Search, Plus, ChevronRight, RefreshCw, QrCode } from 'lucide-react';
-import { getEquipmentId, getEquipmentCategoryId, formatPhotoUrl, peralatanApi, STATUS_BADGE_CLASS } from '../../utils/api.js';
+import { getEquipmentId, getEquipmentCategoryId, formatPhotoUrl, peralatanApi, ruanganApi, STATUS_BADGE_CLASS } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
 
@@ -16,6 +16,7 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
   const [search, setSearch]     = useState('');
   const [filterKat, setFilterKat] = useState('');
   const [lifecycleView, setLifecycleView] = useState(initialLifecycle);
+  const [rooms, setRooms] = useState([]);
 
 
   useEffect(() => { loadData(); }, []);
@@ -24,8 +25,15 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
   async function loadData() {
     setLoading(true);
     try {
-      const res = await peralatanApi.getAll();
+      const [res, roomsRes] = await Promise.all([
+        peralatanApi.getAll(),
+        ruanganApi.getAll().catch((err) => {
+          console.error('Gagal memuat lokasi peralatan:', err);
+          return { data: [] };
+        }),
+      ]);
       setList(res.data || []);
+      setRooms(roomsRes.data || []);
     } catch (err) {
       console.error('Gagal memuat peralatan:', err);
     } finally {
@@ -48,8 +56,8 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
     const rejected = p.status_verifikasi === 'Ditolak';
     const pending = !approved && !rejected;
     const matchLifecycle = lifecycleView === 'pending' ? pending
-      : lifecycleView === 'review' ? rejected : true;
-    return matchQ && matchKat && active && approved && matchLifecycle;
+      : lifecycleView === 'review' ? rejected : active && approved;
+    return matchQ && matchKat && matchLifecycle;
   });
   const pagination = usePagination(filtered.length, `${search}\u0000${filterKat}\u0000${lifecycleView}`);
   const pageItems = filtered.slice(pagination.startIndex, pagination.endIndex);
@@ -152,8 +160,9 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                   <th>#</th>
                   <th>Foto</th>
                   <th>Peralatan</th>
-                  <th>Kategori</th>
-                  <th>Status Proses</th>
+                  <th>No. Aset</th>
+                  <th>Kategori &amp; Lokasi</th>
+                  <th>Status</th>
                   <th>Aksi</th>
                 </tr>
               </thead>
@@ -164,6 +173,9 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                 const approved = p.status_verifikasi === 'Disetujui';
                 const rejected = p.status_verifikasi === 'Ditolak';
                 const verificationLabel = p.status_verifikasi || 'Belum Diverifikasi';
+                const room = rooms.find((item) => String(item.id) === String(p.ruangan_id));
+                const labName = room?.labs?.nama_labs;
+                const location = [labName, room?.nama_ruangan].filter(Boolean).join(' · ');
                 return (
                   <tr
                     key={equipmentId}
@@ -198,22 +210,29 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                       )}
                     </td>
                     <td>
-                      <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
-                        {p.nomor_aset}
-                      </code>
-                      <div style={{ marginTop: 6, fontWeight: 'var(--fw-medium)', color: 'var(--clr-dark-900)' }}>{p.nama_peralatan}</div>
+                      <div style={{ fontWeight: 'var(--fw-medium)', color: 'var(--clr-dark-900)' }}>{p.nama_peralatan}</div>
                       {(p.merek || p.tipe_model) && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-400)' }}>{[p.merek, p.tipe_model].filter(Boolean).join(' — ')}</div>}
                     </td>
                     <td>
-                      <span className="badge badge-gray" style={{ fontSize: 'var(--text-xs)' }}>
-                        {p.kategori_peralatan?.nama_kategori || '–'}
-                      </span>
+                      <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
+                        {p.nomor_aset || '–'}
+                      </code>
                     </td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                        <span className={`badge ${STATUS_BADGE_CLASS[p.status_alat] || 'badge-gray'}`}>
+                        <span className="badge badge-gray" style={{ fontSize: 'var(--text-xs)' }}>
+                          {p.kategori_peralatan?.nama_kategori || '–'}
+                        </span>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
+                          {location || 'Lokasi belum tersedia'}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                        <span className={`badge ${STATUS_BADGE_CLASS[approved ? p.status_alat : 'Karantina'] || 'badge-gray'}`}>
                           <span className="badge-dot" />
-                          {p.status_alat}
+                          {approved ? p.status_alat : 'Karantina'}
                         </span>
                         <span className="badge badge-gray" style={{ fontSize: 'var(--text-xs)' }}>
                           {verificationLabel}

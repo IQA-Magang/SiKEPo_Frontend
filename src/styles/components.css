@@ -1568,22 +1568,190 @@
 /* ---- EQUIPMENT DETAIL RESPONSIVE LAYOUT ---- */
 .equipment-detail-layout {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 148px minmax(0, 1fr);
   gap: var(--sp-5);
   align-items: start;
   width: 100%;
 }
 
+.equipment-detail-nav {
+  position: sticky;
+  top: calc(var(--topbar-height, 68px) + var(--sp-4));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: #fff;
+  border: 1px solid var(--clr-dark-100);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.equipment-detail-nav-button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--clr-dark-600);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+
+.equipment-detail-nav-button:hover {
+  background: var(--clr-dark-50);
+  color: var(--clr-dark-900);
+}
+
+.equipment-detail-nav-button.is-active {
+  background: var(--clr-primary-50);
+  color: var(--clr-primary-700);
+  font-weight: var(--fw-semibold);
+}
+
+.equipment-detail-content {
+  min-width: 0;
+}
+
+.equipment-info-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.85fr);
+  align-items: start;
+  gap: var(--sp-6);
+}
+
+.equipment-info-card {
+  min-width: 0;
+}
+
+.equipment-info-photo {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.equipment-info-photo-title {
+  margin: 0;
+  color: var(--clr-dark-800);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.equipment-info-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+.equipment-info-heading .card-title {
+  margin-right: auto;
+}
+
+.equipment-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-lg);
+  background: var(--clr-primary-50);
+  color: var(--clr-primary-600);
+}
+
+.equipment-info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.equipment-info-grid > div {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.9fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: var(--sp-3);
+  padding: 11px 0;
+  border-bottom: 1px solid var(--clr-dark-100);
+}
+
+.equipment-info-grid > div:last-child {
+  border-bottom: 0;
+}
+
+.equipment-info-grid > div > div:first-child {
+  margin-bottom: 0 !important;
+}
+
+.equipment-photo-empty {
+  min-height: 210px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  border: 1px dashed var(--clr-dark-200);
+  border-radius: var(--radius-lg);
+  background: var(--clr-dark-50);
+  color: var(--clr-dark-400);
+  font-size: var(--text-sm);
+}
+
+.equipment-document-card,
+.equipment-qr-card {
+  min-height: 220px;
+}
+
 @media (max-width: 992px) {
-  .equipment-detail-layout {
-    grid-template-columns: 1fr;
+  .equipment-info-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .equipment-info-photo {
+    max-width: 460px;
   }
 }
 
 @media (max-width: 640px) {
   .equipment-detail-layout {
-    gap: var(--sp-4);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-3);
   }
+
+  .equipment-detail-nav {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 6px;
+  }
+
+  .equipment-detail-nav-button {
+    justify-content: center;
+    width: auto;
+    min-width: max-content;
+  }
+
+  .equipment-info-grid > div {
+    grid-template-columns: minmax(110px, 0.85fr) minmax(0, 1fr);
+    gap: var(--sp-2);
+  }
+
+  .equipment-info-heading {
+    gap: var(--sp-2);
+  }
+
+  .equipment-info-heading .card-title {
+    flex: 1;
+  }
+
   .card-padded {
     padding: var(--sp-4);
   }
@@ -2135,6 +2303,20 @@ textarea:focus-visible {
 }
 
 .verification-review-modal .modal-body {
+  overscroll-behavior: contain;
+}
+
+.equipment-log-review-modal {
+  max-height: min(92dvh, 900px);
+  min-height: 0;
+}
+
+.equipment-log-review-overlay {
+  z-index: 1100;
+}
+
+.equipment-log-review-modal .modal-body {
+  min-height: 0;
   overscroll-behavior: contain;
 }
 
