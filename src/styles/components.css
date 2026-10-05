@@ -2110,6 +2110,32 @@ textarea:focus-visible {
     width: 35%;
   }
 
+  .data-table-mobile-priority.equipment-list-table th:nth-child(5),
+  .data-table-mobile-priority.equipment-list-table td:nth-child(5) {
+    display: table-cell;
+    width: 20%;
+  }
+
+  .data-table-mobile-priority.equipment-list-table th:nth-child(1),
+  .data-table-mobile-priority.equipment-list-table td:nth-child(1) {
+    width: 10%;
+  }
+
+  .data-table-mobile-priority.equipment-list-table th:nth-child(3),
+  .data-table-mobile-priority.equipment-list-table td:nth-child(3) {
+    width: 35%;
+  }
+
+  .data-table-mobile-priority.equipment-list-table th:nth-child(6),
+  .data-table-mobile-priority.equipment-list-table td:nth-child(6) {
+    width: 17%;
+  }
+
+  .data-table-mobile-priority.equipment-list-table th:last-child,
+  .data-table-mobile-priority.equipment-list-table td:last-child {
+    width: 18%;
+  }
+
   .data-table-users th:nth-child(1),
   .data-table-users td:nth-child(1),
   .data-table-users th:nth-child(3),

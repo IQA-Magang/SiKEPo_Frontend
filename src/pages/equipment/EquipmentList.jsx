@@ -155,15 +155,15 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
       ) : (
         <div className="table-card">
           <div className="table-wrapper">
-            <table className="data-table data-table-mobile-priority">
+            <table className="data-table data-table-mobile-priority equipment-list-table">
               <thead>
                 <tr>
-                  <th>#</th>
+                  <th>No.</th>
                   <th>Foto</th>
                   <th>Peralatan</th>
-                  <th>No. Aset</th>
                   <th>Kategori &amp; Lokasi</th>
                   <th>Status</th>
+                  <th>Pemakai Terakhir</th>
                   <th>Aksi</th>
                 </tr>
               </thead>
@@ -211,13 +211,8 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                       )}
                     </td>
                     <td>
-                      <div style={{ fontWeight: 'var(--fw-medium)', color: 'var(--clr-dark-900)' }}>{p.nama_peralatan}</div>
+                      <div style={{ fontWeight: 'var(--fw-medium)', color: 'var(--clr-dark-900)' }}>{p.nomor_aset || '–'} {p.nama_peralatan}</div>
                       {(p.merek || p.tipe_model) && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-400)' }}>{[p.merek, p.tipe_model].filter(Boolean).join(' — ')}</div>}
-                    </td>
-                    <td>
-                      <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
-                        {p.nomor_aset || '–'}
-                      </code>
                     </td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
@@ -239,6 +234,9 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                           {verificationLabel}
                         </span>
                       </div>
+                    </td>
+                    <td>
+                      <span style={{ color: 'var(--clr-dark-400)' }}>–</span>
                     </td>
                     <td onClick={(event) => event.stopPropagation()}>
                       <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>
