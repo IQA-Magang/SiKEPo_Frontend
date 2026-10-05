@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Package, Search, Plus, ChevronRight, RefreshCw, QrCode } from 'lucide-react';
 import { getEquipmentId, getEquipmentCategoryId, formatPhotoUrl, peralatanApi, STATUS_BADGE_CLASS } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
+import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
 
 
 // ------------------------------------------------------------------
@@ -50,6 +51,8 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
       : lifecycleView === 'review' ? rejected : true;
     return matchQ && matchKat && active && approved && matchLifecycle;
   });
+  const pagination = usePagination(filtered.length, `${search}\u0000${filterKat}\u0000${lifecycleView}`);
+  const pageItems = filtered.slice(pagination.startIndex, pagination.endIndex);
 
   const categories = Array.from(
     new Map(
@@ -141,23 +144,23 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
           </button>}
         </div>
       ) : (
-        <div className="table-wrapper">
-          <table className="data-table data-table-mobile-priority">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Foto</th>
-                <th>Peralatan</th>
-                <th>Kategori</th>
-                <th>Status Proses</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p, i) => {
+        <div className="table-card">
+          <div className="table-wrapper">
+            <table className="data-table data-table-mobile-priority">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Foto</th>
+                  <th>Peralatan</th>
+                  <th>Kategori</th>
+                  <th>Status Proses</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((p, i) => {
                 const photoUrl = formatPhotoUrl(p.foto);
                 const equipmentId = getEquipmentId(p);
-                const categoryId = getEquipmentCategoryId(p);
                 const approved = p.status_verifikasi === 'Disetujui';
                 const rejected = p.status_verifikasi === 'Ditolak';
                 const verificationLabel = p.status_verifikasi || 'Belum Diverifikasi';
@@ -177,7 +180,7 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                     role="link"
                     aria-label={`Lihat detail ${p.nama_peralatan}`}
                   >
-                    <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{i + 1}</td>
+                    <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{pagination.startIndex + i + 1}</td>
                     <td style={{ width: 56 }}>
                       {photoUrl ? (
                         <img
@@ -248,9 +251,18 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                     </td>
                   </tr>
                 );
-              })}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pagination
+            totalItems={filtered.length}
+            currentPage={pagination.currentPage}
+            onPageChange={pagination.setCurrentPage}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            totalPages={pagination.totalPages}
+          />
         </div>
       )}
 

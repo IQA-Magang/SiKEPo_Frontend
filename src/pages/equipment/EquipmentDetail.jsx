@@ -3,6 +3,25 @@ import { Package, ArrowLeft, Upload, FileText, Download, QrCode } from 'lucide-r
 import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, kelompokAssetApi, ruanganApi, labsApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 
+const MOCK_REVIEW_LOGS = [
+  {
+    id_log: 'mock-review-log-1',
+    status: 'Ditolak',
+    alasan: 'Sertifikat kalibrasi yang dilampirkan sudah melewati tanggal berlaku.',
+    catatan: 'Unggah sertifikat kalibrasi terbaru sebelum mengajukan verifikasi ulang.',
+    created_at: '2026-09-30T10:30:00+07:00',
+    manager: { name: 'Manager Lab (Data Dummy)' },
+  },
+  {
+    id_log: 'mock-review-log-2',
+    status: 'Ditolak',
+    alasan: 'Label identifikasi dan nomor seri pada peralatan belum terbaca dengan jelas.',
+    catatan: 'Perbarui label peralatan dan pastikan foto nomor seri terlihat jelas.',
+    created_at: '2026-09-18T14:15:00+07:00',
+    manager: { name: 'Manager Lab (Data Dummy)' },
+  },
+];
+
 // ------------------------------------------------------------------
 // Halaman Detail Peralatan
 // ------------------------------------------------------------------
@@ -10,12 +29,14 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
   const canEditEquipment = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.EDIT);
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const [peralatan, setPeralatan] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [dokumen, setDokumen]     = useState([]);
   const [loading, setLoading]     = useState(true);
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg]             = useState('');
   const [qrSrc, setQrSrc]         = useState('');
   const [reviewLogs, setReviewLogs] = useState([]);
+  const [reviewLogError, setReviewLogError] = useState('');
   const [references, setReferences] = useState({ groups: [], rooms: [], labs: [] });
 
   useEffect(() => {
@@ -46,9 +67,11 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
   async function loadData() {
     setLoading(true);
     setPeralatan(null);
+    setLoadError('');
+    setReviewLogError('');
     try {
       const [equipmentRes, docRes, reviewRes, groupsRes, roomsRes, labsRes] = await Promise.allSettled([
-        peralatanApi.getAll(),
+        peralatanApi.getById(equipmentId),
         dokumenApi.getByPeralatanId(equipmentId),
         verifikasiApi.getLogByPeralatanId(equipmentId),
         kelompokAssetApi.getAll(),
@@ -56,13 +79,26 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
         labsApi.getAll(),
       ]);
       if (equipmentRes.status === 'fulfilled') {
-        const found = (equipmentRes.value.data || []).find(
-          (item) => String(getEquipmentId(item)) === String(equipmentId)
-        );
-        setPeralatan(found || null);
+        const result = equipmentRes.value.data;
+        const item = result?.peralatan || result;
+        setPeralatan(item ? { ...item, detail: result?.detail ?? item.detail } : null);
+      } else {
+        setLoadError(equipmentRes.reason?.message || 'Gagal memuat data peralatan.');
       }
       if (docRes.status === 'fulfilled') setDokumen(docRes.value.data || []);
-      if (reviewRes.status === 'fulfilled') setReviewLogs(reviewRes.value.data || []);
+      if (reviewRes.status === 'fulfilled') {
+        const logs = reviewRes.value.data;
+        if (Array.isArray(logs)) {
+          setReviewLogs(
+            import.meta.env.DEV && logs.length === 0 ? MOCK_REVIEW_LOGS : logs
+          );
+        } else {
+          setReviewLogError('Format data log peninjauan tidak valid.');
+        }
+      } else {
+        setReviewLogs([]);
+        setReviewLogError(reviewRes.reason?.message || 'Gagal memuat log peninjauan.');
+      }
       setReferences({
         groups: groupsRes.status === 'fulfilled' ? groupsRes.value.data || [] : [],
         rooms: roomsRes.status === 'fulfilled' ? roomsRes.value.data || [] : [],
@@ -101,7 +137,10 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
     <div className="page-container fade-in-up">
       <div className="empty-state">
         <div className="empty-state-icon"><Package size={32} /></div>
-        <p className="empty-state-title">Peralatan tidak ditemukan</p>
+        <p className="empty-state-title">
+          {loadError ? 'Gagal memuat peralatan' : 'Peralatan tidak ditemukan'}
+        </p>
+        {loadError && <p className="empty-state-desc">{loadError}</p>}
         <button className="btn btn-secondary" onClick={() => onNavigate('/peralatan')}>
           <ArrowLeft size={16} /> Kembali
         </button>
@@ -206,67 +245,50 @@ export default function EquipmentDetail({ equipmentId, onNavigate }) {
       <div className="equipment-detail-layout">
         {/* Kiri: Detail */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
-          {/* Riwayat Peninjauan Ketidaksesuaian (TLKM13/IK/012) */}
-          {(reviewLogs.length > 0 || peralatan.status_verifikasi === 'Ditolak') && (
-            <div className="card card-padded" style={{ borderLeft: '4px solid #ef4444' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--sp-3)', flexWrap: 'wrap', gap: 8 }}>
-                <div>
-                  <h2 className="section-title" style={{ margin: 0 }}>Riwayat Peninjauan (TLKM13/IK/012)</h2>
-                  <p className="page-subtitle" style={{ margin: '4px 0 0', fontSize: 'var(--text-xs)' }}>
-                    Catatan evaluasi ketidaksesuaian dan penolakan verifikasi Manager Lab.
-                  </p>
-                </div>
-                {canViewVerification && (
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}`)}
-                  >
-                    Ajukan Verifikasi Ulang
-                  </button>
-                )}
-              </div>
-
-              {reviewLogs.length === 0 ? (
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-500)', fontStyle: 'italic', margin: 0 }}>
-                  Peralatan berstatus Ditolak dalam peninjauan. Sesuai alur IK/012, peralatan berstatus Karantina hingga perbaikan (IK/013) selesai dan verifikasi ulang diajukan.
-                </p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-                  {reviewLogs.map((log, idx) => (
-                    <div
-                      key={log.id_log || idx}
-                      style={{
-                        padding: 'var(--sp-3)',
-                        background: 'var(--clr-dark-50, #f8fafc)',
-                        borderRadius: 'var(--radius-md, 6px)',
-                        border: '1px solid var(--clr-dark-200, #e2e8f0)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span className="badge badge-rusak">{log.status || 'Ditolak'}</span>
-                          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--fw-semibold)', color: 'var(--clr-dark-700)' }}>
-                            Peninjau: {log.manager?.nama_lengkap || log.manager?.nama || 'Manager Lab'}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
-                          {formatDate(log.created_at)}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 'var(--text-sm)', marginBottom: 4 }}>
-                        <strong>Alasan Ketidaksesuaian:</strong> {log.alasan || '–'}
-                      </div>
-                      {log.catatan && (
-                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>
-                          <strong>Catatan Tindak Lanjut:</strong> {log.catatan}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+          {/* Log peninjauan peralatan */}
+          <div className="card card-padded">
+            <div className="card-header" style={{ padding: 0, marginBottom: 'var(--sp-3)' }}>
+              <h2 className="card-title">Log Peralatan</h2>
+              {reviewLogs.length > 0 && <span className="badge badge-gray">{reviewLogs.length}</span>}
             </div>
-          )}
+
+            {reviewLogError ? (
+              <p className="alert alert-error" role="alert" style={{ margin: 0 }}>
+                Gagal memuat log: {reviewLogError}
+              </p>
+            ) : reviewLogs.length === 0 ? (
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-500)', fontStyle: 'italic', margin: 0 }}>
+                Belum ada log.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {reviewLogs.map((log, idx) => (
+                  <div
+                    key={log.id_log || idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 'var(--sp-3)',
+                      padding: 'var(--sp-3) 0',
+                      borderBottom: idx < reviewLogs.length - 1 ? '1px solid var(--clr-dark-200)' : 'none',
+                    }}
+                  >
+                    <span className={`badge ${log.status === 'Disetujui' ? 'badge-aktif' : 'badge-rusak'}`}>
+                      {log.status || 'Ditolak'}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-800)' }}>
+                        {log.alasan || '–'}
+                      </div>
+                      <div style={{ marginTop: 4, fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
+                        {formatDate(log.created_at)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Info Umum */}
           <div className="card card-padded">

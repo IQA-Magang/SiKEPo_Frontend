@@ -4,6 +4,7 @@ import { labsApi, usersApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useConfirm } from '../../context/ConfirmContext.jsx';
+import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
 
 const EMPTY_FORM = { nama_labs: '', kode_labs: '', manager_id: '' };
 
@@ -149,6 +150,8 @@ export default function LabsManagement({ onNavigate }) {
       lab.manager?.name?.toLowerCase().includes(q)
     );
   });
+  const pagination = usePagination(filtered.length, search);
+  const pageItems = filtered.slice(pagination.startIndex, pagination.endIndex);
 
   return (
     <div className="page-container fade-in-up">
@@ -215,6 +218,7 @@ export default function LabsManagement({ onNavigate }) {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th style={{ width: 48 }}>#</th>
                   <th style={{ width: 140 }}>Kode Lab</th>
                   <th>Nama Laboratorium</th>
                   <th>Penanggung Jawab / Manager</th>
@@ -222,13 +226,14 @@ export default function LabsManagement({ onNavigate }) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((lab) => {
+                {pageItems.map((lab, i) => {
                   const managerObj =
                     lab.manager ||
                     managers.find((m) => m.user_id === lab.manager_id);
 
                   return (
                     <tr key={lab.id}>
+                      <td style={{ color: 'var(--clr-dark-400)' }}>{pagination.startIndex + i + 1}</td>
                       <td>
                         <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>
                           {lab.kode_labs}
@@ -305,9 +310,17 @@ export default function LabsManagement({ onNavigate }) {
 
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">
-            <span>Menampilkan <strong>{filtered.length}</strong> dari <strong>{labs.length}</strong> total laboratorium pengujian</span>
+            <span>Total laboratorium pengujian: <strong>{filtered.length}</strong> dari <strong>{labs.length}</strong></span>
             <span>Standar: <strong>ISO/IEC 17025:2017</strong></span>
           </div>
+          <Pagination
+            totalItems={filtered.length}
+            currentPage={pagination.currentPage}
+            onPageChange={pagination.setCurrentPage}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            totalPages={pagination.totalPages}
+          />
         </div>
       )}
 

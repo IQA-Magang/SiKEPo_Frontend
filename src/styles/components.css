@@ -69,6 +69,70 @@
   color: var(--clr-dark-900);
 }
 
+/* ---- TABLE PAGINATION ---- */
+.pagination-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--clr-dark-100);
+}
+
+.pagination-summary {
+  color: var(--clr-dark-500);
+  font-size: var(--text-sm);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--clr-dark-200);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--clr-dark-700);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pagination-button:hover:not(:disabled) {
+  border-color: var(--clr-primary-500);
+  color: var(--clr-primary-700);
+}
+
+.pagination-button.is-active {
+  border-color: var(--clr-primary-600);
+  background: var(--clr-primary-600);
+  color: #fff;
+}
+
+.pagination-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 560px) {
+  .pagination-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: var(--sp-3);
+  }
+
+  .pagination-controls {
+    align-self: center;
+  }
+}
+
 /* ---- STAT CARDS (Screenshot Style) ---- */
 .stats-grid {
   display: grid;

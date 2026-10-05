@@ -4,6 +4,7 @@ import { ruanganApi, labsApi, usersApi, getCurrentUser } from '../../utils/api.j
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useConfirm } from '../../context/ConfirmContext.jsx';
+import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
 
 const EMPTY_FORM = {
   nama_ruangan: '',
@@ -169,6 +170,8 @@ export default function RuanganManagement({ onNavigate }) {
 
     return matchQ && matchLab;
   });
+  const pagination = usePagination(filtered.length, `${search}\u0000${filterLab}`);
+  const pageItems = filtered.slice(pagination.startIndex, pagination.endIndex);
 
   return (
     <div className="page-container fade-in-up">
@@ -250,6 +253,7 @@ export default function RuanganManagement({ onNavigate }) {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th style={{ width: 48 }}>#</th>
                   <th style={{ width: 130 }}>Kode Ruangan</th>
                   <th>Nama Ruangan</th>
                   <th>Laboratorium</th>
@@ -259,12 +263,13 @@ export default function RuanganManagement({ onNavigate }) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => {
+                {pageItems.map((r, i) => {
                   const labObj = r.labs || labs.find((l) => l.id === r.labs_id);
                   const picObj = r.pic_user || users.find((u) => u.user_id === r.pic_user_id);
 
                   return (
                     <tr key={r.id}>
+                      <td style={{ color: 'var(--clr-dark-400)' }}>{pagination.startIndex + i + 1}</td>
                       <td>
                         <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>
                           {r.kode_ruangan}
@@ -352,9 +357,17 @@ export default function RuanganManagement({ onNavigate }) {
 
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">
-            <span>Menampilkan <strong>{filtered.length}</strong> dari <strong>{ruanganList.length}</strong> total ruangan uji</span>
+            <span>Total ruangan uji: <strong>{filtered.length}</strong> dari <strong>{ruanganList.length}</strong></span>
             <span>Tersebar di <strong>{labs.length}</strong> laboratorium</span>
           </div>
+          <Pagination
+            totalItems={filtered.length}
+            currentPage={pagination.currentPage}
+            onPageChange={pagination.setCurrentPage}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            totalPages={pagination.totalPages}
+          />
         </div>
       )}
 
