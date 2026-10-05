@@ -73,7 +73,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
         peralatanApi.getById(equipmentId),
         dokumenApi.getByPeralatanId(equipmentId),
         verifikasiApi.getLogByPeralatanId(equipmentId),
-        verifikasiApi.getByPeralatanId(equipmentId),
+        verifikasiApi.getHistoriByPeralatanId(equipmentId),
         kelompokAssetApi.getAll(),
         ruanganApi.getAll(),
         labsApi.getAll(),
@@ -98,11 +98,12 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
         setReviewLogError(reviewRes.reason?.message || 'Gagal memuat log peninjauan.');
       }
       if (verificationRes.status === 'fulfilled') {
-        if (Array.isArray(verificationRes.value.data)) {
-          setVerificationLogs(verificationRes.value.data);
+        const history = verificationRes.value.data?.histori;
+        if (Array.isArray(history)) {
+          setVerificationLogs(history);
         } else {
           setVerificationLogs([]);
-          setVerificationLogError('Format data riwayat verifikasi tidak valid.');
+          setVerificationLogError('Format respons histori verifikasi tidak valid.');
         }
       } else {
         setVerificationLogs([]);

@@ -433,6 +433,8 @@ export const verifikasiApi = {
     fetchWithAuth(`/api/verifikasi/log-peninjauan/peralatan/${peralatanId}`),
   getByPeralatanId: (peralatanId) =>
     fetchWithAuth(`/api/verifikasi/peralatan/${peralatanId}`),
+  getHistoriByPeralatanId: (peralatanId) =>
+    fetchWithAuth(`/api/verifikasi/histori/${peralatanId}`),
   getById: (id) => fetchWithAuth(`/api/verifikasi/${id}`),
   create: (body) =>
     fetchWithAuth('/api/verifikasi/', { method: 'POST', body: JSON.stringify(body) }),
