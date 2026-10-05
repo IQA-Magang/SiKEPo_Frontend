@@ -261,8 +261,9 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                           <button
                             type="button"
                             className="btn btn-primary btn-sm"
-                            onClick={() => onNavigate('/peminjaman')}
+                            onClick={() => onNavigate(`/peminjaman/${equipmentId}`)}
                             title="Pinjam peralatan"
+                            id={`btn-pinjam-${equipmentId}`}
                           >
                             <Hand size={14} /> Pinjam
                           </button>

@@ -33,6 +33,7 @@ import Forbidden from './pages/Forbidden.jsx';
 import VerificationManagement from './pages/VerificationManagement.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import GuestEquipmentPage from './pages/guest/GuestEquipmentPage.jsx';
+import LoanRequest from './pages/loan/LoanRequest.jsx';
 import QRScannerModal from './components/QRScannerModal.jsx';
 
 // Wrapper for parameterized Equipment Detail
@@ -59,17 +60,10 @@ function EquipmentLifecycleRoute({ lifecycle }) {
   return <EquipmentList onNavigate={navigate} initialLifecycle={lifecycle} />;
 }
 
-function LoanRequestPlaceholder() {
-  return (
-    <div className="page-container fade-in-up">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Peminjaman Peralatan</h1>
-          <p className="page-subtitle">Tampilan pengajuan peminjaman belum tersedia.</p>
-        </div>
-      </div>
-    </div>
-  );
+function LoanRequestRoute() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  return <LoanRequest equipmentId={id} onNavigate={navigate} />;
 }
 
 // Global Event Listener for API Auth & Forbidden Notifications
@@ -258,7 +252,15 @@ function AppContent() {
           path="/peminjaman"
           element={
             <ProtectedRoute feature={ACCESS.LOAN_REQUEST} action={ACTIONS.ADD}>
-              <LoanRequestPlaceholder />
+              <LoanRequest onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/peminjaman/:id"
+          element={
+            <ProtectedRoute feature={ACCESS.LOAN_REQUEST} action={ACTIONS.ADD}>
+              <LoanRequestRoute />
             </ProtectedRoute>
           }
         />
