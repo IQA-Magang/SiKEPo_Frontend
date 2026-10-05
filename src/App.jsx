@@ -59,6 +59,19 @@ function EquipmentLifecycleRoute({ lifecycle }) {
   return <EquipmentList onNavigate={navigate} initialLifecycle={lifecycle} />;
 }
 
+function LoanRequestPlaceholder() {
+  return (
+    <div className="page-container fade-in-up">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Peminjaman Peralatan</h1>
+          <p className="page-subtitle">Tampilan pengajuan peminjaman belum tersedia.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Global Event Listener for API Auth & Forbidden Notifications
 function GlobalAuthListener() {
   const { error, warning } = useToast();
@@ -238,6 +251,14 @@ function AppContent() {
           element={
             <ProtectedRoute feature={ACCESS.QR_CODE}>
               <EquipmentDetailRoute initialSection="qr" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/peminjaman"
+          element={
+            <ProtectedRoute feature={ACCESS.LOAN_REQUEST} action={ACTIONS.ADD}>
+              <LoanRequestPlaceholder />
             </ProtectedRoute>
           }
         />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Search, Plus, ChevronRight, RefreshCw, QrCode } from 'lucide-react';
+import { Package, Search, Plus, ChevronRight, RefreshCw, Hand } from 'lucide-react';
 import { getEquipmentId, getEquipmentCategoryId, formatPhotoUrl, peralatanApi, ruanganApi, STATUS_BADGE_CLASS } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
@@ -11,6 +11,7 @@ import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
 export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) {
   const canCreate = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD);
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
+  const canRequestLoan = can(ACCESS.LOAN_REQUEST, ACTIONS.ADD);
   const [list, setList]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
@@ -256,16 +257,16 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                             <button className="btn btn-ghost btn-sm" onClick={() => onNavigate(`/verifikasi/${equipmentId}`)} title="Ajukan Verifikasi Ulang (TLKM13/IK/003)">Verifikasi Ulang</button>
                           </>
                         )}
-                        {approved && <button
-                          type="button"
-                          onClick={() => onNavigate(`/peralatan/qr/${equipmentId}`)}
-                          className="btn btn-ghost btn-sm"
-                          title="Lihat QR Code"
-                          id={`btn-qr-${equipmentId}`}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}
-                        >
-                          <QrCode size={14} />
-                        </button>}
+                        {canRequestLoan && approved && p.status_alat === 'Aktif' && (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => onNavigate('/peminjaman')}
+                            title="Pinjam peralatan"
+                          >
+                            <Hand size={14} /> Pinjam
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
