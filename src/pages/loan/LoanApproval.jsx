@@ -277,9 +277,7 @@ const INITIAL_LOAN_DATA = [
       tanggal: null,
       catatan: '',
       ttd: null,
-      cek_spesifikasi: false,
-      cek_operator: false,
-      cek_ketersediaan: false,
+      lampiran_a: null, // array 10 item { status: 'S'|'TS'|null, keterangan: '' }
     },
     // Approval 3: Manager Lab Pemilik
     approval_manager_lab: {
@@ -333,9 +331,7 @@ const INITIAL_LOAN_DATA = [
       tanggal: null,
       catatan: '',
       ttd: null,
-      cek_spesifikasi: true,
-      cek_operator: true,
-      cek_ketersediaan: true,
+      lampiran_a: null,
     },
     approval_manager_lab: {
       nama: 'Manager Lab TIM',
@@ -388,9 +384,7 @@ const INITIAL_LOAN_DATA = [
       tanggal: '2026-10-05 11:20',
       catatan: 'Peralatan telah dicek fungsi swauji. Baterai sehat. Dokumen sertifikat kalibrasi terlampir.',
       ttd: 'data:image/png;base64,mockSign3',
-      cek_spesifikasi: true,
-      cek_operator: true,
-      cek_ketersediaan: true,
+      lampiran_a: Array.from({ length: 10 }, (_, i) => ({ status: i === 9 ? 'TS' : 'S', keterangan: i === 9 ? 'F/006 dilampirkan terpisah' : '' })),
     },
     approval_manager_lab: {
       nama: 'Manager Lab IQA',
@@ -443,9 +437,7 @@ const INITIAL_LOAN_DATA = [
       tanggal: '2026-10-03 14:40',
       catatan: 'Kelengkapan siap. Konektor bersih tertutup pelindung.',
       ttd: 'data:image/png;base64,mockSign3',
-      cek_spesifikasi: true,
-      cek_operator: true,
-      cek_ketersediaan: true,
+      lampiran_a: Array.from({ length: 10 }, () => ({ status: 'S', keterangan: '' })),
     },
     approval_manager_lab: {
       nama: 'Manager Lab TIM',
@@ -516,13 +508,24 @@ export default function LoanApproval({ onNavigate }) {
   const [digitalSignature, setDigitalSignature] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Checkbox verifikasi teknis khusus Pengelola Peralatan
-  const [techChecks, setTechChecks] = useState({
-    spesifikasi: true,
-    operator: true,
-    ketersediaan: true,
-    eksternal_ready: true,
-  });
+  // Butir pemeriksaan Lampiran A (10 item) untuk Pengelola Peralatan
+  const LAMPIRAN_A_BUTIR = [
+    'Identitas peralatan (nama, merek/tipe, nomor seri, nomor aset) sesuai TLKM13/F/001',
+    'Label status terpasang, terbaca, dan berlaku sampai rencana tanggal kembali',
+    'Segel atau penguncian pengaturan utuh (bila ada)',
+    'Kondisi fisik casing, layar, tombol, dan konektor/port baik; tidak retak, penyok, atau kotor',
+    'Kelengkapan aksesori, kabel, adaptor, catu daya/baterai sesuai daftar kelengkapan',
+    'Fungsi dasar: menyala normal, swauji/inisialisasi berhasil, tidak ada pesan galat',
+    'Versi peranti lunak/firmware sesuai yang tercatat (bila relevan)',
+    'Konektor/antarmuka optik bersih dan tertutup pelindung (bila relevan)',
+    'Wadah atau kemasan pelindung dalam kondisi baik',
+    'Dokumen pendukung: instruksi/manual pengoperasian, salinan sertifikat/laporan verifikasi, TLKM13/F/006 (peminjaman eksternal)',
+  ];
+
+  // State Lampiran A: array of { status: 'S'|'TS'|null, keterangan: string }
+  const [lampiranAChecks, setLampiranAChecks] = useState(
+    Array.from({ length: 10 }, () => ({ status: null, keterangan: '' }))
+  );
 
   // Filter data sesuai role perspective & filter bar
   const filteredLoans = loans.filter((item) => {
@@ -554,12 +557,12 @@ export default function LoanApproval({ onNavigate }) {
     setDecisionAction('setuju');
     setDecisionNote('');
     setDigitalSignature('');
-    setTechChecks({
-      spesifikasi: true,
-      operator: true,
-      ketersediaan: true,
-      eksternal_ready: true,
-    });
+    // Jika sudah ada data Lampiran A sebelumnya (re-review), tampilkan lagi
+    if (loan.approval_pengelola?.lampiran_a) {
+      setLampiranAChecks(loan.approval_pengelola.lampiran_a);
+    } else {
+      setLampiranAChecks(Array.from({ length: 10 }, () => ({ status: null, keterangan: '' })));
+    }
   }
 
   // Submit Keputusan Approval
@@ -642,11 +645,9 @@ export default function LoanApproval({ onNavigate }) {
             ...updated.approval_pengelola,
             status: 'approved',
             tanggal: nowFormatted,
-            catatan: decisionNote || 'Pemeriksaan teknis & ketersediaan lolos verifikasi.',
+            catatan: decisionNote || 'Pemeriksaan fisik & kelengkapan peralatan selesai (Lampiran A).',
             ttd: digitalSignature,
-            cek_spesifikasi: techChecks.spesifikasi,
-            cek_operator: techChecks.operator,
-            cek_ketersediaan: techChecks.ketersediaan,
+            lampiran_a: lampiranAChecks,
           };
         } else if (activeRolePerspective === 'manager_lab') {
           // Dari Tahap 3 -> Selesai Disetujui Penuh (Siap Serah Terima Fisik)
@@ -1492,45 +1493,196 @@ export default function LoanApproval({ onNavigate }) {
                     </span>
                   </div>
 
-                  {/* Checklist Khusus Pengelola Peralatan */}
+                  {/* Lampiran A: Daftar Periksa Serah Terima Peralatan — Pengelola */}
                   {activeRolePerspective === 'pengelola' && (
-                    <div
-                      style={{
-                        marginBottom: 'var(--sp-4)',
-                        padding: 'var(--sp-3)',
-                        background: '#f0fdf4',
-                        borderRadius: 'var(--radius-md, 8px)',
-                        border: '1px solid #bbf7d0',
-                        fontSize: '12px',
-                      }}
-                    >
-                      <div style={{ fontWeight: 'bold', marginBottom: 6, color: '#166534' }}>
-                        Daftar Periksa Kesesuaian Teknis (Butir 8.3 IK):
+                    <div style={{ marginBottom: 'var(--sp-4)' }}>
+                      <div style={{
+                        fontWeight: 'bold',
+                        fontSize: '13px',
+                        color: '#166534',
+                        marginBottom: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}>
+                        <FileCheck size={15} style={{ color: '#16a34a' }} />
+                        Lampiran A — Daftar Periksa Serah Terima Peralatan (Keluar)
+                        <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}>
+                          S = Sesuai &nbsp;|&nbsp; TS = Tidak Sesuai
+                        </span>
                       </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={techChecks.spesifikasi}
-                          onChange={(e) => setTechChecks({ ...techChecks, spesifikasi: e.target.checked })}
-                        />
-                        <span>Spesifikasi & rentang kerja peralatan sesuai dengan tujuan penggunaan.</span>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={techChecks.operator}
-                          onChange={(e) => setTechChecks({ ...techChecks, operator: e.target.checked })}
-                        />
-                        <span>Peminjam atau operator berwenang dan kompeten mengoperasikan alat.</span>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={techChecks.ketersediaan}
-                          onChange={(e) => setTechChecks({ ...techChecks, ketersediaan: e.target.checked })}
-                        />
-                        <span>Jadwal peminjaman tidak bentrok dengan kalibrasi atau agenda SPK lab pemilik.</span>
-                      </label>
+
+                      {/* Header info alat */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '6px 16px',
+                        fontSize: '12px',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '6px 6px 0 0',
+                        padding: '8px 12px',
+                        borderBottom: 'none',
+                      }}>
+                        <div>
+                          <span style={{ color: '#64748b' }}>Nama peralatan / Nomor aset: </span>
+                          <strong>{selectedLoan.peralatan.nama_peralatan} / {selectedLoan.peralatan.nomor_aset}</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: '#64748b' }}>Nomor seri: </span>
+                          <strong>{selectedLoan.peralatan.nomor_seri}</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: '#64748b' }}>Peminjam / Unit: </span>
+                          <strong>{selectedLoan.peminjam.nama} / {selectedLoan.peminjam.lab_asal}</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: '#64748b' }}>Lokasi tujuan: </span>
+                          <strong>{selectedLoan.lokasi_penggunaan}</strong>
+                        </div>
+                        <div style={{ gridColumn: '1/-1' }}>
+                          <span style={{ color: '#64748b' }}>Jenis kegiatan: </span>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            fontWeight: 600,
+                            color: selectedLoan.is_eksternal ? '#b91c1c' : '#0284c7',
+                          }}>
+                            {selectedLoan.is_eksternal
+                              ? '☑ Peminjaman eksternal'
+                              : '☑ Peminjaman internal'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Tabel 10 Butir Pemeriksaan */}
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{
+                          width: '100%',
+                          borderCollapse: 'collapse',
+                          fontSize: '12px',
+                          border: '1px solid #cbd5e1',
+                        }}>
+                          <thead>
+                            <tr style={{ background: '#e2e8f0' }}>
+                              <th style={{ padding: '7px 10px', width: 32, textAlign: 'center', border: '1px solid #cbd5e1' }}>No.</th>
+                              <th style={{ padding: '7px 10px', textAlign: 'left', border: '1px solid #cbd5e1' }}>Butir Pemeriksaan</th>
+                              <th style={{ padding: '7px 10px', width: 90, textAlign: 'center', border: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>
+                                Keluar (S/TS)
+                              </th>
+                              <th style={{ padding: '7px 10px', textAlign: 'left', border: '1px solid #cbd5e1' }}>Keterangan</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {LAMPIRAN_A_BUTIR.map((butir, idx) => {
+                              const item = lampiranAChecks[idx];
+                              const isTidakSesuai = item.status === 'TS';
+                              return (
+                                <tr
+                                  key={idx}
+                                  style={{
+                                    background: isTidakSesuai ? '#fff1f2' : idx % 2 === 0 ? '#ffffff' : '#f8fafc',
+                                    transition: 'background 0.15s',
+                                  }}
+                                >
+                                  <td style={{ padding: '6px 10px', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: 600, color: '#475569' }}>
+                                    {idx + 1}.
+                                  </td>
+                                  <td style={{ padding: '6px 10px', border: '1px solid #cbd5e1', lineHeight: 1.4 }}>
+                                    {butir}
+                                    {idx === 9 && selectedLoan.is_eksternal && (
+                                      <span style={{ marginLeft: 6, fontSize: '10px', color: '#dc2626', fontWeight: 600 }}>★ Wajib Eksternal</span>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: '6px 10px', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                                    <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, cursor: 'pointer', fontWeight: item.status === 'S' ? 700 : 400, color: item.status === 'S' ? '#16a34a' : '#64748b' }}>
+                                        <input
+                                          type="radio"
+                                          name={`lampiran_a_${idx}`}
+                                          value="S"
+                                          checked={item.status === 'S'}
+                                          onChange={() => {
+                                            const updated = [...lampiranAChecks];
+                                            updated[idx] = { ...updated[idx], status: 'S' };
+                                            setLampiranAChecks(updated);
+                                          }}
+                                          style={{ accentColor: '#16a34a' }}
+                                        />
+                                        S
+                                      </label>
+                                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, cursor: 'pointer', fontWeight: item.status === 'TS' ? 700 : 400, color: item.status === 'TS' ? '#dc2626' : '#64748b' }}>
+                                        <input
+                                          type="radio"
+                                          name={`lampiran_a_${idx}`}
+                                          value="TS"
+                                          checked={item.status === 'TS'}
+                                          onChange={() => {
+                                            const updated = [...lampiranAChecks];
+                                            updated[idx] = { ...updated[idx], status: 'TS' };
+                                            setLampiranAChecks(updated);
+                                          }}
+                                          style={{ accentColor: '#dc2626' }}
+                                        />
+                                        TS
+                                      </label>
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '4px 8px', border: '1px solid #cbd5e1' }}>
+                                    <input
+                                      type="text"
+                                      value={item.keterangan}
+                                      onChange={(e) => {
+                                        const updated = [...lampiranAChecks];
+                                        updated[idx] = { ...updated[idx], keterangan: e.target.value };
+                                        setLampiranAChecks(updated);
+                                      }}
+                                      placeholder={isTidakSesuai ? 'Wajib jelaskan...' : 'Opsional'}
+                                      required={isTidakSesuai}
+                                      style={{
+                                        width: '100%',
+                                        border: isTidakSesuai ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                                        borderRadius: 4,
+                                        padding: '3px 6px',
+                                        fontSize: '11px',
+                                        background: isTidakSesuai ? '#fff1f2' : '#ffffff',
+                                        outline: 'none',
+                                      }}
+                                    />
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Keterangan legend */}
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#64748b',
+                        padding: '6px 10px',
+                        background: '#f8fafc',
+                        border: '1px solid #cbd5e1',
+                        borderTop: 'none',
+                        borderRadius: '0 0 6px 6px',
+                      }}>
+                        <strong>Keterangan:</strong> S = Sesuai; TS = Tidak Sesuai. Setiap butir TS harus dijelaskan pada kolom Keterangan dan ditindaklanjuti sesuai butir 8.4 huruf b atau Tabel 2.
+                      </div>
+
+                      {/* Ringkasan S/TS */}
+                      {lampiranAChecks.some(i => i.status !== null) && (
+                        <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: '12px' }}>
+                          <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                            ✓ Sesuai: {lampiranAChecks.filter(i => i.status === 'S').length} butir
+                          </span>
+                          <span style={{ color: '#dc2626', fontWeight: 600 }}>
+                            ✕ Tidak Sesuai: {lampiranAChecks.filter(i => i.status === 'TS').length} butir
+                          </span>
+                          <span style={{ color: '#94a3b8' }}>
+                            Belum diperiksa: {lampiranAChecks.filter(i => i.status === null).length} butir
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
 
