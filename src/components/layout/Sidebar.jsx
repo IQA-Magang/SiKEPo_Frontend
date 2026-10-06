@@ -71,16 +71,17 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
     if (onClose) onClose();
   }
 
-  const NavItem = ({ label, path, feature, roles, disabled = false, excludeActivePaths = [] }) => {
+  const NavItem = ({ label, path, feature, roles, disabled = false, excludeActivePaths = [], exactMatch = false }) => {
     if (feature && !canView(feature)) return null;
     if (roles && Array.isArray(roles) && !roles.includes(userRole)) return null;
 
     const isExcludedPath = excludeActivePaths.some(
       (excludedPath) => currentPath === excludedPath || currentPath.startsWith(`${excludedPath}/`)
     );
-    const isActive =
-      currentPath === path ||
-      (path !== '/dashboard' && !isExcludedPath && currentPath.startsWith(`${path}/`));
+    const isActive = exactMatch
+      ? currentPath === path
+      : currentPath === path ||
+        (path !== '/dashboard' && !isExcludedPath && currentPath.startsWith(`${path}/`));
 
     return (
       <button
@@ -144,7 +145,7 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
                 excludeActivePaths={['/peralatan/dalam-peninjauan']}
               />
               <NavItem label="Verifikasi Peralatan" path="/verifikasi" feature={ACCESS.EQUIPMENT_ELIGIBILITY} />
-              <NavItem label="Peminjaman" path="/peminjaman" feature={ACCESS.LOAN_REQUEST} />
+              <NavItem label="Peminjaman" path="/peminjaman" feature={ACCESS.LOAN_REQUEST} exactMatch />
               <NavItem label="Peninjauan Peralatan" path="/peralatan/dalam-peninjauan" feature={ACCESS.EQUIPMENT_ELIGIBILITY} />
               <NavItem label="Peralatan Usang" path="/peralatan-usang" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />
               <NavItem label="Perbaikan" path="/perbaikan" feature={ACCESS.EQUIPMENT_USAGE} disabled />
