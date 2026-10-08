@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2 } from 'lucide-react';
-import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi } from '../utils/api.js';
+import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi, peminjamanApi } from '../utils/api.js';
 import { can, ACCESS, ACTIONS } from '../utils/permissions.js';
 
 // ------------------------------------------------------------------
@@ -73,6 +73,180 @@ function getDueDateBadgeClass(date) {
   return 'badge-aktif';
 }
 
+const DEFAULT_LOAN_DATA = [
+  { id: 'PINJAM-2026-001', status: 'MENUNGGU_MANAGER_PEMINJAM' },
+  { id: 'PINJAM-2026-002', status: 'MENUNGGU_PENGELOLA' },
+  { id: 'PINJAM-2026-003', status: 'MENUNGGU_MANAGER_LAB' },
+  { id: 'PINJAM-2026-004', status: 'MENUNGGU_SERAH_TERIMA' },
+  { id: 'PINJAM-2026-005', status: 'SEDANG_DIPINJAM' },
+  { id: 'PINJAM-2026-006', status: 'DITOLAK' },
+];
+
+async function fetchDashboardLoans() {
+  try {
+    const res = await peminjamanApi.getAll();
+    if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+      return res.data;
+    }
+    return DEFAULT_LOAN_DATA;
+  } catch {
+    return DEFAULT_LOAN_DATA;
+  }
+}
+
+function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
+  const total = loans.length;
+  const tahap1 = loans.filter((l) => l.status === 'MENUNGGU_MANAGER_PEMINJAM').length;
+  const tahap2 = loans.filter((l) => l.status === 'MENUNGGU_PENGELOLA').length;
+  const tahap3 = loans.filter((l) => l.status === 'MENUNGGU_MANAGER_LAB').length;
+  const tahap4 = loans.filter((l) => l.status === 'MENUNGGU_SERAH_TERIMA' || l.status === 'DISETUJUI').length;
+
+  return (
+    <div style={{ marginBottom: 'var(--sp-6)' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 'var(--sp-3)',
+          flexWrap: 'wrap',
+          gap: 8,
+        }}
+      >
+        <div>
+          <h2 className="card-title dash-section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Alur & Persetujuan Peminjaman Peralatan
+            <span className="badge badge-purple" style={{ fontSize: '11px', fontWeight: 600 }}>SOP Peminjaman</span>
+          </h2>
+          <p className="page-subtitle" style={{ margin: 0, marginTop: 2 }}>
+            Ringkasan status proses permohonan peminjaman peralatan antar-laboratorium
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          Buka Modul Peminjaman &rarr;
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--sp-3)' }}>
+        {/* TOTAL PENGAJUAN */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #3b82f6',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TOTAL PENGAJUAN
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0f172a', margin: '4px 0 2px' }}>
+            {loading ? '...' : total}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Semua riwayat peminjaman</div>
+        </div>
+
+        {/* TAHAP 1 (ATASAN) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #d97706',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 1 (ATASAN)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#d97706', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap1}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Validasi atasan peminjam</div>
+        </div>
+
+        {/* TAHAP 2 (PENGELOLA) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #0284c7',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 2 (PENGELOLA)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0284c7', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap2}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Review teknis & ketersediaan</div>
+        </div>
+
+        {/* TAHAP 3 (MGR LAB) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #7c3aed',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 3 (MGR LAB)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#7c3aed', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap3}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Pengesahan izin final</div>
+        </div>
+
+        {/* TAHAP 4 (SERAH TERIMA) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #ea580c',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 4 (SERAH TERIMA)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ea580c', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap4}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Cek fisik Lampiran A bersama peminjam</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------
 // Admin Dashboard
 // ------------------------------------------------------------------
@@ -89,17 +263,19 @@ function AdminDashboard({ onNavigate }) {
     kelompokAset: 0,
     processItems: [],
   });
+  const [loans, setLoans] = useState(DEFAULT_LOAN_DATA);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
     try {
-      const [u, l, r, p, k] = await Promise.allSettled([
+      const [u, l, r, p, k, loanData] = await Promise.allSettled([
         usersApi.getAll(),
         labsApi.getAll(),
         ruanganApi.getAll(),
         peralatanApi.getAll(),
         kelompokAssetApi.getAll(),
+        fetchDashboardLoans(),
       ]);
 
       const pList = p.status === 'fulfilled' ? (p.value.data || []) : [];
@@ -107,6 +283,10 @@ function AdminDashboard({ onNavigate }) {
       const aktifCount = pList.filter(item => item.status_alat === 'Aktif').length;
       const kalibrasiCount = pList.filter(item => item.status_alat === 'Dalam Kalibrasi').length;
       const dipinjamCount = pList.filter(item => item.status_alat === 'Dipinjam').length;
+
+      if (loanData.status === 'fulfilled' && loanData.value) {
+        setLoans(loanData.value);
+      }
 
       setStats({
         users: u.status === 'fulfilled' ? (u.value.data?.length ?? 0) : 0,
@@ -211,6 +391,9 @@ function AdminDashboard({ onNavigate }) {
         </div>
       </div>
 
+      {/* Ringkasan 5 Kotak Alur Peminjaman Peralatan (TLKM13/IK/005) */}
+      <LoanPipelineSummary loans={loans} onNavigate={onNavigate} loading={loading} />
+
       {/* Level 2: Ringkasan kondisi peralatan */}
       <div className="dash-level2-grid">
         <div className="card card-padded">
@@ -305,17 +488,20 @@ function AdminDashboard({ onNavigate }) {
 function ManagerDashboard({ onNavigate, user }) {
   const [peralatan, setPeralatan] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [loans, setLoans] = useState(DEFAULT_LOAN_DATA);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [n, p] = await Promise.allSettled([
+        const [n, p, loanData] = await Promise.allSettled([
           notificationApi.getByUserId(user?.user_id),
           peralatanApi.getAll(),
+          fetchDashboardLoans(),
         ]);
         if (n.status === 'fulfilled') setNotifications(n.value.data || []);
         if (p.status === 'fulfilled') setPeralatan(p.value.data || []);
+        if (loanData.status === 'fulfilled' && loanData.value) setLoans(loanData.value);
       } finally {
         setLoading(false);
       }
@@ -356,6 +542,9 @@ function ManagerDashboard({ onNavigate, user }) {
           <div className="stat-label">Notifikasi Baru</div>
         </div>
       </div>
+
+      {/* Ringkasan 5 Kotak Alur Peminjaman Peralatan (TLKM13/IK/005) */}
+      <LoanPipelineSummary loans={loans} onNavigate={onNavigate} loading={loading} />
 
       {/* Notifikasi terbaru */}
       {!loading && unread.length > 0 && (
@@ -406,12 +595,14 @@ function ManagerDashboard({ onNavigate, user }) {
 // ------------------------------------------------------------------
 function StaffDashboard({ onNavigate, user }) {
   const [peralatan, setPeralatan] = useState([]);
+  const [loans, setLoans] = useState(DEFAULT_LOAN_DATA);
   const [loading, setLoading] = useState(true);
   const [detailLoadError, setDetailLoadError] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
+        fetchDashboardLoans().then(setLoans);
         const res = await peralatanApi.getAll();
         const equipmentList = res.data || [];
         const detailedItems = [];
@@ -473,6 +664,9 @@ function StaffDashboard({ onNavigate, user }) {
           <div className="stat-label">Peralatan Aktif</div>
         </div>
       </div>
+
+      {/* Ringkasan 5 Kotak Alur Peminjaman Peralatan (TLKM13/IK/005) */}
+      <LoanPipelineSummary loans={loans} onNavigate={onNavigate} loading={loading} />
 
       {can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) && (
         <div className="dash-action-group dash-actions-mb">

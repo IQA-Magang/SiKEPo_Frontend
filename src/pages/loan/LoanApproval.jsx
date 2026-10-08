@@ -31,7 +31,7 @@ import {
   ClipboardCheck,
   Download,
 } from 'lucide-react';
-import { getCurrentUser } from '../../utils/api.js';
+import { getCurrentUser, logbookApi, peminjamanApi, peralatanApi } from '../../utils/api.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import LoanRequest from './LoanRequest.jsx';
 
@@ -232,10 +232,10 @@ function DigitalSignaturePad({
 }
 
 // ============================================================================
-// 10 BUTIR PEMERIKSAAN RESMI LAMPIRAN A (TLKM13/IK/005)
+// 10 BUTIR PEMERIKSAAN RESMI LAMPIRAN A (Checklist Serah Terima Peralatan)
 // ============================================================================
 const LAMPIRAN_A_BUTIR = [
-  'Identitas peralatan (nama, merek/tipe, nomor seri, nomor aset) sesuai TLKM13/F/001',
+  'Identitas peralatan (nama, merek/tipe, nomor seri, nomor aset) sesuai daftar inventaris peralatan',
   'Label status terpasang, terbaca, dan berlaku sampai rencana tanggal kembali',
   'Segel atau penguncian pengaturan utuh (bila ada)',
   'Kondisi fisik casing, layar, tombol, dan konektor/port baik; tidak retak, penyok, atau kotor',
@@ -244,7 +244,7 @@ const LAMPIRAN_A_BUTIR = [
   'Versi peranti lunak/firmware sesuai yang tercatat (bila relevan)',
   'Konektor/antarmuka optik bersih dan tertutup pelindung (bila relevan)',
   'Wadah atau kemasan pelindung dalam kondisi baik',
-  'Dokumen pendukung: instruksi/manual pengoperasian, salinan sertifikat/laporan verifikasi, TLKM13/F/006 (peminjaman eksternal)',
+  'Dokumen pendukung: instruksi/manual pengoperasian, salinan sertifikat/laporan verifikasi, Surat Keterangan Membawa Peralatan (peminjaman eksternal)',
 ];
 
 // ============================================================================
@@ -620,7 +620,7 @@ const INITIAL_LOAN_DATA = [
       ada_ts: true,
       ttd_pengelola: 'data:image/png;base64,mockSign3',
       ttd_peminjam: 'data:image/png;base64,mockSign2',
-      catatan: 'Pemeriksaan menemukan butir 6 gagal fungsi dasar. Penyerahan dibatalkan dan alat diisolasi dengan penanda DO NOT USE (TLKM13/IK/012).',
+      catatan: 'Pemeriksaan menemukan butir 6 gagal fungsi dasar. Penyerahan dibatalkan dan alat diisolasi dengan penanda DO NOT USE.',
       f006_nomor: null,
     },
   },
@@ -652,6 +652,12 @@ const STATUS_META = {
     color: '#ea580c',
     bg: '#fff7ed',
   },
+  DISETUJUI: {
+    label: 'Tahap 4: Disetujui (Siap Serah Terima)',
+    badgeClass: 'badge-success',
+    color: '#16a34a',
+    bg: '#dcfce7',
+  },
   SEDANG_DIPINJAM: {
     label: 'Sedang Dipinjam (Alat Diserahkan)',
     badgeClass: 'badge-success',
@@ -678,6 +684,7 @@ export default function LoanApproval({ onNavigate }) {
 
   // State Utama
   const [loans, setLoans] = useState(INITIAL_LOAN_DATA);
+  const [isLoansLoading, setIsLoansLoading] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create_form'
 
@@ -700,6 +707,8 @@ export default function LoanApproval({ onNavigate }) {
   const [decisionNote, setDecisionNote] = useState('');
   const [digitalSignature, setDigitalSignature] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [alternativeEquipmentId, setAlternativeEquipmentId] = useState('');
+  const [equipmentList, setEquipmentList] = useState([]);
 
   // Form State untuk Verifikasi Teknis Pengelola di Tahap 2:
   const [techCheckSpec, setTechCheckSpec] = useState(true);
@@ -715,22 +724,115 @@ export default function LoanApproval({ onNavigate }) {
   const [checkoutSigPengelola, setCheckoutSigPengelola] = useState('');
   const [checkoutSigPeminjam, setCheckoutSigPeminjam] = useState('');
 
+  // State Logbook Peralatan Riil (GET /api/peralatan/:id/logbook)
+  const [logbookData, setLogbookData] = useState([]);
+  const [isLogbookLoading, setIsLogbookLoading] = useState(false);
+  const [logbookError, setLogbookError] = useState(null);
+
+  // Ambil daftar peralatan untuk opsi alternatif jika pengelola menolak
+  useEffect(() => {
+    let cancelled = false;
+    peralatanApi.getAll()
+      .then((res) => {
+        if (!cancelled && Array.isArray(res?.data)) {
+          setEquipmentList(res.data.filter((item) => item.status_verifikasi === 'Disetujui' && item.status_alat === 'Aktif'));
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // Ambil daftar peminjaman dari Backend
+  const fetchLoans = async () => {
+    setIsLoansLoading(true);
+    try {
+      const params = {};
+      if (activeRolePerspective) {
+        params.peran = activeRolePerspective === 'manager_peminjam' ? 'manajer_peminjam' : activeRolePerspective;
+      }
+      if (statusFilter === 'MENUNGGU_SAYA') {
+        params.menunggu_saya = true;
+      } else if (statusFilter !== 'SEMUA') {
+        params.status = statusFilter;
+      }
+      const res = await peminjamanApi.getAll(params);
+      if (res?.success && Array.isArray(res.data)) {
+        if (res.data.length > 0) {
+          setLoans(res.data);
+        } else {
+          // Jika backend mengembalikan array kosong, gunakan array kosong tersebut
+          setLoans(res.data);
+        }
+      }
+    } catch (err) {
+      console.warn('Backend peminjaman offline/fallback:', err);
+    } finally {
+      setIsLoansLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLoans();
+  }, [activeRolePerspective, statusFilter]);
+
+  // Ambil Catatan Logbook Peralatan dari Backend
+  async function fetchLogbook(peralatanId) {
+    if (!peralatanId) return;
+    setIsLogbookLoading(true);
+    setLogbookError(null);
+    try {
+      const res = await logbookApi.getByPeralatanId(peralatanId, 'peminjaman');
+      if (res?.success && Array.isArray(res.data)) {
+        setLogbookData(res.data);
+      } else {
+        setLogbookData([]);
+      }
+    } catch (err) {
+      console.warn('Backend logbook belum merespons, menggunakan fallback data:', err);
+      setLogbookError(err.message || 'Koneksi ke backend logbook belum aktif.');
+      // Fallback mock agar UI tidak kosong saat dev offline
+      setLogbookData([
+        {
+          id: 1,
+          jenis: 'peminjaman',
+          aksi: 'pengajuan',
+          judul: 'Pengajuan peminjaman',
+          status: 'Diajukan',
+          keterangan: 'Pengajuan peminjaman dicatat pada logbook sistem SiKEPo.',
+          referensi_id: 1,
+          user: {
+            user_id: 3,
+            name: 'Staff Lab',
+          },
+          created_at: '2026-10-06T10:39:07+07:00',
+        },
+      ]);
+    } finally {
+      setIsLogbookLoading(false);
+    }
+  }
+
   // Filter data sesuai filter bar & role perspective
   const filteredLoans = loans.filter((item) => {
     const q = searchQuery.toLowerCase();
+    const kode = (item.kode || String(item.id)).toLowerCase();
+    const namaAlat = (item.peralatan?.nama_peralatan || '').toLowerCase();
+    const noAset = (item.peralatan?.nomor_aset || '').toLowerCase();
+    const namaPeminjam = (item.peminjam?.nama || '').toLowerCase();
+
     const matchSearch =
-      item.id.toLowerCase().includes(q) ||
-      item.peralatan.nama_peralatan.toLowerCase().includes(q) ||
-      item.peralatan.nomor_aset.toLowerCase().includes(q) ||
-      item.peminjam.nama.toLowerCase().includes(q);
+      kode.includes(q) ||
+      namaAlat.includes(q) ||
+      noAset.includes(q) ||
+      namaPeminjam.includes(q);
 
     if (!matchSearch) return false;
 
     if (statusFilter === 'MENUNGGU_SAYA') {
       if (activeRolePerspective === 'manager_peminjam') return item.status === 'MENUNGGU_MANAGER_PEMINJAM';
-      if (activeRolePerspective === 'pengelola') return item.status === 'MENUNGGU_PENGELOLA' || item.status === 'MENUNGGU_SERAH_TERIMA';
+      if (activeRolePerspective === 'pengelola') return item.status === 'MENUNGGU_PENGELOLA' || item.status === 'MENUNGGU_SERAH_TERIMA' || item.status === 'DISETUJUI';
       if (activeRolePerspective === 'manager_lab') return item.status === 'MENUNGGU_MANAGER_LAB';
-      if (activeRolePerspective === 'peminjam') return item.status === 'MENUNGGU_SERAH_TERIMA';
+      if (activeRolePerspective === 'peminjam') return item.status === 'MENUNGGU_SERAH_TERIMA' || item.status === 'DISETUJUI';
       return false;
     }
     if (statusFilter !== 'SEMUA' && item.status !== statusFilter) return false;
@@ -744,6 +846,7 @@ export default function LoanApproval({ onNavigate }) {
     setModalMode('review');
     setDecisionAction('setuju');
     setDecisionNote('');
+    setAlternativeEquipmentId('');
     setDigitalSignature('');
 
     // Reset checklist teknis Tahap 2
@@ -751,6 +854,8 @@ export default function LoanApproval({ onNavigate }) {
     setTechCheckOperator(loan.approval_pengelola?.cek_operator ?? true);
     setTechCheckSchedule(loan.approval_pengelola?.cek_jadwal_kalibrasi ?? true);
     setTechCheckLocation(loan.approval_pengelola?.cek_lokasi ?? true);
+
+    fetchLogbook(loan.peralatan?.id);
   }
 
   // Buka Modal Khusus Serah Terima Keluar (Tahap 4: Lampiran A)
@@ -773,123 +878,135 @@ export default function LoanApproval({ onNavigate }) {
   function handleOpenDetail(loan) {
     setSelectedLoan(loan);
     setModalMode('detail');
+    fetchLogbook(loan.peralatan?.id);
   }
 
   // Submit Keputusan Review Persetujuan (Tahap 1, 2, 3)
-  function handleSubmitDecision(e) {
+  async function handleSubmitDecision(e) {
     e.preventDefault();
     if (!selectedLoan) return;
 
-    if (!digitalSignature && decisionAction === 'setuju') {
-      toastError('Tanda tangan digital wajib digoreskan sebelum menyetujui.');
-      return;
-    }
-
     if (decisionAction === 'tolak' && !decisionNote.trim()) {
-      toastError('Alasan penolakan atau usulan peralatan alternatif wajib diisi.');
+      toastError('Alasan penolakan wajib diisi.');
       return;
     }
 
     setIsSubmitting(true);
 
-    const nowFormatted = new Date().toLocaleString('id-ID', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).replace(/\./g, ':');
+    try {
+      const body = {
+        keputusan: decisionAction, // "setuju" atau "tolak"
+        catatan: decisionNote.trim(),
+      };
+      if (decisionAction === 'tolak' && alternativeEquipmentId && activeRolePerspective === 'pengelola') {
+        body.alat_alternatif_id = Number(alternativeEquipmentId);
+      }
 
-    setLoans((prevLoans) =>
-      prevLoans.map((item) => {
-        if (item.id !== selectedLoan.id) return item;
+      const isBackendId = !isNaN(Number(selectedLoan.id));
+      if (isBackendId) {
+        const res = await peminjamanApi.keputusan(selectedLoan.id, body);
+        success(res?.message || `Keputusan ${decisionAction} berhasil dicatat.`);
+        await fetchLoans();
+      } else {
+        // Fallback mutasi state in-memory bila sedang mode offline/mock
+        const nowFormatted = new Date().toLocaleString('id-ID', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).replace(/\./g, ':');
 
-        const updated = { ...item };
+        setLoans((prevLoans) =>
+          prevLoans.map((item) => {
+            if (item.id !== selectedLoan.id) return item;
 
-        if (decisionAction === 'tolak') {
-          updated.status = 'DITOLAK';
-          if (activeRolePerspective === 'manager_peminjam') {
-            updated.approval_manager_peminjam = {
-              ...updated.approval_manager_peminjam,
-              status: 'rejected',
-              tanggal: nowFormatted,
-              catatan: decisionNote,
-              ttd: digitalSignature,
-            };
-          } else if (activeRolePerspective === 'pengelola') {
-            updated.approval_pengelola = {
-              ...updated.approval_pengelola,
-              status: 'rejected',
-              tanggal: nowFormatted,
-              catatan: decisionNote,
-              ttd: digitalSignature,
-              cek_spesifikasi: techCheckSpec,
-              cek_operator: techCheckOperator,
-              cek_jadwal_kalibrasi: techCheckSchedule,
-              cek_lokasi: techCheckLocation,
-            };
-          } else if (activeRolePerspective === 'manager_lab') {
-            updated.approval_manager_lab = {
-              ...updated.approval_manager_lab,
-              status: 'rejected',
-              tanggal: nowFormatted,
-              catatan: decisionNote,
-              ttd: digitalSignature,
-            };
-          }
-          return updated;
-        }
+            const updated = { ...item };
 
-        // JIKA MENYETUJUI / MENERUSKAN:
-        if (activeRolePerspective === 'manager_peminjam') {
-          // Dari Tahap 1 -> Lanjut ke Tahap 2 (Pengelola Peralatan)
-          updated.status = 'MENUNGGU_PENGELOLA';
-          updated.approval_manager_peminjam = {
-            ...updated.approval_manager_peminjam,
-            status: 'approved',
-            tanggal: nowFormatted,
-            catatan: decisionNote || 'Disetujui oleh Atasan Peminjam.',
-            ttd: digitalSignature,
-          };
-        } else if (activeRolePerspective === 'pengelola') {
-          // Dari Tahap 2 -> Verifikasi Administratif Selesai -> Lanjut ke Tahap 3 (Manager Lab Pemilik)
-          // CATATAN: Di sini BELUM mengisi Lampiran A! Sesuai flowchart, pengelola hanya klik "Teruskan"
-          updated.status = 'MENUNGGU_MANAGER_LAB';
-          updated.approval_pengelola = {
-            ...updated.approval_pengelola,
-            status: 'approved',
-            tanggal: nowFormatted,
-            catatan: decisionNote || 'Verifikasi teknis, wewenang operator, dan ketersediaan jadwal terpenuhi. Diteruskan ke Manager Lab.',
-            ttd: digitalSignature,
-            cek_spesifikasi: techCheckSpec,
-            cek_operator: techCheckOperator,
-            cek_jadwal_kalibrasi: techCheckSchedule,
-            cek_lokasi: techCheckLocation,
-          };
-        } else if (activeRolePerspective === 'manager_lab') {
-          // Dari Tahap 3 -> Manager Lab Mengesahkan Izin
-          // SETELAH INI: Alur DIARAHKAN KEMBALI ke Pengelola Peralatan & Peminjam untuk Serah Terima Fisik (Lampiran A)
-          updated.status = 'MENUNGGU_SERAH_TERIMA';
-          updated.approval_manager_lab = {
-            ...updated.approval_manager_lab,
-            status: 'approved',
-            tanggal: nowFormatted,
-            catatan: decisionNote || 'Persetujuan peminjaman disahkan. Silakan laksanakan serah terima keluar fisik menggunakan Lampiran A.',
-            ttd: digitalSignature,
-          };
-        }
+            if (decisionAction === 'tolak') {
+              updated.status = 'DITOLAK';
+              if (activeRolePerspective === 'manager_peminjam') {
+                updated.approval_manager_peminjam = {
+                  ...updated.approval_manager_peminjam,
+                  status: 'rejected',
+                  tanggal: nowFormatted,
+                  catatan: decisionNote,
+                  ttd: digitalSignature,
+                };
+              } else if (activeRolePerspective === 'pengelola') {
+                updated.approval_pengelola = {
+                  ...updated.approval_pengelola,
+                  status: 'rejected',
+                  tanggal: nowFormatted,
+                  catatan: decisionNote,
+                  ttd: digitalSignature,
+                  cek_spesifikasi: techCheckSpec,
+                  cek_operator: techCheckOperator,
+                  cek_jadwal_kalibrasi: techCheckSchedule,
+                  cek_lokasi: techCheckLocation,
+                };
+              } else if (activeRolePerspective === 'manager_lab') {
+                updated.approval_manager_lab = {
+                  ...updated.approval_manager_lab,
+                  status: 'rejected',
+                  tanggal: nowFormatted,
+                  catatan: decisionNote,
+                  ttd: digitalSignature,
+                };
+              }
+              return updated;
+            }
 
-        return updated;
-      })
-    );
+            // JIKA MENYETUJUI / MENERUSKAN:
+            if (activeRolePerspective === 'manager_peminjam') {
+              updated.status = 'MENUNGGU_PENGELOLA';
+              updated.approval_manager_peminjam = {
+                ...updated.approval_manager_peminjam,
+                status: 'approved',
+                tanggal: nowFormatted,
+                catatan: decisionNote || 'Disetujui oleh Atasan Peminjam.',
+                ttd: digitalSignature,
+              };
+            } else if (activeRolePerspective === 'pengelola') {
+              updated.status = 'MENUNGGU_MANAGER_LAB';
+              updated.approval_pengelola = {
+                ...updated.approval_pengelola,
+                status: 'approved',
+                tanggal: nowFormatted,
+                catatan: decisionNote || 'Verifikasi teknis, wewenang operator, dan ketersediaan jadwal terpenuhi. Diteruskan ke Manager Lab.',
+                ttd: digitalSignature,
+                cek_spesifikasi: techCheckSpec,
+                cek_operator: techCheckOperator,
+                cek_jadwal_kalibrasi: techCheckSchedule,
+                cek_lokasi: techCheckLocation,
+              };
+            } else if (activeRolePerspective === 'manager_lab') {
+              updated.status = 'DISETUJUI';
+              updated.approval_manager_lab = {
+                ...updated.approval_manager_lab,
+                status: 'approved',
+                tanggal: nowFormatted,
+                catatan: decisionNote || 'Persetujuan peminjaman disahkan. Silakan laksanakan serah terima keluar fisik menggunakan Lampiran A.',
+                ttd: digitalSignature,
+              };
+            }
 
-    setIsSubmitting(false);
-    setSelectedLoan(null);
-    success(
-      decisionAction === 'setuju'
-        ? `Persetujuan berhasil disimpan! Tiket peminjaman ${selectedLoan.id} diperbarui.`
-        : `Pengajuan peminjaman ${selectedLoan.id} ditolak.`
-    );
+            return updated;
+          })
+        );
+
+        success(
+          decisionAction === 'setuju'
+            ? `Persetujuan berhasil disimpan! Tiket peminjaman ${selectedLoan.kode || selectedLoan.id} diperbarui.`
+            : `Pengajuan peminjaman ${selectedLoan.kode || selectedLoan.id} ditolak.`
+        );
+      }
+      setSelectedLoan(null);
+    } catch (err) {
+      toastError(err.message || 'Gagal menyimpan keputusan.');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   // Submit Serah Terima Keluar Fisik (Tahap 4: Lampiran A)
@@ -928,7 +1045,7 @@ export default function LoanApproval({ onNavigate }) {
         const updated = { ...item };
 
         if (adaItemTS) {
-          // CRITICAL SOP RULE (Flowchart & TLKM13/IK/005 Butir 8.4b):
+          // CRITICAL SOP RULE (Flowchart & Prosedur Serah Terima):
           // Jika ada checkbox TS, peminjaman dibatalkan & status alat jadi DO_NOT_USE!
           updated.status = 'DIBATALKAN_TS';
           updated.serah_terima_keluar = {
@@ -939,7 +1056,7 @@ export default function LoanApproval({ onNavigate }) {
             ada_ts: true,
             ttd_pengelola: checkoutSigPengelola || 'data:image/png;base64,mockSignPengelolaTS',
             ttd_peminjam: checkoutSigPeminjam || 'data:image/png;base64,mockSignPeminjamTS',
-            catatan: checkoutNote || 'Ditemukan ketidaksesuaian kondisi fisik/fungsi pada saat serah terima. Penyerahan dibatalkan dan status peralatan dialihkan ke DO NOT USE (TLKM13/IK/012).',
+            catatan: checkoutNote || 'Ditemukan ketidaksesuaian kondisi fisik/fungsi pada saat serah terima. Penyerahan dibatalkan dan status peralatan dialihkan ke DO NOT USE.',
             f006_nomor: null,
           };
         } else {
@@ -967,7 +1084,7 @@ export default function LoanApproval({ onNavigate }) {
 
     if (adaItemTS) {
       toastError(
-        `Serah terima dibatalkan karena terdapat butir TS. Tiket ${selectedLoan.id} ditutup dan status alat diubah menjadi DO_NOT_USE (TLKM13/IK/012).`
+        `Serah terima dibatalkan karena terdapat butir TS. Tiket ${selectedLoan.id} ditutup dan status alat diubah menjadi DO_NOT_USE.`
       );
     } else {
       success(
@@ -999,7 +1116,7 @@ export default function LoanApproval({ onNavigate }) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h1 className="page-title" style={{ margin: 0 }}>Modul Peminjaman & Persetujuan Peralatan</h1>
-            <span className="badge badge-purple" style={{ fontSize: '11px', fontWeight: 600 }}>TLKM13/IK/005</span>
+            <span className="badge badge-purple" style={{ fontSize: '11px', fontWeight: 600 }}>SOP Peminjaman</span>
           </div>
           <p className="page-subtitle" style={{ marginTop: 4 }}>
             Alur Persetujuan Resmi: Atasan Peminjam ➔ Pengelola (Review Teknis) ➔ Manager Lab ➔ <strong>Serah Terima Fisik (Lampiran A)</strong>.
@@ -1155,62 +1272,7 @@ export default function LoanApproval({ onNavigate }) {
       ) : (
         <>
           {/* ==================================================================== */}
-          {/* 3. KARTU METRIK KPI                                                  */}
-          {/* ==================================================================== */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--sp-3)', marginBottom: 'var(--sp-5)' }}>
-            <div className="card" style={{ padding: 'var(--sp-3) var(--sp-4)', borderLeft: '4px solid #3b82f6' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', textTransform: 'uppercase' }}>
-                Total Pengajuan
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#0f172a', marginTop: 4 }}>
-                {loans.length}
-              </div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>Semua riwayat peminjaman</div>
-            </div>
-
-            <div className="card" style={{ padding: 'var(--sp-3) var(--sp-4)', borderLeft: '4px solid #d97706' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', textTransform: 'uppercase' }}>
-                Tahap 1 (Atasan)
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#d97706', marginTop: 4 }}>
-                {loans.filter((l) => l.status === 'MENUNGGU_MANAGER_PEMINJAM').length}
-              </div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>Validasi atasan peminjam</div>
-            </div>
-
-            <div className="card" style={{ padding: 'var(--sp-3) var(--sp-4)', borderLeft: '4px solid #0284c7' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', textTransform: 'uppercase' }}>
-                Tahap 2 (Pengelola)
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#0284c7', marginTop: 4 }}>
-                {loans.filter((l) => l.status === 'MENUNGGU_PENGELOLA').length}
-              </div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>Review teknis & ketersediaan</div>
-            </div>
-
-            <div className="card" style={{ padding: 'var(--sp-3) var(--sp-4)', borderLeft: '4px solid #7c3aed' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', textTransform: 'uppercase' }}>
-                Tahap 3 (Mgr Lab)
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#7c3aed', marginTop: 4 }}>
-                {loans.filter((l) => l.status === 'MENUNGGU_MANAGER_LAB').length}
-              </div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>Pengesahan izin final</div>
-            </div>
-
-            <div className="card" style={{ padding: 'var(--sp-3) var(--sp-4)', borderLeft: '4px solid #ea580c' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)', textTransform: 'uppercase' }}>
-                Tahap 4 (Serah Terima)
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ea580c', marginTop: 4 }}>
-                {loans.filter((l) => l.status === 'MENUNGGU_SERAH_TERIMA').length}
-              </div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>Cek fisik Lampiran A bersama peminjam</div>
-            </div>
-          </div>
-
-          {/* ==================================================================== */}
-          {/* 4. BILAH FILTER & PENCARIAN                                          */}
+          {/* 3. BILAH FILTER & PENCARIAN                                          */}
           {/* ==================================================================== */}
           <div
             className="card card-padded"
@@ -1401,12 +1463,23 @@ export default function LoanApproval({ onNavigate }) {
                             {/* Mini Stepper 4 Tahap */}
                             <div style={{ display: 'flex', gap: 4, marginTop: 6 }} title="Progres: 1.Atasan | 2.Pengelola | 3.Mgr Lab | 4.Serah Terima">
                               <span
-                                title="Tahap 1: Manager Peminjam"
+                                title={
+                                  loan.approval_manager_peminjam?.status === 'skipped'
+                                    ? 'Tahap 1: Dilewati Otomatis (Peminjam & Pemilik Lab Sama)'
+                                    : 'Tahap 1: Manager Peminjam'
+                                }
                                 style={{
                                   width: 14,
                                   height: 6,
                                   borderRadius: 3,
-                                  background: loan.approval_manager_peminjam?.status === 'approved' ? '#16a34a' : loan.approval_manager_peminjam?.status === 'rejected' ? '#dc2626' : '#cbd5e1',
+                                  background:
+                                    loan.approval_manager_peminjam?.status === 'approved'
+                                      ? '#16a34a'
+                                      : loan.approval_manager_peminjam?.status === 'skipped'
+                                      ? '#0284c7'
+                                      : loan.approval_manager_peminjam?.status === 'rejected'
+                                      ? '#dc2626'
+                                      : '#cbd5e1',
                                 }}
                               />
                               <span
@@ -1415,7 +1488,12 @@ export default function LoanApproval({ onNavigate }) {
                                   width: 14,
                                   height: 6,
                                   borderRadius: 3,
-                                  background: loan.approval_pengelola?.status === 'approved' ? '#16a34a' : loan.approval_pengelola?.status === 'rejected' ? '#dc2626' : '#cbd5e1',
+                                  background:
+                                    loan.approval_pengelola?.status === 'approved'
+                                      ? '#16a34a'
+                                      : loan.approval_pengelola?.status === 'rejected'
+                                      ? '#dc2626'
+                                      : '#cbd5e1',
                                 }}
                               />
                               <span
@@ -1424,7 +1502,12 @@ export default function LoanApproval({ onNavigate }) {
                                   width: 14,
                                   height: 6,
                                   borderRadius: 3,
-                                  background: loan.approval_manager_lab?.status === 'approved' ? '#16a34a' : loan.approval_manager_lab?.status === 'rejected' ? '#dc2626' : '#cbd5e1',
+                                  background:
+                                    loan.approval_manager_lab?.status === 'approved'
+                                      ? '#16a34a'
+                                      : loan.approval_manager_lab?.status === 'rejected'
+                                      ? '#dc2626'
+                                      : '#cbd5e1',
                                 }}
                               />
                               <span
@@ -1433,7 +1516,14 @@ export default function LoanApproval({ onNavigate }) {
                                   width: 14,
                                   height: 6,
                                   borderRadius: 3,
-                                  background: loan.status === 'SEDANG_DIPINJAM' ? '#16a34a' : loan.status === 'DIBATALKAN_TS' ? '#dc2626' : loan.status === 'MENUNGGU_SERAH_TERIMA' ? '#ea580c' : '#cbd5e1',
+                                  background:
+                                    loan.status === 'SEDANG_DIPINJAM'
+                                      ? '#16a34a'
+                                      : loan.status === 'DIBATALKAN_TS'
+                                      ? '#dc2626'
+                                      : loan.status === 'MENUNGGU_SERAH_TERIMA'
+                                      ? '#ea580c'
+                                      : '#cbd5e1',
                                 }}
                               />
                             </div>
@@ -1547,7 +1637,7 @@ export default function LoanApproval({ onNavigate }) {
                   </span>
                 </div>
                 <p style={{ margin: 0, fontSize: '12px', color: '#64748b', marginTop: 3 }}>
-                  Standar TLKM13/IK/005 — Formulir Otorisasi TLKM13/F/010
+                  Formulir Otorisasi & Riwayat Persetujuan Peminjaman
                 </p>
               </div>
 
@@ -1714,7 +1804,7 @@ export default function LoanApproval({ onNavigate }) {
               <div style={{ marginBottom: 'var(--sp-5)' }}>
                 <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: 12, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Award size={16} style={{ color: 'var(--clr-primary-500)' }} />
-                  Lembar Otorisasi 3 Tingkat (TLKM13/F/010)
+                  Lembar Otorisasi Persetujuan 3 Tingkat
                 </h3>
 
                 <div
@@ -1762,14 +1852,28 @@ export default function LoanApproval({ onNavigate }) {
                     {/* TTD 1: Manager Peminjam */}
                     <div style={{ padding: 10, borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div>
-                        <div style={{ fontWeight: 600 }}>{selectedLoan.approval_manager_peminjam?.nama}</div>
-                        <div style={{ color: '#64748b' }}>NIP: {selectedLoan.approval_manager_peminjam?.nip}</div>
+                        <div style={{ fontWeight: 600 }}>{selectedLoan.approval_manager_peminjam?.nama || 'Manajer Peminjam'}</div>
+                        <div style={{ color: '#64748b' }}>NIP: {selectedLoan.approval_manager_peminjam?.nip || '-'}</div>
                       </div>
                       <div style={{ margin: '8px 0', textAlign: 'center', minHeight: 45, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {selectedLoan.approval_manager_peminjam?.ttd ? (
-                          <div style={{ borderBottom: '1px dashed #94a3b8', paddingBottom: 2, display: 'inline-block' }}>
-                            <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '12px' }}>[ TTD DIGITAL TERCATAT ]</span>
-                            <div style={{ fontSize: '9px', color: '#64748b' }}>{selectedLoan.approval_manager_peminjam?.tanggal}</div>
+                        {selectedLoan.approval_manager_peminjam?.status === 'skipped' ? (
+                          <div style={{ borderBottom: '1px dashed #0284c7', paddingBottom: 2, display: 'inline-block' }}>
+                            <span style={{ color: '#0284c7', fontWeight: 'bold', fontSize: '11px' }}>[ DILEWATI (MANAJER SAMA) ]</span>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>Otomatis diteruskan</div>
+                          </div>
+                        ) : selectedLoan.approval_manager_peminjam?.status === 'approved' || selectedLoan.approval_manager_peminjam?.ttd ? (
+                          <div style={{ borderBottom: '1px dashed #16a34a', paddingBottom: 2, display: 'inline-block' }}>
+                            <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '12px' }}>[ VALIDASI DISETUJUI ]</span>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>
+                              {selectedLoan.approval_manager_peminjam?.tanggal ? String(selectedLoan.approval_manager_peminjam.tanggal).slice(0, 10) : ''}
+                            </div>
+                          </div>
+                        ) : selectedLoan.approval_manager_peminjam?.status === 'rejected' ? (
+                          <div style={{ borderBottom: '1px dashed #dc2626', paddingBottom: 2, display: 'inline-block' }}>
+                            <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '12px' }}>[ DITOLAK ]</span>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>
+                              {selectedLoan.approval_manager_peminjam?.tanggal ? String(selectedLoan.approval_manager_peminjam.tanggal).slice(0, 10) : ''}
+                            </div>
                           </div>
                         ) : (
                           <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Belum Disetujui</span>
@@ -1783,17 +1887,32 @@ export default function LoanApproval({ onNavigate }) {
                     {/* TTD 2: Pengelola Peralatan */}
                     <div style={{ padding: 10, borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div>
-                        <div style={{ fontWeight: 600 }}>{selectedLoan.approval_pengelola?.nama}</div>
-                        <div style={{ color: '#64748b' }}>NIP: {selectedLoan.approval_pengelola?.nip}</div>
+                        <div style={{ fontWeight: 600 }}>{selectedLoan.approval_pengelola?.nama || 'Pengelola Peralatan'}</div>
+                        <div style={{ color: '#64748b' }}>NIP: {selectedLoan.approval_pengelola?.nip || '-'}</div>
                       </div>
-                      <div style={{ margin: '8px 0', textAlign: 'center', minHeight: 45, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {selectedLoan.approval_pengelola?.ttd ? (
-                          <div style={{ borderBottom: '1px dashed #94a3b8', paddingBottom: 2, display: 'inline-block' }}>
+                      <div style={{ margin: '8px 0', textAlign: 'center', minHeight: 45, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        {selectedLoan.approval_pengelola?.status === 'approved' || selectedLoan.approval_pengelola?.ttd ? (
+                          <div style={{ borderBottom: '1px dashed #16a34a', paddingBottom: 2, display: 'inline-block' }}>
                             <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '12px' }}>[ VERIFIKASI TEKNIS LOLOS ]</span>
-                            <div style={{ fontSize: '9px', color: '#64748b' }}>{selectedLoan.approval_pengelola?.tanggal}</div>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>
+                              {selectedLoan.approval_pengelola?.tanggal ? String(selectedLoan.approval_pengelola.tanggal).slice(0, 10) : ''}
+                            </div>
+                          </div>
+                        ) : selectedLoan.approval_pengelola?.status === 'rejected' ? (
+                          <div style={{ borderBottom: '1px dashed #dc2626', paddingBottom: 2, display: 'inline-block' }}>
+                            <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '12px' }}>[ DITOLAK ]</span>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>
+                              {selectedLoan.approval_pengelola?.tanggal ? String(selectedLoan.approval_pengelola.tanggal).slice(0, 10) : ''}
+                            </div>
                           </div>
                         ) : (
                           <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Belum Diperiksa</span>
+                        )}
+
+                        {selectedLoan.approval_pengelola?.alat_alternatif && (
+                          <div style={{ marginTop: 4, padding: '2px 6px', background: '#fef3c7', borderRadius: 4, fontSize: '10px', color: '#92400e', textAlign: 'left' }}>
+                            Saran Pengganti: <strong>{selectedLoan.approval_pengelola.alat_alternatif.nama_peralatan}</strong>
+                          </div>
                         )}
                       </div>
                       <div style={{ color: '#475569', fontSize: '10px' }}>
@@ -1804,14 +1923,23 @@ export default function LoanApproval({ onNavigate }) {
                     {/* TTD 3: Manager Lab Pemilik */}
                     <div style={{ padding: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div>
-                        <div style={{ fontWeight: 600 }}>{selectedLoan.approval_manager_lab?.nama}</div>
-                        <div style={{ color: '#64748b' }}>NIP: {selectedLoan.approval_manager_lab?.nip}</div>
+                        <div style={{ fontWeight: 600 }}>{selectedLoan.approval_manager_lab?.nama || 'Manager Lab'}</div>
+                        <div style={{ color: '#64748b' }}>NIP: {selectedLoan.approval_manager_lab?.nip || '-'}</div>
                       </div>
                       <div style={{ margin: '8px 0', textAlign: 'center', minHeight: 45, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {selectedLoan.approval_manager_lab?.ttd ? (
-                          <div style={{ borderBottom: '1px dashed #94a3b8', paddingBottom: 2, display: 'inline-block' }}>
+                        {selectedLoan.approval_manager_lab?.status === 'approved' || selectedLoan.approval_manager_lab?.ttd ? (
+                          <div style={{ borderBottom: '1px dashed #16a34a', paddingBottom: 2, display: 'inline-block' }}>
                             <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '12px' }}>[ PENGESAHAN DIBERIKAN ]</span>
-                            <div style={{ fontSize: '9px', color: '#64748b' }}>{selectedLoan.approval_manager_lab?.tanggal}</div>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>
+                              {selectedLoan.approval_manager_lab?.tanggal ? String(selectedLoan.approval_manager_lab.tanggal).slice(0, 10) : ''}
+                            </div>
+                          </div>
+                        ) : selectedLoan.approval_manager_lab?.status === 'rejected' ? (
+                          <div style={{ borderBottom: '1px dashed #dc2626', paddingBottom: 2, display: 'inline-block' }}>
+                            <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '12px' }}>[ DITOLAK ]</span>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>
+                              {selectedLoan.approval_manager_lab?.tanggal ? String(selectedLoan.approval_manager_lab.tanggal).slice(0, 10) : ''}
+                            </div>
                           </div>
                         ) : (
                           <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Belum Disahkan</span>
@@ -1826,7 +1954,7 @@ export default function LoanApproval({ onNavigate }) {
               </div>
 
               {/* JIKA STATUS SUDAH DISAHKAN MANAGER LAB & SIAP SERAH TERIMA */}
-              {selectedLoan.status === 'MENUNGGU_SERAH_TERIMA' && (
+              {(selectedLoan.status === 'MENUNGGU_SERAH_TERIMA' || selectedLoan.status === 'DISETUJUI') && (
                 <div
                   className="alert alert-warning"
                   style={{
@@ -1948,7 +2076,7 @@ export default function LoanApproval({ onNavigate }) {
                       >
                         <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e40af', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <ShieldCheck size={16} />
-                          Checklist Verifikasi Kelayakan & Ketersediaan Alat (TLKM13/IK/005 Butir 8.3):
+                          Checklist Verifikasi Kelayakan & Ketersediaan Alat:
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '12px', color: '#1e293b' }}>
                           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -2046,7 +2174,7 @@ export default function LoanApproval({ onNavigate }) {
                     {/* Catatan Keputusan */}
                     <div className="form-group" style={{ marginBottom: 'var(--sp-3)' }}>
                       <label className="form-label">
-                        {decisionAction === 'setuju' ? 'Catatan / Arahan (Opsional)' : 'Alasan Penolakan / Rekomendasi Alat Lain (Wajib)'}
+                        {decisionAction === 'setuju' ? 'Catatan / Arahan (Opsional)' : 'Alasan Penolakan (Wajib)'}
                       </label>
                       <textarea
                         className="form-textarea"
@@ -2054,13 +2182,40 @@ export default function LoanApproval({ onNavigate }) {
                         placeholder={
                           decisionAction === 'setuju'
                             ? 'Catatan pemeriksaan teknis atau instruksi khusus...'
-                            : 'Uraikan alasan penolakan atau usulkan peralatan alternatif yang dapat digunakan...'
+                            : 'Uraikan alasan penolakan peralatan...'
                         }
                         value={decisionNote}
                         onChange={(e) => setDecisionNote(e.target.value)}
                         required={decisionAction === 'tolak'}
                       />
                     </div>
+
+                    {/* Opsi Usulan Peralatan Alternatif (Khusus Pengelola saat Menolak) */}
+                    {decisionAction === 'tolak' && activeRolePerspective === 'pengelola' && (
+                      <div className="form-group" style={{ marginBottom: 'var(--sp-3)' }}>
+                        <label className="form-label" htmlFor="input-alat-alternatif">
+                          Usulkan Peralatan Alternatif <span className="form-hint" style={{ display: 'inline' }}>(Opsional)</span>
+                        </label>
+                        <select
+                          id="input-alat-alternatif"
+                          className="form-select"
+                          value={alternativeEquipmentId}
+                          onChange={(e) => setAlternativeEquipmentId(e.target.value)}
+                        >
+                          <option value="">-- Tidak Ada Usulan Alat Pengganti --</option>
+                          {equipmentList
+                            .filter((eq) => String(eq.id) !== String(selectedLoan?.peralatan?.id))
+                            .map((eq) => (
+                              <option key={eq.id} value={eq.id}>
+                                {eq.nama_peralatan} ({eq.nomor_aset || 'Tanpa No. Aset'})
+                              </option>
+                            ))}
+                        </select>
+                        <span className="form-hint">
+                          Alat alternatif ini dapat disarankan kepada peminjam sebagai opsi pengganti yang layak.
+                        </span>
+                      </div>
+                    )}
 
                     {/* Signature Pad */}
                     {decisionAction === 'setuju' && (
@@ -2098,6 +2253,136 @@ export default function LoanApproval({ onNavigate }) {
                     </div>
                   </form>
                 )}
+
+              {/* ================================================================ */}
+              {/* TABEL LOGBOOK PERALATAN — DARI BACKEND                           */}
+              {/* ================================================================ */}
+              <div
+                className="card"
+                style={{
+                  padding: 'var(--sp-4)',
+                  marginTop: 'var(--sp-4)',
+                  background: '#ffffff',
+                  border: '1.5px solid #cbd5e1',
+                  borderRadius: 'var(--radius-md, 8px)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 10,
+                    flexWrap: 'wrap',
+                    gap: 8,
+                  }}
+                >
+                  <div>
+                    <h3
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        margin: 0,
+                        color: '#0f172a',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <FileText size={16} style={{ color: 'var(--clr-primary-500)' }} />
+                      Catatan Logbook Peralatan
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#64748b', marginTop: 2 }}>
+                      Riwayat aktivitas otomatis dari endpoint <code>GET /api/peralatan/{selectedLoan.peralatan.id}/logbook</code>
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => fetchLogbook(selectedLoan.peralatan?.id)}
+                    disabled={isLogbookLoading}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: '11px',
+                      padding: '3px 8px',
+                    }}
+                  >
+                    <RefreshCw size={12} className={isLogbookLoading ? 'spin' : ''} />
+                    {isLogbookLoading ? 'Memuat...' : 'Muat Ulang'}
+                  </button>
+                </div>
+
+                {isLogbookLoading ? (
+                  <div style={{ textAlign: 'center', padding: 'var(--sp-4)', color: '#64748b', fontSize: '12px' }}>
+                    <RefreshCw size={15} className="spin" style={{ display: 'inline-block', marginRight: 6, verticalAlign: 'middle' }} />
+                    Menghubungi endpoint backend...
+                  </div>
+                ) : logbookData.length === 0 ? (
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: 'var(--sp-4)',
+                      color: '#94a3b8',
+                      fontSize: '12px',
+                      background: '#f8fafc',
+                      borderRadius: 6,
+                    }}
+                  >
+                    Belum ada riwayat logbook untuk peralatan ini di database.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 6 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
+                          <th style={{ padding: '6px 10px', color: '#475569', fontWeight: 600 }}>Waktu</th>
+                          <th style={{ padding: '6px 10px', color: '#475569', fontWeight: 600 }}>Aktivitas</th>
+                          <th style={{ padding: '6px 10px', color: '#475569', fontWeight: 600 }}>Status</th>
+                          <th style={{ padding: '6px 10px', color: '#475569', fontWeight: 600 }}>Petugas / User</th>
+                          <th style={{ padding: '6px 10px', color: '#475569', fontWeight: 600 }}>Keterangan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logbookData.map((log) => (
+                          <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
+                              {log.created_at
+                                ? new Date(log.created_at).toLocaleString('id-ID', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  }).replace(/\./g, ':')
+                                : '-'}
+                            </td>
+                            <td style={{ padding: '6px 10px', fontWeight: 600, color: '#0f172a' }}>
+                              {log.judul || log.aksi}
+                            </td>
+                            <td style={{ padding: '6px 10px' }}>
+                              <span
+                                className="badge badge-primary"
+                                style={{ fontSize: '10px', padding: '2px 6px' }}
+                              >
+                                {log.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: '6px 10px', color: '#334155' }}>
+                              {log.user?.name || `User #${log.user?.user_id || '-'}`}
+                            </td>
+                            <td style={{ padding: '6px 10px', color: '#64748b' }}>
+                              {log.keterangan || '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Modal Footer */}
@@ -2174,7 +2459,7 @@ export default function LoanApproval({ onNavigate }) {
                   </h2>
                 </div>
                 <p style={{ margin: 0, fontSize: '12px', color: '#c2410c', marginTop: 2 }}>
-                  Tiket {selectedLoan.id} — Pemeriksaan Fisik Bersama antara Pengelola Peralatan dan Peminjam (TLKM13/IK/005 Butir 8.4)
+                  Tiket {selectedLoan.id} — Pemeriksaan Fisik Bersama antara Pengelola Peralatan dan Peminjam
                 </p>
               </div>
 
@@ -2366,11 +2651,11 @@ export default function LoanApproval({ onNavigate }) {
                         PERINGATAN KRITIS: Ditemukan {countTS} Butir Tidak Sesuai (TS)!
                       </div>
                       <div style={{ fontSize: '12px', marginTop: 4, lineHeight: 1.4 }}>
-                        Sesuai standar <strong>TLKM13/IK/005 Butir 8.4 huruf b</strong> dan flowchart operasional:
+                        Sesuai prosedur operasional serah terima peralatan:
                         <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                           <li>Peralatan yang menunjukkan kondisi tidak normal <strong>TIDAK BOLEH DISERAHKAN</strong>.</li>
                           <li>Peminjaman otomatis <strong>DIBATALKAN</strong>.</li>
-                          <li>Status alat akan dialihkan menjadi <strong>DO NOT USE</strong> untuk penanganan peninjauan teknis sesuai <strong>TLKM13/IK/012</strong>.</li>
+                          <li>Status alat akan dialihkan menjadi <strong>DO NOT USE</strong> untuk penanganan peninjauan teknis lebih lanjut.</li>
                         </ul>
                       </div>
                     </div>

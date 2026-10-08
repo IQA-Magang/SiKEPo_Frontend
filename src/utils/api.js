@@ -485,6 +485,43 @@ export const notificationApi = {
     fetchWithAuth(`/api/notifications/${id}/read`, { method: 'PATCH' }),
 };
 
+// =============================================================
+// LOGBOOK PERALATAN — /api/peralatan/:id/logbook
+// GET /:id/logbook?jenis=... → { success, data: LogbookItem[] }
+// =============================================================
+export const logbookApi = {
+  getByPeralatanId: (peralatanId, jenis = 'peminjaman') => {
+    const query = jenis ? `?jenis=${encodeURIComponent(jenis)}` : '';
+    return fetchWithAuth(`/api/peralatan/${peralatanId}/logbook${query}`);
+  },
+};
+
+// =============================================================
+// PEMINJAMAN PERALATAN — /api/peminjaman
+// GET /          → { success, data: Peminjaman[] }
+// POST /         → { success, data: Peminjaman }
+// GET /:id       → { success, data: Peminjaman }
+// PUT /:id/keputusan → { success, data: Peminjaman }
+// =============================================================
+export const peminjamanApi = {
+  getAll: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.peran) searchParams.append('peran', params.peran);
+    if (params.status && params.status !== 'SEMUA') searchParams.append('status', params.status);
+    if (params.menunggu_saya !== undefined && params.menunggu_saya !== null && params.menunggu_saya !== '') {
+      searchParams.append('menunggu_saya', String(params.menunggu_saya));
+    }
+    if (params.peralatan_id) searchParams.append('peralatan_id', String(params.peralatan_id));
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return fetchWithAuth(`/api/peminjaman${query}`);
+  },
+  getById: (id) => fetchWithAuth(`/api/peminjaman/${id}`),
+  create: (body) =>
+    fetchWithAuth('/api/peminjaman', { method: 'POST', body: JSON.stringify(body) }),
+  keputusan: (id, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/keputusan`, { method: 'PUT', body: JSON.stringify(body) }),
+};
+
 
 export const STATUS_ALAT_OPTIONS = [
   'Karantina', 'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak'

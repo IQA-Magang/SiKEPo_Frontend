@@ -16,6 +16,7 @@ import {
   getCurrentUser,
   peralatanApi,
   labsApi,
+  peminjamanApi,
   getEquipmentId,
   formatPhotoUrl,
   STATUS_BADGE_CLASS,
@@ -23,7 +24,7 @@ import {
 import { useToast } from '../../context/ToastContext.jsx';
 import { useNavigate } from '../../router/Router.jsx';
 
-// TLKM13/IK/005 butir 8.1.a — Peminjam mengajukan permohonan kepada Pengelola
+// Prosedur Operasional — Peminjam mengajukan permohonan kepada Pengelola
 // peralatan dengan menyebutkan:
 // 1) peralatan yang dipinjam
 // 2) tujuan penggunaan
@@ -36,8 +37,8 @@ import { useNavigate } from '../../router/Router.jsx';
 
 // Dokumen pendukung (butir 7.f dan 8.1.e)
 const DOKUMEN_PENDUKUNG = [
-  { value: 'logbook', label: 'TLKM13/F/010 Logbook Peralatan — disiapkan dan dibawa bersama peralatan' },
-  { value: 'surat_keterangan_membawa', label: 'TLKM13/F/006 Surat Keterangan Membawa Peralatan — wajib untuk peminjaman eksternal' },
+  { value: 'logbook', label: 'Logbook Peralatan — disiapkan dan dibawa bersama peralatan' },
+  { value: 'surat_keterangan_membawa', label: 'Surat Keterangan Membawa Peralatan — wajib untuk peminjaman eksternal' },
 ];
 
 const emptyForm = (user) => ({
@@ -48,8 +49,10 @@ const emptyForm = (user) => ({
   nama_operator: '',
   // C. Tujuan Penggunaan (butir 8.1.a.2)
   tujuan_penggunaan: '',
+  nomor_spk: '',
   // D. Lokasi Penggunaan (butir 8.1.a.3)
   lokasi_penggunaan: '',
+  is_eksternal: false,
   di_luar_tth: false,
   // E. Rencana Tanggal (butir 8.1.a.4)
   rencana_tanggal_keluar: '',
@@ -77,7 +80,7 @@ function getNextInspectionDate(equipment, detail) {
 export default function LoanRequest({ equipmentId = null, onNavigate }) {
   const routerNavigate = useNavigate();
   const navigate = onNavigate || routerNavigate;
-  const { error } = useToast();
+  const { success, error } = useToast();
   const currentUser = getCurrentUser();
 
   const [form, setForm] = useState(() => emptyForm(currentUser));
@@ -87,6 +90,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
   const [equipmentDetail, setEquipmentDetail] = useState({});
   const [listLoading, setListLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sync selectedId when equipmentId prop changes
   useEffect(() => {
@@ -180,6 +184,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
       }
       return {
         ...prev,
+        is_eksternal: checked,
         di_luar_tth: checked,
         dokumen_pendukung: Array.from(docs),
       };
@@ -191,20 +196,19 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
   const hariIni = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const nextInspection = getNextInspectionDate(selectedEquipment, equipmentDetail);
-  const isExternal = Boolean(form.di_luar_tth);
+  const isExternal = Boolean(form.is_eksternal || form.di_luar_tth);
   // Butir 7.d: rencana tanggal kembali tidak boleh melampaui jatuh tempo pemeriksaan berikutnya.
   const returnBeyondDueDate = Boolean(
     nextInspection && form.rencana_tanggal_kembali
       && new Date(`${form.rencana_tanggal_kembali}T00:00:00`) > nextInspection
   );
-  // Butir 7.f: peminjaman eksternal disertai TLKM13/F/006 yang telah disetujui.
+  // Peminjaman eksternal disertai Surat Keterangan Membawa Peralatan yang telah disetujui.
   const missingSuratKeterangan = isExternal
     && !form.dokumen_pendukung.includes('surat_keterangan_membawa');
 
   function validate() {
     if (!selectedId) return 'Peralatan yang akan dipinjam wajib dipilih.';
     if (!form.nama_peminjam.trim()) return 'Nama peminjam wajib diisi.';
-    if (!form.nama_lab_asal.trim()) return 'Laboratorium/unit asal peminjam wajib diisi.';
     if (!form.tujuan_penggunaan.trim()) return 'Tujuan penggunaan wajib diisi.';
     if (!form.lokasi_penggunaan.trim()) return 'Lokasi penggunaan wajib diisi.';
     if (!form.rencana_tanggal_keluar) return 'Rencana tanggal keluar wajib diisi.';
@@ -215,25 +219,51 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
     if (returnBeyondDueDate) {
       return `Rencana tanggal kembali tidak boleh melampaui tanggal jatuh tempo pemeriksaan berikutnya (${nextInspection.toLocaleDateString('id-ID')}). Pemeriksaan berkala harus dilaksanakan terlebih dahulu atau gunakan peralatan lain yang layak.`;
     }
-    // Butir 8.1.a.4: rencana tanggal keluar dan kembali sudah diketahui oleh atasan Peminjam.
+    // Rencana tanggal keluar dan kembali sudah diketahui oleh atasan Peminjam.
     if (!form.tanggal_disetujui_atasan) {
-      return 'Rencana tanggal keluar dan kembali harus sudah diketahui oleh atasan peminjam (TLKM13/IK/005 butir 8.1.a).';
+      return 'Rencana tanggal keluar dan kembali harus sudah diketahui oleh atasan peminjam.';
     }
     if (missingSuratKeterangan) {
-      return 'Peminjaman eksternal wajib disertai TLKM13/F/006 Surat Keterangan Membawa Peralatan (butir 7.f).';
+      return 'Peminjaman eksternal wajib disertai Surat Keterangan Membawa Peralatan.';
     }
     return '';
   }
 
-  function submitPermohonan(event) {
+  async function submitPermohonan(event) {
     event.preventDefault();
     const invalidReason = validate();
     if (invalidReason) {
       error(invalidReason);
       return;
     }
-    // Endpoint peminjaman belum tersedia di backend sehingga permohonan belum dapat disimpan.
-    error('Penyimpanan permohonan peminjaman belum tersedia. Modul masih dalam pengembangan.');
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        peralatan_id: Number(selectedId),
+        nama_operator: form.nama_operator?.trim() || '',
+        tujuan_penggunaan: form.tujuan_penggunaan?.trim() || '',
+        nomor_spk: form.nomor_spk?.trim() || '',
+        lokasi_penggunaan: form.lokasi_penggunaan?.trim() || '',
+        is_eksternal: Boolean(form.is_eksternal || form.di_luar_tth),
+        rencana_tanggal_keluar: form.rencana_tanggal_keluar,
+        rencana_tanggal_kembali: form.rencana_tanggal_kembali,
+        kebutuhan_kelengkapan: form.kebutuhan_kelengkapan?.trim() || '',
+        kebutuhan_aksesori: form.kebutuhan_aksesori?.trim() || '',
+        catatan: form.catatan?.trim() || '',
+      };
+
+      const res = await peminjamanApi.create(payload);
+      const kode = res?.data?.kode || '';
+      success(res?.message || `Pengajuan peminjaman berhasil dikirim${kode ? ` (${kode})` : ''}!`);
+      if (navigate) {
+        navigate('/peminjaman');
+      }
+    } catch (err) {
+      error(err.message || 'Gagal mengirim pengajuan peminjaman.');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const equipmentName = selectedEquipment?.nama_peralatan || 'Belum dipilih';
@@ -265,7 +295,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
           <div>
             <h1 className="page-title">Form Pengajuan Peminjaman Peralatan</h1>
             <p className="page-subtitle">
-              TLKM13/IK/005 butir 8.1 — Peminjam mengajukan permohonan kepada Pengelola peralatan.
+              Peminjam mengajukan permohonan peminjaman peralatan kepada Pengelola peralatan.
             </p>
           </div>
         </div>
@@ -386,9 +416,8 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 ))}
               </select>
               <span className="form-hint">
-                Hanya peralatan berstatus layak pakai yang dapat dipinjam (butir 7.a). Peminjaman
-                adalah penggunaan di luar lokasi tercatat; penggunaan di lokasi tercatat mengikuti
-                TLKM13/IK/004 (butir 6.b).
+                Hanya peralatan berstatus layak pakai yang dapat dipinjam. Peminjaman
+                adalah penggunaan peralatan di luar lokasi tercatat laboratorium.
               </span>
             </div>
 
@@ -521,6 +550,20 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               required
             />
           </div>
+
+          <div className="form-group" style={{ marginTop: 'var(--sp-3)' }}>
+            <label className="form-label" htmlFor="input-nomor-spk">
+              Nomor SPK / Surat Perintah Kerja <span className="form-hint" style={{ display: 'inline' }}>(Opsional)</span>
+            </label>
+            <input
+              id="input-nomor-spk"
+              className="form-input"
+              type="text"
+              placeholder="Contoh: SPK/TTH/2026/10-001..."
+              value={form.nomor_spk}
+              onChange={(e) => setForm({ ...form, nomor_spk: e.target.value })}
+            />
+          </div>
         </div>
 
         {/* D. Lokasi Penggunaan — butir 8.1.a.3 */}
@@ -556,20 +599,20 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             <span>
               Peralatan dibawa keluar lingkungan TTH (peminjaman eksternal).
               <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500, #64748B)' }}>
-                Peminjaman eksternal otomatis menyertakan <strong>TLKM13/F/006 Surat Keterangan Membawa Peralatan</strong> yang wajib dicetak dan dibawa bersama alat (butir 7.f &amp; 8.1.e).
+                Peminjaman eksternal otomatis menyertakan <strong>Surat Keterangan Membawa Peralatan</strong> yang wajib dicetak dan dibawa bersama alat.
               </span>
             </span>
           </label>
         </div>
 
-        {/* E. Rencana Tanggal — butir 8.1.a.4 */}
+        {/* E. Rencana Tanggal */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
           <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-2)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <CalendarClock size={18} style={{ color: 'var(--clr-primary-500)' }} />
             E. Rencana Tanggal Keluar dan Kembali
           </h3>
           <p className="page-subtitle" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--sp-3)' }}>
-            Rencana tanggal harus sudah diketahui oleh atasan Peminjam sebelum permohonan diajukan (TLKM13/IK/005 butir 8.1.a).
+            Rencana tanggal harus sudah diketahui oleh atasan Peminjam sebelum permohonan diajukan.
           </p>
           <div className="form-grid-2">
             <div className="form-group">
@@ -684,7 +727,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             </div>
             {missingSuratKeterangan && (
               <span className="form-error-msg" style={{ display: 'block', marginTop: 6 }}>
-                Peminjaman eksternal wajib menyertakan TLKM13/F/006 Surat Keterangan Membawa Peralatan (butir 7.f).
+                Peminjaman eksternal wajib menyertakan Surat Keterangan Membawa Peralatan.
               </span>
             )}
           </div>
@@ -706,7 +749,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
         <div style={{ marginBottom: 'var(--sp-6)' }}>
           <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <FileCheck size={18} style={{ color: 'var(--clr-primary-500)' }} />
-            G. Alur Proses Persetujuan &amp; Serah Terima (TLKM13/IK/005)
+            G. Alur Proses Persetujuan &amp; Serah Terima Peminjaman
           </h3>
           <div
             className="alert alert-info"
@@ -747,22 +790,23 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             paddingTop: 'var(--sp-4)',
           }}
         >
-          <span style={{ marginRight: 'auto', fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500, #64748B)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <BadgeCheck size={14} /> Penyimpanan modul peminjaman belum tersedia
-          </span>
-          <button type="button" className="btn btn-secondary" onClick={() => navigate(backPath)}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => navigate(backPath)}
+            disabled={isSubmitting}
+          >
             Batal
           </button>
           <button
             type="submit"
             className="btn btn-primary"
-            disabled
+            disabled={isSubmitting || listLoading || detailLoading}
             id="btn-ajukan-peminjaman"
-            title="Modul peminjaman masih dalam pengembangan"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
             <Send size={16} />
-            Ajukan Peminjaman
+            {isSubmitting ? 'Mengirim Pengajuan...' : 'Ajukan Peminjaman'}
           </button>
         </div>
       </form>
