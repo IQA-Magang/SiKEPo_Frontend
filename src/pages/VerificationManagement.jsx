@@ -544,7 +544,7 @@ function SignatureDisplayCard({
 const emptyForm = () => ({
   id_peralatan: "",
   tanggal_verifikasi: new Date().toISOString().slice(0, 10),
-  kode_aktivitas: "",
+  kode_aktivitas: "A1",
   tindak_lanjut: "Masuk layanan - label diperbarui",
   catatan: "",
   acuan_kriteria: "",
@@ -758,21 +758,33 @@ export default function VerificationManagement({
             setEquipmentInfo(found);
             const isRejected = found.status_verifikasi === "Ditolak";
             const detail = found.detail || {};
+            const autoActivity = found.kode_aktivitas || "A1";
+            const reqs = ACTIVITY_REQUIREMENTS[autoActivity] || {};
 
-            setForm((prev) => ({
-              ...prev,
-              id_peralatan: String(equipmentId),
-              kode_aktivitas: isRejected ? "" : prev.kode_aktivitas,
-              peninjauan: isRejected
-                ? "Alat telah diperbaiki dan siap diverifikasi ulang"
-                : prev.peninjauan,
-              nomor_sertifikat: detail.no_sertifikat || prev.nomor_sertifikat,
-              berlaku_sampai: detail.tgl_jatuh_tempo
-                ? detail.tgl_jatuh_tempo.slice(0, 10)
-                : prev.berlaku_sampai,
-              acuan_kriteria:
-                prev.acuan_kriteria || `KK-${found.nomor_aset || "ALAT"}`,
-            }));
+            setForm((prev) => {
+              const nextResults = { ...prev.hasil_verifikasi };
+              CHECKS.forEach((key) => {
+                if (reqs[key] === "-") {
+                  nextResults[key] = "TB";
+                }
+              });
+
+              return {
+                ...prev,
+                id_peralatan: String(equipmentId),
+                kode_aktivitas: autoActivity,
+                peninjauan: isRejected
+                  ? "Alat telah diperbaiki dan siap diverifikasi ulang"
+                  : prev.peninjauan,
+                nomor_sertifikat: detail.no_sertifikat || prev.nomor_sertifikat,
+                berlaku_sampai: detail.tgl_jatuh_tempo
+                  ? detail.tgl_jatuh_tempo.slice(0, 10)
+                  : prev.berlaku_sampai,
+                acuan_kriteria:
+                  prev.acuan_kriteria || `KK-${found.nomor_aset || "ALAT"}`,
+                hasil_verifikasi: nextResults,
+              };
+            });
           }
         }
 
@@ -798,9 +810,12 @@ export default function VerificationManagement({
       return;
     }
 
-    const requirements = ACTIVITY_REQUIREMENTS[form.kode_aktivitas];
+    const requirements =
+      ACTIVITY_REQUIREMENTS[form.kode_aktivitas] ||
+      ACTIVITY_REQUIREMENTS[equipmentInfo?.kode_aktivitas] ||
+      ACTIVITY_REQUIREMENTS.A1;
     if (!requirements) {
-      error("Pilih kode aktivitas A1 sampai A5.");
+      error("Kode aktivitas peralatan tidak valid.");
       return;
     }
 
@@ -864,7 +879,6 @@ export default function VerificationManagement({
       const res = await verifikasiApi.create({
         id_peralatan: Number(form.id_peralatan),
         tanggal_verifikasi: form.tanggal_verifikasi,
-        kode_aktivitas: form.kode_aktivitas,
         tindak_lanjut: form.tindak_lanjut,
         catatan: catatanTerstruktur,
         hasil_verifikasi: {
@@ -1217,6 +1231,11 @@ export default function VerificationManagement({
                   {equipmentInfo.status_verifikasi ||
                     "Karantina (Belum Diverifikasi)"}
                 </span>
+                {equipmentInfo.kode_aktivitas && (
+                  <span className="badge badge-gray">
+                    Aktivitas: {equipmentInfo.kode_aktivitas}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1307,48 +1326,31 @@ export default function VerificationManagement({
               </div>
 
               <div className="form-group">
-                <label className="form-label">
-                  Kode Aktivitas <span style={{ color: "red" }}>*</span>
-                </label>
-                <select
-                  className="form-select"
-                  value={form.kode_aktivitas}
-                  onChange={(e) =>
-                    setForm((prev) => {
-                      const nextActivity = e.target.value;
-                      const nextRequirements =
-                        ACTIVITY_REQUIREMENTS[nextActivity] || {};
-                      const previousRequirements =
-                        ACTIVITY_REQUIREMENTS[prev.kode_aktivitas] || {};
-                      const nextResults = { ...prev.hasil_verifikasi };
-                      const nextReasons = { ...prev.tb_alasan };
-
-                      CHECKS.forEach((key) => {
-                        if (nextRequirements[key] === "-") {
-                          nextResults[key] = "TB";
-                          delete nextReasons[key];
-                        } else if (previousRequirements[key] === "-") {
-                          nextResults[key] = "";
-                        }
-                      });
-
-                      return {
-                        ...prev,
-                        kode_aktivitas: nextActivity,
-                        hasil_verifikasi: nextResults,
-                        tb_alasan: nextReasons,
-                      };
-                    })
+                <label className="form-label">Kode Aktivitas</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={
+                    ACTIVITY_OPTIONS.find(
+                      ([code]) => code === form.kode_aktivitas,
+                    )?.[1] ||
+                    (form.kode_aktivitas
+                      ? `${form.kode_aktivitas} - Aktivitas Peralatan`
+                      : "A1 - Penerimaan alat baru")
                   }
-                  required
+                  readOnly
+                  disabled
+                />
+                <small
+                  style={{
+                    fontSize: "var(--text-xs)",
+                    color: "var(--clr-dark-500)",
+                    marginTop: 4,
+                    display: "block",
+                  }}
                 >
-                  <option value="">-- Pilih Kode Aktivitas --</option>
-                  {ACTIVITY_OPTIONS.map(([code, label]) => (
-                    <option key={code} value={code}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  Ditentukan otomatis oleh sistem berdasarkan status peralatan.
+                </small>
               </div>
 
               <div className="form-group">

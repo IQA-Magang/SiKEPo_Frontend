@@ -408,6 +408,9 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                     {technicalRows.map(({ label, value }) => (
                       <InfoRow key={label} label={label} value={value} />
                     ))}
+                    {peralatan.kode_aktivitas && (
+                      <InfoRow label="Kode Aktivitas" value={peralatan.kode_aktivitas} />
+                    )}
                     <InfoRow label="Keterangan" value={peralatan.keterangan || '–'} />
                   </div>
                   <div className="equipment-info-photo">
