@@ -126,6 +126,13 @@ const FOLLOW_UP_OPTIONS = [
   "Tidak Dapat Digunakan - Masuk Peralatan dalam Masa Peninjauan",
 ];
 
+function isMetrologyApplicable(equipment) {
+  return String(equipment?.nomor_aset || "")
+    .trim()
+    .toUpperCase()
+    .startsWith("KAL");
+}
+
 function isEquipmentInUserLab(equipment, roomsById, userLabId) {
   if (userLabId == null) return false;
 
@@ -567,6 +574,7 @@ export default function VerificationManagement({
   const currentUser = getCurrentUser();
   const role = getUserRole(currentUser);
   const staffIsPengelola = role === "staff" && isStaffPengelola(currentUser);
+  const isLabScopedUser = role === "staff" || role === "manager";
   const canSubmit = staffIsPengelola || role === "manager" || role === "admin";
   const canApprove = role === "manager" || role === "admin";
   const currentUserLabId = currentUser?.labs_id ?? currentUser?.labs?.id;
@@ -631,8 +639,8 @@ export default function VerificationManagement({
   async function loadList() {
     setBusy(true);
     try {
-      if (role === "staff" && currentUserLabId == null) {
-        throw new Error("Akun staff belum terhubung dengan lab.");
+      if (isLabScopedUser && currentUserLabId == null) {
+        throw new Error("Akun pengguna belum terhubung dengan lab.");
       }
 
       const [verificationResult, logResult, equipmentResult, roomsResult] =
@@ -640,14 +648,20 @@ export default function VerificationManagement({
           verifikasiApi.getAll(),
           verifikasiApi.getLogPeninjauan(),
           peralatanApi.getAll(),
-          role === "staff"
+          isLabScopedUser
             ? ruanganApi.getAll()
             : Promise.resolve({ data: [] }),
         ]);
-      if (role === "staff" && roomsResult.status !== "fulfilled") {
+      if (isLabScopedUser && roomsResult.status !== "fulfilled") {
         throw (
           roomsResult.reason ||
           new Error("Gagal memuat data ruangan untuk memeriksa lab pengguna.")
+        );
+      }
+      if (isLabScopedUser && equipmentResult.status !== "fulfilled") {
+        throw (
+          equipmentResult.reason ||
+          new Error("Gagal memuat data peralatan untuk memeriksa lab pengguna.")
         );
       }
       const roomList =
@@ -669,7 +683,7 @@ export default function VerificationManagement({
       if (verificationResult.status === "fulfilled") {
         const allVerifications = verificationResult.value?.data || [];
         setItems(
-          role === "staff"
+          isLabScopedUser
             ? allVerifications.filter((item) => {
                 const equipment =
                   item.peralatan ||
@@ -684,7 +698,21 @@ export default function VerificationManagement({
         );
       }
       if (logResult.status === "fulfilled") {
-        setLogs(logResult.value?.data || []);
+        const allLogs = logResult.value?.data || [];
+        setLogs(
+          isLabScopedUser
+            ? allLogs.filter((log) => {
+                const equipment =
+                  log.peralatan ||
+                  equipmentById.get(String(log.id_peralatan));
+                return isEquipmentInUserLab(
+                  equipment,
+                  roomsById,
+                  currentUserLabId,
+                );
+              })
+            : allLogs,
+        );
       }
       if (equipmentResult.status === "fulfilled") {
         // Peralatan yang perlu verifikasi awal (belum disetujui, belum diajukan, dan belum dihapus)
@@ -694,7 +722,7 @@ export default function VerificationManagement({
             p.status_verifikasi !== "Diajukan",
         );
         const visiblePending =
-          role === "staff"
+          isLabScopedUser
             ? pending.filter((p) =>
                 isEquipmentInUserLab(p, roomsById, currentUserLabId),
               )
@@ -718,26 +746,33 @@ export default function VerificationManagement({
   useEffect(() => {
     if (!equipmentId) return;
     setEquipmentInfo(null);
+    setReviewLogs([]);
     setForm((prev) => ({ ...prev, id_peralatan: String(equipmentId) }));
 
     async function fetchEquipment() {
       setLoadingEquipment(true);
       try {
-        if (role === "staff" && currentUserLabId == null) {
-          throw new Error("Akun staff belum terhubung dengan lab.");
+        if (isLabScopedUser && currentUserLabId == null) {
+          throw new Error("Akun pengguna belum terhubung dengan lab.");
         }
 
         const [res, logRes, roomsRes] = await Promise.allSettled([
           peralatanApi.getAll(),
           verifikasiApi.getLogByPeralatanId(equipmentId),
-          role === "staff"
+          isLabScopedUser
             ? ruanganApi.getAll()
             : Promise.resolve({ data: [] }),
         ]);
-        if (role === "staff" && roomsRes.status !== "fulfilled") {
+        if (isLabScopedUser && roomsRes.status !== "fulfilled") {
           throw (
             roomsRes.reason ||
             new Error("Gagal memuat data ruangan untuk memeriksa lab pengguna.")
+          );
+        }
+        if (isLabScopedUser && res.status !== "fulfilled") {
+          throw (
+            res.reason ||
+            new Error("Gagal memuat data peralatan untuk memeriksa lab pengguna.")
           );
         }
         const roomList =
@@ -750,12 +785,18 @@ export default function VerificationManagement({
           const found = (res.value.data || []).find(
             (p) => String(getEquipmentId(p)) === String(equipmentId),
           );
-          if (
+          const canViewEquipment =
             found &&
-            (role !== "staff" ||
-              isEquipmentInUserLab(found, roomsById, currentUserLabId))
-          ) {
+            (!isLabScopedUser ||
+              isEquipmentInUserLab(found, roomsById, currentUserLabId));
+          if (canViewEquipment) {
             setEquipmentInfo(found);
+            if (
+              logRes.status === "fulfilled" &&
+              Array.isArray(logRes.value.data)
+            ) {
+              setReviewLogs(logRes.value.data);
+            }
             const isRejected = found.status_verifikasi === "Ditolak";
             const detail = found.detail || {};
             const autoActivity = found.kode_aktivitas || "A1";
@@ -764,7 +805,10 @@ export default function VerificationManagement({
             setForm((prev) => {
               const nextResults = { ...prev.hasil_verifikasi };
               CHECKS.forEach((key) => {
-                if (reqs[key] === "-") {
+                if (
+                  reqs[key] === "-" ||
+                  (key === "metrologi" && !isMetrologyApplicable(found))
+                ) {
                   nextResults[key] = "TB";
                 }
               });
@@ -786,10 +830,6 @@ export default function VerificationManagement({
               };
             });
           }
-        }
-
-        if (logRes.status === "fulfilled" && Array.isArray(logRes.value.data)) {
-          setReviewLogs(logRes.value.data);
         }
       } catch (err) {
         error(err.message || "Gagal mengambil data peralatan.");
@@ -818,9 +858,16 @@ export default function VerificationManagement({
       error("Kode aktivitas peralatan tidak valid.");
       return;
     }
+    const applicableRequirements = isMetrologyApplicable(equipmentInfo)
+      ? requirements
+      : { ...requirements, metrologi: "-" };
 
-    const applicableKeys = CHECKS.filter((key) => requirements[key] !== "-");
-    const requiredKeys = CHECKS.filter((key) => requirements[key] === "W");
+    const applicableKeys = CHECKS.filter(
+      (key) => applicableRequirements[key] !== "-",
+    );
+    const requiredKeys = CHECKS.filter(
+      (key) => applicableRequirements[key] === "W",
+    );
     const tbKeys = applicableKeys.filter(
       (key) => form.hasil_verifikasi[key] === "TB",
     );
@@ -885,7 +932,9 @@ export default function VerificationManagement({
           ...Object.fromEntries(
             CHECKS.map((key) => [
               key,
-              requirements[key] === "-" ? "TB" : form.hasil_verifikasi[key],
+              applicableRequirements[key] === "-"
+                ? "TB"
+                : form.hasil_verifikasi[key],
             ]),
           ),
           catatan: JSON.stringify({ alasan_tb: form.tb_alasan }),
@@ -1054,7 +1103,7 @@ export default function VerificationManagement({
 
     const equipmentInfoMatchesRoute =
       String(getEquipmentId(equipmentInfo)) === String(equipmentId);
-    if (role === "staff" && loadingEquipment) {
+    if (isLabScopedUser && loadingEquipment) {
       return (
         <div className="page-container fade-in-up">
           <div className="card card-padded">
@@ -1064,13 +1113,16 @@ export default function VerificationManagement({
       );
     }
 
-    if (role === "staff" && (!equipmentInfo || !equipmentInfoMatchesRoute)) {
+    if (
+      isLabScopedUser &&
+      (!equipmentInfo || !equipmentInfoMatchesRoute)
+    ) {
       return (
         <div className="page-container fade-in-up">
           <div className="card card-padded">
             <h1 className="page-title">Peralatan tidak tersedia</h1>
             <p className="page-subtitle">
-              Data verifikasi hanya dapat dilihat oleh staff dari lab yang
+              Data verifikasi hanya dapat dilihat oleh pengguna dari lab yang
               memiliki ruangan peralatan tersebut.
             </p>
             <button
@@ -1397,7 +1449,9 @@ export default function VerificationManagement({
               <div className="form-grid-2">
                 {CHECKS.filter(
                   (key) =>
-                    ACTIVITY_REQUIREMENTS[form.kode_aktivitas][key] !== "-",
+                    ACTIVITY_REQUIREMENTS[form.kode_aktivitas][key] !== "-" &&
+                    (key !== "metrologi" ||
+                      isMetrologyApplicable(equipmentInfo)),
                 ).map((key) => {
                   const requirement =
                     ACTIVITY_REQUIREMENTS[form.kode_aktivitas][key];
