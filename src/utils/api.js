@@ -49,7 +49,19 @@ function getSignatureStorageKey(user) {
 
 export function getSavedSignature(user = getCurrentUser()) {
   const key = getSignatureStorageKey(user);
-  return key ? sessionStorage.getItem(key) || '' : '';
+  if (!key) return '';
+
+  const localValue = localStorage.getItem(key);
+  if (localValue !== null) return localValue;
+
+  const sessionValue = sessionStorage.getItem(key);
+  if (sessionValue) {
+    localStorage.setItem(key, sessionValue);
+    sessionStorage.removeItem(key);
+    return sessionValue;
+  }
+
+  return '';
 }
 
 export function saveSignature(signature, user = getCurrentUser()) {
@@ -57,12 +69,15 @@ export function saveSignature(signature, user = getCurrentUser()) {
   if (!key) {
     throw new Error('Tanda tangan tidak dapat disimpan karena identitas pengguna tidak tersedia.');
   }
-  sessionStorage.setItem(key, signature);
+  localStorage.setItem(key, signature);
 }
 
 export function removeSavedSignature(user = getCurrentUser()) {
   const key = getSignatureStorageKey(user);
-  if (key) sessionStorage.removeItem(key);
+  if (key) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
 }
 
 // ------------------------------------------------------------------
@@ -112,7 +127,6 @@ export async function fetchWithAuth(endpoint, options = {}) {
   if (!res.ok) {
     // 401: Auto Logout & cleanup
     if (res.status === 401) {
-      removeSavedSignature();
       sessionStorage.removeItem(TOKEN_KEY);
       sessionStorage.removeItem(USER_KEY);
       localStorage.removeItem(TOKEN_KEY);
@@ -237,8 +251,7 @@ export const STATIC_EQUIPMENT_CATEGORIES = [
 // =============================================================
 export const authApi = {
   login: async ({ email, password, recaptcha_token }) => {
-    // Bersihkan sesi lama sebelum mengirim request login baru
-    removeSavedSignature();
+    // Bersihkan kredensial lama sebelum mengirim request login baru
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
     localStorage.removeItem(TOKEN_KEY);
@@ -269,8 +282,7 @@ export const authApi = {
   },
 
   logout: () => {
-    // Hapus seluruh data sesi dan kredensial sensitif dari semua tempat
-    removeSavedSignature();
+    // Hapus kredensial sesi, tetapi pertahankan tanda tangan yang tersimpan per user
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
     localStorage.removeItem(TOKEN_KEY);
