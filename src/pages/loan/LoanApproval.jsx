@@ -683,8 +683,8 @@ export default function LoanApproval({ onNavigate }) {
   const currentUser = getCurrentUser();
 
   // State Utama
-  const [loans, setLoans] = useState(INITIAL_LOAN_DATA);
-  const [isLoansLoading, setIsLoansLoading] = useState(false);
+  const [loans, setLoans] = useState([]);
+  const [isLoansLoading, setIsLoansLoading] = useState(true);
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create_form'
 
@@ -738,7 +738,7 @@ export default function LoanApproval({ onNavigate }) {
           setEquipmentList(res.data.filter((item) => item.status_verifikasi === 'Disetujui' && item.status_alat === 'Aktif'));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => { cancelled = true; };
   }, []);
 
@@ -1116,7 +1116,7 @@ export default function LoanApproval({ onNavigate }) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h1 className="page-title" style={{ margin: 0 }}>Modul Peminjaman & Persetujuan Peralatan</h1>
-            <span className="badge badge-purple" style={{ fontSize: '11px', fontWeight: 600 }}>SOP Peminjaman</span>
+
           </div>
           <p className="page-subtitle" style={{ marginTop: 4 }}>
             Alur Persetujuan Resmi: Atasan Peminjam ➔ Pengelola (Review Teknis) ➔ Manager Lab ➔ <strong>Serah Terima Fisik (Lampiran A)</strong>.
@@ -1336,7 +1336,15 @@ export default function LoanApproval({ onNavigate }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLoans.length === 0 ? (
+                  {isLoansLoading ? (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--sp-8)', color: '#64748b' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '13px' }}>
+                          <span className="spinner" style={{ width: 16, height: 16 }} /> Memuat data peminjaman...
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredLoans.length === 0 ? (
                     <tr>
                       <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--sp-6)', color: '#94a3b8' }}>
                         Tidak ada data peminjaman yang cocok dengan filter.
@@ -1476,10 +1484,10 @@ export default function LoanApproval({ onNavigate }) {
                                     loan.approval_manager_peminjam?.status === 'approved'
                                       ? '#16a34a'
                                       : loan.approval_manager_peminjam?.status === 'skipped'
-                                      ? '#0284c7'
-                                      : loan.approval_manager_peminjam?.status === 'rejected'
-                                      ? '#dc2626'
-                                      : '#cbd5e1',
+                                        ? '#0284c7'
+                                        : loan.approval_manager_peminjam?.status === 'rejected'
+                                          ? '#dc2626'
+                                          : '#cbd5e1',
                                 }}
                               />
                               <span
@@ -1492,8 +1500,8 @@ export default function LoanApproval({ onNavigate }) {
                                     loan.approval_pengelola?.status === 'approved'
                                       ? '#16a34a'
                                       : loan.approval_pengelola?.status === 'rejected'
-                                      ? '#dc2626'
-                                      : '#cbd5e1',
+                                        ? '#dc2626'
+                                        : '#cbd5e1',
                                 }}
                               />
                               <span
@@ -1506,8 +1514,8 @@ export default function LoanApproval({ onNavigate }) {
                                     loan.approval_manager_lab?.status === 'approved'
                                       ? '#16a34a'
                                       : loan.approval_manager_lab?.status === 'rejected'
-                                      ? '#dc2626'
-                                      : '#cbd5e1',
+                                        ? '#dc2626'
+                                        : '#cbd5e1',
                                 }}
                               />
                               <span
@@ -1520,10 +1528,10 @@ export default function LoanApproval({ onNavigate }) {
                                     loan.status === 'SEDANG_DIPINJAM'
                                       ? '#16a34a'
                                       : loan.status === 'DIBATALKAN_TS'
-                                      ? '#dc2626'
-                                      : loan.status === 'MENUNGGU_SERAH_TERIMA'
-                                      ? '#ea580c'
-                                      : '#cbd5e1',
+                                        ? '#dc2626'
+                                        : loan.status === 'MENUNGGU_SERAH_TERIMA'
+                                          ? '#ea580c'
+                                          : '#cbd5e1',
                                 }}
                               />
                             </div>
@@ -2351,12 +2359,12 @@ export default function LoanApproval({ onNavigate }) {
                             <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
                               {log.created_at
                                 ? new Date(log.created_at).toLocaleString('id-ID', {
-                                    year: 'numeric',
-                                    month: '2-digit',
-                                    day: '2-digit',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  }).replace(/\./g, ':')
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                }).replace(/\./g, ':')
                                 : '-'}
                             </td>
                             <td style={{ padding: '6px 10px', fontWeight: 600, color: '#0f172a' }}>

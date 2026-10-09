@@ -12,9 +12,9 @@ export default function Dashboard({ onNavigate }) {
 
   return (
     <div className="page-container fade-in-up">
-      {role === 'admin'   && <AdminDashboard onNavigate={onNavigate} />}
+      {role === 'admin' && <AdminDashboard onNavigate={onNavigate} />}
       {role === 'manager' && <ManagerDashboard onNavigate={onNavigate} user={user} />}
-      {role === 'staff'   && <StaffDashboard onNavigate={onNavigate} user={user} />}
+      {role === 'staff' && <StaffDashboard onNavigate={onNavigate} user={user} />}
     </div>
   );
 }
@@ -85,10 +85,10 @@ const DEFAULT_LOAN_DATA = [
 async function fetchDashboardLoans() {
   try {
     const res = await peminjamanApi.getAll();
-    if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+    if (res?.success && Array.isArray(res.data)) {
       return res.data;
     }
-    return DEFAULT_LOAN_DATA;
+    return [];
   } catch {
     return DEFAULT_LOAN_DATA;
   }
@@ -116,7 +116,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
         <div>
           <h2 className="card-title dash-section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             Alur & Persetujuan Peminjaman Peralatan
-            <span className="badge badge-purple" style={{ fontSize: '11px', fontWeight: 600 }}>SOP Peminjaman</span>
+
           </h2>
           <p className="page-subtitle" style={{ margin: 0, marginTop: 2 }}>
             Ringkasan status proses permohonan peminjaman peralatan antar-laboratorium
@@ -713,23 +713,24 @@ function StaffDashboard({ onNavigate, user }) {
                   const dueDate = getCalibrationDueDate(p);
                   const process = getProcessStage(p);
                   return (
-                  <tr key={p.id} className="cursor-pointer" onClick={() => onNavigate(`/peralatan/detail/${p.id}`)}>
-                    <td style={{ fontWeight: 'var(--fw-medium)' }}>{p.nama_peralatan}</td>
-                    <td><code className="text-mono-xs">{p.nomor_aset}</code></td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                        <span className={`badge ${getDueDateBadgeClass(dueDate)}`}>{formatDueDate(dueDate)}</span>
-                        {dueDate && <small style={{ color: 'var(--clr-dark-500)' }}>{dueDate.toLocaleDateString('id-ID')}</small>}
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                        <span className={`badge ${process.tone}`}>{process.label}</span>
-                        <small style={{ color: 'var(--clr-dark-500)' }}>{process.description}</small>
-                      </div>
-                    </td>
-                  </tr>
-                );})}
+                    <tr key={p.id} className="cursor-pointer" onClick={() => onNavigate(`/peralatan/detail/${p.id}`)}>
+                      <td style={{ fontWeight: 'var(--fw-medium)' }}>{p.nama_peralatan}</td>
+                      <td><code className="text-mono-xs">{p.nomor_aset}</code></td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                          <span className={`badge ${getDueDateBadgeClass(dueDate)}`}>{formatDueDate(dueDate)}</span>
+                          {dueDate && <small style={{ color: 'var(--clr-dark-500)' }}>{dueDate.toLocaleDateString('id-ID')}</small>}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                          <span className={`badge ${process.tone}`}>{process.label}</span>
+                          <small style={{ color: 'var(--clr-dark-500)' }}>{process.description}</small>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
