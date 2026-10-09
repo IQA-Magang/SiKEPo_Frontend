@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, ArrowLeft, Upload, FileText, Download, QrCode, Printer, Hand } from 'lucide-react';
-import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, kelompokAssetApi, ruanganApi, labsApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
+import { Package, ArrowLeft, Upload, FileText, Download, QrCode, Printer, Hand, RefreshCw } from 'lucide-react';
+import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, kelompokAssetApi, ruanganApi, labsApi, logbookApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can, getUserRole, isStaffPengelola } from '../../utils/permissions.js';
 import { exportVerificationPdf } from '../../utils/verificationPdf.js';
 
@@ -28,6 +28,9 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
   const [qrError, setQrError] = useState('');
   const [selectedActivityLog, setSelectedActivityLog] = useState(null);
   const [selectedLogType, setSelectedLogType] = useState('verifikasi');
+  const [logbookData, setLogbookData] = useState([]);
+  const [logbookLoading, setLogbookLoading] = useState(false);
+  const [logbookError, setLogbookError] = useState('');
   const [activeDetailSection, setActiveDetailSection] = useState(initialSection);
   const [references, setReferences] = useState({ groups: [], rooms: [], labs: [] });
 
@@ -38,6 +41,34 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
   useEffect(() => {
     loadData();
   }, [equipmentId]);
+
+  async function fetchLogbook(peralatanId, jenis) {
+    setLogbookLoading(true);
+    setLogbookError('');
+    try {
+      const res = await logbookApi.getByPeralatanId(peralatanId, jenis);
+      const data = res?.data ?? res?.value?.data ?? res;
+      if (Array.isArray(data)) {
+        setLogbookData(data);
+      } else {
+        setLogbookData([]);
+      }
+    } catch (err) {
+      setLogbookError(err?.message || 'Gagal memuat log aktivitas.');
+      setLogbookData([]);
+    } finally {
+      setLogbookLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!equipmentId || selectedLogType === 'verifikasi') {
+      setLogbookData([]);
+      setLogbookError('');
+      return;
+    }
+    fetchLogbook(equipmentId, selectedLogType);
+  }, [equipmentId, selectedLogType]);
 
   useEffect(() => {
     if (!peralatan || peralatan.status_verifikasi !== 'Disetujui') {
@@ -308,7 +339,11 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
               <select
                 className="form-select"
                 value={selectedLogType}
-                onChange={(event) => setSelectedLogType(event.target.value)}
+                onChange={(event) => {
+                  setSelectedLogType(event.target.value);
+                  setLogbookData([]);
+                  setLogbookError('');
+                }}
                 aria-label="Pilih jenis log peralatan"
                 style={{ width: 'auto', minWidth: 210 }}
               >
@@ -376,9 +411,80 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                 )}
               </>
             ) : (
-              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-500)', fontStyle: 'italic', margin: 0 }}>
-                Sumber data {logTypeLabels[selectedLogType].toLowerCase()} belum tersedia.
-              </p>
+              <>
+                {logbookLoading ? (
+                  <div style={{ textAlign: 'center', padding: 'var(--sp-4)', color: '#64748b', fontSize: '12px' }}>
+                    <RefreshCw size={15} className="spin" style={{ display: 'inline-block', marginRight: 6, verticalAlign: 'middle' }} />
+                    Memuat log {logTypeLabels[selectedLogType].toLowerCase()}...
+                  </div>
+                ) : logbookError ? (
+                  <p className="alert alert-error" role="alert" style={{ margin: '0 0 var(--sp-3)' }}>
+                    {logbookError}
+                  </p>
+                ) : logbookData.length === 0 ? (
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: 'var(--sp-4)',
+                      color: '#94a3b8',
+                      fontSize: '12px',
+                      background: '#f8fafc',
+                      borderRadius: 6,
+                    }}
+                  >
+                    Belum ada riwayat {logTypeLabels[selectedLogType].toLowerCase()} untuk peralatan ini di database.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 6 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
+                          <th style={{ padding: '8px 10px', color: '#475569', fontWeight: 600 }}>Waktu</th>
+                          <th style={{ padding: '8px 10px', color: '#475569', fontWeight: 600 }}>Aktivitas</th>
+                          <th style={{ padding: '8px 10px', color: '#475569', fontWeight: 600 }}>Status</th>
+                          <th style={{ padding: '8px 10px', color: '#475569', fontWeight: 600 }}>Petugas / User</th>
+                          <th style={{ padding: '8px 10px', color: '#475569', fontWeight: 600 }}>Keterangan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logbookData.map((log) => (
+                          <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
+                              {log.created_at
+                                ? new Date(log.created_at).toLocaleString('id-ID', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                : '-'}
+                            </td>
+                            <td style={{ padding: '8px 10px', fontWeight: 600, color: '#0f172a' }}>
+                              {log.judul || log.aksi || '-'}
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              {log.status ? (
+                                <span className="badge badge-primary" style={{ fontSize: '11px', padding: '2px 6px' }}>
+                                  {log.status}
+                                </span>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                            <td style={{ padding: '8px 10px', color: '#0f172a' }}>
+                              {log.user?.name || '-'}
+                            </td>
+                            <td style={{ padding: '8px 10px', color: '#475569', whiteSpace: 'pre-wrap' }}>
+                              {log.keterangan || '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             )}
             </section>
           )}
