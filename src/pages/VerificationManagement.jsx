@@ -846,7 +846,7 @@ export default function VerificationManagement({
     event.preventDefault();
 
     if (!picSignature) {
-      error("Tanda tangan PIC wajib tersedia sebelum verifikasi diajukan.");
+      error("Tanda tangan Pengelola wajib tersedia sebelum verifikasi diajukan.");
       return;
     }
 
@@ -862,6 +862,25 @@ export default function VerificationManagement({
       ? requirements
       : { ...requirements, metrologi: "-" };
 
+    const verificationResults = Object.fromEntries(
+      CHECKS.map((key) => [
+        key,
+        applicableRequirements[key] === "K" &&
+        !form.hasil_verifikasi[key]?.trim()
+          ? "TB"
+          : form.hasil_verifikasi[key],
+      ]),
+    );
+    const tbReasons = {
+      ...form.tb_alasan,
+      ...Object.fromEntries(
+        CHECKS.filter(
+          (key) =>
+            applicableRequirements[key] === "K" &&
+            !form.hasil_verifikasi[key]?.trim(),
+        ).map((key) => [key, "Aspek opsional tidak diisi."]),
+      ),
+    };
     const applicableKeys = CHECKS.filter(
       (key) => applicableRequirements[key] !== "-",
     );
@@ -869,10 +888,10 @@ export default function VerificationManagement({
       (key) => applicableRequirements[key] === "W",
     );
     const tbKeys = applicableKeys.filter(
-      (key) => form.hasil_verifikasi[key] === "TB",
+      (key) => verificationResults[key] === "TB",
     );
     const missingKeys = requiredKeys.filter(
-      (key) => !form.hasil_verifikasi[key],
+      (key) => !verificationResults[key],
     );
     if (missingKeys.length > 0) {
       error(
@@ -882,14 +901,14 @@ export default function VerificationManagement({
     }
     const invalidKeys = applicableKeys.filter(
       (key) =>
-        form.hasil_verifikasi[key] &&
-        !["S", "TS", "TB"].includes(form.hasil_verifikasi[key]),
+        verificationResults[key] &&
+        !["S", "TS", "TB"].includes(verificationResults[key]),
     );
     if (invalidKeys.length > 0) {
       error("Hasil pemeriksaan hanya boleh S, TS, atau TB.");
       return;
     }
-    if (tbKeys.some((key) => !form.tb_alasan[key]?.trim())) {
+    if (tbKeys.some((key) => !tbReasons[key]?.trim())) {
       error(
         "Setiap hasil TB (Tidak Berlaku) wajib disertai alasan penjelasan.",
       );
@@ -897,7 +916,7 @@ export default function VerificationManagement({
     }
 
     if (
-      applicableKeys.some((key) => form.hasil_verifikasi[key] === "TS") &&
+      applicableKeys.some((key) => verificationResults[key] === "TS") &&
       !form.tindak_lanjut
     ) {
       error(
@@ -919,7 +938,7 @@ export default function VerificationManagement({
           penerapan_nilai_koreksi: form.nilai_koreksi,
         },
 
-        alasan_tb: form.tb_alasan,
+        alasan_tb: tbReasons,
       });
 
       // 1. Buat verifikasi
@@ -934,10 +953,10 @@ export default function VerificationManagement({
               key,
               applicableRequirements[key] === "-"
                 ? "TB"
-                : form.hasil_verifikasi[key],
+                : verificationResults[key],
             ]),
           ),
-          catatan: JSON.stringify({ alasan_tb: form.tb_alasan }),
+          catatan: JSON.stringify({ alasan_tb: tbReasons }),
         },
       });
 
@@ -1663,7 +1682,7 @@ export default function VerificationManagement({
             </div>
 
             <div className="form-group" style={{ marginTop: "var(--sp-3)" }}>
-              <label className="form-label">Catatan Pemeriksaan PIC</label>
+              <label className="form-label">Catatan Pemeriksaan Pengelola</label>
               <textarea
                 className="form-textarea"
                 rows={3}
@@ -1675,14 +1694,14 @@ export default function VerificationManagement({
 
             <div className="form-group" style={{ marginTop: "var(--sp-3)" }}>
               <label className="form-label">
-                Tanda Tangan PIC <span style={{ color: "red" }}>*</span>
+                Tanda Tangan Pengelola <span style={{ color: "red" }}>*</span>
               </label>
               <DigitalSignaturePad
                 value={picSignature}
                 onChange={(signature) =>
                   handleSignatureChange(setPicSignature, signature)
                 }
-                label="Tanda Tangan Digital PIC"
+                label="Tanda Tangan Digital Pengelola"
                 savedSignature={savedSignature}
                 onRestore={() => setPicSignature(savedSignature)}
                 onForgetSaved={forgetSavedSignature}
@@ -2373,7 +2392,7 @@ export default function VerificationManagement({
 
                 <div className="verification-review-signatures">
                   <SignatureDisplayCard
-                    title="Tanda Tangan PIC Penguji"
+                    title="Tanda Tangan Pengelola Penguji"
                     roleLabel="Staff Pengelola Penguji"
                     signature={selected.pic_signature}
                     signerName={
@@ -2513,7 +2532,7 @@ export default function VerificationManagement({
                     </div>
                     {officialNotes(selected).catatan_pic && (
                       <div style={{ marginTop: "var(--sp-2)" }}>
-                        <strong>Catatan PIC:</strong>
+                        <strong>Catatan Pengelola:</strong>
                         <p
                           style={{
                             margin: "2px 0",
@@ -2667,7 +2686,7 @@ export default function VerificationManagement({
                           <textarea
                             className="form-textarea"
                             rows={2}
-                            placeholder="Instruksi perbaikan untuk PIC (opsional)..."
+                            placeholder="Instruksi perbaikan untuk Pengelola (opsional)..."
                             value={rejectCatatan}
                             onChange={(e) => setRejectCatatan(e.target.value)}
                           />

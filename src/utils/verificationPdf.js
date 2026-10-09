@@ -76,7 +76,7 @@ export function exportVerificationPdf(data) {
   const sertifikatData = officialNotes.sertifikat || {};
   const tbAlasan = officialNotes.alasan_tb || {};
 
-  const picName = data.pic_user?.nama_lengkap || data.pic_user?.nama || data.pic_user?.name || data.pic_user?.username || data.pic_user?.email || 'PIC Peralatan';
+  const picName = data.pic_user?.nama_lengkap || data.pic_user?.nama || data.pic_user?.name || data.pic_user?.username || data.pic_user?.email || 'Pengelola Peralatan';
   const picNip = data.pic_user?.nip ? `NIP. ${data.pic_user.nip}` : 'Staff Laboratorium';
   const managerName = data.verified_by_user?.nama_lengkap || data.verified_by_user?.nama || data.verified_by_user?.name || data.verified_by_user?.username || data.verified_by_user?.email || 'Manager Laboratorium';
   const managerNip = data.verified_by_user?.nip ? `NIP. ${data.verified_by_user.nip}` : 'Manager Lab';
@@ -347,7 +347,7 @@ export function exportVerificationPdf(data) {
       <td class="info-label">Laboratorium / Ruangan</td>
       <td class="info-sep">:</td>
       <td class="info-val">${peralatan.laboratorium?.nama_labs || peralatan.laboratorium?.nama_lab || '-'} / ${peralatan.ruangan?.nama_ruangan || '-'}</td>
-      <td class="info-label">Penanggung Jawab (PIC)</td>
+      <td class="info-label">Penanggung Jawab (Pengelola)</td>
       <td class="info-sep">:</td>
       <td class="info-val">${picName}</td>
     </tr>
@@ -424,7 +424,7 @@ export function exportVerificationPdf(data) {
     </tr>
     ${officialNotes.catatan_pic ? `
     <tr>
-      <td class="info-label">Catatan Pemeriksaan PIC</td>
+      <td class="info-label">Catatan Pemeriksaan Pengelola</td>
       <td class="info-sep">:</td>
       <td class="info-val" colspan="4">${officialNotes.catatan_pic}</td>
     </tr>` : ''}
@@ -449,14 +449,14 @@ export function exportVerificationPdf(data) {
   <table class="sign-table">
     <thead>
       <tr>
-        <th>Diverifikasi Oleh (PIC Peralatan)</th>
+        <th>Diverifikasi Oleh (Pengelola Peralatan)</th>
         <th>Disetujui Oleh (Manager Laboratorium)</th>
       </tr>
     </thead>
     <tbody>
       <tr>
         <td>
-          ${data.pic_signature ? `<img class="sig-img" src="${data.pic_signature}" alt="Tanda tangan PIC" />` : '<div style="height: 60px; line-height: 60px; color: #9ca3af; font-size: 9pt;">[Ditandatangani secara digital]</div>'}
+          ${data.pic_signature ? `<img class="sig-img" src="${data.pic_signature}" alt="Tanda tangan Pengelola" />` : '<div style="height: 60px; line-height: 60px; color: #9ca3af; font-size: 9pt;">[Ditandatangani secara digital]</div>'}
           <div class="sig-name">${picName}</div>
           <div class="sig-title">${picNip}</div>
           <div class="sig-title">Tgl: ${picSignedAtFormatted}</div>
