@@ -119,7 +119,7 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
         )}
 
         {/* Live Notification Bell */}
-        {user?.role?.toLowerCase() === 'manager' && <NotificationBell onNavigate={onNavigate} />}
+        {Boolean(user) && <NotificationBell onNavigate={onNavigate} />}
 
         <div className="profile-wrapper" ref={profileRef}>
           <button

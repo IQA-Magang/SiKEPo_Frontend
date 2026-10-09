@@ -681,6 +681,8 @@ const STATUS_META = {
 export default function LoanApproval({ onNavigate }) {
   const { success, error: toastError, info } = useToast();
   const currentUser = getCurrentUser();
+  const currentUserId = Number(currentUser?.user_id ?? currentUser?.id ?? 0);
+  const currentUserRole = currentUser?.role || 'staff';
 
   // State Utama
   const [loans, setLoans] = useState([]);
@@ -694,13 +696,15 @@ export default function LoanApproval({ onNavigate }) {
   // 'detail': Hanya melihat riwayat lengkap
   const [modalMode, setModalMode] = useState('review');
 
-  // SIMULATOR PERAN / PERSPECTIVE SWITCHER
-  const [activeRolePerspective, setActiveRolePerspective] = useState('manager_peminjam');
-  // 'peminjam' | 'manager_peminjam' | 'pengelola' | 'manager_lab'
+  // Tahap review aktif saat modal dibuka (ditentukan otomatis sesuai tiket yang direview)
+  const [activeReviewStage, setActiveReviewStage] = useState('pengelola');
+  // 'manager_peminjam' | 'pengelola' | 'manager_lab'
 
   // Filter & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('SEMUA');
+  const [roleFilter, setRoleFilter] = useState('SEMUA');
+  // 'SEMUA' | 'peminjam' | 'pengelola' | 'manajer_peminjam' | 'manager_lab'
 
   // Form State untuk Tindakan Approval Review (Tahap 1, 2, 3)
   const [decisionAction, setDecisionAction] = useState('setuju'); // 'setuju' | 'tolak'
@@ -729,6 +733,68 @@ export default function LoanApproval({ onNavigate }) {
   const [isLogbookLoading, setIsLogbookLoading] = useState(false);
   const [logbookError, setLogbookError] = useState(null);
 
+  // Mendeteksi keterlibatan akun login terhadap suatu tiket peminjaman
+  function getLoanUserRelationship(loan) {
+    if (!loan) return {};
+    const isPeminjam = currentUserId > 0 && (loan.peminjam?.user_id === currentUserId || loan.peminjam_id === currentUserId);
+    const isPengelola = currentUserId > 0 && (loan.approval_pengelola?.user_id === currentUserId || loan.pengelola_id === currentUserId);
+    const isManagerPeminjam = currentUserId > 0 && (loan.approval_manager_peminjam?.user_id === currentUserId || loan.manajer_peminjam_id === currentUserId);
+    const isManagerLab = currentUserId > 0 && (loan.approval_manager_lab?.user_id === currentUserId || loan.manager_lab_id === currentUserId);
+    const isAdmin = currentUserRole === 'admin';
+    return { isPeminjam, isPengelola, isManagerPeminjam, isManagerLab, isAdmin };
+  }
+
+  // Mendeteksi apakah tiket sedang menunggu review/tindakan dari akun login
+  function getPendingActionForUser(loan) {
+    if (!loan) return null;
+    const { isPeminjam, isPengelola, isManagerPeminjam, isManagerLab, isAdmin } = getLoanUserRelationship(loan);
+
+    // Jika user sedang memfilter sudut pandang peran tertentu:
+    if (roleFilter === 'peminjam') {
+      if (loan.status === 'MENUNGGU_SERAH_TERIMA' && (isPeminjam || isAdmin)) {
+        return { canHandover: true, isPengelola: false, isPeminjam: true, label: 'Tahap 4: Serah Terima Fisik (Peminjam)' };
+      }
+      return null;
+    }
+    if (roleFilter === 'pengelola') {
+      if (loan.status === 'MENUNGGU_PENGELOLA' && (isPengelola || isAdmin)) {
+        return { canReview: true, stage: 'pengelola', label: 'Tahap 2: Review Teknis Pengelola' };
+      }
+      if (loan.status === 'MENUNGGU_SERAH_TERIMA' && (isPengelola || isAdmin)) {
+        return { canHandover: true, isPengelola: true, isPeminjam: false, label: 'Tahap 4: Serah Terima Fisik (Pengelola)' };
+      }
+      return null;
+    }
+    if (roleFilter === 'manajer_peminjam') {
+      if (loan.status === 'MENUNGGU_MANAGER_PEMINJAM' && (isManagerPeminjam || isAdmin)) {
+        return { canReview: true, stage: 'manager_peminjam', label: 'Tahap 1: Validasi Atasan Peminjam' };
+      }
+      return null;
+    }
+    if (roleFilter === 'manager_lab') {
+      if (loan.status === 'MENUNGGU_MANAGER_LAB' && (isManagerLab || isAdmin)) {
+        return { canReview: true, stage: 'manager_lab', label: 'Tahap 3: Pengesahan Manager Lab' };
+      }
+      return null;
+    }
+
+    // Default (roleFilter === 'SEMUA'):
+    if (loan.status === 'MENUNGGU_MANAGER_PEMINJAM' && (isManagerPeminjam || isAdmin)) {
+      return { canReview: true, stage: 'manager_peminjam', label: 'Tahap 1: Validasi Atasan Peminjam' };
+    }
+    // Pengelola hanya me-review jika bukan peminjam di tiket ini (kecuali admin)
+    if (loan.status === 'MENUNGGU_PENGELOLA' && (isAdmin || (isPengelola && !isPeminjam))) {
+      return { canReview: true, stage: 'pengelola', label: 'Tahap 2: Review Teknis Pengelola' };
+    }
+    if (loan.status === 'MENUNGGU_MANAGER_LAB' && (isManagerLab || isAdmin)) {
+      return { canReview: true, stage: 'manager_lab', label: 'Tahap 3: Pengesahan Manager Lab' };
+    }
+    if (loan.status === 'MENUNGGU_SERAH_TERIMA' && (isPengelola || isPeminjam || isAdmin)) {
+      return { canHandover: true, isPengelola, isPeminjam, label: 'Tahap 4: Serah Terima Fisik (Lampiran A)' };
+    }
+    return null;
+  }
+
   // Ambil daftar peralatan untuk opsi alternatif jika pengelola menolak
   useEffect(() => {
     let cancelled = false;
@@ -747,8 +813,8 @@ export default function LoanApproval({ onNavigate }) {
     setIsLoansLoading(true);
     try {
       const params = {};
-      if (activeRolePerspective) {
-        params.peran = activeRolePerspective === 'manager_peminjam' ? 'manajer_peminjam' : activeRolePerspective;
+      if (roleFilter !== 'SEMUA') {
+        params.peran = roleFilter;
       }
       if (statusFilter === 'MENUNGGU_SAYA') {
         params.menunggu_saya = true;
@@ -757,12 +823,7 @@ export default function LoanApproval({ onNavigate }) {
       }
       const res = await peminjamanApi.getAll(params);
       if (res?.success && Array.isArray(res.data)) {
-        if (res.data.length > 0) {
-          setLoans(res.data);
-        } else {
-          // Jika backend mengembalikan array kosong, gunakan array kosong tersebut
-          setLoans(res.data);
-        }
+        setLoans(res.data);
       }
     } catch (err) {
       console.warn('Backend peminjaman offline/fallback:', err);
@@ -773,7 +834,7 @@ export default function LoanApproval({ onNavigate }) {
 
   useEffect(() => {
     fetchLoans();
-  }, [activeRolePerspective, statusFilter]);
+  }, [roleFilter, statusFilter]);
 
   // Ambil Catatan Logbook Peralatan dari Backend
   async function fetchLogbook(peralatanId) {
@@ -828,12 +889,18 @@ export default function LoanApproval({ onNavigate }) {
 
     if (!matchSearch) return false;
 
+    // Filter keterlibatan peran client-side
+    if (roleFilter !== 'SEMUA') {
+      const rel = getLoanUserRelationship(item);
+      if (roleFilter === 'peminjam' && !rel.isPeminjam && !rel.isAdmin) return false;
+      if (roleFilter === 'pengelola' && !rel.isPengelola && !rel.isAdmin) return false;
+      if (roleFilter === 'manajer_peminjam' && (!rel.isManagerPeminjam || item.approval_manager_peminjam?.status === 'skipped') && !rel.isAdmin) return false;
+      if (roleFilter === 'manager_lab' && !rel.isManagerLab && !rel.isAdmin) return false;
+    }
+
     if (statusFilter === 'MENUNGGU_SAYA') {
-      if (activeRolePerspective === 'manager_peminjam') return item.status === 'MENUNGGU_MANAGER_PEMINJAM';
-      if (activeRolePerspective === 'pengelola') return item.status === 'MENUNGGU_PENGELOLA' || item.status === 'MENUNGGU_SERAH_TERIMA' || item.status === 'DISETUJUI';
-      if (activeRolePerspective === 'manager_lab') return item.status === 'MENUNGGU_MANAGER_LAB';
-      if (activeRolePerspective === 'peminjam') return item.status === 'MENUNGGU_SERAH_TERIMA' || item.status === 'DISETUJUI';
-      return false;
+      const pending = getPendingActionForUser(item);
+      return Boolean(pending?.canReview || pending?.canHandover);
     }
     if (statusFilter !== 'SEMUA' && item.status !== statusFilter) return false;
 
@@ -848,6 +915,15 @@ export default function LoanApproval({ onNavigate }) {
     setDecisionNote('');
     setAlternativeEquipmentId('');
     setDigitalSignature('');
+
+    // Deteksi tahap review secara otomatis dari status tiket dan hak akses akun
+    const pendingAction = getPendingActionForUser(loan);
+    const stage = pendingAction?.stage || (
+      loan.status === 'MENUNGGU_MANAGER_PEMINJAM' ? 'manager_peminjam' :
+        loan.status === 'MENUNGGU_PENGELOLA' ? 'pengelola' :
+          loan.status === 'MENUNGGU_MANAGER_LAB' ? 'manager_lab' : 'pengelola'
+    );
+    setActiveReviewStage(stage);
 
     // Reset checklist teknis Tahap 2
     setTechCheckSpec(loan.approval_pengelola?.cek_spesifikasi ?? true);
@@ -898,7 +974,7 @@ export default function LoanApproval({ onNavigate }) {
         keputusan: decisionAction, // "setuju" atau "tolak"
         catatan: decisionNote.trim(),
       };
-      if (decisionAction === 'tolak' && alternativeEquipmentId && activeRolePerspective === 'pengelola') {
+      if (decisionAction === 'tolak' && alternativeEquipmentId && activeReviewStage === 'pengelola') {
         body.alat_alternatif_id = Number(alternativeEquipmentId);
       }
 
@@ -925,7 +1001,7 @@ export default function LoanApproval({ onNavigate }) {
 
             if (decisionAction === 'tolak') {
               updated.status = 'DITOLAK';
-              if (activeRolePerspective === 'manager_peminjam') {
+              if (activeReviewStage === 'manager_peminjam') {
                 updated.approval_manager_peminjam = {
                   ...updated.approval_manager_peminjam,
                   status: 'rejected',
@@ -933,7 +1009,7 @@ export default function LoanApproval({ onNavigate }) {
                   catatan: decisionNote,
                   ttd: digitalSignature,
                 };
-              } else if (activeRolePerspective === 'pengelola') {
+              } else if (activeReviewStage === 'pengelola') {
                 updated.approval_pengelola = {
                   ...updated.approval_pengelola,
                   status: 'rejected',
@@ -945,7 +1021,7 @@ export default function LoanApproval({ onNavigate }) {
                   cek_jadwal_kalibrasi: techCheckSchedule,
                   cek_lokasi: techCheckLocation,
                 };
-              } else if (activeRolePerspective === 'manager_lab') {
+              } else if (activeReviewStage === 'manager_lab') {
                 updated.approval_manager_lab = {
                   ...updated.approval_manager_lab,
                   status: 'rejected',
@@ -958,7 +1034,7 @@ export default function LoanApproval({ onNavigate }) {
             }
 
             // JIKA MENYETUJUI / MENERUSKAN:
-            if (activeRolePerspective === 'manager_peminjam') {
+            if (activeReviewStage === 'manager_peminjam') {
               updated.status = 'MENUNGGU_PENGELOLA';
               updated.approval_manager_peminjam = {
                 ...updated.approval_manager_peminjam,
@@ -967,7 +1043,7 @@ export default function LoanApproval({ onNavigate }) {
                 catatan: decisionNote || 'Disetujui oleh Atasan Peminjam.',
                 ttd: digitalSignature,
               };
-            } else if (activeRolePerspective === 'pengelola') {
+            } else if (activeReviewStage === 'pengelola') {
               updated.status = 'MENUNGGU_MANAGER_LAB';
               updated.approval_pengelola = {
                 ...updated.approval_pengelola,
@@ -980,7 +1056,7 @@ export default function LoanApproval({ onNavigate }) {
                 cek_jadwal_kalibrasi: techCheckSchedule,
                 cek_lokasi: techCheckLocation,
               };
-            } else if (activeRolePerspective === 'manager_lab') {
+            } else if (activeReviewStage === 'manager_lab') {
               updated.status = 'DISETUJUI';
               updated.approval_manager_lab = {
                 ...updated.approval_manager_lab,
@@ -1145,124 +1221,6 @@ export default function LoanApproval({ onNavigate }) {
       </div>
 
       {/* ==================================================================== */}
-      {/* 2. BILAH SIMULATOR PERAN / PERSPECTIVE SWITCHER                      */}
-      {/* ==================================================================== */}
-      <div
-        className="card"
-        style={{
-          padding: 'var(--sp-3) var(--sp-4)',
-          marginBottom: 'var(--sp-5)',
-          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-          border: '1.5px solid #cbd5e1',
-          borderRadius: 'var(--radius-lg, 12px)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 'var(--sp-3)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Sparkles size={18} style={{ color: 'var(--clr-primary-500, #ee2e24)' }} />
-            <div>
-              <span style={{ fontWeight: 'var(--fw-bold)', fontSize: 'var(--text-sm)', color: '#0f172a' }}>
-                Mode Simulator Peran (Demo & Testing Alur):
-              </span>
-              <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
-                Pilih sudut pandang aktor untuk menguji tiap tahapan approval dan serah terima fisik Lampiran A.
-              </span>
-            </div>
-          </div>
-
-          {/* Toggle Button Group Peran */}
-          <div
-            style={{
-              display: 'inline-flex',
-              background: '#e2e8f0',
-              padding: 3,
-              borderRadius: 'var(--radius-md, 8px)',
-              gap: 3,
-            }}
-          >
-            <button
-              type="button"
-              className={`btn btn-sm ${activeRolePerspective === 'peminjam' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setActiveRolePerspective('peminjam')}
-              style={{ fontSize: '12px', padding: '4px 10px', height: 'auto' }}
-            >
-              Peminjam (Staff)
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm ${activeRolePerspective === 'manager_peminjam' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setActiveRolePerspective('manager_peminjam')}
-              style={{ fontSize: '12px', padding: '4px 10px', height: 'auto' }}
-            >
-              1. Manager Peminjam
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm ${activeRolePerspective === 'pengelola' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setActiveRolePerspective('pengelola')}
-              style={{ fontSize: '12px', padding: '4px 10px', height: 'auto' }}
-            >
-              2. Pengelola Peralatan
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm ${activeRolePerspective === 'manager_lab' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setActiveRolePerspective('manager_lab')}
-              style={{ fontSize: '12px', padding: '4px 10px', height: 'auto' }}
-            >
-              3. Manager Lab Pemilik
-            </button>
-          </div>
-        </div>
-
-        {/* Keterangan Tugas Role Aktif */}
-        <div
-          style={{
-            marginTop: 8,
-            paddingTop: 8,
-            borderTop: '1px solid #e2e8f0',
-            fontSize: '12px',
-            color: '#334155',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
-        >
-          <Info size={14} style={{ color: '#0284c7', flexShrink: 0 }} />
-          <span>
-            {activeRolePerspective === 'peminjam' && (
-              <>
-                <strong>Peran Peminjam:</strong> Melihat status pengajuan, mendampingi Pengelola saat serah terima fisik (Lampiran A), dan menandatangani bukti terima alat.
-              </>
-            )}
-            {activeRolePerspective === 'manager_peminjam' && (
-              <>
-                <strong>Wewenang Tahap 1 (Atasan Peminjam):</strong> Memvalidasi urgensi tugas kedinasan dan kepatutan rencana tanggal peminjaman staf Anda sebelum diteruskan ke Pengelola Peralatan.
-              </>
-            )}
-            {activeRolePerspective === 'pengelola' && (
-              <>
-                <strong>Wewenang Pengelola Peralatan:</strong> Melakukan <em>Review Teknis Tahap 2</em> (cek spesifikasi, operator, kalibrasi, lokasi) ➔ lalu <strong>eksekusi Serah Terima Fisik (Lampiran A)</strong> setelah disetujui Manager Lab!
-              </>
-            )}
-            {activeRolePerspective === 'manager_lab' && (
-              <>
-                <strong>Wewenang Tahap 3 (Manager Lab Pemilik):</strong> Memberikan pengesahan izin peminjaman resmi sebelum peralatan fisik boleh disiapkan dan diserahkan.
-              </>
-            )}
-          </span>
-        </div>
-      </div>
-
-      {/* ==================================================================== */}
       {/* JIKA MEMILIH TAB: FORM PENGAJUAN BARU                                */}
       {/* ==================================================================== */}
       {activeTab === 'create_form' ? (
@@ -1272,7 +1230,7 @@ export default function LoanApproval({ onNavigate }) {
       ) : (
         <>
           {/* ==================================================================== */}
-          {/* 3. BILAH FILTER & PENCARIAN                                          */}
+          {/* 2. BILAH FILTER & PENCARIAN                                          */}
           {/* ==================================================================== */}
           <div
             className="card card-padded"
@@ -1299,6 +1257,38 @@ export default function LoanApproval({ onNavigate }) {
 
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <Filter size={15} style={{ color: '#64748b' }} />
+
+              {/* Filter Keterlibatan Peran Akun */}
+              <select
+                className="form-select"
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                style={{ width: 'auto', minWidth: 200 }}
+              >
+                <option value="SEMUA">Semua Keterlibatan Saya</option>
+                {currentUserRole === 'staff' && (
+                  <>
+                    <option value="peminjam">Sebagai Peminjam</option>
+                    <option value="pengelola">Sebagai Pengelola Peralatan</option>
+                  </>
+                )}
+                {currentUserRole === 'manager' && (
+                  <>
+                    <option value="manajer_peminjam">Sebagai Atasan Peminjam (Tahap 1)</option>
+                    <option value="manager_lab">Sebagai Manager Lab Pemilik (Tahap 3)</option>
+                  </>
+                )}
+                {currentUserRole === 'admin' && (
+                  <>
+                    <option value="peminjam">Peran Peminjam</option>
+                    <option value="pengelola">Peran Pengelola Peralatan</option>
+                    <option value="manajer_peminjam">Peran Atasan Peminjam</option>
+                    <option value="manager_lab">Peran Manager Lab Pemilik</option>
+                  </>
+                )}
+              </select>
+
+              {/* Filter Status */}
               <select
                 className="form-select"
                 value={statusFilter}
@@ -1306,11 +1296,11 @@ export default function LoanApproval({ onNavigate }) {
                 style={{ width: 'auto', minWidth: 220 }}
               >
                 <option value="SEMUA">Semua Status</option>
-                <option value="MENUNGGU_SAYA">🔥 Menunggu Tindakan Saya (Role Aktif)</option>
+                <option value="MENUNGGU_SAYA">🔥 Menunggu Tindakan Saya</option>
                 <option value="MENUNGGU_MANAGER_PEMINJAM">Tahap 1: Menunggu Atasan Peminjam</option>
                 <option value="MENUNGGU_PENGELOLA">Tahap 2: Menunggu Review Pengelola</option>
                 <option value="MENUNGGU_MANAGER_LAB">Tahap 3: Menunggu Manager Lab</option>
-                <option value="MENUNGGU_SERAH_TERIMA">Tahap 4: Disetujui (Siap Serah Terima Lampiran A)</option>
+                <option value="MENUNGGU_SERAH_TERIMA">Tahap 4: Disetujui (Siap Serah Terima)</option>
                 <option value="SEDANG_DIPINJAM">Sedang Dipinjam (Alat Diserahkan)</option>
                 <option value="DIBATALKAN_TS">Dibatalkan (Ada TS - DO NOT USE)</option>
                 <option value="DITOLAK">Ditolak</option>
@@ -1359,15 +1349,11 @@ export default function LoanApproval({ onNavigate }) {
                         bg: '#f1f5f9',
                       };
 
-                      // Deteksi apakah sedang menunggu peran aktif
-                      const isWaitingForReview =
-                        (activeRolePerspective === 'manager_peminjam' && loan.status === 'MENUNGGU_MANAGER_PEMINJAM') ||
-                        (activeRolePerspective === 'pengelola' && loan.status === 'MENUNGGU_PENGELOLA') ||
-                        (activeRolePerspective === 'manager_lab' && loan.status === 'MENUNGGU_MANAGER_LAB');
-
-                      const isReadyForHandover =
-                        loan.status === 'MENUNGGU_SERAH_TERIMA' &&
-                        (activeRolePerspective === 'pengelola' || activeRolePerspective === 'peminjam');
+                      // Deteksi peran akun login dan apakah tiket menunggu tindakan akun ini
+                      const pendingAction = getPendingActionForUser(loan);
+                      const isWaitingForReview = Boolean(pendingAction?.canReview);
+                      const isReadyForHandover = Boolean(pendingAction?.canHandover);
+                      const { isPeminjam, isPengelola, isManagerPeminjam, isManagerLab } = getLoanUserRelationship(loan);
 
                       return (
                         <tr
@@ -1380,8 +1366,57 @@ export default function LoanApproval({ onNavigate }) {
                         >
                           {/* 1. ID Tiket */}
                           <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
-                            <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a' }}>{loan.id}</div>
-                            <div style={{ fontSize: '11px', color: '#64748b' }}>{loan.tanggal_pengajuan}</div>
+                            <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a' }}>{loan.kode || loan.id}</div>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>{loan.tanggal_pengajuan ? String(loan.tanggal_pengajuan).slice(0, 10) : ''}</div>
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                              {/* Jika filter peran aktif, tampilkan hanya badge peran yang sedang disaring */}
+                              {roleFilter === 'peminjam' && (
+                                <span className="badge badge-primary" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                  Peminjam
+                                </span>
+                              )}
+                              {roleFilter === 'pengelola' && (
+                                <span className="badge badge-purple" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                  Pengelola
+                                </span>
+                              )}
+                              {roleFilter === 'manajer_peminjam' && (
+                                <span className="badge badge-warning" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                  Atasan
+                                </span>
+                              )}
+                              {roleFilter === 'manager_lab' && (
+                                <span className="badge badge-secondary" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                  Mgr Lab
+                                </span>
+                              )}
+
+                              {/* Jika filter peran 'SEMUA', tampilkan badge yang relevan tanpa tumpang tindih */}
+                              {roleFilter === 'SEMUA' && (
+                                <>
+                                  {isPeminjam && (
+                                    <span className="badge badge-primary" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                      Peminjam
+                                    </span>
+                                  )}
+                                  {isPengelola && !isPeminjam && (
+                                    <span className="badge badge-purple" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                      Pengelola
+                                    </span>
+                                  )}
+                                  {isManagerPeminjam && loan.approval_manager_peminjam?.status !== 'skipped' && (
+                                    <span className="badge badge-warning" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                      Atasan
+                                    </span>
+                                  )}
+                                  {isManagerLab && (
+                                    <span className="badge badge-secondary" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                      Mgr Lab
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
                           </td>
 
                           {/* 2. Peralatan */}
@@ -1985,13 +2020,13 @@ export default function LoanApproval({ onNavigate }) {
                         Persetujuan Manager Lab Telah Terbit!
                       </div>
                       <div style={{ fontSize: '12px', color: '#c2410c' }}>
-                        {activeRolePerspective === 'pengelola' || activeRolePerspective === 'peminjam'
+                        {getPendingActionForUser(selectedLoan)?.canHandover
                           ? 'Alur kini diarahkan kepada Anda untuk melakukan pemeriksaan fisik bersama dan pengisian Lampiran A.'
                           : 'Persetujuan izin telah disahkan. Menunggu Pengelola Peralatan dan Peminjam melaksanakan serah terima fisik (Lampiran A).'}
                       </div>
                     </div>
                   </div>
-                  {(activeRolePerspective === 'pengelola' || activeRolePerspective === 'peminjam') && (
+                  {getPendingActionForUser(selectedLoan)?.canHandover && (
                     <button
                       type="button"
                       className="btn btn-warning"
@@ -2043,12 +2078,10 @@ export default function LoanApproval({ onNavigate }) {
               )}
 
               {/* ================================================================ */}
-              {/* FORM AKSI APPROVAL AKTIF (SESUAI PERAN DI PERSPECTIVE SWITCHER)  */}
+              {/* FORM AKSI APPROVAL AKTIF (OTOMATIS BERDASARKAN WEWENANG AKUN)    */}
               {/* ================================================================ */}
               {modalMode === 'review' &&
-                ((activeRolePerspective === 'manager_peminjam' && selectedLoan.status === 'MENUNGGU_MANAGER_PEMINJAM') ||
-                  (activeRolePerspective === 'pengelola' && selectedLoan.status === 'MENUNGGU_PENGELOLA') ||
-                  (activeRolePerspective === 'manager_lab' && selectedLoan.status === 'MENUNGGU_MANAGER_LAB')) && (
+                getPendingActionForUser(selectedLoan)?.canReview && (
                   <form
                     onSubmit={handleSubmitDecision}
                     style={{
@@ -2062,17 +2095,17 @@ export default function LoanApproval({ onNavigate }) {
                       <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#991b1b', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <FileCheck size={18} />
                         Tindakan Keputusan: {' '}
-                        {activeRolePerspective === 'manager_peminjam' && 'Manager Peminjam (Tahap 1)'}
-                        {activeRolePerspective === 'pengelola' && 'Pengelola Peralatan (Tahap 2: Review Teknis & Ketersediaan)'}
-                        {activeRolePerspective === 'manager_lab' && 'Manager Lab Pemilik (Tahap 3: Pengesahan Final)'}
+                        {activeReviewStage === 'manager_peminjam' && 'Manager Peminjam (Tahap 1: Validasi Urgensi)'}
+                        {activeReviewStage === 'pengelola' && 'Pengelola Peralatan (Tahap 2: Review Teknis & Ketersediaan)'}
+                        {activeReviewStage === 'manager_lab' && 'Manager Lab Pemilik (Tahap 3: Pengesahan Final)'}
                       </h4>
                       <span className="badge badge-error" style={{ fontSize: '11px' }}>
-                        Peran Aktif Reviewer
+                        Wewenang Anda
                       </span>
                     </div>
 
                     {/* KHUSUS TAHAP 2 PENGELOLA PERALATAN: CHECKLIST VERIFIKASI TEKNIS (BUKAN LAMPIRAN A!) */}
-                    {activeRolePerspective === 'pengelola' && (
+                    {activeReviewStage === 'pengelola' && (
                       <div
                         style={{
                           marginBottom: 'var(--sp-4)',
@@ -2155,9 +2188,9 @@ export default function LoanApproval({ onNavigate }) {
                             onChange={() => setDecisionAction('setuju')}
                           />
                           <span style={{ fontWeight: 600, color: '#16a34a' }}>
-                            {activeRolePerspective === 'pengelola'
+                            {activeReviewStage === 'pengelola'
                               ? '✓ Lolos Cek (Klik "Teruskan" ke Manager Lab)'
-                              : activeRolePerspective === 'manager_lab'
+                              : activeReviewStage === 'manager_lab'
                                 ? '✓ Setujui Permohonan (Sahkan Izin)'
                                 : '✓ Setujui Pengajuan'}
                           </span>
@@ -2171,7 +2204,7 @@ export default function LoanApproval({ onNavigate }) {
                             onChange={() => setDecisionAction('tolak')}
                           />
                           <span style={{ fontWeight: 600, color: '#dc2626' }}>
-                            {activeRolePerspective === 'pengelola'
+                            {activeReviewStage === 'pengelola'
                               ? '✕ Tidak Lolos (Tolak / Usulkan Alat Lain)'
                               : '✕ Tolak Pengajuan'}
                           </span>
@@ -2199,7 +2232,7 @@ export default function LoanApproval({ onNavigate }) {
                     </div>
 
                     {/* Opsi Usulan Peralatan Alternatif (Khusus Pengelola saat Menolak) */}
-                    {decisionAction === 'tolak' && activeRolePerspective === 'pengelola' && (
+                    {decisionAction === 'tolak' && activeReviewStage === 'pengelola' && (
                       <div className="form-group" style={{ marginBottom: 'var(--sp-3)' }}>
                         <label className="form-label" htmlFor="input-alat-alternatif">
                           Usulkan Peralatan Alternatif <span className="form-hint" style={{ display: 'inline' }}>(Opsional)</span>
@@ -2230,9 +2263,9 @@ export default function LoanApproval({ onNavigate }) {
                       <DigitalSignaturePad
                         value={digitalSignature}
                         onChange={setDigitalSignature}
-                        label={`Tanda Tangan Digital ${activeRolePerspective === 'manager_peminjam'
+                        label={`Tanda Tangan Digital ${activeReviewStage === 'manager_peminjam'
                           ? 'Manager Peminjam'
-                          : activeRolePerspective === 'pengelola'
+                          : activeReviewStage === 'pengelola'
                             ? 'Pengelola Peralatan'
                             : 'Manager Lab'
                           }`}
@@ -2253,7 +2286,7 @@ export default function LoanApproval({ onNavigate }) {
                       >
                         <Send size={15} />
                         {decisionAction === 'setuju'
-                          ? activeRolePerspective === 'pengelola'
+                          ? activeReviewStage === 'pengelola'
                             ? 'Teruskan ke Manager Lab'
                             : 'Simpan Persetujuan & TTD'
                           : 'Konfirmasi Penolakan'}

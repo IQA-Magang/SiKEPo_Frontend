@@ -10,18 +10,16 @@ export default function NotificationBell({ onNavigate }) {
   const [loadError, setLoadError] = useState('');
   const drawerRef = useRef(null);
 
-  const isManager = user?.role?.toLowerCase() === 'manager';
-
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   useEffect(() => {
-    if (isManager && user?.user_id) {
+    if (user?.user_id) {
       loadNotifications();
       // Polling setiap 30 detik agar notifikasi real-time tanpa ubah backend
       const interval = setInterval(loadNotifications, 30000);
       return () => clearInterval(interval);
     }
-  }, [user?.user_id, isManager]);
+  }, [user?.user_id]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -35,7 +33,7 @@ export default function NotificationBell({ onNavigate }) {
   }, [open]);
 
   async function loadNotifications() {
-    if (!user?.user_id || !isManager) return;
+    if (!user?.user_id) return;
     setLoading(true);
     setLoadError('');
     try {
@@ -49,12 +47,38 @@ export default function NotificationBell({ onNavigate }) {
   }
 
   function getNotificationTarget(notif) {
-    if (notif.peralatan_id) return `/peralatan/detail/${notif.peralatan_id}`;
-    if (notif.type === 'peralatan_created') return '/peralatan';
-    if (notif.type === 'verification_submitted' || notif.type === 'peralatan_verification_updated') {
+    if (!notif) return null;
+    const type = (notif.type || '').toLowerCase();
+    const title = (notif.title || '').toLowerCase();
+
+    // Notifikasi Peminjaman (peminjaman_diajukan, peminjaman_divalidasi, peminjaman_diteruskan, peminjaman_disetujui, peminjaman_ditolak)
+    if (type.startsWith('peminjaman') || title.includes('peminjaman')) {
+      return '/peminjaman';
+    }
+
+    // Notifikasi Verifikasi
+    if (
+      type === 'verification_submitted' ||
+      type === 'peralatan_verification_updated' ||
+      title.includes('verifikasi')
+    ) {
       return '/verifikasi';
     }
+
+    // Detail peralatan atau master peralatan
+    if (notif.peralatan_id) return `/peralatan/detail/${notif.peralatan_id}`;
+    if (type === 'peralatan_created' || title.includes('peralatan')) return '/peralatan';
+
     return null;
+  }
+
+  function getNotificationActionLabel(target) {
+    if (!target) return '';
+    if (target.startsWith('/peminjaman')) return 'Buka Peminjaman';
+    if (target.startsWith('/verifikasi')) return 'Buka Verifikasi';
+    if (target.startsWith('/peralatan/detail')) return 'Buka Alat';
+    if (target.startsWith('/peralatan')) return 'Daftar Alat';
+    return 'Lihat Detail';
   }
 
   async function handleMarkRead(notif) {
@@ -112,7 +136,7 @@ export default function NotificationBell({ onNavigate }) {
         className="icon-badge-button"
         onClick={() => {
           setOpen((prev) => !prev);
-          if (!open && isManager) loadNotifications();
+          if (!open && user?.user_id) loadNotifications();
         }}
         title="Notifikasi Masuk"
         id="btn-notif-bell"
@@ -322,7 +346,7 @@ export default function NotificationBell({ onNavigate }) {
                       </span>
                       {target && (
                         <span style={{ color: '#DC2626', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                          {target === '/verifikasi' ? 'Buka Verifikasi' : 'Buka Alat'} <ExternalLink size={10} />
+                          {getNotificationActionLabel(target)} <ExternalLink size={10} />
                         </span>
                       )}
                     </div>
