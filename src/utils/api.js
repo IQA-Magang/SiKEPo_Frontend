@@ -520,6 +520,10 @@ export const peminjamanApi = {
     fetchWithAuth('/api/peminjaman', { method: 'POST', body: JSON.stringify(body) }),
   keputusan: (id, body) =>
     fetchWithAuth(`/api/peminjaman/${id}/keputusan`, { method: 'PUT', body: JSON.stringify(body) }),
+  serahTerima: (id, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/serah-terima`, { method: 'POST', body: JSON.stringify(body) }),
+  konfirmasiTerima: (id, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/konfirmasi-terima`, { method: 'PUT', body: JSON.stringify(body) }),
 };
 
 
