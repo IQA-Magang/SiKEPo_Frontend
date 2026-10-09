@@ -247,6 +247,12 @@ const LAMPIRAN_A_BUTIR = [
   'Dokumen pendukung: instruksi/manual pengoperasian, salinan sertifikat/laporan verifikasi, Surat Keterangan Membawa Peralatan (peminjaman eksternal)',
 ];
 
+// Indeks butir Lampiran A yang boleh dipilih Tidak Berlaku (TB) sesuai TLKM13/IK/005:
+// Butir 3 (index 2): Segel (bila ada)
+// Butir 7 (index 6): Versi software/firmware (bila relevan)
+// Butir 8 (index 7): Konektor optik (bila relevan)
+const BOLEH_TB_INDEXES = [2, 6, 7];
+
 // ============================================================================
 // DATA DUMMY MOCK REALISTIS LENGKAP DENGAN SELURUH SIKLUS HIDUP
 // ============================================================================
@@ -1231,8 +1237,9 @@ export default function LoanApproval({ onNavigate }) {
     }
   }
 
-  // Hitung berapa TS yang dipilih di form Lampiran A
+  // Hitung berapa TS, TB, dan S yang dipilih di form Lampiran A
   const countTS = checkoutChecks.filter((i) => i.status === 'TS').length;
+  const countTB = checkoutChecks.filter((i) => i.status === 'TB').length;
   const countS = checkoutChecks.filter((i) => i.status === 'S').length;
 
   return (
@@ -2730,7 +2737,7 @@ export default function LoanApproval({ onNavigate }) {
                   color: '#334155',
                 }}
               >
-                <strong style={{ color: '#0f172a' }}>📦 Ketentuan Pengemasan & Kelengkapan (Butir 8.4 IK):</strong>
+                <strong style={{ color: '#0f172a' }}>Ketentuan Pengemasan & Kelengkapan (Butir 8.4 IK):</strong>
                 <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
                   <li>Gunakan wadah/koper bawaan pabrikan atau wadah berperedam guncangan.</li>
                   <li>Pasang tutup pelindung pada konektor/port (termasuk antarmuka optik).</li>
@@ -2799,7 +2806,7 @@ export default function LoanApproval({ onNavigate }) {
                   </div>
                   <div style={{ fontSize: '11px', color: '#64748b' }}>
                     {checkoutStep === 'pengelola'
-                      ? 'S = Sesuai | TS = Tidak Sesuai'
+                      ? 'S = Sesuai | TS = Tidak Sesuai | TB = Tidak Berlaku (Khusus No. 3, 7, 8)'
                       : 'Status Terverifikasi Pengelola'}
                   </div>
                 </div>
@@ -2810,8 +2817,8 @@ export default function LoanApproval({ onNavigate }) {
                       <tr style={{ background: '#e2e8f0', textAlign: 'left' }}>
                         <th style={{ padding: '8px 10px', width: 32, textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>No.</th>
                         <th style={{ padding: '8px 10px', borderRight: '1px solid #cbd5e1' }}>Butir Pemeriksaan</th>
-                        <th style={{ padding: '8px 10px', width: checkoutStep === 'peminjam' ? 140 : 110, textAlign: 'center', borderRight: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>
-                          Keluar (S/TS)
+                        <th style={{ padding: '8px 10px', width: checkoutStep === 'peminjam' ? 140 : 155, textAlign: 'center', borderRight: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>
+                          Keluar (S/TS/TB)
                         </th>
                         <th style={{ padding: '8px 10px' }}>Keterangan</th>
                       </tr>
@@ -2820,11 +2827,13 @@ export default function LoanApproval({ onNavigate }) {
                       {LAMPIRAN_A_BUTIR.map((butir, idx) => {
                         const item = checkoutChecks[idx] || { status: 'S', keterangan: '' };
                         const isTS = item.status === 'TS';
+                        const isTB = item.status === 'TB';
+                        const canTB = BOLEH_TB_INDEXES.includes(idx);
                         return (
                           <tr
                             key={idx}
                             style={{
-                              background: isTS ? '#fef2f2' : idx % 2 === 0 ? '#ffffff' : '#f8fafc',
+                              background: isTS ? '#fef2f2' : isTB ? '#f8fafc' : idx % 2 === 0 ? '#ffffff' : '#f8fafc',
                               borderBottom: '1px solid #e2e8f0',
                             }}
                           >
@@ -2833,14 +2842,19 @@ export default function LoanApproval({ onNavigate }) {
                             </td>
                             <td style={{ padding: '6px 10px', borderRight: '1px solid #cbd5e1', lineHeight: 1.35 }}>
                               {butir}
+                              {canTB && (
+                                <span style={{ marginLeft: 6, fontSize: '10px', color: '#0284c7', background: '#e0f2fe', padding: '1px 5px', borderRadius: 3, border: '1px solid #bae6fd', fontWeight: 600 }}>
+                                  Opsional (Boleh TB)
+                                </span>
+                              )}
                               {idx === 9 && selectedLoan.is_eksternal && (
                                 <span style={{ marginLeft: 6, fontSize: '10px', color: '#dc2626', fontWeight: 600 }}>★ Wajib Eksternal</span>
                               )}
                             </td>
                             <td style={{ padding: '6px 10px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>
                               {checkoutStep === 'pengelola' ? (
-                                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, cursor: 'pointer', fontWeight: item.status === 'S' ? 700 : 400, color: item.status === 'S' ? '#16a34a' : '#64748b' }}>
+                                <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontWeight: item.status === 'S' ? 700 : 400, color: item.status === 'S' ? '#16a34a' : '#64748b', fontSize: '11px' }}>
                                     <input
                                       type="radio"
                                       name={`checkout_${idx}`}
@@ -2855,12 +2869,12 @@ export default function LoanApproval({ onNavigate }) {
                                     />
                                     S
                                   </label>
-                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, cursor: 'pointer', fontWeight: item.status === 'TS' ? 700 : 400, color: item.status === 'TS' ? '#dc2626' : '#64748b' }}>
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontWeight: isTS ? 700 : 400, color: isTS ? '#dc2626' : '#64748b', fontSize: '11px' }}>
                                     <input
                                       type="radio"
                                       name={`checkout_${idx}`}
                                       value="TS"
-                                      checked={item.status === 'TS'}
+                                      checked={isTS}
                                       onChange={() => {
                                         const updated = [...checkoutChecks];
                                         updated[idx] = { ...updated[idx], status: 'TS' };
@@ -2870,25 +2884,77 @@ export default function LoanApproval({ onNavigate }) {
                                     />
                                     TS
                                   </label>
+                                  {canTB && (
+                                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontWeight: isTB ? 700 : 400, color: isTB ? '#2563eb' : '#64748b', fontSize: '11px' }}>
+                                      <input
+                                        type="radio"
+                                        name={`checkout_${idx}`}
+                                        value="TB"
+                                        checked={isTB}
+                                        onChange={() => {
+                                          const updated = [...checkoutChecks];
+                                          updated[idx] = { ...updated[idx], status: 'TB' };
+                                          setCheckoutChecks(updated);
+                                        }}
+                                        style={{ accentColor: '#2563eb' }}
+                                      />
+                                      TB
+                                    </label>
+                                  )}
                                 </div>
                               ) : (
-                                <span
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 4,
-                                    padding: '2px 8px',
-                                    borderRadius: 4,
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    background: isTS ? '#fef2f2' : '#f0fdf4',
-                                    color: isTS ? '#dc2626' : '#16a34a',
-                                    border: isTS ? '1px solid #fecaca' : '1px solid #bbf7d0',
-                                  }}
-                                >
-                                  {isTS ? <AlertOctagon size={12} /> : <CheckCircle2 size={12} />}
-                                  {isTS ? 'TS (Tidak Sesuai)' : 'S (Sesuai)'}
-                                </span>
+                                isTB ? (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                      padding: '2px 8px',
+                                      borderRadius: 4,
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      background: '#f1f5f9',
+                                      color: '#475569',
+                                      border: '1px solid #cbd5e1',
+                                    }}
+                                  >
+                                    TB (Tidak Berlaku)
+                                  </span>
+                                ) : isTS ? (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                      padding: '2px 8px',
+                                      borderRadius: 4,
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      background: '#fef2f2',
+                                      color: '#dc2626',
+                                      border: '1px solid #fecaca',
+                                    }}
+                                  >
+                                    <AlertOctagon size={12} /> TS (Tidak Sesuai)
+                                  </span>
+                                ) : (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                      padding: '2px 8px',
+                                      borderRadius: 4,
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      background: '#f0fdf4',
+                                      color: '#166534',
+                                      border: '1px solid #bbf7d0',
+                                    }}
+                                  >
+                                    <CheckCircle2 size={12} /> S (Sesuai)
+                                  </span>
+                                )
                               )}
                             </td>
                             <td style={{ padding: '4px 8px' }}>
@@ -2901,15 +2967,15 @@ export default function LoanApproval({ onNavigate }) {
                                     updated[idx] = { ...updated[idx], keterangan: e.target.value };
                                     setCheckoutChecks(updated);
                                   }}
-                                  placeholder={isTS ? 'Wajib jelaskan ketidaksesuaian...' : 'Catatan opsional...'}
+                                  placeholder={isTS ? 'Wajib jelaskan ketidaksesuaian...' : isTB ? 'Catatan tidak berlaku (opsional)...' : 'Catatan opsional...'}
                                   required={isTS}
                                   style={{
                                     width: '100%',
-                                    border: isTS ? '1.5px solid #f87171' : '1px solid #cbd5e1',
+                                    border: isTS ? '1.5px solid #f87171' : isTB ? '1px solid #93c5fd' : '1px solid #cbd5e1',
                                     borderRadius: 4,
                                     padding: '4px 8px',
                                     fontSize: '11px',
-                                    background: isTS ? '#fff1f2' : '#ffffff',
+                                    background: isTS ? '#fff1f2' : isTB ? '#f0f9ff' : '#ffffff',
                                     outline: 'none',
                                   }}
                                 />
@@ -2972,7 +3038,7 @@ export default function LoanApproval({ onNavigate }) {
                 >
                   <CheckCircle2 size={20} style={{ color: '#16a34a', flexShrink: 0 }} />
                   <div style={{ fontSize: '12px' }}>
-                    <strong>Seluruh 10 Butir Pemeriksaan SESUAI (S):</strong> Kondisi fisik, segel, kelengkapan, dan fungsi menyala normal. Alat layak diserahkan kepada peminjam.
+                    <strong>Pemeriksaan Fisik Memenuhi Syarat:</strong> {countS} butir Sesuai (S){countTB > 0 ? `, ${countTB} butir Tidak Berlaku (TB)` : ''}. Kondisi peralatan layak dan memenuhi standar untuk diserahkan kepada peminjam.
                   </div>
                 </div>
               )}

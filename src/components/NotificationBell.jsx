@@ -50,9 +50,22 @@ export default function NotificationBell({ onNavigate }) {
     if (!notif) return null;
     const type = (notif.type || '').toLowerCase();
     const title = (notif.title || '').toLowerCase();
+    const message = (notif.message || '').toLowerCase();
 
-    // Notifikasi Peminjaman (peminjaman_diajukan, peminjaman_divalidasi, peminjaman_diteruskan, peminjaman_disetujui, peminjaman_ditolak)
-    if (type.startsWith('peminjaman') || title.includes('peminjaman')) {
+    // Notifikasi Peminjaman & Serah Terima (misal: serah_terima_menunggu_ttd, "Peralatan siap diserahkan", dsb)
+    if (
+      type.startsWith('peminjaman') ||
+      type.startsWith('serah_terima') ||
+      type === 'serah_terima_menunggu_ttd' ||
+      type === 'serah_terima_selesai' ||
+      title.includes('peminjaman') ||
+      title.includes('serah terima') ||
+      title.includes('siap diserahkan') ||
+      title.includes('diserahterimakan') ||
+      message.includes('pengajuan pjm-') ||
+      message.includes('konfirmasi penerimaan') ||
+      message.includes('serah terima')
+    ) {
       return '/peminjaman';
     }
 
@@ -60,6 +73,7 @@ export default function NotificationBell({ onNavigate }) {
     if (
       type === 'verification_submitted' ||
       type === 'peralatan_verification_updated' ||
+      type.startsWith('verifikasi') ||
       title.includes('verifikasi')
     ) {
       return '/verifikasi';
