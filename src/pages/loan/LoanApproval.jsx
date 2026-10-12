@@ -933,7 +933,7 @@ export default function LoanApproval({ onNavigate }) {
       const pending = getPendingActionForUser(item);
       return Boolean(pending?.canReview || pending?.canHandover);
     }
-    if (statusFilter === 'MENUNGGU_SERAH_TERIMA') {
+    if (statusFilter === 'DISETUJUI' || statusFilter === 'MENUNGGU_SERAH_TERIMA') {
       if (item.status !== 'MENUNGGU_SERAH_TERIMA' && item.status !== 'DISETUJUI') return false;
     } else if (statusFilter !== 'SEMUA' && item.status !== statusFilter) {
       return false;
@@ -1018,10 +1018,21 @@ export default function LoanApproval({ onNavigate }) {
   }
 
   // Buka Modal Hanya untuk Melihat Detail Riwayat
-  function handleOpenDetail(loan) {
+  async function handleOpenDetail(loan) {
     setSelectedLoan(loan);
     setModalMode('detail');
     fetchLogbook(loan.peralatan?.id);
+
+    if (!isNaN(Number(loan.id))) {
+      try {
+        const detailRes = await peminjamanApi.getById(loan.id);
+        if (detailRes?.success && detailRes.data) {
+          setSelectedLoan(detailRes.data);
+        }
+      } catch (err) {
+        console.warn('Gagal fetch detail peminjaman:', err);
+      }
+    }
   }
 
   // Submit Keputusan Review Persetujuan (Tahap 1, 2, 3)
@@ -1158,6 +1169,20 @@ export default function LoanApproval({ onNavigate }) {
     if (!selectedLoan) return;
 
     if (checkoutStep === 'pengelola') {
+      // 1. Semua 10 butir wajib terisi statusnya (S, TS, atau TB)
+      if (checkoutChecks.length !== 10 || checkoutChecks.some((i) => !i.status)) {
+        toastError('Semua 10 butir pemeriksaan Lampiran A wajib diisi statusnya.');
+        return;
+      }
+
+      // 2. Status TB hanya boleh pada butir 3, 7, 8
+      const tbSalahButir = checkoutChecks.some((it, idx) => it.status === 'TB' && !BOLEH_TB_INDEXES.includes(idx));
+      if (tbSalahButir) {
+        toastError('Status Tidak Berlaku (TB) hanya diperbolehkan pada butir nomor 3, 7, dan 8.');
+        return;
+      }
+
+      // 3. Butir TS wajib diisi penjelasannya pada kolom keterangan
       const adaItemTS = checkoutChecks.some((i) => i.status === 'TS');
       if (adaItemTS) {
         const itemTSKosong = checkoutChecks.some((i) => i.status === 'TS' && !i.keterangan?.trim());
@@ -1165,11 +1190,6 @@ export default function LoanApproval({ onNavigate }) {
           toastError('Semua butir Tidak Sesuai (TS) wajib diisi penjelasannya pada kolom keterangan.');
           return;
         }
-      }
-
-      if (!checkoutSigPengelola) {
-        toastError('Tanda tangan digital Pengelola Peralatan wajib dibubuhkan.');
-        return;
       }
 
       setIsSubmitting(true);
@@ -1180,7 +1200,7 @@ export default function LoanApproval({ onNavigate }) {
             keterangan: it.keterangan ? it.keterangan.trim() : '',
           })),
           catatan: checkoutNote ? checkoutNote.trim() : '',
-          ttd: checkoutSigPengelola,
+          ttd: checkoutSigPengelola ? checkoutSigPengelola.trim() : '',
         };
 
         const res = await peminjamanApi.serahTerima(selectedLoan.id, payload);
@@ -1197,7 +1217,7 @@ export default function LoanApproval({ onNavigate }) {
           );
         } else {
           success(
-            `Pemeriksaan Lampiran A berhasil disahkan! Tiket ${selectedLoan.kode || selectedLoan.id} kini menunggu konfirmasi dan tanda tangan penerimaan dari Peminjam.`
+            `Pemeriksaan Lampiran A berhasil disahkan! Tiket ${selectedLoan.kode || selectedLoan.id} kini berstatus SIAP_DISERAHKAN dan menunggu konfirmasi dari Peminjam.`
           );
         }
       } catch (err) {
@@ -1206,16 +1226,11 @@ export default function LoanApproval({ onNavigate }) {
         setIsSubmitting(false);
       }
     } else {
-      // checkoutStep === 'peminjam'
-      if (!checkoutSigPeminjam) {
-        toastError('Tanda tangan digital Peminjam/Penerima wajib dibubuhkan.');
-        return;
-      }
-
+      // checkoutStep === 'peminjam' (TTD opsional)
       setIsSubmitting(true);
       try {
         const payload = {
-          ttd: checkoutSigPeminjam,
+          ttd: checkoutSigPeminjam ? checkoutSigPeminjam.trim() : '',
         };
 
         const res = await peminjamanApi.konfirmasiTerima(selectedLoan.id, payload);
@@ -1227,7 +1242,7 @@ export default function LoanApproval({ onNavigate }) {
         await fetchLoans();
 
         success(
-          `Penerimaan peralatan berhasil dikonfirmasi & ditandatangani! Tiket ${selectedLoan.kode || selectedLoan.id} kini resmi berstatus SEDANG DIPINJAM.`
+          `Penerimaan peralatan berhasil dikonfirmasi! Tiket ${selectedLoan.kode || selectedLoan.id} kini resmi berstatus SEDANG_DIPINJAM dan status alat menjadi Dipinjam.`
         );
       } catch (err) {
         toastError(err.message || 'Gagal mengonfirmasi penerimaan peralatan');
@@ -1264,7 +1279,7 @@ export default function LoanApproval({ onNavigate }) {
 
           </div>
           <p className="page-subtitle" style={{ marginTop: 4 }}>
-            Alur Persetujuan Resmi: Atasan Peminjam ➔ Pengelola (Review Teknis) ➔ Manager Lab ➔ <strong>Serah Terima Fisik (Lampiran A)</strong>.
+            Kelola pengajuan peminjaman, proses verifikasi persetujuan resmi, dan pelaksanaan serah terima fisik peralatan laboratorium.
           </p>
         </div>
 
@@ -1369,7 +1384,7 @@ export default function LoanApproval({ onNavigate }) {
                 <option value="MENUNGGU_MANAGER_PEMINJAM">Tahap 1: Menunggu Atasan Peminjam</option>
                 <option value="MENUNGGU_PENGELOLA">Tahap 2: Menunggu Review Pengelola</option>
                 <option value="MENUNGGU_MANAGER_LAB">Tahap 3: Menunggu Manager Lab</option>
-                <option value="MENUNGGU_SERAH_TERIMA">Tahap 4A: Disetujui (Cek Pengelola)</option>
+                <option value="DISETUJUI">Tahap 4A: Disetujui (Cek Pengelola)</option>
                 <option value="SIAP_DISERAHKAN">Tahap 4B: Siap Diserahkan (TTD Peminjam)</option>
                 <option value="SEDANG_DIPINJAM">Sedang Dipinjam (Alat Diserahkan)</option>
                 <option value="DIBATALKAN_TS">Dibatalkan (Ada TS - DO NOT USE)</option>
@@ -2185,30 +2200,66 @@ export default function LoanApproval({ onNavigate }) {
                     border: selectedLoan.serah_terima_keluar.ada_ts ? '1.5px solid #fecaca' : '1.5px solid #bbf7d0',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                     <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: selectedLoan.serah_terima_keluar.ada_ts ? '#991b1b' : '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <ClipboardCheck size={16} />
                       Rekaman Serah Terima Fisik Keluar (Lampiran A)
                     </h4>
                     <span style={{ fontSize: '11px', color: '#64748b' }}>
-                      Dilaksanakan: {selectedLoan.serah_terima_keluar.tanggal}
+                      Pemeriksaan: {selectedLoan.serah_terima_keluar.tanggal ? String(selectedLoan.serah_terima_keluar.tanggal).slice(0, 10) : '-'}
+                      {selectedLoan.serah_terima_keluar.tanggal_diterima && (
+                        <> | Diterima: {String(selectedLoan.serah_terima_keluar.tanggal_diterima).slice(0, 10)}</>
+                      )}
                     </span>
                   </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, fontSize: '12px', marginBottom: 8 }}>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11px' }}>PIC Pengelola (Pemeriksa): </span>
+                      <strong>{selectedLoan.serah_terima_keluar.pic_petugas || selectedLoan.approval_pengelola?.nama || '-'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11px' }}>Peminjam (Penerima): </span>
+                      <strong>{selectedLoan.serah_terima_keluar.peminjam_penerima || selectedLoan.peminjam?.nama || '-'}</strong>
+                    </div>
+                  </div>
+
                   <p style={{ margin: 0, fontSize: '12px', color: '#334155' }}>
                     <strong>Hasil:</strong>{' '}
                     {selectedLoan.serah_terima_keluar.ada_ts ? (
                       <span style={{ color: '#dc2626', fontWeight: 600 }}>
-                        Dibatalkan karena ada butir Tidak Sesuai (TS). Status alat dialihkan menjadi DO_NOT_USE.
+                        Dibatalkan karena terdapat butir Tidak Sesuai (TS). Status alat dialihkan menjadi DO_NOT_USE.
                       </span>
                     ) : (
                       <span style={{ color: '#16a34a', fontWeight: 600 }}>
-                        Seluruh 10 butir Sesuai (S). Alat telah resmi diserahkan kepada peminjam.
+                        Memenuhi Syarat (Seluruh butir Sesuai/TB). Peralatan diserahterimakan kepada peminjam.
                       </span>
                     )}
                   </p>
-                  <div style={{ marginTop: 8, fontSize: '11px', color: '#64748b' }}>
-                    Catatan: "{selectedLoan.serah_terima_keluar.catatan}"
-                  </div>
+
+                  {selectedLoan.serah_terima_keluar.catatan && (
+                    <div style={{ marginTop: 6, fontSize: '12px', color: '#475569' }}>
+                      <strong>Catatan:</strong> "{selectedLoan.serah_terima_keluar.catatan}"
+                    </div>
+                  )}
+
+                  {/* Tanda Tangan Pengelola & Peminjam */}
+                  {(selectedLoan.serah_terima_keluar.ttd_pengelola || selectedLoan.serah_terima_keluar.ttd_peminjam) && (
+                    <div style={{ display: 'flex', gap: 16, marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)', flexWrap: 'wrap' }}>
+                      {selectedLoan.serah_terima_keluar.ttd_pengelola && (
+                        <div style={{ textAlign: 'center', background: '#ffffff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1' }}>
+                          <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginBottom: 4 }}>TTD Pengelola</div>
+                          <img src={selectedLoan.serah_terima_keluar.ttd_pengelola} alt="TTD Pengelola" style={{ maxHeight: 45, maxWidth: 120, objectFit: 'contain' }} />
+                        </div>
+                      )}
+                      {selectedLoan.serah_terima_keluar.ttd_peminjam && (
+                        <div style={{ textAlign: 'center', background: '#ffffff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1' }}>
+                          <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginBottom: 4 }}>TTD Peminjam</div>
+                          <img src={selectedLoan.serah_terima_keluar.ttd_peminjam} alt="TTD Peminjam" style={{ maxHeight: 45, maxWidth: 120, objectFit: 'contain' }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -3107,9 +3158,9 @@ export default function LoanApproval({ onNavigate }) {
                     <DigitalSignaturePad
                       value={checkoutSigPengelola}
                       onChange={setCheckoutSigPengelola}
-                      label="Tanda Tangan Pengelola Peralatan (Petugas yang Menyerahkan Alat)"
-                      required
-                      helperText="Tanda tangan Anda akan mengesahkan hasil inspeksi fisik Lampiran A sebelum dialihkan ke peminjam"
+                      label="Tanda Tangan Pengelola Peralatan (Opsional)"
+                      required={false}
+                      helperText="Opsional: Tanda tangan digital untuk mengesahkan inspeksi fisik Lampiran A"
                     />
                   </div>
                 )
@@ -3179,9 +3230,9 @@ export default function LoanApproval({ onNavigate }) {
                     <DigitalSignaturePad
                       value={checkoutSigPeminjam}
                       onChange={setCheckoutSigPeminjam}
-                      label="2. Tanda Tangan Peminjam (Penerima Peralatan)"
-                      required
-                      helperText="Bubuhkan tanda tangan untuk mengonfirmasi penerimaan fisik peralatan"
+                      label="2. Tanda Tangan Peminjam (Penerima Peralatan - Opsional)"
+                      required={false}
+                      helperText="Opsional: Tanda tangan digital untuk mengonfirmasi penerimaan fisik peralatan"
                     />
                   </div>
                 </div>
