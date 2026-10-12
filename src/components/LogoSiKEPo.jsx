@@ -13,8 +13,8 @@ export default function LogoSiKEPo() {
       </div>
 
       <h2 className="sikepo-tagline">
-        System of knowing<br />
-        Equipment position
+        System for Inventory Knowledge<br />
+        of Equipment Position & Operation
       </h2>
     </div>
   );
