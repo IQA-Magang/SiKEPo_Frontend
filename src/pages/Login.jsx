@@ -96,7 +96,7 @@ export default function Login({ onNavigate }) {
           <div className="login-left-wrapper">
             <LogoSiKEPo />
             <p className="sikepo-onboarding-sub">
-              Sistem Informasi Tata Kelola &amp; Posisi Peralatan Laboratorium Uji Telkom Test House
+              Sistem untuk Memantau Posisi &amp; dan Pengoperasian Peralatan
             </p>
 
             <div className="login-card">
