@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Package, ArrowLeft, Upload, FileText, Download, QrCode, Printer, Hand, RefreshCw } from 'lucide-react';
-import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, kelompokAssetApi, ruanganApi, labsApi, logbookApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
+import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, kelompokAssetApi, ruanganApi, labsApi, logbookApi, peminjamanApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can, getUserRole, isStaffPengelola } from '../../utils/permissions.js';
 import { exportVerificationPdf } from '../../utils/verificationPdf.js';
 
@@ -33,6 +33,34 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
   const [logbookError, setLogbookError] = useState('');
   const [activeDetailSection, setActiveDetailSection] = useState(initialSection);
   const [references, setReferences] = useState({ groups: [], rooms: [], labs: [] });
+  const [jadwal, setJadwal] = useState([]);
+  const hariIni = new Date();
+  const hariIniStr = `${hariIni.getFullYear()}-${String(hariIni.getMonth()+1).padStart(2,'0')}-${String(hariIni.getDate()).padStart(2,'0')}`;
+
+  function formatTgl(dateStr) {
+    if (!dateStr) return '';
+    const d = String(dateStr).slice(0, 10);
+    const parts = d.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return dateStr;
+  }
+
+  function isCurrentlyOut() {
+    if (!peralatan) return null;
+    const pid = String(getEquipmentId(peralatan));
+    for (const r of jadwal) {
+      if (String(r.peralatan_id) === pid) {
+        if (hariIniStr >= r.rencana_tanggal_keluar && hariIniStr <= r.rencana_tanggal_kembali) {
+          return r;
+        }
+      }
+    }
+    if (peralatan.status_alat === 'Dipinjam' && Array.isArray(jadwal)) {
+      const match = jadwal.find((r) => String(r.peralatan_id) === pid);
+      if (match) return match;
+    }
+    return null;
+  }
 
   useEffect(() => {
     setActiveDetailSection(initialSection);
@@ -101,7 +129,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
     setReviewLogError('');
     setVerificationLogError('');
     try {
-      const [equipmentRes, docRes, reviewRes, verificationRes, groupsRes, roomsRes, labsRes] = await Promise.allSettled([
+      const [equipmentRes, docRes, reviewRes, verificationRes, groupsRes, roomsRes, labsRes, jadwalRes] = await Promise.allSettled([
         peralatanApi.getById(equipmentId),
         dokumenApi.getByPeralatanId(equipmentId),
         verifikasiApi.getLogByPeralatanId(equipmentId),
@@ -109,6 +137,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
         kelompokAssetApi.getAll(),
         ruanganApi.getAll(),
         labsApi.getAll(),
+        peminjamanApi.getAllJadwal(),
       ]);
       if (equipmentRes.status === 'fulfilled') {
         const result = equipmentRes.value.data;
@@ -146,6 +175,12 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
         rooms: roomsRes.status === 'fulfilled' ? roomsRes.value.data || [] : [],
         labs: labsRes.status === 'fulfilled' ? labsRes.value.data || [] : [],
       });
+      if (jadwalRes.status === 'fulfilled') {
+        const data = jadwalRes.value?.data || jadwalRes.value || [];
+        setJadwal(Array.isArray(data) ? data : []);
+      } else {
+        setJadwal([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -193,6 +228,8 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
   const photoUrl = formatPhotoUrl(peralatan.foto);
   const canonicalEquipmentId = getEquipmentId(peralatan);
   const isVerified = peralatan.status_verifikasi === 'Disetujui';
+  const outRange = isCurrentlyOut();
+  const canBorrowNow = canRequestLoan && isVerified && !outRange;
   const displayStatus = isVerified ? peralatan.status_alat : 'Karantina';
   const visibleDetailSection = activeDetailSection === 'qr' && !isVerified
     ? 'informasi'
@@ -283,16 +320,34 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {canRequestLoan && isVerified && peralatan.status_alat === 'Aktif' && (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => onNavigate(`/peminjaman/${canonicalEquipmentId}`)}
-              title="Pinjam peralatan (TLKM13/IK/005)"
-              id="btn-pinjam-detail"
-            >
-              <Hand size={14} /> Pinjam Peralatan
-            </button>
+          {canRequestLoan && isVerified && (
+            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => onNavigate(`/peminjaman/${canonicalEquipmentId}`)}
+                title={outRange ? `Alat sedang dipinjam: ${outRange.rencana_tanggal_keluar} s.d. ${outRange.rencana_tanggal_kembali}. Klik untuk meminjam pada jadwal lain.` : "Pinjam peralatan (TLKM13/IK/005)"}
+                id="btn-pinjam-detail"
+              >
+                <Hand size={14} /> Pinjam Peralatan
+              </button>
+              {outRange && (
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: 'var(--clr-primary-700, #c53030)',
+                    background: 'var(--clr-primary-50, #fff5f5)',
+                    border: '1px solid var(--clr-primary-200, #fed7d7)',
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-sm, 4px)',
+                    fontWeight: 'var(--fw-medium, 500)',
+                    lineHeight: 1.25,
+                  }}
+                >
+                  Sedang dipinjam: {formatTgl(outRange.rencana_tanggal_keluar)} – {formatTgl(outRange.rencana_tanggal_kembali)}
+                </span>
+              )}
+            </div>
           )}
           {canViewVerification && !isVerified && (
             <button
