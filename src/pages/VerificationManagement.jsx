@@ -1817,13 +1817,13 @@ export default function VerificationManagement({
           className={`btn btn-sm ${activeTab === "pending" ? "btn-primary" : "btn-ghost"}`}
           onClick={() => setActiveTab("pending")}
         >
-          Menunggu Verifikasi ({pendingEquipment.length})
+          Menunggu Verifikasi Pengelola ({pendingEquipment.length})
         </button>
         <button
           className={`btn btn-sm ${activeTab === "review" ? "btn-primary" : "btn-ghost"}`}
           onClick={() => setActiveTab("review")}
         >
-          Persetujuan Manager ({reviewItems.length})
+          Menunggu Persetujuan Manager ({reviewItems.length})
         </button>
         <button
           className={`btn btn-sm ${activeTab === "history" ? "btn-primary" : "btn-ghost"}`}
