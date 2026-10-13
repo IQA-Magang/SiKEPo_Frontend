@@ -648,9 +648,7 @@ export default function VerificationManagement({
           verifikasiApi.getAll(),
           verifikasiApi.getLogPeninjauan(),
           peralatanApi.getAll(),
-          isLabScopedUser
-            ? ruanganApi.getAll()
-            : Promise.resolve({ data: [] }),
+          isLabScopedUser ? ruanganApi.getAll() : Promise.resolve({ data: [] }),
         ]);
       if (isLabScopedUser && roomsResult.status !== "fulfilled") {
         throw (
@@ -703,8 +701,7 @@ export default function VerificationManagement({
           isLabScopedUser
             ? allLogs.filter((log) => {
                 const equipment =
-                  log.peralatan ||
-                  equipmentById.get(String(log.id_peralatan));
+                  log.peralatan || equipmentById.get(String(log.id_peralatan));
                 return isEquipmentInUserLab(
                   equipment,
                   roomsById,
@@ -721,12 +718,11 @@ export default function VerificationManagement({
             p.status_verifikasi !== "Disetujui" &&
             p.status_verifikasi !== "Diajukan",
         );
-        const visiblePending =
-          isLabScopedUser
-            ? pending.filter((p) =>
-                isEquipmentInUserLab(p, roomsById, currentUserLabId),
-              )
-            : pending;
+        const visiblePending = isLabScopedUser
+          ? pending.filter((p) =>
+              isEquipmentInUserLab(p, roomsById, currentUserLabId),
+            )
+          : pending;
         setPendingEquipment(visiblePending);
       }
     } catch (err) {
@@ -759,9 +755,7 @@ export default function VerificationManagement({
         const [res, logRes, roomsRes] = await Promise.allSettled([
           peralatanApi.getAll(),
           verifikasiApi.getLogByPeralatanId(equipmentId),
-          isLabScopedUser
-            ? ruanganApi.getAll()
-            : Promise.resolve({ data: [] }),
+          isLabScopedUser ? ruanganApi.getAll() : Promise.resolve({ data: [] }),
         ]);
         if (isLabScopedUser && roomsRes.status !== "fulfilled") {
           throw (
@@ -772,7 +766,9 @@ export default function VerificationManagement({
         if (isLabScopedUser && res.status !== "fulfilled") {
           throw (
             res.reason ||
-            new Error("Gagal memuat data peralatan untuk memeriksa lab pengguna.")
+            new Error(
+              "Gagal memuat data peralatan untuk memeriksa lab pengguna.",
+            )
           );
         }
         const roomList =
@@ -846,7 +842,9 @@ export default function VerificationManagement({
     event.preventDefault();
 
     if (!picSignature) {
-      error("Tanda tangan Pengelola wajib tersedia sebelum verifikasi diajukan.");
+      error(
+        "Tanda tangan Pengelola wajib tersedia sebelum verifikasi diajukan.",
+      );
       return;
     }
 
@@ -890,9 +888,7 @@ export default function VerificationManagement({
     const tbKeys = applicableKeys.filter(
       (key) => verificationResults[key] === "TB",
     );
-    const missingKeys = requiredKeys.filter(
-      (key) => !verificationResults[key],
-    );
+    const missingKeys = requiredKeys.filter((key) => !verificationResults[key]);
     if (missingKeys.length > 0) {
       error(
         `Aspek wajib belum dinilai: ${missingKeys.map((key) => CHECK_LABELS[key]).join(", ")}.`,
@@ -1132,10 +1128,7 @@ export default function VerificationManagement({
       );
     }
 
-    if (
-      isLabScopedUser &&
-      (!equipmentInfo || !equipmentInfoMatchesRoute)
-    ) {
+    if (isLabScopedUser && (!equipmentInfo || !equipmentInfoMatchesRoute)) {
       return (
         <div className="page-container fade-in-up">
           <div className="card card-padded">
@@ -1525,7 +1518,9 @@ export default function VerificationManagement({
                         <option value="">Pilih hasil verifikasi</option>
                         <option value="S">S — Sesuai</option>
                         <option value="TS">TS — Tidak Sesuai</option>
-                        <option value="TB">TB — Tidak Berlaku</option>
+                        {requirement !== "W" && (
+                          <option value="TB">TB — Tidak Berlaku</option>
+                        )}
                       </select>
 
                       {isTB && (
@@ -1682,7 +1677,9 @@ export default function VerificationManagement({
             </div>
 
             <div className="form-group" style={{ marginTop: "var(--sp-3)" }}>
-              <label className="form-label">Catatan Pemeriksaan Pengelola</label>
+              <label className="form-label">
+                Catatan Pemeriksaan Pengelola
+              </label>
               <textarea
                 className="form-textarea"
                 rows={3}
