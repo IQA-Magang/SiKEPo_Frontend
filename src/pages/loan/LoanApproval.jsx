@@ -946,7 +946,6 @@ export default function LoanApproval({ onNavigate }) {
   function handleOpenReview(loan) {
     setSelectedLoan(loan);
     setModalMode('review');
-    setDecisionAction('setuju');
     setDecisionNote('');
     setAlternativeEquipmentId('');
     setDigitalSignature('');
@@ -961,12 +960,60 @@ export default function LoanApproval({ onNavigate }) {
     setActiveReviewStage(stage);
 
     // Reset checklist teknis Tahap 2
-    setTechCheckSpec(loan.approval_pengelola?.cek_spesifikasi ?? true);
-    setTechCheckOperator(loan.approval_pengelola?.cek_operator ?? true);
-    setTechCheckSchedule(loan.approval_pengelola?.cek_jadwal_kalibrasi ?? true);
-    setTechCheckLocation(loan.approval_pengelola?.cek_lokasi ?? true);
+    const sched = loan.approval_pengelola?.cek_jadwal_kalibrasi ?? true;
+    const spec = loan.approval_pengelola?.cek_spesifikasi ?? true;
+    const oper = loan.approval_pengelola?.cek_operator ?? true;
+    const loc = loan.approval_pengelola?.cek_lokasi ?? true;
+
+    setTechCheckSchedule(sched);
+    setTechCheckSpec(spec);
+    setTechCheckOperator(oper);
+    setTechCheckLocation(loc);
+
+    const isAllPassed = sched && spec && oper && (!loan.is_eksternal || loc);
+    if (stage === 'pengelola' && !isAllPassed) {
+      setDecisionAction('tolak');
+      setDecisionNote('Tidak memenuhi kriteria verifikasi kelayakan & ketersediaan peralatan.');
+    } else {
+      setDecisionAction('setuju');
+    }
 
     fetchLogbook(loan.peralatan?.id);
+  }
+
+  // Toggle checklist verifikasi kelayakan & ketersediaan di Pengelola
+  function handleTechCheckToggle(itemKey, isChecked) {
+    let nextSchedule = itemKey === 'schedule' ? isChecked : techCheckSchedule;
+    let nextSpec = itemKey === 'spec' ? isChecked : techCheckSpec;
+    let nextOperator = itemKey === 'operator' ? isChecked : techCheckOperator;
+    let nextLocation = itemKey === 'location' ? isChecked : techCheckLocation;
+
+    if (itemKey === 'schedule') setTechCheckSchedule(isChecked);
+    if (itemKey === 'spec') setTechCheckSpec(isChecked);
+    if (itemKey === 'operator') setTechCheckOperator(isChecked);
+    if (itemKey === 'location') setTechCheckLocation(isChecked);
+
+    const isEksternal = Boolean(selectedLoan?.is_eksternal);
+    const allPassed = nextSchedule && nextSpec && nextOperator && (!isEksternal || nextLocation);
+
+    if (!allPassed) {
+      setDecisionAction('tolak');
+      const uncheckedList = [];
+      if (!nextSchedule) uncheckedList.push('Jadwal/Status Kalibrasi');
+      if (!nextSpec) uncheckedList.push('Kesesuaian Spesifikasi Teknis');
+      if (!nextOperator) uncheckedList.push('Kewenangan Operator');
+      if (isEksternal && !nextLocation) uncheckedList.push('Kesiapan Lokasi Eksternal');
+
+      const autoReason = `Tidak memenuhi kriteria verifikasi kelayakan & ketersediaan: ${uncheckedList.join(', ')}.`;
+      if (!decisionNote.trim() || decisionNote.startsWith('Tidak memenuhi kriteria verifikasi')) {
+        setDecisionNote(autoReason);
+      }
+    } else {
+      setDecisionAction('setuju');
+      if (decisionNote.startsWith('Tidak memenuhi kriteria verifikasi')) {
+        setDecisionNote('');
+      }
+    }
   }
 
   // Buka Modal Khusus Serah Terima Keluar (Tahap 4: Lampiran A)
@@ -1039,6 +1086,15 @@ export default function LoanApproval({ onNavigate }) {
   async function handleSubmitDecision(e) {
     e.preventDefault();
     if (!selectedLoan) return;
+
+    if (activeReviewStage === 'pengelola') {
+      const isAllTechChecksPassed = techCheckSchedule && techCheckSpec && techCheckOperator && (!selectedLoan.is_eksternal || techCheckLocation);
+      if (!isAllTechChecksPassed && decisionAction === 'setuju') {
+        toastError('Semua butir kelayakan & ketersediaan wajib diceklis untuk menyetujui peminjaman.');
+        setDecisionAction('tolak');
+        return;
+      }
+    }
 
     if (decisionAction === 'tolak' && !decisionNote.trim()) {
       toastError('Alasan penolakan wajib diisi.');
@@ -1774,14 +1830,9 @@ export default function LoanApproval({ onNavigate }) {
               }}
             >
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'bold', margin: 0, color: '#0f172a' }}>
-                    Lembar Persetujuan Peminjaman Peralatan
-                  </h2>
-                  <span className="badge badge-primary" style={{ fontSize: '11px' }}>
-                    {selectedLoan.id}
-                  </span>
-                </div>
+                <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'bold', margin: 0, color: '#0f172a' }}>
+                  Lembar Persetujuan Peminjaman Peralatan
+                </h2>
                 <p style={{ margin: 0, fontSize: '12px', color: '#64748b', marginTop: 3 }}>
                   Formulir Otorisasi & Riwayat Persetujuan Peminjaman
                 </p>
@@ -1799,89 +1850,6 @@ export default function LoanApproval({ onNavigate }) {
 
             {/* Modal Body */}
             <div style={{ padding: 'var(--sp-6)' }}>
-              {/* Stepper Progres 4 Tahap */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: 'var(--sp-5)',
-                  padding: 'var(--sp-3) var(--sp-4)',
-                  background: '#f1f5f9',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  fontSize: '11px',
-                }}
-              >
-                <div style={{ textAlign: 'center', flex: 1 }}>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>1. Diajukan</div>
-                  <div style={{ color: '#16a34a', fontWeight: 'bold' }}>✓ Selesai</div>
-                </div>
-                <ArrowRight size={14} style={{ color: '#94a3b8' }} />
-                <div style={{ textAlign: 'center', flex: 1 }}>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>2. Atasan Peminjam</div>
-                  <div
-                    style={{
-                      fontWeight: 'bold',
-                      color: selectedLoan.approval_manager_peminjam?.status === 'approved' ? '#16a34a' : '#d97706',
-                    }}
-                  >
-                    {selectedLoan.approval_manager_peminjam?.status === 'approved' ? '✓ Disetujui' : 'Menunggu'}
-                  </div>
-                </div>
-                <ArrowRight size={14} style={{ color: '#94a3b8' }} />
-                <div style={{ textAlign: 'center', flex: 1 }}>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>3. Pengelola (Teknis)</div>
-                  <div
-                    style={{
-                      fontWeight: 'bold',
-                      color: selectedLoan.approval_pengelola?.status === 'approved' ? '#16a34a' : '#0284c7',
-                    }}
-                  >
-                    {selectedLoan.approval_pengelola?.status === 'approved' ? '✓ Diteruskan' : 'Menunggu'}
-                  </div>
-                </div>
-                <ArrowRight size={14} style={{ color: '#94a3b8' }} />
-                <div style={{ textAlign: 'center', flex: 1 }}>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>4. Manager Lab</div>
-                  <div
-                    style={{
-                      fontWeight: 'bold',
-                      color: selectedLoan.approval_manager_lab?.status === 'approved' ? '#16a34a' : '#7c3aed',
-                    }}
-                  >
-                    {selectedLoan.approval_manager_lab?.status === 'approved' ? '✓ Disahkan' : 'Menunggu'}
-                  </div>
-                </div>
-                <ArrowRight size={14} style={{ color: '#94a3b8' }} />
-                <div style={{ textAlign: 'center', flex: 1 }}>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>5. Serah Terima (Lamp. A)</div>
-                  <div
-                    style={{
-                      fontWeight: 'bold',
-                      color:
-                        selectedLoan.status === 'SEDANG_DIPINJAM'
-                          ? '#16a34a'
-                          : selectedLoan.status === 'DIBATALKAN_TS'
-                            ? '#dc2626'
-                            : selectedLoan.status === 'SIAP_DISERAHKAN'
-                              ? '#0284c7'
-                              : selectedLoan.status === 'MENUNGGU_SERAH_TERIMA' || selectedLoan.status === 'DISETUJUI'
-                                ? '#ea580c'
-                                : '#64748b',
-                    }}
-                  >
-                    {selectedLoan.status === 'SEDANG_DIPINJAM'
-                      ? '✓ Diserahkan'
-                      : selectedLoan.status === 'DIBATALKAN_TS'
-                        ? '✕ Batal (TS)'
-                        : selectedLoan.status === 'SIAP_DISERAHKAN'
-                          ? 'TTD Peminjam'
-                          : selectedLoan.status === 'MENUNGGU_SERAH_TERIMA' || selectedLoan.status === 'DISETUJUI'
-                            ? 'Cek Pengelola'
-                            : 'Belum'}
-                  </div>
-                </div>
-              </div>
 
               {/* Rincian Peralatan & Pengajuan */}
               <div
@@ -1914,44 +1882,245 @@ export default function LoanApproval({ onNavigate }) {
                     <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Peminjam & Unit Asal:</span>
                     <strong>{selectedLoan.peminjam.nama}</strong> ({selectedLoan.peminjam.lab_asal})
                   </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Tujuan Penggunaan & No. SPK:</span>
-                    {selectedLoan.tujuan_penggunaan}
-                    {selectedLoan.nomor_spk && (
-                      <span className="badge badge-gray" style={{ marginLeft: 8, fontSize: '11px' }}>
-                        SPK: {selectedLoan.nomor_spk}
-                      </span>
-                    )}
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Tujuan Penggunaan:</span>
+                    <strong>{selectedLoan.tujuan_penggunaan || '-'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>No. SPK:</span>
+                    <strong>{selectedLoan.nomor_spk || '-'}</strong>
                   </div>
                   <div>
                     <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Lokasi Penggunaan:</span>
                     {selectedLoan.lokasi_penggunaan}
                   </div>
                   <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Sifat Kegiatan:</span>
-                    {selectedLoan.is_eksternal ? (
-                      <span className="badge badge-error" style={{ fontSize: '11px' }}>
-                        Eksternal (Keluar Lingkungan TTH - Butuh Dokumen F/006)
-                      </span>
-                    ) : (
-                      <span className="badge badge-gray" style={{ fontSize: '11px' }}>
-                        Internal Lingkungan TTH
-                      </span>
-                    )}
+                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Lingkup Peminjaman:</span>
+                    <span className={`badge ${selectedLoan.is_eksternal ? 'badge-error' : 'badge-gray'}`} style={{ fontSize: '11px' }}>
+                      {selectedLoan.is_eksternal ? 'Eksternal' : 'Internal'}
+                    </span>
                   </div>
                   <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Rencana Tanggal:</span>
+                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Rencana Tanggal Peminjaman dan Pengembalian:</span>
                     <strong>{selectedLoan.rencana_tanggal_keluar}</strong> s.d <strong>{selectedLoan.rencana_tanggal_kembali}</strong>
                   </div>
                   <div>
                     <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Jatuh Tempo Kalibrasi:</span>
-                    <span style={{ color: '#15803d', fontWeight: 600 }}>{selectedLoan.peralatan.tgl_jatuh_tempo}</span> (Aman)
+                    <strong>{selectedLoan.peralatan?.tgl_jatuh_tempo || '-'}</strong>
                   </div>
                 </div>
               </div>
 
               {/* Status 3 Tanda Tangan Digital Resmi */}
               <div style={{ marginBottom: 'var(--sp-5)' }}>
+                {/* HASIL VERIFIKASI KELAYAKAN & KETERSEDIAAN ALAT (PENGELOLA) */}
+                {(() => {
+                  const isCurrentlyReviewingByPengelola = modalMode === 'review' && activeReviewStage === 'pengelola';
+                  const pengelolaStatus = selectedLoan.approval_pengelola?.status;
+
+                  // Status butir 1: Status & Jadwal Kalibrasi
+                  const item1Checked = isCurrentlyReviewingByPengelola
+                    ? techCheckSchedule
+                    : pengelolaStatus === 'approved'
+                      ? true
+                      : pengelolaStatus === 'rejected'
+                        ? (selectedLoan.approval_pengelola?.cek_jadwal_kalibrasi ?? false)
+                        : null;
+
+                  // Status butir 2: Kesesuaian Spesifikasi
+                  const item2Checked = isCurrentlyReviewingByPengelola
+                    ? techCheckSpec
+                    : pengelolaStatus === 'approved'
+                      ? true
+                      : pengelolaStatus === 'rejected'
+                        ? (selectedLoan.approval_pengelola?.cek_spesifikasi ?? false)
+                        : null;
+
+                  // Status butir 3: Kewenangan Operator
+                  const item3Checked = isCurrentlyReviewingByPengelola
+                    ? techCheckOperator
+                    : pengelolaStatus === 'approved'
+                      ? true
+                      : pengelolaStatus === 'rejected'
+                        ? (selectedLoan.approval_pengelola?.cek_operator ?? false)
+                        : null;
+
+                  // Status butir 4: Kesiapan Lokasi Eksternal
+                  const item4Checked = isCurrentlyReviewingByPengelola
+                    ? techCheckLocation
+                    : pengelolaStatus === 'approved'
+                      ? true
+                      : pengelolaStatus === 'rejected'
+                        ? (selectedLoan.approval_pengelola?.cek_lokasi ?? false)
+                        : null;
+
+                  const isAllPassed = item1Checked && item2Checked && item3Checked && (!selectedLoan.is_eksternal || item4Checked);
+                  const hasFailedItem = item1Checked === false || item2Checked === false || item3Checked === false || (selectedLoan.is_eksternal && item4Checked === false);
+
+                  return (
+                    <div
+                      className="card"
+                      style={{
+                        padding: 'var(--sp-4)',
+                        marginBottom: 'var(--sp-4)',
+                        background: '#ffffff',
+                        border: hasFailedItem ? '1.5px solid #fecaca' : isAllPassed ? '1.5px solid #bbf7d0' : '1px solid #cbd5e1',
+                        borderRadius: 'var(--radius-md, 8px)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
+                        <div>
+                          <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <ShieldCheck size={16} style={{ color: hasFailedItem ? '#dc2626' : isAllPassed ? '#16a34a' : '#2563eb' }} />
+                            Verifikasi Kelayakan & Ketersediaan Peralatan (Pengelola)
+                          </h3>
+                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>
+                            Jika ada 1 butir tidak terpenuhi / tidak diceklis, status otomatis <strong>Ditolak</strong>.
+                          </div>
+                        </div>
+                        <span
+                          className={`badge ${hasFailedItem || pengelolaStatus === 'rejected'
+                              ? 'badge-error'
+                              : isAllPassed || pengelolaStatus === 'approved'
+                                ? 'badge-success'
+                                : 'badge-gray'
+                            }`}
+                          style={{ fontSize: '11px' }}
+                        >
+                          {isCurrentlyReviewingByPengelola
+                            ? (hasFailedItem
+                              ? '✕ Ditolak Otomatis (Ada Butir Tidak Diceklis)'
+                              : '✓ Semua Butir Diceklis (Lolos Verifikasi)')
+                            : pengelolaStatus === 'approved'
+                              ? '✓ Lolos Verifikasi Kelayakan'
+                              : pengelolaStatus === 'rejected'
+                                ? '✕ Ditolak Pengelola (Tidak Memenuhi Syarat)'
+                                : 'Menunggu Pemeriksaan Pengelola'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 8, fontSize: '12px' }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 6,
+                          padding: '6px 8px',
+                          background: item1Checked === true ? '#f0fdf4' : item1Checked === false ? '#fef2f2' : '#f8fafc',
+                          borderRadius: 6,
+                          border: `1px solid ${item1Checked === true ? '#bbf7d0' : item1Checked === false ? '#fecaca' : '#e2e8f0'}`,
+                        }}>
+                          {item1Checked === true ? (
+                            <CheckCircle2 size={15} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
+                          ) : item1Checked === false ? (
+                            <XCircle size={15} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
+                          ) : (
+                            <Clock size={15} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
+                          )}
+                          <div>
+                            <strong>1. Status & Jadwal Kalibrasi</strong>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                              Jatuh tempo: {selectedLoan.peralatan?.tgl_jatuh_tempo || '-'} (Alat layak pakai)
+                            </div>
+                            <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item1Checked === true ? '#16a34a' : item1Checked === false ? '#dc2626' : '#64748b' }}>
+                              {item1Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item1Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 6,
+                          padding: '6px 8px',
+                          background: item2Checked === true ? '#f0fdf4' : item2Checked === false ? '#fef2f2' : '#f8fafc',
+                          borderRadius: 6,
+                          border: `1px solid ${item2Checked === true ? '#bbf7d0' : item2Checked === false ? '#fecaca' : '#e2e8f0'}`,
+                        }}>
+                          {item2Checked === true ? (
+                            <CheckCircle2 size={15} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
+                          ) : item2Checked === false ? (
+                            <XCircle size={15} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
+                          ) : (
+                            <Clock size={15} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
+                          )}
+                          <div>
+                            <strong>2. Kesesuaian Spesifikasi</strong>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                              Rentang & toleransi alat sesuai pengujian
+                            </div>
+                            <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item2Checked === true ? '#16a34a' : item2Checked === false ? '#dc2626' : '#64748b' }}>
+                              {item2Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item2Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 6,
+                          padding: '6px 8px',
+                          background: item3Checked === true ? '#f0fdf4' : item3Checked === false ? '#fef2f2' : '#f8fafc',
+                          borderRadius: 6,
+                          border: `1px solid ${item3Checked === true ? '#bbf7d0' : item3Checked === false ? '#fecaca' : '#e2e8f0'}`,
+                        }}>
+                          {item3Checked === true ? (
+                            <CheckCircle2 size={15} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
+                          ) : item3Checked === false ? (
+                            <XCircle size={15} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
+                          ) : (
+                            <Clock size={15} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
+                          )}
+                          <div>
+                            <strong>3. Kewenangan Operator</strong>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                              Operator: {selectedLoan.peminjam?.operator || selectedLoan.peminjam?.nama || '-'}
+                            </div>
+                            <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item3Checked === true ? '#16a34a' : item3Checked === false ? '#dc2626' : '#64748b' }}>
+                              {item3Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item3Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {selectedLoan.is_eksternal && (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 6,
+                            padding: '6px 8px',
+                            background: item4Checked === true ? '#f0fdf4' : item4Checked === false ? '#fef2f2' : '#f8fafc',
+                            borderRadius: 6,
+                            border: `1px solid ${item4Checked === true ? '#bbf7d0' : item4Checked === false ? '#fecaca' : '#e2e8f0'}`,
+                          }}>
+                            {item4Checked === true ? (
+                              <CheckCircle2 size={15} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
+                            ) : item4Checked === false ? (
+                              <XCircle size={15} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
+                            ) : (
+                              <Clock size={15} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
+                            )}
+                            <div>
+                              <strong>4. Kesiapan Lokasi Eksternal</strong>
+                              <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                Lokasi: {selectedLoan.lokasi_penggunaan}
+                              </div>
+                              <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item4Checked === true ? '#16a34a' : item4Checked === false ? '#dc2626' : '#64748b' }}>
+                                {item4Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item4Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Catatan hasil verifikasi jika ada penolakan */}
+                      {(hasFailedItem || pengelolaStatus === 'rejected') && (
+                        <div style={{ marginTop: 8, padding: '6px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, fontSize: '11px', color: '#991b1b' }}>
+                          <strong>Catatan Pengelola:</strong> {isCurrentlyReviewingByPengelola ? (decisionNote || 'Terdapat butir verifikasi yang tidak diceklis, keputusan otomatis Ditolak.') : (selectedLoan.approval_pengelola?.catatan || 'Permohonan ditolak pada verifikasi kelayakan & ketersediaan oleh pengelola.')}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: 12, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Award size={16} style={{ color: 'var(--clr-primary-500)' }} />
                   Lembar Otorisasi Persetujuan 3 Tingkat
@@ -2291,87 +2460,148 @@ export default function LoanApproval({ onNavigate }) {
                     </div>
 
                     {/* KHUSUS TAHAP 2 PENGELOLA PERALATAN: CHECKLIST VERIFIKASI TEKNIS (BUKAN LAMPIRAN A!) */}
-                    {activeReviewStage === 'pengelola' && (
-                      <div
-                        style={{
-                          marginBottom: 'var(--sp-4)',
-                          padding: '12px',
-                          background: '#eff6ff',
-                          borderRadius: '8px',
-                          border: '1px solid #bfdbfe',
-                        }}
-                      >
-                        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e40af', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <ShieldCheck size={16} />
-                          Checklist Verifikasi Kelayakan & Ketersediaan Alat:
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '12px', color: '#1e293b' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={techCheckSchedule}
-                              onChange={(e) => setTechCheckSchedule(e.target.checked)}
-                              style={{ width: 16, height: 16, accentColor: '#2563eb' }}
-                            />
-                            <span>
-                              <strong>1. Status & Jadwal Kalibrasi:</strong> Alat berstatus LAYAK PAKAI dan rencana tanggal kembali ({selectedLoan.rencana_tanggal_kembali}) tidak melampaui tanggal jatuh tempo kalibrasi ({selectedLoan.peralatan.tgl_jatuh_tempo}).
-                            </span>
-                          </label>
+                    {activeReviewStage === 'pengelola' && (() => {
+                      const isAllTechChecksPassed =
+                        techCheckSchedule &&
+                        techCheckSpec &&
+                        techCheckOperator &&
+                        (!selectedLoan.is_eksternal || techCheckLocation);
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={techCheckSpec}
-                              onChange={(e) => setTechCheckSpec(e.target.checked)}
-                              style={{ width: 16, height: 16, accentColor: '#2563eb' }}
-                            />
-                            <span>
-                              <strong>2. Kesesuaian Spesifikasi:</strong> Rentang ukur, kapasitas, dan batas toleransi alat sesuai dengan tujuan pengujian/kegiatan.
+                      return (
+                        <div
+                          style={{
+                            marginBottom: 'var(--sp-4)',
+                            padding: '12px',
+                            background: isAllTechChecksPassed ? '#eff6ff' : '#fef2f2',
+                            borderRadius: '8px',
+                            border: isAllTechChecksPassed ? '1.5px solid #bfdbfe' : '1.5px solid #fecaca',
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '13px', color: isAllTechChecksPassed ? '#1e40af' : '#991b1b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <ShieldCheck size={16} />
+                              Checklist Verifikasi Kelayakan & Ketersediaan Alat:
+                            </div>
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                padding: '2px 8px',
+                                borderRadius: 12,
+                                background: isAllTechChecksPassed ? '#dbeafe' : '#fee2e2',
+                                color: isAllTechChecksPassed ? '#1e40af' : '#b91c1c',
+                              }}
+                            >
+                              {isAllTechChecksPassed ? '✓ Syarat Lengkap' : '✕ Ada Syarat Tidak Terpenuhi'}
                             </span>
-                          </label>
+                          </div>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={techCheckOperator}
-                              onChange={(e) => setTechCheckOperator(e.target.checked)}
-                              style={{ width: 16, height: 16, accentColor: '#2563eb' }}
-                            />
-                            <span>
-                              <strong>3. Kewenangan Operator:</strong> Peminjam / Operator ({selectedLoan.peminjam.operator || selectedLoan.peminjam.nama}) memiliki kewenangan dan kompetensi mengoperasikan alat ini.
-                            </span>
-                          </label>
-
-                          {selectedLoan.is_eksternal && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '12px', color: '#1e293b' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                               <input
                                 type="checkbox"
-                                checked={techCheckLocation}
-                                onChange={(e) => setTechCheckLocation(e.target.checked)}
+                                checked={techCheckSchedule}
+                                onChange={(e) => handleTechCheckToggle('schedule', e.target.checked)}
                                 style={{ width: 16, height: 16, accentColor: '#2563eb' }}
                               />
                               <span>
-                                <strong>4. Kesiapan Lokasi Eksternal:</strong> Kondisi lingkungan & catu daya di lokasi tujuan ({selectedLoan.lokasi_penggunaan}) memenuhi syarat metode dan spesifikasi alat.
+                                <strong>1. Status & Jadwal Kalibrasi:</strong> Alat berstatus LAYAK PAKAI dan rencana tanggal kembali ({selectedLoan.rencana_tanggal_kembali}) tidak melampaui tanggal jatuh tempo kalibrasi ({selectedLoan.peralatan?.tgl_jatuh_tempo || '-'}).
                               </span>
                             </label>
+
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={techCheckSpec}
+                                onChange={(e) => handleTechCheckToggle('spec', e.target.checked)}
+                                style={{ width: 16, height: 16, accentColor: '#2563eb' }}
+                              />
+                              <span>
+                                <strong>2. Kesesuaian Spesifikasi:</strong> Rentang ukur, kapasitas, dan batas toleransi alat sesuai dengan tujuan pengujian/kegiatan.
+                              </span>
+                            </label>
+
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={techCheckOperator}
+                                onChange={(e) => handleTechCheckToggle('operator', e.target.checked)}
+                                style={{ width: 16, height: 16, accentColor: '#2563eb' }}
+                              />
+                              <span>
+                                <strong>3. Kewenangan Operator:</strong> Peminjam / Operator ({selectedLoan.peminjam?.operator || selectedLoan.peminjam?.nama || '-'}) memiliki kewenangan dan kompetensi mengoperasikan alat ini.
+                              </span>
+                            </label>
+
+                            {selectedLoan.is_eksternal && (
+                              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={techCheckLocation}
+                                  onChange={(e) => handleTechCheckToggle('location', e.target.checked)}
+                                  style={{ width: 16, height: 16, accentColor: '#2563eb' }}
+                                />
+                                <span>
+                                  <strong>4. Kesiapan Lokasi Eksternal:</strong> Kondisi lingkungan & catu daya di lokasi tujuan ({selectedLoan.lokasi_penggunaan}) memenuhi syarat metode dan spesifikasi alat.
+                                </span>
+                              </label>
+                            )}
+                          </div>
+
+                          {!isAllTechChecksPassed && (
+                            <div
+                              style={{
+                                marginTop: 10,
+                                padding: '8px 12px',
+                                background: '#fee2e2',
+                                border: '1px solid #fecaca',
+                                borderRadius: 6,
+                                fontSize: '11px',
+                                color: '#991b1b',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                              }}
+                            >
+                              <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+                              <span>
+                                <strong>Otomatis Ditolak:</strong> Karena terdapat butir verifikasi yang tidak diceklis, keputusan otomatis ditetapkan <strong>Tolak</strong> dan opsi persetujuan dinonaktifkan.
+                              </span>
+                            </div>
                           )}
                         </div>
-
-
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Pilihan Keputusan */}
                     <div className="form-group" style={{ marginBottom: 'var(--sp-3)' }}>
                       <label className="form-label" style={{ fontWeight: 600 }}>Keputusan <span className="required">*</span></label>
-                      <div style={{ display: 'flex', gap: 16 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                        <label
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            cursor: activeReviewStage === 'pengelola' && !(techCheckSchedule && techCheckSpec && techCheckOperator && (!selectedLoan.is_eksternal || techCheckLocation)) ? 'not-allowed' : 'pointer',
+                            opacity: activeReviewStage === 'pengelola' && !(techCheckSchedule && techCheckSpec && techCheckOperator && (!selectedLoan.is_eksternal || techCheckLocation)) ? 0.5 : 1,
+                          }}
+                        >
                           <input
                             type="radio"
                             name="decision"
                             value="setuju"
                             checked={decisionAction === 'setuju'}
-                            onChange={() => setDecisionAction('setuju')}
+                            onChange={() => {
+                              const isAllPassed = techCheckSchedule && techCheckSpec && techCheckOperator && (!selectedLoan.is_eksternal || techCheckLocation);
+                              if (activeReviewStage === 'pengelola' && !isAllPassed) {
+                                toastError('Semua butir kelayakan & ketersediaan wajib diceklis untuk menyetujui peminjaman.');
+                                setDecisionAction('tolak');
+                                return;
+                              }
+                              setDecisionAction('setuju');
+                            }}
+                            disabled={activeReviewStage === 'pengelola' && !(techCheckSchedule && techCheckSpec && techCheckOperator && (!selectedLoan.is_eksternal || techCheckLocation))}
                           />
                           <span style={{ fontWeight: 600, color: '#16a34a' }}>
                             {activeReviewStage === 'pengelola'
@@ -2466,11 +2696,16 @@ export default function LoanApproval({ onNavigate }) {
                       </button>
                       <button
                         type="submit"
-                        className={`btn ${decisionAction === 'setuju' ? 'btn-primary' : 'btn-error'}`}
+                        className={`btn ${decisionAction === 'setuju' ? 'btn-primary' : 'btn-secondary'}`}
                         disabled={isSubmitting}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          ...(decisionAction !== 'setuju' ? { color: '#dc2626', borderColor: '#fca5a5' } : {}),
+                        }}
                       >
-                        <Send size={15} />
+                        {decisionAction === 'setuju' ? <Send size={15} /> : <XCircle size={15} />}
                         {decisionAction === 'setuju'
                           ? activeReviewStage === 'pengelola'
                             ? 'Teruskan ke Manager Lab'
@@ -2481,135 +2716,7 @@ export default function LoanApproval({ onNavigate }) {
                   </form>
                 )}
 
-              {/* ================================================================ */}
-              {/* TABEL LOGBOOK PERALATAN — DARI BACKEND                           */}
-              {/* ================================================================ */}
-              <div
-                className="card"
-                style={{
-                  padding: 'var(--sp-4)',
-                  marginTop: 'var(--sp-4)',
-                  background: '#ffffff',
-                  border: '1.5px solid #cbd5e1',
-                  borderRadius: 'var(--radius-md, 8px)',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 10,
-                    flexWrap: 'wrap',
-                    gap: 8,
-                  }}
-                >
-                  <div>
-                    <h3
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: 'bold',
-                        margin: 0,
-                        color: '#0f172a',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                      }}
-                    >
-                      <FileText size={16} style={{ color: 'var(--clr-primary-500)' }} />
-                      Catatan Logbook Peralatan
-                    </h3>
-                    <p style={{ margin: 0, fontSize: '11px', color: '#64748b', marginTop: 2 }}>
-                      Riwayat aktivitas otomatis dari endpoint <code>GET /api/peralatan/{selectedLoan.peralatan.id}/logbook</code>
-                    </p>
-                  </div>
 
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => fetchLogbook(selectedLoan.peralatan?.id)}
-                    disabled={isLogbookLoading}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontSize: '11px',
-                      padding: '3px 8px',
-                    }}
-                  >
-                    <RefreshCw size={12} className={isLogbookLoading ? 'spin' : ''} />
-                    {isLogbookLoading ? 'Memuat...' : 'Muat Ulang'}
-                  </button>
-                </div>
-
-                {isLogbookLoading ? (
-                  <div style={{ textAlign: 'center', padding: 'var(--sp-4)', color: '#64748b', fontSize: '12px' }}>
-                    <RefreshCw size={15} className="spin" style={{ display: 'inline-block', marginRight: 6, verticalAlign: 'middle' }} />
-                    Menghubungi endpoint backend...
-                  </div>
-                ) : logbookData.length === 0 ? (
-                  <div
-                    style={{
-                      textAlign: 'center',
-                      padding: 'var(--sp-4)',
-                      color: '#94a3b8',
-                      fontSize: '12px',
-                      background: '#f8fafc',
-                      borderRadius: 6,
-                    }}
-                  >
-                    Belum ada riwayat logbook untuk peralatan ini di database.
-                  </div>
-                ) : (
-                  <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 6 }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                      <thead>
-                        <tr style={{ background: '#f8fafc', textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
-                          <th style={{ padding: '6px 10px', color: '#475569', fontWeight: 600 }}>Waktu</th>
-                          <th style={{ padding: '6px 10px', color: '#475569', fontWeight: 600 }}>Aktivitas</th>
-                          <th style={{ padding: '6px 10px', color: '#475569', fontWeight: 600 }}>Status</th>
-                          <th style={{ padding: '6px 10px', color: '#475569', fontWeight: 600 }}>Petugas / User</th>
-                          <th style={{ padding: '6px 10px', color: '#475569', fontWeight: 600 }}>Keterangan</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {logbookData.map((log) => (
-                          <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
-                              {log.created_at
-                                ? new Date(log.created_at).toLocaleString('id-ID', {
-                                  year: 'numeric',
-                                  month: '2-digit',
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                }).replace(/\./g, ':')
-                                : '-'}
-                            </td>
-                            <td style={{ padding: '6px 10px', fontWeight: 600, color: '#0f172a' }}>
-                              {log.judul || log.aksi}
-                            </td>
-                            <td style={{ padding: '6px 10px' }}>
-                              <span
-                                className="badge badge-primary"
-                                style={{ fontSize: '10px', padding: '2px 6px' }}
-                              >
-                                {log.status}
-                              </span>
-                            </td>
-                            <td style={{ padding: '6px 10px', color: '#334155' }}>
-                              {log.user?.name || `User #${log.user?.user_id || '-'}`}
-                            </td>
-                            <td style={{ padding: '6px 10px', color: '#64748b' }}>
-                              {log.keterangan || '-'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Modal Footer */}
