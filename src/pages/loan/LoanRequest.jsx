@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft,
+  Building2,
+  CheckCircle2,
+  Globe,
   BadgeCheck,
   CalendarClock,
   ClipboardCheck,
@@ -16,6 +19,7 @@ import {
   getCurrentUser,
   peralatanApi,
   labsApi,
+  ruanganApi,
   peminjamanApi,
   getEquipmentId,
   formatPhotoUrl,
@@ -35,16 +39,10 @@ import { useNavigate } from '../../router/Router.jsx';
 // (peminjaman adalah penggunaan di luar lokasi tercatat). Butir 7.b menegaskan peminjam
 // harus personel TTH yang kompeten dan berwenang mengoperasikan peralatan.
 
-// Dokumen pendukung (butir 7.f dan 8.1.e)
-const DOKUMEN_PENDUKUNG = [
-  { value: 'logbook', label: 'Logbook Peralatan — disiapkan dan dibawa bersama peralatan' },
-  { value: 'surat_keterangan_membawa', label: 'Surat Keterangan Membawa Peralatan — wajib untuk peminjaman eksternal' },
-];
-
 const emptyForm = (user) => ({
   // B. Peminjam (butir 3.c & dokumen peminjaman-peralatan.md)
   nama_peminjam: user?.name || '',
-  nama_lab_asal: '',
+  nama_lab_asal: user?.labs?.nama_labs || user?.nama_labs || user?.lab || '',
   atasan_peminjam: '',
   nama_operator: '',
   // C. Tujuan Penggunaan (butir 8.1.a.2)
@@ -57,11 +55,8 @@ const emptyForm = (user) => ({
   // E. Rencana Tanggal (butir 8.1.a.4)
   rencana_tanggal_keluar: '',
   rencana_tanggal_kembali: '',
-  tanggal_disetujui_atasan: false,
-  // F. Kelengkapan (butir 8.1.c.2)
+  // F. Kelengkapan dan Aksesori (butir 8.1.c.2)
   kebutuhan_kelengkapan: '',
-  kebutuhan_aksesori: '',
-  dokumen_pendukung: ['logbook'],
   catatan: '',
 });
 
@@ -87,10 +82,15 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
   const [selectedId, setSelectedId] = useState(equipmentId || '');
   const [equipmentList, setEquipmentList] = useState([]);
   const [labs, setLabs] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const [equipmentDetail, setEquipmentDetail] = useState({});
   const [listLoading, setListLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Jadwal peminjaman aktif alat terpilih, untuk memastikan tanggal yang
+  // dipilih tidak bertumpuk dengan peminjaman orang lain.
+  const [schedules, setSchedules] = useState([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
 
   // Sync selectedId when equipmentId prop changes
   useEffect(() => {
@@ -105,19 +105,25 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
 
     async function loadOptions() {
       try {
-        const [res, labsRes] = await Promise.all([
+        const [res, labsRes, roomsRes] = await Promise.all([
           peralatanApi.getAll(),
           labsApi.getAll().catch(() => ({ data: [] })),
+          ruanganApi.getAll().catch(() => ({ data: [] })),
         ]);
         if (cancelled) return;
 
         const labList = labsRes.data || [];
         setEquipmentList(res.data || []);
         setLabs(labList);
+        setRooms(roomsRes.data || []);
 
-        const labId = currentUser?.labs_id ?? currentUser?.labs?.id;
-        const labName = labList.find((lab) => String(lab.id) === String(labId))?.nama_labs;
-        if (labName) setForm((prev) => ({ ...prev, nama_lab_asal: prev.nama_lab_asal || labName }));
+        const labId = currentUser?.labs_id ?? currentUser?.labs?.id ?? currentUser?.id_labs;
+        const labName = labList.find((lab) => String(lab.id) === String(labId))?.nama_labs
+          || currentUser?.labs?.nama_labs
+          || currentUser?.nama_labs
+          || currentUser?.lab
+          || '';
+        if (labName) setForm((prev) => ({ ...prev, nama_lab_asal: labName }));
       } catch (err) {
         if (!cancelled) error(err.message || 'Gagal memuat daftar peralatan.');
       } finally {
@@ -130,9 +136,11 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
   }, [error]);
 
   // Butir 7.a: hanya peralatan yang berstatus layak pakai dan telah disetujui verifikasinya
-  // yang dapat dipinjam. Peralatan karantina, rusak, atau sedang dikalibrasi tidak eligible.
+  // yang dapat dipinjam. Alat berstatus Dipinjam tetap boleh diajukan, asal tanggalnya
+  // tidak bertumpuk dengan peminjaman orang lain yang sudah berjalan.
   const eligibleEquipment = equipmentList.filter(
-    (item) => item.status_verifikasi === 'Disetujui' && item.status_alat === 'Aktif'
+    (item) => item.status_verifikasi === 'Disetujui'
+      && (item.status_alat === 'Aktif' || item.status_alat === 'Dipinjam')
   );
   const selectedEquipment = equipmentList.find(
     (item) => String(getEquipmentId(item)) === String(selectedId)
@@ -167,28 +175,60 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
     return () => { cancelled = true; };
   }, [selectedEquipment]);
 
-  function toggleDokumen(value) {
-    setForm((prev) => ({
-      ...prev,
-      dokumen_pendukung: prev.dokumen_pendukung.includes(value)
-        ? prev.dokumen_pendukung.filter((item) => item !== value)
-        : [...prev.dokumen_pendukung, value],
-    }));
+  // Muat jadwal peminjaman lain yang masih berjalan untuk satu alat.
+  useEffect(() => {
+    if (!selectedId) {
+      setSchedules([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setScheduleLoading(true);
+
+    peminjamanApi
+      .getJadwal(selectedId)
+      .then((res) => { if (!cancelled) setSchedules(res?.data || []); })
+      .catch((err) => {
+        if (!cancelled) {
+          setSchedules([]);
+          console.warn('Gagal memuat jadwal peminjaman peralatan:', err);
+        }
+      })
+      .finally(() => { if (!cancelled) setScheduleLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [selectedId]);
+
+  function formatTgl(dateStr) {
+    if (!dateStr) return '';
+    const d = String(dateStr).slice(0, 10);
+    const parts = d.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return dateStr;
   }
 
-  function handleExternalChange(checked) {
-    setForm((prev) => {
-      const docs = new Set(prev.dokumen_pendukung);
-      if (checked) {
-        docs.add('surat_keterangan_membawa');
-      }
-      return {
-        ...prev,
-        is_eksternal: checked,
-        di_luar_tth: checked,
-        dokumen_pendukung: Array.from(docs),
-      };
-    });
+  // Pesan yang sama dengan validasi di backend, supaya peminjam langsung tahu
+  // sebelum mengirim pengajuan.
+  const JADWAL_BENTROK_MESSAGE =
+    'Alat sedang dipinjam orang lain pada rentang tanggal tersebut. Silakan pilih tanggal lain.';
+
+  // Cari jadwal yang bentrok dengan rentang tanggal yang dipilih peminjam
+  const conflictingSchedule = selectedId ? schedules.find((jadwal) => {
+    const keluar = form.rencana_tanggal_keluar;
+    const kembali = form.rencana_tanggal_kembali || form.rencana_tanggal_keluar;
+    if (!keluar) return false;
+    return keluar <= jadwal.rencana_tanggal_kembali && kembali >= jadwal.rencana_tanggal_keluar;
+  }) : null;
+
+  const jadwalBentrok = Boolean(conflictingSchedule);
+
+  function handleLocationTypeChange(isExternal) {
+    setForm((prev) => ({
+      ...prev,
+      lokasi_penggunaan: '',
+      is_eksternal: isExternal,
+      di_luar_tth: isExternal,
+    }));
   }
 
   // Tanggal minimum memakai tanggal lokal (WIB), bukan UTC, agar tidak menggeser satu hari.
@@ -196,21 +236,21 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
   const hariIni = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const nextInspection = getNextInspectionDate(selectedEquipment, equipmentDetail);
-  const isExternal = Boolean(form.is_eksternal || form.di_luar_tth);
   // Butir 7.d: rencana tanggal kembali tidak boleh melampaui jatuh tempo pemeriksaan berikutnya.
   const returnBeyondDueDate = Boolean(
     nextInspection && form.rencana_tanggal_kembali
       && new Date(`${form.rencana_tanggal_kembali}T00:00:00`) > nextInspection
   );
-  // Peminjaman eksternal disertai Surat Keterangan Membawa Peralatan yang telah disetujui.
-  const missingSuratKeterangan = isExternal
-    && !form.dokumen_pendukung.includes('surat_keterangan_membawa');
 
   function validate() {
     if (!selectedId) return 'Peralatan yang akan dipinjam wajib dipilih.';
     if (!form.nama_peminjam.trim()) return 'Nama peminjam wajib diisi.';
     if (!form.tujuan_penggunaan.trim()) return 'Tujuan penggunaan wajib diisi.';
-    if (!form.lokasi_penggunaan.trim()) return 'Lokasi penggunaan wajib diisi.';
+    if (!form.lokasi_penggunaan.trim()) {
+      return form.is_eksternal
+        ? 'Lokasi tujuan eksternal wajib diisi.'
+        : 'Ruangan tujuan internal wajib dipilih.';
+    }
     if (!form.rencana_tanggal_keluar) return 'Rencana tanggal keluar wajib diisi.';
     if (!form.rencana_tanggal_kembali) return 'Rencana tanggal kembali wajib diisi.';
     if (form.rencana_tanggal_kembali < form.rencana_tanggal_keluar) {
@@ -219,12 +259,10 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
     if (returnBeyondDueDate) {
       return `Rencana tanggal kembali tidak boleh melampaui tanggal jatuh tempo pemeriksaan berikutnya (${nextInspection.toLocaleDateString('id-ID')}). Pemeriksaan berkala harus dilaksanakan terlebih dahulu atau gunakan peralatan lain yang layak.`;
     }
-    // Rencana tanggal keluar dan kembali sudah diketahui oleh atasan Peminjam.
-    if (!form.tanggal_disetujui_atasan) {
-      return 'Rencana tanggal keluar dan kembali harus sudah diketahui oleh atasan peminjam.';
-    }
-    if (missingSuratKeterangan) {
-      return 'Peminjaman eksternal wajib disertai Surat Keterangan Membawa Peralatan.';
+    if (jadwalBentrok) {
+      return conflictingSchedule
+        ? `Alat sedang dipinjam orang lain pada rentang tanggal tersebut (${formatTgl(conflictingSchedule.rencana_tanggal_keluar)} s.d. ${formatTgl(conflictingSchedule.rencana_tanggal_kembali)}). Silakan pilih tanggal lain.`
+        : JADWAL_BENTROK_MESSAGE;
     }
     return '';
   }
@@ -249,7 +287,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
         rencana_tanggal_keluar: form.rencana_tanggal_keluar,
         rencana_tanggal_kembali: form.rencana_tanggal_kembali,
         kebutuhan_kelengkapan: form.kebutuhan_kelengkapan?.trim() || '',
-        kebutuhan_aksesori: form.kebutuhan_aksesori?.trim() || '',
+        kebutuhan_aksesori: '',
         catatan: form.catatan?.trim() || '',
       };
 
@@ -386,6 +424,37 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               'Jadwal pemeriksaan berikutnya belum tersedia.'
             )}
           </div>
+
+          {selectedEquipment && (scheduleLoading ? (
+            <div style={{ marginTop: 'var(--sp-2)', fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500, #64748B)' }}>
+              Memuat jadwal peminjaman...
+            </div>
+          ) : schedules.length > 0 ? (
+            <div
+              style={{
+                marginTop: 'var(--sp-3)',
+                padding: 'var(--sp-3)',
+                background: 'var(--clr-primary-50, #fff5f5)',
+                border: '1px solid var(--clr-primary-200, #fed7d7)',
+                borderRadius: 'var(--radius-md, 6px)',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--clr-primary-900, #7f1d1d)',
+              }}
+            >
+              <strong>Periode peminjaman yang sedang berlangsung / terjadwal:</strong>
+              <ul style={{ margin: '6px 0 4px', paddingLeft: 18 }}>
+                {schedules.map((jadwal) => (
+                  <li key={jadwal.id}>
+                    <strong>{formatTgl(jadwal.rencana_tanggal_keluar)} s.d. {formatTgl(jadwal.rencana_tanggal_kembali)}</strong>
+                    {' '}({jadwal.kode || `PJM-${jadwal.id}`})
+                  </li>
+                ))}
+              </ul>
+              <div style={{ color: 'var(--clr-dark-600, #475569)', marginTop: 4 }}>
+                ℹ️ Anda tetap dapat mengajukan peminjaman sebelum atau sesudah rentang tanggal di atas.
+              </div>
+            </div>
+          ) : null)}
         </div>
       ) : null}
 
@@ -416,14 +485,15 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 ))}
               </select>
               <span className="form-hint">
-                Hanya peralatan berstatus layak pakai yang dapat dipinjam. Peminjaman
-                adalah penggunaan peralatan di luar lokasi tercatat laboratorium.
+                Hanya peralatan berstatus layak pakai yang dapat dipinjam. Alat yang sedang
+                dipinjam orang lain tetap bisa diajukan selama tanggal pengajuan dan kembali
+                berada di luar rentang peminjaman yang sudah berjalan.
               </span>
             </div>
 
             <div className="form-group">
               <label className="form-label">Nama Peralatan</label>
-              <input className="form-input" type="text" value={equipmentName} readOnly disabled />
+              <input className="form-input" type="text" value={equipmentName} readOnly disabled style={{ color: '#94a3b8' }} />
             </div>
 
             <div className="form-group">
@@ -434,6 +504,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 value={[selectedEquipment?.merek, selectedEquipment?.tipe_model].filter(Boolean).join(' — ') || '-'}
                 readOnly
                 disabled
+                style={{ color: '#94a3b8' }}
               />
             </div>
 
@@ -445,6 +516,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 value={selectedEquipment?.nomor_seri || '-'}
                 readOnly
                 disabled
+                style={{ color: '#94a3b8' }}
               />
             </div>
 
@@ -456,6 +528,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 value={selectedEquipment?.nomor_aset || '-'}
                 readOnly
                 disabled
+                style={{ color: '#94a3b8' }}
               />
             </div>
           </div>
@@ -465,35 +538,35 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
         <div style={{ marginBottom: 'var(--sp-6)' }}>
           <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <User size={18} style={{ color: 'var(--clr-primary-500)' }} />
-            B. Data Peminjam & Atasan Peminjam
+            B. Data Peminjam &amp; Atasan Peminjam
           </h3>
           <div className="form-grid-2">
             <div className="form-group">
-              <label className="form-label" htmlFor="input-nama-peminjam">Nama Peminjam <span className="required">*</span></label>
+              <label className="form-label" htmlFor="input-nama-peminjam">Nama Peminjam</label>
               <input
                 id="input-nama-peminjam"
                 className="form-input"
                 type="text"
-                value={form.nama_peminjam}
-                onChange={(e) => setForm({ ...form, nama_peminjam: e.target.value })}
-                required
+                value={form.nama_peminjam || currentUser?.name || '-'}
+                readOnly
+                disabled
+                style={{ color: '#94a3b8' }}
               />
+              <span className="form-hint">Sesuai nama pada profil akun yang sedang login.</span>
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="select-lab-asal">Laboratorium / Unit Asal <span className="required">*</span></label>
-              <select
-                id="select-lab-asal"
-                className="form-select"
-                value={form.nama_lab_asal}
-                onChange={(e) => setForm({ ...form, nama_lab_asal: e.target.value })}
-                required
-              >
-                <option value="">-- Pilih Unit Asal --</option>
-                {labs.map((lab) => (
-                  <option key={lab.id} value={lab.nama_labs}>{lab.nama_labs}</option>
-                ))}
-              </select>
+              <label className="form-label" htmlFor="input-lab-asal">Laboratorium / Unit Asal</label>
+              <input
+                id="input-lab-asal"
+                className="form-input"
+                type="text"
+                value={form.nama_lab_asal || 'Laboratorium TTH'}
+                readOnly
+                disabled
+                style={{ color: '#94a3b8' }}
+              />
+              <span className="form-hint">Sesuai unit/laboratorium pada profil peminjam.</span>
             </div>
 
             <div className="form-group">
@@ -559,7 +632,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               id="input-nomor-spk"
               className="form-input"
               type="text"
-              placeholder="Contoh: SPK/TTH/2026/10-001..."
+              placeholder="Contoh: 12345"
               value={form.nomor_spk}
               onChange={(e) => setForm({ ...form, nomor_spk: e.target.value })}
             />
@@ -573,36 +646,240 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             D. Lokasi Penggunaan
           </h3>
           <div className="form-group">
-            <label className="form-label" htmlFor="input-lokasi-penggunaan">Lokasi Penggunaan <span className="required">*</span></label>
-            <input
-              id="input-lokasi-penggunaan"
-              className="form-input"
-              type="text"
-              placeholder="Ruangan lab tujuan, lokasi pelanggan, atau site lapangan..."
-              value={form.lokasi_penggunaan}
-              onChange={(e) => setForm({ ...form, lokasi_penggunaan: e.target.value })}
-              required
-            />
-            <span className="form-hint">
-              Lokasi tercatat tidak berubah selama peminjaman; peralatan wajib dikembalikan ke lokasi
-              tercatat semula (butir 6.b).
+            <span className="form-label" style={{ marginBottom: 'var(--sp-2)', display: 'block' }}>
+              Jenis Lokasi <span className="required">*</span>
             </span>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gap: 'var(--sp-3)',
+                marginTop: 4,
+              }}
+              role="radiogroup"
+              aria-label="Pilih Jenis Lokasi Penggunaan"
+            >
+              {/* Pilihan 1: Internal TTH */}
+              <div
+                role="radio"
+                aria-checked={!form.is_eksternal}
+                tabIndex={0}
+                onClick={() => handleLocationTypeChange(false)}
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    handleLocationTypeChange(false);
+                  }
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 'var(--sp-3)',
+                  padding: '14px 16px',
+                  borderRadius: 'var(--radius-lg, 8px)',
+                  border: !form.is_eksternal
+                    ? '2px solid var(--clr-primary-500, #EE2E24)'
+                    : '1.5px solid var(--clr-dark-200, #E2E8F0)',
+                  backgroundColor: !form.is_eksternal
+                    ? 'var(--clr-primary-50, #fef2f2)'
+                    : '#ffffff',
+                  boxShadow: !form.is_eksternal
+                    ? '0 2px 8px rgba(238, 46, 36, 0.12)'
+                    : 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  userSelect: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 'var(--radius-md, 6px)',
+                    backgroundColor: !form.is_eksternal ? 'var(--clr-primary-100, #fee2e2)' : 'var(--clr-dark-100, #f1f5f9)',
+                    color: !form.is_eksternal ? 'var(--clr-primary-600, #C92B21)' : 'var(--clr-dark-500, #64748B)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: 2,
+                  }}
+                >
+                  <Building2 size={20} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                    <span
+                      style={{
+                        fontWeight: 'var(--fw-semibold, 600)',
+                        fontSize: 'var(--text-sm)',
+                        color: !form.is_eksternal ? 'var(--clr-primary-800, #991b1b)' : 'var(--clr-dark-900, #0F172A)',
+                      }}
+                    >
+                      Internal TTH
+                    </span>
+                    {!form.is_eksternal ? (
+                      <CheckCircle2 size={18} style={{ color: 'var(--clr-primary-600, #C92B21)', flexShrink: 0 }} />
+                    ) : (
+                      <span
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: '50%',
+                          border: '2px solid var(--clr-dark-300, #CBD5E1)',
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <p
+                    style={{
+                      margin: '4px 0 0',
+                      fontSize: 'var(--text-xs)',
+                      color: !form.is_eksternal ? 'var(--clr-primary-700, #b91c1c)' : 'var(--clr-dark-500, #64748B)',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    Penggunaan di laboratorium / ruangan internal TTH.
+                  </p>
+                </div>
+              </div>
+
+              {/* Pilihan 2: Eksternal TTH */}
+              <div
+                role="radio"
+                aria-checked={form.is_eksternal}
+                tabIndex={0}
+                onClick={() => handleLocationTypeChange(true)}
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    handleLocationTypeChange(true);
+                  }
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 'var(--sp-3)',
+                  padding: '14px 16px',
+                  borderRadius: 'var(--radius-lg, 8px)',
+                  border: form.is_eksternal
+                    ? '2px solid var(--clr-primary-500, #EE2E24)'
+                    : '1.5px solid var(--clr-dark-200, #E2E8F0)',
+                  backgroundColor: form.is_eksternal
+                    ? 'var(--clr-primary-50, #fef2f2)'
+                    : '#ffffff',
+                  boxShadow: form.is_eksternal
+                    ? '0 2px 8px rgba(238, 46, 36, 0.12)'
+                    : 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  userSelect: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 'var(--radius-md, 6px)',
+                    backgroundColor: form.is_eksternal ? 'var(--clr-primary-100, #fee2e2)' : 'var(--clr-dark-100, #f1f5f9)',
+                    color: form.is_eksternal ? 'var(--clr-primary-600, #C92B21)' : 'var(--clr-dark-500, #64748B)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: 2,
+                  }}
+                >
+                  <Globe size={20} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                    <span
+                      style={{
+                        fontWeight: 'var(--fw-semibold, 600)',
+                        fontSize: 'var(--text-sm)',
+                        color: form.is_eksternal ? 'var(--clr-primary-800, #991b1b)' : 'var(--clr-dark-900, #0F172A)',
+                      }}
+                    >
+                      Eksternal / di Luar TTH
+                    </span>
+                    {form.is_eksternal ? (
+                      <CheckCircle2 size={18} style={{ color: 'var(--clr-primary-600, #C92B21)', flexShrink: 0 }} />
+                    ) : (
+                      <span
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: '50%',
+                          border: '2px solid var(--clr-dark-300, #CBD5E1)',
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <p
+                    style={{
+                      margin: '4px 0 0',
+                      fontSize: 'var(--text-xs)',
+                      color: form.is_eksternal ? 'var(--clr-primary-700, #b91c1c)' : 'var(--clr-dark-500, #64748B)',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    Penggunaan di site mitra / lokasi lapangan di luar fisik TTH.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <label className="checkbox-label" style={{ marginTop: 'var(--sp-3)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={form.di_luar_tth}
-              onChange={(e) => handleExternalChange(e.target.checked)}
-              style={{ marginTop: 3 }}
-            />
-            <span>
-              Peralatan dibawa keluar lingkungan TTH (peminjaman eksternal).
-              <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500, #64748B)' }}>
-                Peminjaman eksternal otomatis menyertakan <strong>Surat Keterangan Membawa Peralatan</strong> yang wajib dicetak dan dibawa bersama alat.
+          {form.is_eksternal ? (
+            <div className="form-group" style={{ marginTop: 'var(--sp-3)' }}>
+              <label className="form-label" htmlFor="input-lokasi-eksternal">Lokasi Tujuan Eksternal <span className="required">*</span></label>
+              <textarea
+                id="input-lokasi-eksternal"
+                className="form-textarea"
+                rows={3}
+                placeholder="Nama instansi/site, alamat atau detail lokasi tujuan..."
+                value={form.lokasi_penggunaan}
+                onChange={(e) => setForm({ ...form, lokasi_penggunaan: e.target.value })}
+                required
+              />
+              <span className="form-hint">
+                Cantumkan nama instansi/site dan alamat atau detail lokasi. Peminjaman eksternal
+                memerlukan <strong>Surat Keterangan Membawa Peralatan</strong>.
               </span>
-            </span>
-          </label>
+            </div>
+          ) : (
+            <div className="form-group" style={{ marginTop: 'var(--sp-3)' }}>
+              <label className="form-label" htmlFor="select-ruangan-tujuan">Ruangan Tujuan Internal <span className="required">*</span></label>
+              <select
+                id="select-ruangan-tujuan"
+                className="form-select"
+                value={form.lokasi_penggunaan}
+                onChange={(e) => setForm({ ...form, lokasi_penggunaan: e.target.value })}
+                required
+              >
+                <option value="">-- Pilih Ruangan Tujuan --</option>
+                {labs.map((lab) => {
+                  const labRooms = rooms.filter((room) => String(room.labs_id || room.labs?.id) === String(lab.id));
+                  if (labRooms.length === 0) return null;
+                  return (
+                    <optgroup key={lab.id} label={`${lab.kode_labs || lab.nama_labs} — ${lab.nama_labs}`}>
+                      {labRooms.map((room) => {
+                        const locationValue = [room.kode_ruangan, room.nama_ruangan, lab.nama_labs].filter(Boolean).join(' — ');
+                        return <option key={room.id} value={locationValue}>{locationValue}</option>;
+                      })}
+                    </optgroup>
+                  );
+                })}
+              </select>
+              <span className="form-hint">
+                Daftar ruangan diambil dari master Ruangan. Lokasi asal peralatan tidak berubah selama peminjaman.
+              </span>
+            </div>
+          )}
         </div>
 
         {/* E. Rencana Tanggal */}
@@ -647,89 +924,41 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             </div>
           </div>
 
-          <label className="checkbox-label" style={{ marginTop: 'var(--sp-3)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={form.tanggal_disetujui_atasan}
-              onChange={(e) => setForm({ ...form, tanggal_disetujui_atasan: e.target.checked })}
-              style={{ marginTop: 3 }}
-            />
-            <span>
-              <strong>Rencana tanggal keluar dan kembali sudah dikoordinasikan dan diketahui oleh atasan Peminjam.</strong> <span className="required">*</span>
-              <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500, #64748B)' }}>
-                Dengan mencentang ini, Anda menyatakan jadwal peminjaman telah selaras dengan penugasan kerja dan siap divalidasi oleh Atasan / Manajer Peminjam.
-              </span>
-            </span>
-          </label>
+          {jadwalBentrok && (
+            <div
+              style={{
+                marginTop: 'var(--sp-3)',
+                padding: 'var(--sp-3)',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: 'var(--radius-md, 6px)',
+                fontSize: 'var(--text-xs)',
+                color: '#991b1b',
+              }}
+            >
+              ⚠️ {conflictingSchedule
+                ? `Alat sedang dipinjam orang lain pada ${formatTgl(conflictingSchedule.rencana_tanggal_keluar)} s.d. ${formatTgl(conflictingSchedule.rencana_tanggal_kembali)}. Silakan pilih tanggal lain.`
+                : JADWAL_BENTROK_MESSAGE}
+            </div>
+          )}
         </div>
 
-        {/* F. Kelengkapan dan Dokumen — butir 8.1.c.2, 7.f, dan 8.1.e */}
+        {/* F. Kelengkapan dan Aksesori — butir 8.1.c.2 */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
           <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <FileText size={18} style={{ color: 'var(--clr-primary-500)' }} />
-            F. Kelengkapan dan Dokumen
+            F. Kelengkapan dan Aksesori
           </h3>
-          <div className="form-grid-2">
-            <div className="form-group">
-              <label className="form-label" htmlFor="input-kelengkapan">Kelengkapan yang Dibutuhkan</label>
-              <textarea
-                id="input-kelengkapan"
-                className="form-textarea"
-                rows={2}
-                placeholder="Contoh: modul pengujian, probe, kabel optik, bracket..."
-                value={form.kebutuhan_kelengkapan}
-                onChange={(e) => setForm({ ...form, kebutuhan_kelengkapan: e.target.value })}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="input-aksesori">Aksesori / Catu Daya / Baterai</label>
-              <textarea
-                id="input-aksesori"
-                className="form-textarea"
-                rows={2}
-                placeholder="Contoh: adaptor daya AC/DC, kabel grounding, baterai cadangan..."
-                value={form.kebutuhan_aksesori}
-                onChange={(e) => setForm({ ...form, kebutuhan_aksesori: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="form-group" style={{ marginTop: 'var(--sp-4)' }}>
-            <label className="form-label" style={{ fontWeight: 'var(--fw-semibold)', fontSize: 'var(--text-xs)' }}>
-              Dokumen Pendukung yang Disertai
-            </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-              {DOKUMEN_PENDUKUNG.map((doc) => (
-                <label
-                  key={doc.value}
-                  className="checkbox-label"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 8,
-                    padding: 'var(--sp-2) var(--sp-3)',
-                    borderRadius: 'var(--radius-md, 6px)',
-                    fontSize: 'var(--text-sm)',
-                    background: form.dokumen_pendukung.includes(doc.value) ? '#f0fdf4' : 'transparent',
-                    border: `1px solid ${form.dokumen_pendukung.includes(doc.value) ? '#bbf7d0' : 'transparent'}`,
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.dokumen_pendukung.includes(doc.value)}
-                    onChange={() => toggleDokumen(doc.value)}
-                    style={{ marginTop: 3 }}
-                  />
-                  <span>{doc.label}</span>
-                </label>
-              ))}
-            </div>
-            {missingSuratKeterangan && (
-              <span className="form-error-msg" style={{ display: 'block', marginTop: 6 }}>
-                Peminjaman eksternal wajib menyertakan Surat Keterangan Membawa Peralatan.
-              </span>
-            )}
+          <div className="form-group">
+            <label className="form-label" htmlFor="input-kelengkapan">Kelengkapan dan Aksesori yang Dibutuhkan</label>
+            <textarea
+              id="input-kelengkapan"
+              className="form-textarea"
+              rows={3}
+              placeholder="Contoh: modul pengujian, probe, kabel optik, bracket, adaptor daya AC/DC, baterai cadangan..."
+              value={form.kebutuhan_kelengkapan}
+              onChange={(e) => setForm({ ...form, kebutuhan_kelengkapan: e.target.value })}
+            />
           </div>
 
           <div className="form-group" style={{ marginTop: 'var(--sp-4)' }}>
@@ -742,39 +971,6 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               value={form.catatan}
               onChange={(e) => setForm({ ...form, catatan: e.target.value })}
             />
-          </div>
-        </div>
-
-        {/* G. Alur Proses Peminjaman — Swimlane SiKEPo */}
-        <div style={{ marginBottom: 'var(--sp-6)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FileCheck size={18} style={{ color: 'var(--clr-primary-500)' }} />
-            G. Alur Proses Persetujuan &amp; Serah Terima Peminjaman
-          </h3>
-          <div
-            className="alert alert-info"
-            style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 'var(--text-xs)', lineHeight: 1.6 }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>1</span>
-              <div><strong>Pengajuan Peminjam:</strong> Peminjam mengisi form permohonan dengan jadwal yang diketahui atasannya. Sistem mencatat logbook dan mengirim notifikasi.</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>2</span>
-              <div><strong>Validasi Manajer Peminjam:</strong> Manajer peminjam memvalidasi urgensi dan jadwal kebutuhan pengujian.</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>3</span>
-              <div><strong>Pemeriksaan Pengelola (PIC):</strong> PIC alat memeriksa ketersediaan, kelayakan fungsi, dan operator, lalu meneruskan ke Manager Lab pemilik.</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>4</span>
-              <div><strong>Persetujuan Manager Lab Pemilik:</strong> Mgr. Lab mereview dan menyetujui peminjaman (butir 3.a &amp; 7.c).</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>5</span>
-              <div><strong>Serah Terima &amp; Checklist Lampiran A:</strong> PIC dan peminjam memeriksa identitas, fisik, kelengkapan, dan fungsi alat sebelum digunakan.</div>
-            </div>
           </div>
         </div>
 
@@ -800,10 +996,11 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
           </button>
           <button
             type="submit"
-            className="btn btn-primary"
-            disabled={isSubmitting || listLoading || detailLoading}
+            className={`btn ${jadwalBentrok ? 'btn-secondary' : 'btn-primary'}`}
+            disabled={isSubmitting || listLoading || detailLoading || jadwalBentrok}
             id="btn-ajukan-peminjaman"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            title={jadwalBentrok ? 'Tidak dapat mengajukan — jadwal bertumpuk dengan peminjaman lain' : ''}
           >
             <Send size={16} />
             {isSubmitting ? 'Mengirim Pengajuan...' : 'Ajukan Peminjaman'}

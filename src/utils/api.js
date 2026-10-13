@@ -516,6 +516,8 @@ export const peminjamanApi = {
     return fetchWithAuth(`/api/peminjaman${query}`);
   },
   getById: (id) => fetchWithAuth(`/api/peminjaman/${id}`),
+  getAllJadwal: () => fetchWithAuth('/api/peminjaman/jadwal'),
+  getJadwal: (peralatanId) => fetchWithAuth(`/api/peminjaman/jadwal/${peralatanId}`),
   create: (body) =>
     fetchWithAuth('/api/peminjaman', { method: 'POST', body: JSON.stringify(body) }),
   keputusan: (id, body) =>

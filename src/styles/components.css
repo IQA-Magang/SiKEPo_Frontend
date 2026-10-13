@@ -678,6 +678,29 @@
   color: var(--clr-dark-400);
 }
 
+.form-input:disabled,
+.form-select:disabled,
+.form-textarea:disabled,
+.form-input[readonly],
+.form-select[readonly],
+.form-textarea[readonly] {
+  background-color: var(--clr-dark-100);
+  color: var(--clr-dark-500);
+  -webkit-text-fill-color: var(--clr-dark-500);
+  border-color: var(--clr-dark-200);
+  cursor: not-allowed;
+}
+
+.form-input:disabled:focus,
+.form-select:disabled:focus,
+.form-textarea:disabled:focus,
+.form-input[readonly]:focus,
+.form-select[readonly]:focus,
+.form-textarea[readonly]:focus {
+  border-color: var(--clr-dark-200);
+  box-shadow: none;
+}
+
 .form-input.error,
 .form-select.error,
 .form-textarea.error {

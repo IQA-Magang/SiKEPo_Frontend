@@ -1370,6 +1370,53 @@ export default function LoanApproval({ onNavigate }) {
       ) : (
         <>
           {/* ==================================================================== */}
+          {/* ALUR PROSES PEMINJAMAN — SWIMLANE SIKEPO                             */}
+          {/* ==================================================================== */}
+          <div
+            className="card card-padded"
+            style={{
+              marginBottom: 'var(--sp-5)',
+              background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
+              border: '1px solid var(--clr-dark-200, #e2e8f0)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'var(--sp-3)' }}>
+              <FileCheck size={18} style={{ color: 'var(--clr-primary-500, #EE2E24)' }} />
+              <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-bold, 600)', margin: 0, color: 'var(--clr-dark-900, #0f172a)' }}>
+                Alur Proses Persetujuan &amp; Serah Terima Peminjaman
+              </h2>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+                gap: 'var(--sp-3)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--radius-md, 6px)', border: '1px solid #e2e8f0', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
+                <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>1</span>
+                <div><strong>Pengajuan Peminjam:</strong> Peminjam mengisi form permohonan dengan jadwal yang diketahui atasannya. Sistem mencatat logbook dan mengirim notifikasi.</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--radius-md, 6px)', border: '1px solid #e2e8f0', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
+                <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>2</span>
+                <div><strong>Validasi Manajer Peminjam:</strong> Manajer peminjam memvalidasi urgensi dan jadwal kebutuhan pengujian.</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--radius-md, 6px)', border: '1px solid #e2e8f0', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
+                <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>3</span>
+                <div><strong>Pemeriksaan Pengelola (PIC):</strong> PIC alat memeriksa ketersediaan, kelayakan fungsi, dan operator, lalu meneruskan ke Manager Lab pemilik.</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--radius-md, 6px)', border: '1px solid #e2e8f0', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
+                <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>4</span>
+                <div><strong>Persetujuan Manager Lab Pemilik:</strong> Mgr. Lab mereview dan menyetujui peminjaman (butir 3.a &amp; 7.c).</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--radius-md, 6px)', border: '1px solid #e2e8f0', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
+                <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>5</span>
+                <div><strong>Serah Terima &amp; Checklist Lampiran A:</strong> PIC dan peminjam memeriksa identitas, fisik, kelengkapan, dan fungsi alat sebelum digunakan.</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ==================================================================== */}
           {/* 2. BILAH FILTER & PENCARIAN                                          */}
           {/* ==================================================================== */}
           <div

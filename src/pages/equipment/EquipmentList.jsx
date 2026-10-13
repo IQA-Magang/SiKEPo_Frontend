@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Search, Plus, ChevronRight, RefreshCw, Hand } from 'lucide-react';
-import { getEquipmentId, getEquipmentCategoryId, formatPhotoUrl, peralatanApi, ruanganApi, STATUS_BADGE_CLASS } from '../../utils/api.js';
+import { getEquipmentId, getEquipmentCategoryId, formatPhotoUrl, peralatanApi, ruanganApi, peminjamanApi, STATUS_BADGE_CLASS } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
 
@@ -18,6 +18,34 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
   const [filterKat, setFilterKat] = useState('');
   const [lifecycleView, setLifecycleView] = useState(initialLifecycle);
   const [rooms, setRooms] = useState([]);
+  const [jadwal, setJadwal] = useState([]);
+  const hariIni = new Date();
+  const hariIniStr = `${hariIni.getFullYear()}-${String(hariIni.getMonth()+1).padStart(2,'0')}-${String(hariIni.getDate()).padStart(2,'0')}`;
+  const jadwalPerAlat = new Map();
+  for (const j of jadwal) {
+    const pid = String(j.peralatan_id);
+    if (!jadwalPerAlat.has(pid)) jadwalPerAlat.set(pid, []);
+    jadwalPerAlat.get(pid).push(j);
+  }
+  function formatTgl(dateStr) {
+    if (!dateStr) return '';
+    const d = String(dateStr).slice(0, 10);
+    const parts = d.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return dateStr;
+  }
+
+  function isCurrentlyOut(p) {
+    const pid = String(getEquipmentId(p));
+    const ranges = jadwalPerAlat.get(pid) || [];
+    for (const r of ranges) {
+      if (hariIniStr >= r.rencana_tanggal_keluar && hariIniStr <= r.rencana_tanggal_kembali) return r;
+    }
+    if (p.status_alat === 'Dipinjam' && ranges.length > 0) {
+      return ranges[0];
+    }
+    return null;
+  }
 
 
   useEffect(() => { loadData(); }, []);
@@ -26,15 +54,17 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
   async function loadData() {
     setLoading(true);
     try {
-      const [res, roomsRes] = await Promise.all([
+      const [res, roomsRes, jadwalRes] = await Promise.all([
         peralatanApi.getAll(),
         ruanganApi.getAll().catch((err) => {
           console.error('Gagal memuat lokasi peralatan:', err);
           return { data: [] };
         }),
+        peminjamanApi.getAllJadwal().catch(() => ({ data: [] })),
       ]);
       setList(res.data || []);
       setRooms(roomsRes.data || []);
+      setJadwal(jadwalRes.data || []);
     } catch (err) {
       console.error('Gagal memuat peralatan:', err);
     } finally {
@@ -53,11 +83,13 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
     const catId = getEquipmentCategoryId(p);
     const matchKat = !filterKat || String(catId) === filterKat;
     const approved = p.status_verifikasi === 'Disetujui';
-    const active = p.status_alat === 'Aktif';
+    // Alat berstatus Aktif maupun Dipinjam tetap tampil dan dapat dijadwalkan
+    // untuk dipinjam, asal tanggalnya tidak bertumpuk dengan peminjam lain.
+    const available = p.status_alat === 'Aktif' || p.status_alat === 'Dipinjam';
     const rejected = p.status_verifikasi === 'Ditolak';
     const pending = !approved && !rejected;
     const matchLifecycle = lifecycleView === 'pending' ? pending
-      : lifecycleView === 'review' ? rejected : active && approved;
+      : lifecycleView === 'review' ? rejected : available && approved;
     return matchQ && matchKat && matchLifecycle;
   });
   const pagination = usePagination(filtered.length, `${search}\u0000${filterKat}\u0000${lifecycleView}`);
@@ -73,9 +105,9 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
   const lifecycleCopy = {
     pending: ['Menunggu Verifikasi', 'alat berada di karantina dan belum dapat digunakan'],
     review: ['Peralatan dalam Peninjauan', 'alat ditolak dan membutuhkan tindak lanjut'],
-    all: ['Daftar Peralatan', 'peralatan aktif yang telah disetujui manager'],
+    all: ['Daftar Peralatan', 'peralatan aktif atau sedang dipinjam yang telah disetujui manager'],
   };
-  const [title, description] = lifecycleCopy[lifecycleView];
+  const [title, description] = lifecycleCopy[lifecycleView] || lifecycleCopy.all;
 
   return (
     <div className="page-container fade-in-up">
@@ -147,7 +179,7 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
         <div className="empty-state">
           <div className="empty-state-icon"><Package size={32} /></div>
           <p className="empty-state-title">Tidak ada peralatan ditemukan</p>
-          <p className="empty-state-desc">Daftar ini hanya menampilkan peralatan berstatus aktif yang telah disetujui manager.</p>
+          <p className="empty-state-desc">Daftar ini hanya menampilkan peralatan berstatus aktif atau sedang dipinjam yang telah disetujui manager.</p>
           {canCreate && <button className="btn btn-primary" onClick={() => onNavigate('/peralatan/tambah')} style={{ marginTop: 'var(--sp-2)' }}>
             <Plus size={16} /> Tambah Peralatan Pertama
           </button>}
@@ -177,6 +209,8 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                 const room = rooms.find((item) => String(item.id) === String(p.ruangan_id));
                 const labName = room?.labs?.nama_labs;
                 const location = [labName, room?.nama_ruangan].filter(Boolean).join(' · ');
+                const out = isCurrentlyOut(p);
+                const canBorrowNow = canRequestLoan && approved && !out;
                 return (
                   <tr
                     key={equipmentId}
@@ -255,16 +289,36 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                             <button className="btn btn-ghost btn-sm" onClick={() => onNavigate(`/verifikasi/${equipmentId}`)} title="Ajukan Verifikasi Ulang (TLKM13/IK/003)">Verifikasi Ulang</button>
                           </>
                         )}
-                        {canRequestLoan && approved && p.status_alat === 'Aktif' && (
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            onClick={() => onNavigate(`/peminjaman/${equipmentId}`)}
-                            title="Pinjam peralatan"
-                            id={`btn-pinjam-${equipmentId}`}
-                          >
-                            <Hand size={14} /> Pinjam
-                          </button>
+                        {canRequestLoan && approved && (
+                          <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => onNavigate(`/peminjaman/${equipmentId}`)}
+                              title={out ? `Alat sedang dipinjam: ${out.rencana_tanggal_keluar} s.d. ${out.rencana_tanggal_kembali}. Klik untuk mengajukan peminjaman pada jadwal lain.` : "Pinjam peralatan"}
+                              id={`btn-pinjam-${equipmentId}`}
+                            >
+                              <Hand size={14} /> Pinjam
+                            </button>
+                            {out && (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  color: 'var(--clr-primary-700, #c53030)',
+                                  background: 'var(--clr-primary-50, #fff5f5)',
+                                  border: '1px solid var(--clr-primary-200, #fed7d7)',
+                                  padding: '1px 5px',
+                                  borderRadius: 'var(--radius-sm, 4px)',
+                                  whiteSpace: 'nowrap',
+                                  lineHeight: 1.25,
+                                  fontWeight: 'var(--fw-medium, 500)',
+                                }}
+                                title={`Dipinjam dari ${out.rencana_tanggal_keluar} s.d. ${out.rencana_tanggal_kembali}`}
+                              >
+                                Dipinjam: {formatTgl(out.rencana_tanggal_keluar)} – {formatTgl(out.rencana_tanggal_kembali)}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </td>
