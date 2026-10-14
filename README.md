@@ -172,3 +172,18 @@ Siklus verifikasi kelaikan merupakan inti dari penjaminan mutu laboratorium di T
 
 ## 6. Hak Cipta & Kepemilikan
 Dokumen dan sistem aplikasi ini merupakan aset resmi **Telkom Test House (TTH)**. Hak cipta dilindungi undang-undang.
+
+## 7. Struktur Source Frontend
+
+Kode aplikasi berada di `src/` dan dikelompokkan berdasarkan tanggung jawab:
+
+- `src/app/` berisi shell aplikasi, router, dan providers.
+- `src/features/` berisi halaman dan kode khusus domain seperti autentikasi, peralatan, dashboard, verifikasi, pengaturan, dan administrasi.
+- `src/pages/` berisi halaman umum seperti landing, forbidden, dan not found.
+- `src/shared/` berisi komponen bersama, layanan API, permission, dan utilitas PDF.
+- `src/assets/` menyimpan aset source; `src/styles/` menyimpan stylesheet global.
+- `src/main.jsx` adalah entry point React.
+
+Pertahankan URL route dan pemuatan halaman berbasis `React.lazy` saat mengembangkan atau memindahkan kode. Jalankan `npm run build` dari folder frontend untuk memeriksa build produksi.
+
+---

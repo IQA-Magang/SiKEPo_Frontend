@@ -1,6 +1,6 @@
 import React from 'react';
 import { HelpCircle, Home, ArrowLeft } from 'lucide-react';
-import { useNavigate } from '../router/Router.jsx';
+import { useNavigate } from '../app/router/Router.jsx';
 
 export default function NotFound() {
   const navigate = useNavigate();

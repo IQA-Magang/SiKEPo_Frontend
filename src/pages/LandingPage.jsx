@@ -10,7 +10,7 @@ import {
 import tthLogo from '../assets/logo/tth-logo.png';
 import '../styles/landing-page.css';
 
-const QRScannerModal = lazy(() => import('../components/QRScannerModal.jsx'));
+const QRScannerModal = lazy(() => import('../shared/components/QRScannerModal.jsx'));
 
 const stats = [
   { label: 'Data inventaris', value: 'Terpusat' },

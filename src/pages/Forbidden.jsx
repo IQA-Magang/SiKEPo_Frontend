@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldAlert, Home, ArrowLeft } from 'lucide-react';
-import { useNavigate } from '../router/Router.jsx';
-import { getCurrentUser } from '../utils/api.js';
+import { useNavigate } from '../app/router/Router.jsx';
+import { getCurrentUser } from '../shared/services/api.js';
 
 export default function Forbidden() {
   const navigate = useNavigate();
