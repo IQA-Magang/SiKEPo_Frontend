@@ -410,22 +410,25 @@ function buildVerificationHtml(data) {
         let labelHasil = val;
         if (val === 'S') {
           badgeClass = 'badge-s';
-          labelHasil = key === 'firmware' && data.kode_aktivitas === 'A3'
+          labelHasil = key === 'firmware'
             ? 'Ada'
             : 'S (Sesuai)';
         }
         else if (val === 'TS') {
           badgeClass = 'badge-ts';
-          labelHasil = key === 'firmware' && data.kode_aktivitas === 'A3'
+          labelHasil = key === 'firmware'
             ? 'Tidak Ada'
             : 'TS (Tidak Sesuai)';
         }
-        else if (val === 'TB') { badgeClass = 'badge-tb'; labelHasil = 'TB (Tidak Berlaku)'; }
+        else if (val === 'TB') {
+          badgeClass = 'badge-tb';
+          labelHasil = key === 'firmware' ? 'Belum dinilai' : 'TB (Tidak Berlaku)';
+        }
 
         const reason = val === 'TS'
           ? (tsAlasan[key] || 'Belum ada alasan yang dicatat')
           : val === 'TB'
-            ? (tbAlasan[key] || '-')
+            ? (key === 'firmware' ? '-' : tbAlasan[key] || '-')
             : '-';
 
         return `<tr>

@@ -891,6 +891,7 @@ export default function VerificationManagement({
       CHECKS.map((key) => [
         key,
         applicableRequirements[key] === "K" &&
+        key !== "firmware" &&
         !form.hasil_verifikasi[key]?.trim()
           ? "TB"
           : form.hasil_verifikasi[key],
@@ -900,7 +901,7 @@ export default function VerificationManagement({
       (key) => applicableRequirements[key] !== "-",
     );
     const requiredKeys = CHECKS.filter(
-      (key) => applicableRequirements[key] === "W",
+      (key) => applicableRequirements[key] === "W" || key === "firmware",
     );
     const missingKeys = requiredKeys.filter(
       (key) => !verificationResults[key],
@@ -911,13 +912,18 @@ export default function VerificationManagement({
       );
       return;
     }
-    const invalidKeys = applicableKeys.filter(
-      (key) =>
+    const invalidKeys = applicableKeys.filter((key) => {
+      const allowedResults =
+        key === "firmware" ? ["S", "TS"] : ["S", "TS", "TB"];
+      return (
         verificationResults[key] &&
-        !["S", "TS", "TB"].includes(verificationResults[key]),
-    );
+        !allowedResults.includes(verificationResults[key])
+      );
+    });
     if (invalidKeys.length > 0) {
-      error("Hasil pemeriksaan hanya boleh S, TS, atau TB.");
+      error(
+        "Hasil firmware hanya boleh Ada atau Tidak Ada; aspek lainnya hanya boleh Sesuai, Tidak Sesuai, atau Tidak Berlaku.",
+      );
       return;
     }
     const tsKeys = applicableKeys.filter(
@@ -925,7 +931,7 @@ export default function VerificationManagement({
     );
     if (tsKeys.some((key) => !form.ts_alasan[key]?.trim())) {
       error(
-        `Alasan wajib diisi untuk hasil Tidak Sesuai: ${tsKeys
+        `Alasan wajib diisi untuk hasil Tidak Sesuai/Tidak Ada: ${tsKeys
           .filter((key) => !form.ts_alasan[key]?.trim())
           .map((key) => CHECK_LABELS[key])
           .join(", ")}.`,
@@ -938,7 +944,7 @@ export default function VerificationManagement({
       !form.tindak_lanjut
     ) {
       error(
-        "Hasil TS (Tidak Sesuai) harus disertai pemilihan tindak lanjut alat.",
+        "Hasil TS (Tidak Sesuai/Tidak Ada) harus disertai pemilihan tindak lanjut alat.",
       );
       return;
     }
@@ -1799,11 +1805,18 @@ export default function VerificationManagement({
                         <span
                           style={{
                             marginLeft: 6,
-                            color: requirement === "W" ? "#b91c1c" : "#64748b",
+                            color:
+                              requirement === "W" || key === "firmware"
+                                ? "#b91c1c"
+                                : "#64748b",
                             fontWeight: "var(--fw-medium)",
                           }}
                         >
-                          {requirement === "W" ? "(Wajib)" : "(Kondisional)"}
+                          {key === "firmware"
+                            ? "(Wajib: Ada/Tidak Ada)"
+                            : requirement === "W"
+                              ? "(Wajib)"
+                              : "(Opsional)"}
                         </span>
                       </label>
                       <select
@@ -1820,8 +1833,7 @@ export default function VerificationManagement({
                         }
                       >
                         <option value="">Pilih hasil verifikasi</option>
-                        {key === "firmware" &&
-                        form.kode_aktivitas === "A3" ? (
+                        {key === "firmware" ? (
                           <>
                             <option value="S">Ada</option>
                             <option value="TS">Tidak Ada</option>
@@ -1832,7 +1844,7 @@ export default function VerificationManagement({
                             <option value="TS">Tidak Sesuai</option>
                           </>
                         )}
-                        {!(key === "firmware" && form.kode_aktivitas === "A3") && (
+                        {key !== "firmware" && (
                           <option value="TB">Tidak Berlaku</option>
                         )}
                       </select>
@@ -1857,13 +1869,16 @@ export default function VerificationManagement({
                             className="form-label"
                             style={{ fontSize: "var(--text-xs)" }}
                           >
-                            Keterangan / alasan Tidak Sesuai{" "}
+                            Keterangan / alasan{" "}
+                            {key === "firmware" ? "Tidak Ada" : "Tidak Sesuai"}{" "}
                             <span style={{ color: "red" }}>*</span>
                           </label>
                           <textarea
                             className="form-textarea"
                             rows={2}
-                            placeholder="Jelaskan alasan hasil Tidak Sesuai..."
+                            placeholder={`Jelaskan alasan hasil ${
+                              key === "firmware" ? "Tidak Ada" : "Tidak Sesuai"
+                            }...`}
                             value={form.ts_alasan[key] || ""}
                             onChange={(event) =>
                               setForm({
@@ -2473,16 +2488,16 @@ export default function VerificationManagement({
                           selected.hasil_verifikasi?.[0]?.[key] || "-";
                         const label =
                           result === "S"
-                            ? key === "firmware" &&
-                              selected.kode_aktivitas === "A3"
+                            ? key === "firmware"
                               ? "Ada"
                               : "S (Sesuai)"
                             : result === "TS"
-                              ? key === "firmware" &&
-                                selected.kode_aktivitas === "A3"
+                              ? key === "firmware"
                                 ? "Tidak Ada"
                                 : "TS (Tidak Sesuai)"
-                              : result;
+                              : key === "firmware" && result === "TB"
+                                ? "Belum dinilai"
+                                : result;
                         return (
                           <span
                             className={`badge ${
@@ -2500,7 +2515,7 @@ export default function VerificationManagement({
                     },
                     {
                       key: "reason",
-                      header: "Alasan Tidak Sesuai",
+                      header: "Alasan / Keterangan",
                       render: (key) => {
                         const result =
                           selected.hasil_verifikasi?.[0]?.[key] || "-";
@@ -2509,7 +2524,9 @@ export default function VerificationManagement({
                           ? notes?.alasan_ts?.[key] ||
                               "Belum ada alasan yang dicatat"
                           : result === "TB"
-                            ? notes?.alasan_tb?.[key] || "-"
+                            ? key === "firmware"
+                              ? "-"
+                              : notes?.alasan_tb?.[key] || "-"
                             : "-";
                       },
                     },

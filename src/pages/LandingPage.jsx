@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import {
   ArrowRight,
   Check,
@@ -7,9 +7,10 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react';
-import QRScannerModal from '../components/QRScannerModal.jsx';
 import tthLogo from '../assets/logo/tth-logo.png';
 import '../styles/landing-page.css';
+
+const QRScannerModal = lazy(() => import('../components/QRScannerModal.jsx'));
 
 const stats = [
   { label: 'Data inventaris', value: 'Terpusat' },
@@ -142,11 +143,15 @@ export default function LandingPage({ onNavigate }) {
         </main>
       </div>
 
-      <QRScannerModal
-        isOpen={isQrScannerOpen}
-        onClose={() => setIsQrScannerOpen(false)}
-        onNavigate={onNavigate}
-      />
+      {isQrScannerOpen && (
+        <Suspense fallback={null}>
+          <QRScannerModal
+            isOpen={isQrScannerOpen}
+            onClose={() => setIsQrScannerOpen(false)}
+            onNavigate={onNavigate}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

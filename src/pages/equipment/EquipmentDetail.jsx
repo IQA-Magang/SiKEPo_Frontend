@@ -665,7 +665,6 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                           value={formatVerificationResult(
                             selectedLogVerification.hasil_verifikasi[0][key],
                             key,
-                            selectedLogVerification.kode_aktivitas,
                           )}
                         />
                       ))}
@@ -707,10 +706,11 @@ function getVerificationCheckLabel(key) {
   return labels[key] || key.replaceAll('_', ' ');
 }
 
-function formatVerificationResult(result, key, activityCode) {
-  if (key === 'firmware' && activityCode === 'A3') {
+function formatVerificationResult(result, key) {
+  if (key === 'firmware') {
     if (result === 'S') return 'Ada';
     if (result === 'TS') return 'Tidak Ada';
+    if (result === 'TB') return 'Belum dinilai';
   }
   if (result === 'S') return 'Sesuai';
   if (result === 'TS') return 'Tidak Sesuai';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import Sidebar from './components/layout/Sidebar.jsx';
 import Topbar from './components/layout/Topbar.jsx';
 import {
@@ -16,24 +16,24 @@ import { ConfirmProvider } from './context/ConfirmContext.jsx';
 import { getToken } from './utils/api.js';
 import { ACCESS, ACTIONS, getUserRole } from './utils/permissions.js';
 
-// Pages
-import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import EquipmentList from './pages/equipment/EquipmentList.jsx';
-import EquipmentDetail from './pages/equipment/EquipmentDetail.jsx';
-import EquipmentCreate from './pages/equipment/EquipmentCreate.jsx';
-import UserManagement from './pages/UserManagement.jsx';
-import LabsManagement from './pages/admin/LabsManagement.jsx';
-import RuanganManagement from './pages/admin/RuanganManagement.jsx';
-import AssetGroupManagement from './pages/admin/AssetGroupManagement.jsx';
-import CategoryManagement from './pages/admin/CategoryManagement.jsx';
-import Settings from './pages/Settings.jsx';
+// Pages are split into route-level chunks and loaded only when visited.
+const Login = lazy(() => import('./pages/Login.jsx'));
+const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
+const EquipmentList = lazy(() => import('./pages/equipment/EquipmentList.jsx'));
+const EquipmentDetail = lazy(() => import('./pages/equipment/EquipmentDetail.jsx'));
+const EquipmentCreate = lazy(() => import('./pages/equipment/EquipmentCreate.jsx'));
+const UserManagement = lazy(() => import('./pages/UserManagement.jsx'));
+const LabsManagement = lazy(() => import('./pages/admin/LabsManagement.jsx'));
+const RuanganManagement = lazy(() => import('./pages/admin/RuanganManagement.jsx'));
+const AssetGroupManagement = lazy(() => import('./pages/admin/AssetGroupManagement.jsx'));
+const CategoryManagement = lazy(() => import('./pages/admin/CategoryManagement.jsx'));
+const Settings = lazy(() => import('./pages/Settings.jsx'));
 import NotFound from './pages/NotFound.jsx';
 import Forbidden from './pages/Forbidden.jsx';
-import VerificationManagement from './pages/VerificationManagement.jsx';
-import LandingPage from './pages/LandingPage.jsx';
-import GuestEquipmentPage from './pages/guest/GuestEquipmentPage.jsx';
-import QRScannerModal from './components/QRScannerModal.jsx';
+const VerificationManagement = lazy(() => import('./pages/VerificationManagement.jsx'));
+const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
+const GuestEquipmentPage = lazy(() => import('./pages/guest/GuestEquipmentPage.jsx'));
+const QRScannerModal = lazy(() => import('./components/QRScannerModal.jsx'));
 
 // Wrapper for parameterized Equipment Detail
 function EquipmentDetailRoute({ initialSection = 'informasi' }) {
@@ -74,6 +74,14 @@ function LoanRequestPlaceholder() {
           <p className="page-subtitle">Tampilan pengajuan peminjaman belum tersedia.</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PageLoading() {
+  return (
+    <div className="page-container" role="status" aria-live="polite">
+      Memuat halaman...
     </div>
   );
 }
@@ -171,11 +179,15 @@ function AppShell({ children }) {
         {children}
       </main>
 
-      <QRScannerModal
-        isOpen={isQrOpen}
-        onClose={() => setIsQrOpen(false)}
-        onNavigate={navigate}
-      />
+      {isQrOpen && (
+        <Suspense fallback={null}>
+          <QRScannerModal
+            isOpen={isQrOpen}
+            onClose={() => setIsQrOpen(false)}
+            onNavigate={navigate}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
@@ -187,7 +199,11 @@ function AppContent() {
   const token = getToken();
 
   if (pathname === '/') {
-    return <LandingPage onNavigate={navigate} />;
+    return (
+      <Suspense fallback={<PageLoading />}>
+        <LandingPage onNavigate={navigate} />
+      </Suspense>
+    );
   }
 
   // Login page rendered without AppShell
@@ -195,17 +211,23 @@ function AppContent() {
     if (token) {
       return <Navigate to="/dashboard" />;
     }
-    return <Login onNavigate={navigate} />;
+    return (
+      <Suspense fallback={<PageLoading />}>
+        <Login onNavigate={navigate} />
+      </Suspense>
+    );
   }
 
   if (pathname.startsWith('/guest/peralatan/')) {
     return (
-      <Routes fallback={<NotFound />}>
-        <Route
-          path="/guest/peralatan/:nomor_aset"
-          element={<GuestEquipmentRoute />}
-        />
-      </Routes>
+      <Suspense fallback={<PageLoading />}>
+        <Routes fallback={<NotFound />}>
+          <Route
+            path="/guest/peralatan/:nomor_aset"
+            element={<GuestEquipmentRoute />}
+          />
+        </Routes>
+      </Suspense>
     );
   }
 
@@ -216,16 +238,17 @@ function AppContent() {
 
   return (
     <AppShell>
-      <Routes fallback={<NotFound />}>
-        {/* Dashboard */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard onNavigate={navigate} />
-            </ProtectedRoute>
-          }
-        />
+      <Suspense fallback={<PageLoading />}>
+        <Routes fallback={<NotFound />}>
+          {/* Dashboard */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard onNavigate={navigate} />
+              </ProtectedRoute>
+            }
+          />
 
         {/* Equipment Routes */}
         <Route
@@ -339,10 +362,11 @@ function AppContent() {
           }
         />
 
-        {/* Error Pages */}
-        <Route path="/unauthorized" element={<Forbidden />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          {/* Error Pages */}
+          <Route path="/unauthorized" element={<Forbidden />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </AppShell>
   );
 }
