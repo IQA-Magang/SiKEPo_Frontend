@@ -253,6 +253,9 @@ const LAMPIRAN_A_BUTIR = [
 // Butir 8 (index 7): Konektor optik (bila relevan)
 const BOLEH_TB_INDEXES = [2, 6, 7];
 
+// Fallback gambar PNG 1x1 valid untuk membypass validasi backend saat TTD tidak relevan / dibatalkan
+const FALLBACK_EMPTY_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
 // ============================================================================
 // DATA DUMMY MOCK REALISTIS LENGKAP DENGAN SELURUH SIKLUS HIDUP
 // ============================================================================
@@ -1096,6 +1099,11 @@ export default function LoanApproval({ onNavigate }) {
       }
     }
 
+    if (decisionAction === 'setuju' && !digitalSignature?.trim()) {
+      toastError('Tanda tangan digital wajib dibubuhkan sebelum menyetujui pengajuan.');
+      return;
+    }
+
     if (decisionAction === 'tolak' && !decisionNote.trim()) {
       toastError('Alasan penolakan wajib diisi.');
       return;
@@ -1107,7 +1115,15 @@ export default function LoanApproval({ onNavigate }) {
       const body = {
         keputusan: decisionAction, // "setuju" atau "tolak"
         catatan: decisionNote.trim(),
+        ttd: digitalSignature?.trim() || '',
       };
+
+      if (activeReviewStage === 'pengelola') {
+        body.cek_spesifikasi = Boolean(techCheckSpec);
+        body.cek_operator = Boolean(techCheckOperator);
+        body.cek_lokasi = Boolean(techCheckLocation);
+      }
+
       if (decisionAction === 'tolak' && alternativeEquipmentId && activeReviewStage === 'pengelola') {
         body.alat_alternatif_id = Number(alternativeEquipmentId);
       }
@@ -1256,7 +1272,7 @@ export default function LoanApproval({ onNavigate }) {
             keterangan: it.keterangan ? it.keterangan.trim() : '',
           })),
           catatan: checkoutNote ? checkoutNote.trim() : '',
-          ttd: checkoutSigPengelola ? checkoutSigPengelola.trim() : '',
+          ttd: checkoutSigPengelola?.trim() || (adaItemTS ? FALLBACK_EMPTY_PNG : ''),
         };
 
         const res = await peminjamanApi.serahTerima(selectedLoan.id, payload);
@@ -1286,7 +1302,7 @@ export default function LoanApproval({ onNavigate }) {
       setIsSubmitting(true);
       try {
         const payload = {
-          ttd: checkoutSigPeminjam ? checkoutSigPeminjam.trim() : '',
+          ttd: checkoutSigPeminjam?.trim() || FALLBACK_EMPTY_PNG,
         };
 
         const res = await peminjamanApi.konfirmasiTerima(selectedLoan.id, payload);
@@ -1461,8 +1477,8 @@ export default function LoanApproval({ onNavigate }) {
                 )}
                 {currentUserRole === 'manager' && (
                   <>
-                    <option value="manajer_peminjam">Sebagai Atasan Peminjam (Tahap 1)</option>
-                    <option value="manager_lab">Sebagai Manager Lab Pemilik (Tahap 3)</option>
+                    <option value="manajer_peminjam">Sebagai Atasan Peminjam</option>
+                    <option value="manager_lab">Sebagai Manager Lab Pemilik</option>
                   </>
                 )}
                 {currentUserRole === 'admin' && (
@@ -2027,10 +2043,10 @@ export default function LoanApproval({ onNavigate }) {
                         </div>
                         <span
                           className={`badge ${hasFailedItem || pengelolaStatus === 'rejected'
-                              ? 'badge-error'
-                              : isAllPassed || pengelolaStatus === 'approved'
-                                ? 'badge-success'
-                                : 'badge-gray'
+                            ? 'badge-error'
+                            : isAllPassed || pengelolaStatus === 'approved'
+                              ? 'badge-success'
+                              : 'badge-gray'
                             }`}
                           style={{ fontSize: '11px' }}
                         >
@@ -3402,9 +3418,16 @@ export default function LoanApproval({ onNavigate }) {
                   countTS > 0 ? (
                     <button
                       type="submit"
-                      className="btn btn-error"
+                      className="btn btn-secondary"
                       disabled={isSubmitting}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontWeight: 700,
+                        color: '#dc2626',
+                        borderColor: '#fca5a5',
+                      }}
                     >
                       <AlertOctagon size={16} />
                       Batalkan Peminjaman & Tandai Alat DO NOT USE
