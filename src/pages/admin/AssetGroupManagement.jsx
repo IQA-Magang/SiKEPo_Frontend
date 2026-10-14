@@ -5,6 +5,8 @@ import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useConfirm } from '../../context/ConfirmContext.jsx';
 import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
+import DataTable from '../../components/ui/DataTable.jsx';
+import TableFilters from '../../components/ui/TableFilters.jsx';
 
 const EMPTY_FORM = {
   kode: '',
@@ -195,42 +197,40 @@ export default function AssetGroupManagement({ onNavigate }) {
       </div>
 
       {/* 2. Filter Bar */}
-      <div className="filter-toolbar">
-        <div className="search-bar filter-search-wrap">
-          <FolderKanban className="search-icon" size={16} />
-          <input
-            id="input-search-kelompok-aset"
-            className="form-input"
-            type="text"
-            placeholder="Cari kode, nama kelompok aset, PIC..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <select
-          id="select-filter-lab-aset"
-          className="form-select filter-select"
-          value={filterLab}
-          onChange={(e) => setFilterLab(e.target.value)}
-        >
-          <option value="">Semua Laboratorium</option>
-          {labs.map((l) => (
-            <option key={l.id} value={String(l.id)}>
-              {l.nama_labs} ({l.kode_labs})
-            </option>
-          ))}
-        </select>
-
-        <button
-          className="btn btn-secondary btn-icon"
-          onClick={loadData}
-          id="btn-refresh-kelompok-aset"
-          title="Segarkan data kelompok aset"
-        >
-          <RefreshCw size={16} />
-        </button>
-      </div>
+      <TableFilters
+        fields={[
+          {
+            type: 'search',
+            id: 'input-search-kelompok-aset',
+            label: 'Cari kelompok aset',
+            placeholder: 'Kode, nama kelompok aset, atau PIC',
+            value: search,
+            onChange: (event) => setSearch(event.target.value),
+          },
+          {
+            type: 'select',
+            id: 'select-filter-lab-aset',
+            label: 'Laboratorium',
+            placeholder: 'Semua Laboratorium',
+            value: filterLab,
+            onChange: (event) => setFilterLab(event.target.value),
+            options: labs.map((lab) => ({
+              value: String(lab.id),
+              label: `${lab.nama_labs} (${lab.kode_labs})`,
+            })),
+          },
+        ]}
+        actions={
+          <button
+            className="btn btn-secondary btn-icon"
+            onClick={loadData}
+            id="btn-refresh-kelompok-aset"
+            title="Segarkan data kelompok aset"
+          >
+            <RefreshCw size={16} />
+          </button>
+        }
+      />
 
       {/* 3. Table Content Card */}
       {loading ? (
@@ -253,104 +253,45 @@ export default function AssetGroupManagement({ onNavigate }) {
         </div>
       ) : (
         <div className="table-card">
-          <div className="table-wrapper table-borderless">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 48 }}>#</th>
-                  <th style={{ width: 130 }}>Kode Kelompok</th>
-                  <th>Nama Kelompok Aset</th>
-                  <th>Laboratorium</th>
-                  <th>PIC Aset</th>
-                  <th style={{ width: 100 }}>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageItems.map((g, i) => {
-                  const labObj = g.lab || labs.find((l) => l.id === g.lab_id);
-                  const picObj = g.pic || users.find((u) => u.user_id === g.pic_id);
-
-                  return (
-                    <tr key={g.id}>
-                      <td style={{ color: 'var(--clr-dark-400)' }}>{pagination.startIndex + i + 1}</td>
-                      <td>
-                        <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>
-                          {g.kode}
-                        </code>
-                      </td>
-                      <td style={{ fontWeight: 'var(--fw-semibold)' }}>{g.nama}</td>
-                      <td>
-                        {labObj ? (
-                          <span className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <Building2 size={12} />
-                            {labObj.nama_labs}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)' }}>
-                            -
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        {picObj ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-                            <div
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: '50%',
-                                background: 'var(--clr-primary-100)',
-                                color: 'var(--clr-primary-700)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 10,
-                                fontWeight: 700,
-                              }}
-                            >
-                              {picObj.name ? picObj.name[0].toUpperCase() : 'P'}
-                            </div>
-                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>
-                              {picObj.name}
-                            </span>
-                          </div>
-                        ) : (
-                          <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)', fontStyle: 'italic' }}>
-                            Belum ditentukan
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="table-action-btns">
-                          {canEdit && (
-                            <button
-                              className="btn-action-icon"
-                              onClick={() => openEdit(g)}
-                              id={`btn-edit-kelompok-aset-${g.id}`}
-                              title="Edit Kelompok Aset"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                          )}
-                          {canDelete && (
-                            <button
-                              className="btn-action-icon btn-action-delete"
-                              onClick={() => handleDelete(g.id)}
-                              disabled={deleting === g.id}
-                              id={`btn-hapus-kelompok-aset-${g.id}`}
-                              title="Hapus Kelompok Aset"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            wrapperClassName="table-borderless"
+            rows={pageItems}
+            rowKey={(group) => group.id}
+            columns={[
+              { key: 'number', header: '#', headerStyle: { width: 48 }, render: (_, i) => pagination.startIndex + i + 1, cellStyle: { color: 'var(--clr-dark-400)' } },
+              { key: 'code', header: 'Kode Kelompok', headerStyle: { width: 130 }, render: (group) => <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>{group.kode}</code> },
+              { key: 'name', header: 'Nama Kelompok Aset', render: (group) => <span style={{ fontWeight: 'var(--fw-semibold)' }}>{group.nama}</span> },
+              {
+                key: 'lab',
+                header: 'Laboratorium',
+                render: (group) => {
+                  const lab = group.lab || labs.find((item) => item.id === group.lab_id);
+                  return lab
+                    ? <span className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Building2 size={12} />{lab.nama_labs}</span>
+                    : <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)' }}>-</span>;
+                },
+              },
+              {
+                key: 'pic',
+                header: 'PIC Aset',
+                render: (group) => {
+                  const pic = group.pic || users.find((item) => item.user_id === group.pic_id);
+                  return pic
+                    ? <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}><div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--clr-primary-100)', color: 'var(--clr-primary-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>{pic.name ? pic.name[0].toUpperCase() : 'P'}</div><span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>{pic.name}</span></div>
+                    : <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)', fontStyle: 'italic' }}>Belum ditentukan</span>;
+                },
+              },
+              {
+                key: 'actions',
+                header: 'Aksi',
+                headerStyle: { width: 100 },
+                render: (group) => <div className="table-action-btns">
+                  {canEdit && <button className="btn-action-icon" onClick={() => openEdit(group)} id={`btn-edit-kelompok-aset-${group.id}`} title="Edit Kelompok Aset"><Pencil size={13} /></button>}
+                  {canDelete && <button className="btn-action-icon btn-action-delete" onClick={() => handleDelete(group.id)} disabled={deleting === group.id} id={`btn-hapus-kelompok-aset-${group.id}`} title="Hapus Kelompok Aset"><Trash2 size={13} /></button>}
+                </div>,
+              },
+            ]}
+          />
 
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">

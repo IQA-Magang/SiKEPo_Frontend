@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2 } from 'lucide-react';
 import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi } from '../utils/api.js';
 import { can, ACCESS, ACTIONS } from '../utils/permissions.js';
+import DataTable from '../components/ui/DataTable.jsx';
 
 // ------------------------------------------------------------------
 // Dashboard: tampilan berbeda berdasarkan role
@@ -486,7 +487,7 @@ function StaffDashboard({ onNavigate, user }) {
         <div className="card-header">
           <div>
             <h2 className="card-title">Prioritas Kalibrasi & Tahapan Proses</h2>
-            <p className="page-subtitle">Diurutkan dari tanggal jatuh tempo terdekat; jadwal yang belum tersedia ditampilkan terakhir.</p>
+            {/* <p className="page-subtitle">Diurutkan dari tanggal jatuh tempo terdekat; jadwal yang belum tersedia ditampilkan terakhir.</p> */}
           </div>
         </div>
         {detailLoadError && (
@@ -504,41 +505,45 @@ function StaffDashboard({ onNavigate, user }) {
             <p className="empty-state-title">Belum ada peralatan terdaftar</p>
           </div>
         ) : (
-          <div className="table-wrapper table-borderless">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Nama Peralatan</th>
-                  <th>No. Aset</th>
-                  <th>Jatuh Tempo</th>
-                  <th>Status Proses</th>
-                </tr>
-              </thead>
-              <tbody>
-                {peralatan.map((p) => {
-                  const dueDate = getCalibrationDueDate(p);
-                  const process = getProcessStage(p);
+          <DataTable
+            wrapperClassName="table-borderless"
+            rows={peralatan}
+            rowKey={(equipment) => equipment.id}
+            rowProps={(equipment) => ({
+              className: 'cursor-pointer',
+              onClick: () => onNavigate(`/peralatan/detail/${equipment.id}?returnTo=${encodeURIComponent('/dashboard')}`),
+            })}
+            columns={[
+              { key: 'name', header: 'Nama Peralatan', cellStyle: { fontWeight: 'var(--fw-medium)' }, render: (equipment) => equipment.nama_peralatan },
+              { key: 'asset', header: 'No. Aset', render: (equipment) => <code className="text-mono-xs">{equipment.nomor_aset}</code> },
+              {
+                key: 'due-date',
+                header: 'Jatuh Tempo',
+                render: (equipment) => {
+                  const dueDate = getCalibrationDueDate(equipment);
                   return (
-                  <tr key={p.id} className="cursor-pointer" onClick={() => onNavigate(`/peralatan/detail/${p.id}`)}>
-                    <td style={{ fontWeight: 'var(--fw-medium)' }}>{p.nama_peralatan}</td>
-                    <td><code className="text-mono-xs">{p.nomor_aset}</code></td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                        <span className={`badge ${getDueDateBadgeClass(dueDate)}`}>{formatDueDate(dueDate)}</span>
-                        {dueDate && <small style={{ color: 'var(--clr-dark-500)' }}>{dueDate.toLocaleDateString('id-ID')}</small>}
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                        <span className={`badge ${process.tone}`}>{process.label}</span>
-                        <small style={{ color: 'var(--clr-dark-500)' }}>{process.description}</small>
-                      </div>
-                    </td>
-                  </tr>
-                );})}
-              </tbody>
-            </table>
-          </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                      <span className={`badge ${getDueDateBadgeClass(dueDate)}`}>{formatDueDate(dueDate)}</span>
+                      {dueDate && <small style={{ color: 'var(--clr-dark-500)' }}>{dueDate.toLocaleDateString('id-ID')}</small>}
+                    </div>
+                  );
+                },
+              },
+              {
+                key: 'process',
+                header: 'Status Proses',
+                render: (equipment) => {
+                  const process = getProcessStage(equipment);
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                      <span className={`badge ${process.tone}`}>{process.label}</span>
+                      <small style={{ color: 'var(--clr-dark-500)' }}>{process.description}</small>
+                    </div>
+                  );
+                },
+              },
+            ]}
+          />
         )}
       </div>
     </>

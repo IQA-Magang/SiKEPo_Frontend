@@ -54,9 +54,15 @@ function GuestEquipmentRoute() {
   return <GuestEquipmentPage equipmentNumber={nomor_aset || ''} onNavigate={navigate} />;
 }
 
-function EquipmentLifecycleRoute({ lifecycle }) {
+function EquipmentLifecycleRoute({ lifecycle, returnPath }) {
   const navigate = useNavigate();
-  return <EquipmentList onNavigate={navigate} initialLifecycle={lifecycle} />;
+  return (
+    <EquipmentList
+      onNavigate={navigate}
+      initialLifecycle={lifecycle}
+      returnPath={returnPath}
+    />
+  );
 }
 
 function LoanRequestPlaceholder() {
@@ -226,7 +232,7 @@ function AppContent() {
           path="/peralatan"
           element={
             <ProtectedRoute feature={ACCESS.MASTER_EQUIPMENT}>
-              <EquipmentList onNavigate={navigate} />
+              <EquipmentList onNavigate={navigate} returnPath="/peralatan" />
             </ProtectedRoute>
           }
         />
@@ -262,8 +268,8 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
-        <Route path="/peralatan/menunggu-verifikasi" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="pending" /></ProtectedRoute>} />
-        <Route path="/peralatan/dalam-peninjauan" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="review" /></ProtectedRoute>} />
+        <Route path="/peralatan/menunggu-verifikasi" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="pending" returnPath="/peralatan/menunggu-verifikasi" /></ProtectedRoute>} />
+        <Route path="/peralatan/dalam-peninjauan" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="review" returnPath="/peralatan/dalam-peninjauan" /></ProtectedRoute>} />
         <Route
           path="/verifikasi"
           element={

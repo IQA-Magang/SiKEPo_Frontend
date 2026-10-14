@@ -4,11 +4,13 @@ import { Package, ArrowLeft, Upload, FileText, Download, QrCode, Printer } from 
 import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, kelompokAssetApi, ruanganApi, labsApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can, getUserRole, isStaffPengelola } from '../../utils/permissions.js';
 import { exportVerificationPdf } from '../../utils/verificationPdf.js';
+import { getSafeReturnPath } from '../../router/Router.jsx';
 
 // ------------------------------------------------------------------
 // Halaman Detail Peralatan
 // ------------------------------------------------------------------
 export default function EquipmentDetail({ equipmentId, onNavigate, initialSection = 'informasi' }) {
+  const returnPath = getSafeReturnPath('/peralatan');
   const canEditEquipment = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.EDIT);
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const canExportVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.EDIT)
@@ -151,7 +153,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
           {loadError ? 'Gagal memuat peralatan' : 'Peralatan tidak ditemukan'}
         </p>
         {loadError && <p className="empty-state-desc">{loadError}</p>}
-        <button className="btn btn-secondary" onClick={() => onNavigate('/peralatan')}>
+        <button className="btn btn-secondary" onClick={() => onNavigate(returnPath)}>
           <ArrowLeft size={16} /> Kembali
         </button>
       </div>
@@ -233,7 +235,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
     <div className="page-container fade-in-up">
       {/* Back & Title */}
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)', flexWrap: 'wrap' }}>
-        <button className="btn btn-ghost btn-icon" onClick={() => onNavigate('/peralatan')} id="btn-kembali-peralatan">
+        <button className="btn btn-ghost btn-icon" onClick={() => onNavigate(returnPath)} id="btn-kembali-peralatan">
           <ArrowLeft size={20} />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -254,7 +256,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
           {canViewVerification && !isVerified && (
             <button
               className="btn btn-secondary btn-sm"
-              onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}`)}
+              onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}?returnTo=${encodeURIComponent(returnPath)}`)}
               title="Buka form verifikasi peralatan (TLKM13/IK/003)"
             >
               {peralatan.status_verifikasi === 'Ditolak' ? 'Ajukan Verifikasi Ulang' : 'Verifikasi / Periksa'}
@@ -605,10 +607,6 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                       value={selectedLogNotes.acuan_kriteria || 'Spesifikasi Pabrikan / Prosedur Mutu TTH'}
                     />
                     <InfoRow
-                      label="Peninjauan Hasil Sebelumnya"
-                      value={selectedLogNotes.peninjauan_hasil_sebelumnya}
-                    />
-                    <InfoRow
                       label="Nomor Sertifikat"
                       value={selectedLogNotes.sertifikat?.nomor}
                     />
@@ -654,13 +652,23 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                       ['Pemeriksaan Fungsi Awal', 'fungsi_awal'],
                       ['Kesesuaian Spesifikasi Metrologi', 'metrologi'],
                       ['Validitas Sertifikat Kalibrasi', 'sertifikat'],
-                    ].map(([label, key]) => (
-                      <InfoRow
-                        key={key}
-                        label={label}
-                        value={formatVerificationResult(selectedLogVerification.hasil_verifikasi[0][key])}
-                      />
-                    ))}
+                    ]
+                      .filter(
+                        ([, key]) =>
+                          selectedLogVerification.kode_aktivitas !== 'A3' ||
+                          !['kelengkapan', 'fungsi_awal'].includes(key),
+                      )
+                      .map(([label, key]) => (
+                        <InfoRow
+                          key={key}
+                          label={label}
+                          value={formatVerificationResult(
+                            selectedLogVerification.hasil_verifikasi[0][key],
+                            key,
+                            selectedLogVerification.kode_aktivitas,
+                          )}
+                        />
+                      ))}
                   </div>
                 </div>
                 )}
@@ -699,7 +707,11 @@ function getVerificationCheckLabel(key) {
   return labels[key] || key.replaceAll('_', ' ');
 }
 
-function formatVerificationResult(result) {
+function formatVerificationResult(result, key, activityCode) {
+  if (key === 'firmware' && activityCode === 'A3') {
+    if (result === 'S') return 'Ada';
+    if (result === 'TS') return 'Tidak Ada';
+  }
   if (result === 'S') return 'Sesuai';
   if (result === 'TS') return 'Tidak Sesuai';
   if (result === 'TB') return 'Tidak Berlaku';

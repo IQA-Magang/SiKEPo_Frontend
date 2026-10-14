@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, X, RefreshCw, UserCheck, Building2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, RefreshCw, Building2 } from 'lucide-react';
 import { labsApi, usersApi } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useConfirm } from '../../context/ConfirmContext.jsx';
 import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
+import DataTable from '../../components/ui/DataTable.jsx';
+import TableFilters from '../../components/ui/TableFilters.jsx';
 
 const EMPTY_FORM = { nama_labs: '', kode_labs: '', manager_id: '' };
 
@@ -171,27 +173,28 @@ export default function LabsManagement({ onNavigate }) {
       </div>
 
       {/* 2. Filters & Actions */}
-      <div className="filter-toolbar">
-        <div className="search-bar filter-search-wrap">
-          <Building2 className="search-icon" size={16} />
-          <input
-            id="input-search-lab"
-            className="form-input"
-            type="text"
-            placeholder="Cari kode lab, nama lab, manager..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <button
-          className="btn btn-secondary btn-icon"
-          onClick={loadData}
-          id="btn-refresh-lab"
-          title="Segarkan data laboratorium"
-        >
-          <RefreshCw size={16} />
-        </button>
-      </div>
+      <TableFilters
+        fields={[
+          {
+            type: 'search',
+            id: 'input-search-lab',
+            label: 'Cari laboratorium',
+            placeholder: 'Kode, nama lab, atau manager',
+            value: search,
+            onChange: (event) => setSearch(event.target.value),
+          },
+        ]}
+        actions={
+          <button
+            className="btn btn-secondary btn-icon"
+            onClick={loadData}
+            id="btn-refresh-lab"
+            title="Segarkan data laboratorium"
+          >
+            <RefreshCw size={16} />
+          </button>
+        }
+      />
 
       {/* 3. Table / Content Card */}
       {loading ? (
@@ -214,99 +217,45 @@ export default function LabsManagement({ onNavigate }) {
         </div>
       ) : (
         <div className="table-card">
-          <div className="table-wrapper table-borderless">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 48 }}>#</th>
-                  <th style={{ width: 140 }}>Kode Lab</th>
-                  <th>Nama Laboratorium</th>
-                  <th>Penanggung Jawab / Manager</th>
-                  <th style={{ width: 100 }}>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageItems.map((lab, i) => {
-                  const managerObj =
-                    lab.manager ||
-                    managers.find((m) => m.user_id === lab.manager_id);
-
-                  return (
-                    <tr key={lab.id}>
-                      <td style={{ color: 'var(--clr-dark-400)' }}>{pagination.startIndex + i + 1}</td>
-                      <td>
-                        <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>
-                          {lab.kode_labs}
-                        </code>
-                      </td>
-                      <td style={{ fontWeight: 'var(--fw-semibold)' }}>{lab.nama_labs}</td>
-                      <td>
-                        {managerObj ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-                            <div
-                              style={{
-                                width: 26,
-                                height: 26,
-                                borderRadius: '50%',
-                                background: 'var(--clr-primary-50)',
-                                color: 'var(--clr-primary-600)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 11,
-                                fontWeight: 700,
-                              }}
-                            >
-                              {managerObj.name
-                                ? managerObj.name[0].toUpperCase()
-                                : 'M'}
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>
-                                {managerObj.name}
-                              </div>
-                              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
-                                {managerObj.email}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>
-                            Belum ditentukan
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="table-action-btns">
-                          {canEdit && (
-                            <button
-                              className="btn-action-icon"
-                              onClick={() => openEdit(lab)}
-                              id={`btn-edit-lab-${lab.id}`}
-                              title="Edit Lab"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                          )}
-                          {canDelete && (
-                            <button
-                              className="btn-action-icon btn-action-delete"
-                              onClick={() => handleDelete(lab.id)}
-                              disabled={deleting === lab.id}
-                              id={`btn-hapus-lab-${lab.id}`}
-                              title="Hapus Lab"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            wrapperClassName="table-borderless"
+            rows={pageItems}
+            rowKey={(lab) => lab.id}
+            columns={[
+              { key: 'number', header: '#', headerStyle: { width: 48 }, render: (_, i) => pagination.startIndex + i + 1, cellStyle: { color: 'var(--clr-dark-400)' } },
+              { key: 'code', header: 'Kode Lab', headerStyle: { width: 140 }, render: (lab) => <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>{lab.kode_labs}</code> },
+              { key: 'name', header: 'Nama Laboratorium', render: (lab) => <span style={{ fontWeight: 'var(--fw-semibold)' }}>{lab.nama_labs}</span> },
+              {
+                key: 'manager',
+                header: 'Penanggung Jawab / Manager',
+                render: (lab) => {
+                  const manager = lab.manager || managers.find((item) => item.user_id === lab.manager_id);
+                  return manager ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--clr-primary-50)', color: 'var(--clr-primary-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>
+                        {manager.name ? manager.name[0].toUpperCase() : 'M'}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>{manager.name}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>{manager.email}</div>
+                      </div>
+                    </div>
+                  ) : <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>Belum ditentukan</span>;
+                },
+              },
+              {
+                key: 'actions',
+                header: 'Aksi',
+                headerStyle: { width: 100 },
+                render: (lab) => (
+                  <div className="table-action-btns">
+                    {canEdit && <button className="btn-action-icon" onClick={() => openEdit(lab)} id={`btn-edit-lab-${lab.id}`} title="Edit Lab"><Pencil size={13} /></button>}
+                    {canDelete && <button className="btn-action-icon btn-action-delete" onClick={() => handleDelete(lab.id)} disabled={deleting === lab.id} id={`btn-hapus-lab-${lab.id}`} title="Hapus Lab"><Trash2 size={13} /></button>}
+                  </div>
+                ),
+              },
+            ]}
+          />
 
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">

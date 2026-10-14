@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Search, Plus, ChevronRight, RefreshCw, Hand } from 'lucide-react';
-import { getEquipmentId, getEquipmentCategoryId, formatPhotoUrl, peralatanApi, ruanganApi, STATUS_BADGE_CLASS } from '../../utils/api.js';
+import { Package, Plus, RefreshCw, Hand } from 'lucide-react';
+import { getEquipmentId, getEquipmentCategoryId, peralatanApi, ruanganApi, STATUS_BADGE_CLASS } from '../../utils/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
+import DataTable from '../../components/ui/DataTable.jsx';
+import TableFilters from '../../components/ui/TableFilters.jsx';
 
 
 // ------------------------------------------------------------------
 // Daftar Peralatan
 // ------------------------------------------------------------------
-export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) {
+export default function EquipmentList({
+  onNavigate,
+  initialLifecycle = 'all',
+  returnPath = '/peralatan',
+}) {
   const canCreate = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD);
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const canRequestLoan = can(ACCESS.LOAN_REQUEST, ACTIONS.ADD);
@@ -62,6 +68,133 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
   });
   const pagination = usePagination(filtered.length, `${search}\u0000${filterKat}\u0000${lifecycleView}`);
   const pageItems = filtered.slice(pagination.startIndex, pagination.endIndex);
+  const columns = [
+    {
+      key: 'number',
+      header: 'No.',
+      headerStyle: { width: 40 },
+      cellStyle: { color: 'var(--clr-dark-400)', width: 40 },
+      render: (_, index) => pagination.startIndex + index + 1,
+    },
+    {
+      key: 'asset',
+      header: 'No. Aset',
+      render: (equipment) => (
+        <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
+          {equipment.nomor_aset || '–'}
+        </code>
+      ),
+    },
+    {
+      key: 'name',
+      header: 'Nama Peralatan',
+      render: (equipment) => (
+        <>
+          <div style={{ fontWeight: 'var(--fw-medium)', color: 'var(--clr-dark-900)' }}>
+            {equipment.nama_peralatan}
+          </div>
+          {(equipment.merek || equipment.tipe_model) && (
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-400)' }}>
+              {[equipment.merek, equipment.tipe_model].filter(Boolean).join(' — ')}
+            </div>
+          )}
+          {equipment.peranti_lunak_versi && (
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
+              Firmware: {equipment.peranti_lunak_versi}
+            </div>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'category-location',
+      header: 'Kategori & Lokasi',
+      render: (equipment) => {
+        const room = rooms.find((item) => String(item.id) === String(equipment.ruangan_id));
+        const location = [room?.labs?.nama_labs, room?.nama_ruangan].filter(Boolean).join(' · ');
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+            <span className="badge badge-gray" style={{ fontSize: 'var(--text-xs)' }}>
+              {equipment.kategori_peralatan?.nama_kategori || '–'}
+            </span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
+              {location || 'Lokasi belum tersedia'}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'description',
+      header: 'Keterangan',
+      render: (equipment) => {
+        const approved = equipment.status_verifikasi === 'Disetujui';
+        const rejected = equipment.status_verifikasi === 'Ditolak';
+        const description = rejected
+          ? 'Perlu verifikasi ulang'
+          : !approved
+            ? 'Menunggu verifikasi'
+            : equipment.status_alat === 'Aktif'
+              ? 'Masuk inventaris'
+              : equipment.status_alat === 'Dalam Kalibrasi'
+                ? 'Sedang dikalibrasi'
+                : equipment.status_alat === 'Dipinjam'
+                  ? 'Sedang dipinjam'
+                  : equipment.status_alat === 'Rusak'
+                    ? 'Dalam kondisi rusak'
+                    : equipment.status_alat || 'Dalam proses';
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+            <span className={`badge ${STATUS_BADGE_CLASS[rejected ? 'Rusak' : approved ? equipment.status_alat : 'Karantina'] || 'badge-gray'}`}>
+              <span className="badge-dot" />
+              {description}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'last-user',
+      header: 'Pemakai Terakhir',
+      render: () => <span style={{ color: 'var(--clr-dark-400)' }}>–</span>,
+    },
+    {
+      key: 'actions',
+      header: 'Aksi',
+      cellProps: () => ({ onClick: (event) => event.stopPropagation() }),
+      render: (equipment) => {
+        const equipmentId = getEquipmentId(equipment);
+        const approved = equipment.status_verifikasi === 'Disetujui';
+        const rejected = equipment.status_verifikasi === 'Ditolak';
+        const detailPath = `/peralatan/detail/${equipmentId}?returnTo=${encodeURIComponent(returnPath)}`;
+        const verificationPath = `/verifikasi/${equipmentId}?returnTo=${encodeURIComponent(returnPath)}`;
+        return (
+          <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>
+            {canViewVerification && !approved && !rejected && (
+              <button className="btn btn-ghost btn-sm" onClick={() => onNavigate(verificationPath)} title="Mulai atau lanjutkan verifikasi">
+                Verifikasi
+              </button>
+            )}
+            {canViewVerification && rejected && (
+              <>
+                <button className="btn btn-ghost btn-sm text-error" onClick={() => onNavigate(detailPath)} title="Lihat Catatan Peninjauan (TLKM13/IK/012)">
+                  Tinjau
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => onNavigate(verificationPath)} title="Ajukan Verifikasi Ulang (TLKM13/IK/003)">
+                  Verifikasi Ulang
+                </button>
+              </>
+            )}
+            {canRequestLoan && approved && equipment.status_alat === 'Aktif' && (
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate('/peminjaman')} title="Pinjam peralatan">
+                <Hand size={14} /> Pinjam
+              </button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
 
   const categories = Array.from(
     new Map(
@@ -71,9 +204,9 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
     ).values()
   );
   const lifecycleCopy = {
-    pending: ['Menunggu Verifikasi', 'alat berada di karantina dan belum dapat digunakan'],
-    review: ['Peralatan dalam Peninjauan', 'alat ditolak dan membutuhkan tindak lanjut'],
-    all: ['Daftar Peralatan', 'peralatan aktif yang telah disetujui manager'],
+    pending: ['Menunggu Verifikasi', 'peralatan menunggu pemeriksaan dan belum dapat digunakan'],
+    review: ['Peralatan dalam Peninjauan', 'peralatan ditolak dan membutuhkan tindak lanjut'],
+    all: ['Daftar Peralatan'],
   };
   const [title, description] = lifecycleCopy[lifecycleView];
 
@@ -83,9 +216,6 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
       <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
         <div>
           <h1 className="page-title">{title}</h1>
-          <p className="page-subtitle">
-            {loading ? 'Memuat...' : `${filtered.length} ${description}`}
-          </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
 
@@ -102,41 +232,40 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 'var(--sp-3)', marginBottom: 'var(--sp-5)', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div className="search-bar" style={{ flex: 1, minWidth: 240 }}>
-          <Search className="search-icon" />
-          <input
-            id="input-search-peralatan"
-            className="form-input"
-            type="text"
-            placeholder="Cari nama, nomor aset, merek..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <select
-          id="select-filter-kategori"
-          className="form-select"
-          value={filterKat}
-          onChange={(e) => setFilterKat(e.target.value)}
-          style={{ width: 'auto', minWidth: 180 }}
-        >
-          <option value="">Semua Kategori</option>
-          {categories.map((category) => (
-            <option key={category.id} value={String(category.id)}>{category.nama_kategori}</option>
-          ))}
-        </select>
-
-        <button
-          className="btn btn-secondary btn-icon"
-          onClick={loadData}
-          title="Refresh"
-          id="btn-refresh-peralatan"
-        >
-          <RefreshCw size={16} />
-        </button>
-      </div>
+      <TableFilters
+        fields={[
+          {
+            type: 'search',
+            id: 'input-search-peralatan',
+            label: 'Cari peralatan',
+            placeholder: 'Nama, nomor aset, atau merek',
+            value: search,
+            onChange: (event) => setSearch(event.target.value),
+          },
+          {
+            type: 'select',
+            id: 'select-filter-kategori',
+            label: 'Kategori',
+            placeholder: 'Semua Kategori',
+            value: filterKat,
+            onChange: (event) => setFilterKat(event.target.value),
+            options: categories.map((category) => ({
+              value: String(category.id),
+              label: category.nama_kategori,
+            })),
+          },
+        ]}
+        actions={
+          <button
+            className="btn btn-secondary btn-icon"
+            onClick={loadData}
+            title="Refresh"
+            id="btn-refresh-peralatan"
+          >
+            <RefreshCw size={16} />
+          </button>
+        }
+      />
 
       {/* Tabel */}
       {loading ? (
@@ -154,125 +283,31 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
         </div>
       ) : (
         <div className="table-card">
-          <div className="table-wrapper">
-            <table className="data-table data-table-mobile-priority equipment-list-table">
-              <thead>
-                <tr>
-                  <th>No.</th>
-                  <th>Foto</th>
-                  <th>Peralatan</th>
-                  <th>Kategori &amp; Lokasi</th>
-                  <th>Status</th>
-                  <th>Pemakai Terakhir</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageItems.map((p, i) => {
-                const photoUrl = formatPhotoUrl(p.foto);
-                const equipmentId = getEquipmentId(p);
-                const approved = p.status_verifikasi === 'Disetujui';
-                const rejected = p.status_verifikasi === 'Ditolak';
-                const verificationLabel = p.status_verifikasi || 'Belum Diverifikasi';
-                const room = rooms.find((item) => String(item.id) === String(p.ruangan_id));
-                const labName = room?.labs?.nama_labs;
-                const location = [labName, room?.nama_ruangan].filter(Boolean).join(' · ');
-                return (
-                  <tr
-                    key={equipmentId}
-                    className="cursor-pointer"
-                    onClick={() => onNavigate(`/peralatan/detail/${equipmentId}`)}
-                    onKeyDown={(event) => {
-                      if (event.target !== event.currentTarget) return;
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        onNavigate(`/peralatan/detail/${equipmentId}`);
-                      }
-                    }}
-                    tabIndex={0}
-                    role="link"
-                    aria-label={`Lihat detail ${p.nama_peralatan}`}
-                  >
-                    <td style={{ color: 'var(--clr-dark-400)', width: 40 }}>{pagination.startIndex + i + 1}</td>
-                    <td style={{ width: 56 }}>
-                      {photoUrl ? (
-                        <img
-                          src={photoUrl}
-                          alt={p.nama_peralatan}
-                          style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 'var(--radius-md)', border: '1px solid var(--clr-dark-200)' }}
-                        />
-                      ) : (
-                        <div style={{
-                          width: 40, height: 40, borderRadius: 'var(--radius-md)',
-                          background: 'var(--clr-dark-100)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          <Package size={16} style={{ color: 'var(--clr-dark-400)' }} />
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 'var(--fw-medium)', color: 'var(--clr-dark-900)' }}>{p.nomor_aset || '–'} {p.nama_peralatan}</div>
-                      {(p.merek || p.tipe_model) && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-400)' }}>{[p.merek, p.tipe_model].filter(Boolean).join(' — ')}</div>}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                        <span className="badge badge-gray" style={{ fontSize: 'var(--text-xs)' }}>
-                          {p.kategori_peralatan?.nama_kategori || '–'}
-                        </span>
-                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
-                          {location || 'Lokasi belum tersedia'}
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                        <span className={`badge ${STATUS_BADGE_CLASS[approved ? p.status_alat : 'Karantina'] || 'badge-gray'}`}>
-                          <span className="badge-dot" />
-                          {approved ? p.status_alat : 'Karantina'}
-                        </span>
-                        <span className="badge badge-gray" style={{ fontSize: 'var(--text-xs)' }}>
-                          {verificationLabel}
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <span style={{ color: 'var(--clr-dark-400)' }}>–</span>
-                    </td>
-                    <td onClick={(event) => event.stopPropagation()}>
-                      <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => onNavigate(`/peralatan/detail/${equipmentId}`)}
-                          title="Detail"
-                          id={`btn-detail-${equipmentId}`}
-                        >
-                          <ChevronRight size={14} /> Detail
-                        </button>
-                        {canViewVerification && !approved && !rejected && <button className="btn btn-ghost btn-sm" onClick={() => onNavigate(`/verifikasi/${equipmentId}`)} title="Mulai atau lanjutkan verifikasi">Verifikasi</button>}
-                        {canViewVerification && rejected && (
-                          <>
-                            <button className="btn btn-ghost btn-sm text-error" onClick={() => onNavigate(`/peralatan/detail/${equipmentId}`)} title="Lihat Catatan Peninjauan (TLKM13/IK/012)">Tinjau</button>
-                            <button className="btn btn-ghost btn-sm" onClick={() => onNavigate(`/verifikasi/${equipmentId}`)} title="Ajukan Verifikasi Ulang (TLKM13/IK/003)">Verifikasi Ulang</button>
-                          </>
-                        )}
-                        {canRequestLoan && approved && p.status_alat === 'Aktif' && (
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            onClick={() => onNavigate('/peminjaman')}
-                            title="Pinjam peralatan"
-                          >
-                            <Hand size={14} /> Pinjam
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={columns}
+            rows={pageItems}
+            rowKey={(equipment) => getEquipmentId(equipment)}
+            className="data-table-mobile-priority equipment-list-table"
+            rowProps={(equipment) => {
+              const equipmentId = getEquipmentId(equipment);
+              const detailPath = `/peralatan/detail/${equipmentId}?returnTo=${encodeURIComponent(returnPath)}`;
+              return {
+                className: 'cursor-pointer',
+                onClick: () => onNavigate(detailPath),
+                onKeyDown: (event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onNavigate(detailPath);
+                  }
+                },
+                tabIndex: 0,
+                role: 'link',
+                'aria-label': `Lihat detail ${equipment.nama_peralatan}`,
+              };
+            }}
+            emptyMessage="Tidak ada peralatan ditemukan."
+          />
           <Pagination
             totalItems={filtered.length}
             currentPage={pagination.currentPage}

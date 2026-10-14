@@ -6,11 +6,11 @@
 
 const CHECK_LABELS = {
   identitas: 'Identitas Alat Ukur',
-  kelengkapan: 'Kelengkapan Aksesoris',
+  kelengkapan: 'Kelengkapan Aksesori dan Manual',
   firmware: 'Versi Firmware / Peranti Lunak',
-  kondisi_fisik: 'Kondisi Fisik / Visual',
-  segel: 'Keutuhan Segel Kalibrasi',
-  fungsi_awal: 'Pemeriksaan Fungsi Awal',
+  kondisi_fisik: 'Kondisi Fisik',
+  segel: 'Keutuhan Label Kalibrasi dan Void',
+  fungsi_awal: 'Fungsi Kerja',
   metrologi: 'Kesesuaian Spesifikasi Metrologi',
   sertifikat: 'Validitas Sertifikat Kalibrasi',
 };
@@ -27,6 +27,11 @@ const CHECKS = [
 ];
 
 const ACTIVITY_MAP = {
+  A1: 'Penerimaan alat baru',
+  A2: 'Setelah kalibrasi',
+  A3: 'Setelah dipinjam/dipindah/disewa',
+  A4: 'Setelah pemeliharaan',
+  A5: 'Pengecekan antara/Verifikasi fungsi',
   P1: 'P1 — Peralatan baru diterima',
   P2: 'P2 — Setelah kalibrasi',
   P3: 'P3 — Setelah verifikasi fungsi',
@@ -65,7 +70,7 @@ function parseOfficialNotes(rawNotes) {
   }
 }
 
-export function exportVerificationPdf(data) {
+function buildVerificationHtml(data) {
   if (!data) return;
 
   const peralatan = data.peralatan || {};
@@ -75,6 +80,16 @@ export function exportVerificationPdf(data) {
   const officialNotes = parseOfficialNotes(data.catatan);
   const sertifikatData = officialNotes.sertifikat || {};
   const tbAlasan = officialNotes.alasan_tb || {};
+  const tsAlasan = officialNotes.alasan_ts || {};
+  const visibleChecks = data.kode_aktivitas === 'A3'
+    ? CHECKS.filter((key) => [
+        'identitas',
+        'firmware',
+        'kondisi_fisik',
+        'segel',
+        'metrologi',
+      ].includes(key))
+    : CHECKS;
 
   const picName = data.pic_user?.nama_lengkap || data.pic_user?.nama || data.pic_user?.name || data.pic_user?.username || data.pic_user?.email || 'Pengelola Peralatan';
   const picNip = data.pic_user?.nip ? `NIP. ${data.pic_user.nip}` : 'Staff Laboratorium';
@@ -85,7 +100,18 @@ export function exportVerificationPdf(data) {
   const picSignedAtFormatted = formatTanggalIndo(data.pic_signed_at || data.tanggal_verifikasi);
   const managerSignedAtFormatted = formatTanggalIndo(data.manager_signed_at || data.verified_at);
 
-  const kodeAktivitasLabel = ACTIVITY_MAP[data.kode_aktivitas] || data.kode_aktivitas || '-';
+  const kodeAktivitasLabel = data.kode_aktivitas
+    ? `${data.kode_aktivitas} — ${ACTIVITY_MAP[data.kode_aktivitas] || 'Aktivitas peralatan'}`
+    : '-';
+  const keteranganAlat = data.status === 'Disetujui'
+    ? peralatan.status_alat === 'Dalam Kalibrasi'
+      ? 'Sedang dikalibrasi'
+      : peralatan.status_alat === 'Aktif'
+        ? 'Masuk inventaris'
+        : peralatan.status_alat || 'Masuk inventaris'
+    : data.status === 'Ditolak'
+      ? 'Perlu verifikasi ulang'
+      : 'Menunggu persetujuan Manager';
 
   const html = `<!DOCTYPE html>
 <html lang="id">
@@ -125,7 +151,7 @@ export function exportVerificationPdf(data) {
     }
     .logo-box {
       width: 25%;
-      text-align: center;
+      text-align: right;
       font-weight: bold;
     }
     .logo-red {
@@ -299,19 +325,19 @@ export function exportVerificationPdf(data) {
   <!-- HEADER STANDAR DOKUMEN MUTU TTH -->
   <table class="header-table">
     <tr>
-      <td class="logo-box">
-        <div class="logo-red">TELKOM TEST HOUSE</div>
-        <div class="logo-sub">PT Telkom Indonesia (Persero) Tbk</div>
-      </td>
-      <td class="title-box">
-        <div class="doc-main-title">FORMULIR VERIFIKASI ALAT UKUR</div>
-        <div class="doc-sub-title">PENGUJIAN KELAYAKAN FUNGSI & METROLOGI</div>
-      </td>
       <td class="meta-box">
         <div><strong>No. Dok:</strong> TLKM13/F/003</div>
         <div><strong>Edisi / Rev:</strong> 05 / 00</div>
         <div><strong>Tgl Efektif:</strong> ${tglVerifikasiFormatted}</div>
         <div><strong>Halaman:</strong> 1 dari 1</div>
+      </td>
+      <td class="title-box">
+        <div class="doc-main-title">FORMULIR VERIFIKASI ALAT UKUR</div>
+        <div class="doc-sub-title">PENGUJIAN KELAYAKAN FUNGSI & METROLOGI</div>
+      </td>
+      <td class="logo-box">
+        <div class="logo-red">TELKOM TEST HOUSE</div>
+        <div class="logo-sub">PT Telkom Indonesia (Persero) Tbk</div>
       </td>
     </tr>
   </table>
@@ -320,12 +346,12 @@ export function exportVerificationPdf(data) {
   <div class="section-title">A. Identitas Alat Ukur dan Kegiatan Verifikasi</div>
   <table class="info-table">
     <tr>
+      <td class="info-label">Nomor Aset</td>
+      <td class="info-sep">:</td>
+      <td class="info-val"><strong>${peralatan.nomor_aset || '-'}</strong></td>
       <td class="info-label">Nama Peralatan</td>
       <td class="info-sep">:</td>
       <td class="info-val"><strong>${peralatan.nama_peralatan || '-'}</strong></td>
-      <td class="info-label">Nomor Aset / Kode</td>
-      <td class="info-sep">:</td>
-      <td class="info-val"><strong>${peralatan.nomor_aset || '-'}</strong></td>
     </tr>
     <tr>
       <td class="info-label">Merek / Pabrikan</td>
@@ -360,9 +386,9 @@ export function exportVerificationPdf(data) {
       <td class="info-val"><strong>${kodeAktivitasLabel}</strong></td>
     </tr>
     <tr>
-      <td class="info-label">Acuan Kriteria Keberterimaan</td>
+      <td class="info-label">Acuan Instruksi Kerja / Test Prosedur / Manual Book</td>
       <td class="info-sep">:</td>
-      <td class="info-val" colspan="4">${officialNotes.acuan_kriteria || 'Spesifikasi Pabrikan / Prosedur Mutu TTH'}</td>
+      <td class="info-val" colspan="4">${officialNotes.acuan_kriteria || '-'}</td>
     </tr>
   </table>
 
@@ -374,19 +400,33 @@ export function exportVerificationPdf(data) {
         <th style="width: 6%;" class="text-center">No</th>
         <th style="width: 44%;">Aspek yang Diverifikasi</th>
         <th style="width: 18%;" class="text-center">Hasil Penilaian</th>
-        <th style="width: 32%;">Keterangan / Alasan (jika TB / TS)</th>
+        <th style="width: 32%;">Alasan / Catatan Pemeriksaan</th>
       </tr>
     </thead>
     <tbody>
-      ${CHECKS.map((key, idx) => {
+      ${visibleChecks.map((key, idx) => {
         const val = hasilList[key] || '-';
         let badgeClass = 'badge-tb';
         let labelHasil = val;
-        if (val === 'S') { badgeClass = 'badge-s'; labelHasil = 'S (Sesuai)'; }
-        else if (val === 'TS') { badgeClass = 'badge-ts'; labelHasil = 'TS (Tidak Sesuai)'; }
+        if (val === 'S') {
+          badgeClass = 'badge-s';
+          labelHasil = key === 'firmware' && data.kode_aktivitas === 'A3'
+            ? 'Ada'
+            : 'S (Sesuai)';
+        }
+        else if (val === 'TS') {
+          badgeClass = 'badge-ts';
+          labelHasil = key === 'firmware' && data.kode_aktivitas === 'A3'
+            ? 'Tidak Ada'
+            : 'TS (Tidak Sesuai)';
+        }
         else if (val === 'TB') { badgeClass = 'badge-tb'; labelHasil = 'TB (Tidak Berlaku)'; }
 
-        const reason = val === 'TB' ? (tbAlasan[key] || '-') : (val === 'TS' ? 'Perlu tindakan perbaikan' : 'Memenuhi syarat');
+        const reason = val === 'TS'
+          ? (tsAlasan[key] || 'Belum ada alasan yang dicatat')
+          : val === 'TB'
+            ? (tbAlasan[key] || '-')
+            : '-';
 
         return `<tr>
           <td class="text-center">${idx + 1}</td>
@@ -415,12 +455,7 @@ export function exportVerificationPdf(data) {
       <td class="info-val">${formatTanggalIndo(sertifikatData.berlaku_sampai)}</td>
       <td class="info-label">Penerapan Nilai Koreksi</td>
       <td class="info-sep">:</td>
-      <td class="info-val">${sertifikatData.penerapan_nilai_koreksi || 'TB Tidak berlaku'}</td>
-    </tr>
-    <tr>
-      <td class="info-label">Peninjauan Sebelumnya</td>
-      <td class="info-sep">:</td>
-      <td class="info-val" colspan="4">${officialNotes.peninjauan_hasil_sebelumnya || 'Alat belum digunakan sejak aktivitas verifikasi'}</td>
+      <td class="info-val">${sertifikatData.penerapan_nilai_koreksi || '-'}</td>
     </tr>
     ${officialNotes.catatan_pic ? `
     <tr>
@@ -434,9 +469,9 @@ export function exportVerificationPdf(data) {
   <div class="section-title">D. Keputusan Kelayakan & Tindak Lanjut</div>
   <div class="status-box">
     <div>
-      <span class="status-text">KEPUTUSAN: LAYAK DIGUNAKAN (DISETUJUI)</span>
+      <span class="status-text">KETERANGAN: ${keteranganAlat}</span>
       <div style="font-size: 8.5pt; color: #166534; margin-top: 2px;">
-        Peralatan memenuhi seluruh kriteria keberterimaan dan diizinkan masuk layanan laboratorium aktif.
+        Status proses mengikuti data peralatan dan keputusan verifikasi yang tersimpan.
       </div>
     </div>
     <div style="font-size: 9pt; font-weight: 600; color: #166534; text-align: right;">
@@ -478,6 +513,13 @@ export function exportVerificationPdf(data) {
 </body>
 </html>`;
 
+  return html;
+}
+
+export function exportVerificationPdf(data) {
+  const html = buildVerificationHtml(data);
+  if (!html) return;
+
   // Buka jendela cetak terisolasi untuk PDF
   const printWindow = window.open('', '_blank', 'width=900,height=800');
   if (!printWindow) {
@@ -494,4 +536,19 @@ export function exportVerificationPdf(data) {
   setTimeout(() => {
     printWindow.print();
   }, 400);
+}
+
+export function exportVerificationWord(data) {
+  const html = buildVerificationHtml(data);
+  if (!html) return;
+
+  const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Verifikasi_${data.peralatan?.nomor_aset || 'Peralatan'}_TLKM13-F-003.doc`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }

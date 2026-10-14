@@ -5,6 +5,8 @@ import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useConfirm } from '../../context/ConfirmContext.jsx';
 import Pagination, { usePagination } from '../../components/ui/Pagination.jsx';
+import DataTable from '../../components/ui/DataTable.jsx';
+import TableFilters from '../../components/ui/TableFilters.jsx';
 
 const EMPTY_FORM = {
   nama_ruangan: '',
@@ -191,42 +193,40 @@ export default function RuanganManagement({ onNavigate }) {
       </div>
 
       {/* 2. Filter Bar */}
-      <div className="filter-toolbar">
-        <div className="search-bar filter-search-wrap">
-          <DoorOpen className="search-icon" size={16} />
-          <input
-            id="input-search-ruangan"
-            className="form-input"
-            type="text"
-            placeholder="Cari kode, nama ruangan, PIC..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <select
-          id="select-filter-lab"
-          className="form-select filter-select"
-          value={filterLab}
-          onChange={(e) => setFilterLab(e.target.value)}
-        >
-          <option value="">Semua Laboratorium</option>
-          {labs.map((l) => (
-            <option key={l.id} value={String(l.id)}>
-              {l.nama_labs} ({l.kode_labs})
-            </option>
-          ))}
-        </select>
-
-        <button
-          className="btn btn-secondary btn-icon"
-          onClick={loadData}
-          id="btn-refresh-ruangan"
-          title="Segarkan data ruangan"
-        >
-          <RefreshCw size={16} />
-        </button>
-      </div>
+      <TableFilters
+        fields={[
+          {
+            type: 'search',
+            id: 'input-search-ruangan',
+            label: 'Cari ruangan',
+            placeholder: 'Kode, nama ruangan, atau PIC',
+            value: search,
+            onChange: (event) => setSearch(event.target.value),
+          },
+          {
+            type: 'select',
+            id: 'select-filter-lab',
+            label: 'Laboratorium',
+            placeholder: 'Semua Laboratorium',
+            value: filterLab,
+            onChange: (event) => setFilterLab(event.target.value),
+            options: labs.map((lab) => ({
+              value: String(lab.id),
+              label: `${lab.nama_labs} (${lab.kode_labs})`,
+            })),
+          },
+        ]}
+        actions={
+          <button
+            className="btn btn-secondary btn-icon"
+            onClick={loadData}
+            id="btn-refresh-ruangan"
+            title="Segarkan data ruangan"
+          >
+            <RefreshCw size={16} />
+          </button>
+        }
+      />
 
       {/* 3. Table Content Card */}
       {loading ? (
@@ -249,111 +249,46 @@ export default function RuanganManagement({ onNavigate }) {
         </div>
       ) : (
         <div className="table-card">
-          <div className="table-wrapper table-borderless">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 48 }}>#</th>
-                  <th style={{ width: 130 }}>Kode Ruangan</th>
-                  <th>Nama Ruangan</th>
-                  <th>Laboratorium</th>
-                  <th>Lantai</th>
-                  <th>PIC Ruangan</th>
-                  <th style={{ width: 100 }}>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageItems.map((r, i) => {
-                  const labObj = r.labs || labs.find((l) => l.id === r.labs_id);
-                  const picObj = r.pic_user || users.find((u) => u.user_id === r.pic_user_id);
-
-                  return (
-                    <tr key={r.id}>
-                      <td style={{ color: 'var(--clr-dark-400)' }}>{pagination.startIndex + i + 1}</td>
-                      <td>
-                        <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>
-                          {r.kode_ruangan}
-                        </code>
-                      </td>
-                      <td style={{ fontWeight: 'var(--fw-semibold)' }}>{r.nama_ruangan}</td>
-                      <td>
-                        {labObj ? (
-                          <span className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <Building2 size={12} />
-                            {labObj.nama_labs}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)' }}>
-                            -
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          <Layers size={12} />
-                          {r.lantai_ruangan}
-                        </span>
-                      </td>
-                      <td>
-                        {picObj ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-                            <div
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: '50%',
-                                background: 'var(--clr-primary-100)',
-                                color: 'var(--clr-primary-700)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 10,
-                                fontWeight: 700,
-                              }}
-                            >
-                              {picObj.name ? picObj.name[0].toUpperCase() : 'U'}
-                            </div>
-                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>
-                              {picObj.name}
-                            </span>
-                          </div>
-                        ) : (
-                          <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)', fontStyle: 'italic' }}>
-                            Belum ada PIC
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="table-action-btns">
-                          {canEdit && (
-                            <button
-                              className="btn-action-icon"
-                              onClick={() => openEdit(r)}
-                              id={`btn-edit-ruangan-${r.id}`}
-                              title="Edit Ruangan"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                          )}
-                          {canDelete && (
-                            <button
-                              className="btn-action-icon btn-action-delete"
-                              onClick={() => handleDelete(r.id)}
-                              disabled={deleting === r.id}
-                              id={`btn-hapus-ruangan-${r.id}`}
-                              title="Hapus Ruangan"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            wrapperClassName="table-borderless"
+            rows={pageItems}
+            rowKey={(room) => room.id}
+            columns={[
+              { key: 'number', header: '#', headerStyle: { width: 48 }, render: (_, i) => pagination.startIndex + i + 1, cellStyle: { color: 'var(--clr-dark-400)' } },
+              { key: 'code', header: 'Kode Ruangan', headerStyle: { width: 130 }, render: (room) => <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>{room.kode_ruangan}</code> },
+              { key: 'name', header: 'Nama Ruangan', render: (room) => <span style={{ fontWeight: 'var(--fw-semibold)' }}>{room.nama_ruangan}</span> },
+              {
+                key: 'lab',
+                header: 'Laboratorium',
+                render: (room) => {
+                  const lab = room.labs || labs.find((item) => item.id === room.labs_id);
+                  return lab
+                    ? <span className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Building2 size={12} />{lab.nama_labs}</span>
+                    : <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)' }}>-</span>;
+                },
+              },
+              { key: 'floor', header: 'Lantai', render: (room) => <span style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Layers size={12} />{room.lantai_ruangan}</span> },
+              {
+                key: 'pic',
+                header: 'PIC Ruangan',
+                render: (room) => {
+                  const pic = room.pic_user || users.find((item) => item.user_id === room.pic_user_id);
+                  return pic
+                    ? <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}><div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--clr-primary-100)', color: 'var(--clr-primary-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>{pic.name ? pic.name[0].toUpperCase() : 'U'}</div><span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>{pic.name}</span></div>
+                    : <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)', fontStyle: 'italic' }}>Belum ada PIC</span>;
+                },
+              },
+              {
+                key: 'actions',
+                header: 'Aksi',
+                headerStyle: { width: 100 },
+                render: (room) => <div className="table-action-btns">
+                  {canEdit && <button className="btn-action-icon" onClick={() => openEdit(room)} id={`btn-edit-ruangan-${room.id}`} title="Edit Ruangan"><Pencil size={13} /></button>}
+                  {canDelete && <button className="btn-action-icon btn-action-delete" onClick={() => handleDelete(room.id)} disabled={deleting === room.id} id={`btn-hapus-ruangan-${room.id}`} title="Hapus Ruangan"><Trash2 size={13} /></button>}
+                </div>,
+              },
+            ]}
+          />
 
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">

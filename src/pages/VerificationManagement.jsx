@@ -5,12 +5,13 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FileCheck,
-  RefreshCw,
   Send,
   XCircle,
   AlertTriangle,
   Package,
   Eraser,
+  Eye,
+  FileText,
   Printer,
   X,
 } from "lucide-react";
@@ -23,7 +24,6 @@ import {
   peralatanApi,
   ruanganApi,
   getEquipmentId,
-  formatPhotoUrl,
 } from "../utils/api.js";
 import { useToast } from "../context/ToastContext.jsx";
 import {
@@ -33,9 +33,14 @@ import {
   ACCESS,
   ACTIONS,
 } from "../utils/permissions.js";
-import { useNavigate } from "../router/Router.jsx";
-import { exportVerificationPdf } from "../utils/verificationPdf.js";
+import { getSafeReturnPath, useNavigate } from "../router/Router.jsx";
+import {
+  exportVerificationPdf,
+  exportVerificationWord,
+} from "../utils/verificationPdf.js";
 import Pagination, { usePagination } from "../components/ui/Pagination.jsx";
+import DataTable from "../components/ui/DataTable.jsx";
+import TableFilters from "../components/ui/TableFilters.jsx";
 
 const CHECKS = [
   "identitas",
@@ -50,21 +55,21 @@ const CHECKS = [
 
 const CHECK_LABELS = {
   identitas: "Identitas Alat Ukur",
-  kelengkapan: "Kelengkapan Aksesoris",
+  kelengkapan: "Kelengkapan Aksesori dan Manual",
   firmware: "Versi Firmware / Peranti Lunak",
-  kondisi_fisik: "Kondisi Fisik / Visual",
-  segel: "Keutuhan Segel Kalibrasi",
-  fungsi_awal: "Pemeriksaan Fungsi Awal",
+  kondisi_fisik: "Kondisi Fisik",
+  segel: "Keutuhan Label Kalibrasi dan Void",
+  fungsi_awal: "Fungsi Kerja",
   metrologi: "Kesesuaian Spesifikasi Metrologi",
   sertifikat: "Validitas Sertifikat Kalibrasi",
 };
 
 const ACTIVITY_OPTIONS = [
-  ["A1", "A1 - Penerimaan alat baru"],
-  ["A2", "A2  Setelah kalibrasi"],
-  ["A3", "A3 Setelah dipinjam/dipindah/disewa"],
-  ["A4", "A4 Setelah pemeliharaan"],
-  ["A5", "A5 Pengecekan antara/Verifikasi fungsi"],
+  ["A1", "Penerimaan alat baru"],
+  ["A2", "Setelah kalibrasi"],
+  ["A3", "Setelah dipinjam/dipindah/disewa"],
+  ["A4", "Setelah pemeliharaan"],
+  ["A5", "Pengecekan antara/Verifikasi fungsi"],
 ];
 
 const ACTIVITY_REQUIREMENTS = {
@@ -90,18 +95,18 @@ const ACTIVITY_REQUIREMENTS = {
   },
   A3: {
     identitas: "W",
-    kelengkapan: "K",
+    kelengkapan: "-",
     firmware: "K",
     kondisi_fisik: "W",
     segel: "W",
-    fungsi_awal: "W",
+    fungsi_awal: "-",
     metrologi: "K",
     sertifikat: "-",
   },
   A4: {
     identitas: "W",
     kelengkapan: "-",
-    firmware: "K",
+    firmware: "W",
     kondisi_fisik: "W",
     segel: "W",
     fungsi_awal: "W",
@@ -111,7 +116,7 @@ const ACTIVITY_REQUIREMENTS = {
   A5: {
     identitas: "W",
     kelengkapan: "K",
-    firmware: "K",
+    firmware: "W",
     kondisi_fisik: "W",
     segel: "W",
     fungsi_awal: "W",
@@ -122,7 +127,6 @@ const ACTIVITY_REQUIREMENTS = {
 
 const FOLLOW_UP_OPTIONS = [
   "Dapat Digunakan - Perbarui Daftar Peralatan",
-  "Dapat Digunakan - data inisial pengecekan antara diambil",
   "Tidak Dapat Digunakan - Masuk Peralatan dalam Masa Peninjauan",
 ];
 
@@ -131,6 +135,40 @@ function isMetrologyApplicable(equipment) {
     .trim()
     .toUpperCase()
     .startsWith("KAL");
+}
+
+function getActivityLabel(code) {
+  return (
+    ACTIVITY_OPTIONS.find(([activityCode]) => activityCode === code)?.[1] ||
+    "Aktivitas peralatan"
+  );
+}
+
+function getEquipmentKeterangan(equipment) {
+  if (equipment?.status_verifikasi === "Ditolak") {
+    return "Perlu verifikasi ulang";
+  }
+  if (equipment?.status_verifikasi === "Diajukan") {
+    return "Menunggu persetujuan Manager";
+  }
+  if (equipment?.status_verifikasi !== "Disetujui") {
+    return "Menunggu verifikasi";
+  }
+
+  switch (equipment?.status_alat) {
+    case "Aktif":
+      return "Masuk inventaris";
+    case "Dalam Kalibrasi":
+      return "Sedang dikalibrasi";
+    case "Dipinjam":
+      return "Sedang dipinjam";
+    case "Rusak":
+      return "Dalam kondisi rusak";
+    case "Karantina":
+      return "Dalam karantina";
+    default:
+      return equipment?.status_alat || "Masuk inventaris";
+  }
 }
 
 function isEquipmentInUserLab(equipment, roomsById, userLabId) {
@@ -348,7 +386,7 @@ function DigitalSignaturePad({
           onPointerCancel={handlePointerUp}
           style={{
             width: "100%",
-            height: 140,
+            height: 110,
             display: "block",
             cursor: "crosshair",
             touchAction: "none",
@@ -558,9 +596,9 @@ const emptyForm = () => ({
   nomor_sertifikat: "",
   penyedia_kalibrasi: "",
   berlaku_sampai: "",
-  nilai_koreksi: "TB Tidak berlaku",
-  peninjauan: "Alat belum digunakan sejak aktivitas",
+  nilai_koreksi: "T Tidak diterapkan",
   tb_alasan: {},
+  ts_alasan: {},
   hasil_verifikasi: Object.fromEntries(CHECKS.map((key) => [key, ""])),
 });
 
@@ -568,6 +606,7 @@ export default function VerificationManagement({
   equipmentId = null,
   onNavigate,
 }) {
+  const returnPath = getSafeReturnPath("/verifikasi");
   const routerNavigate = useNavigate();
   const navigate = onNavigate || routerNavigate;
   const { success, error } = useToast();
@@ -584,9 +623,15 @@ export default function VerificationManagement({
 
   const [activeTab, setActiveTab] = useState("pending"); // 'pending' | 'review' | 'history'
   const [items, setItems] = useState([]);
-  const [logs, setLogs] = useState([]);
   const [pendingEquipment, setPendingEquipment] = useState([]);
-  const [showLogs, setShowLogs] = useState(false);
+  const [pendingSearch, setPendingSearch] = useState("");
+  const [pendingCategoryFilter, setPendingCategoryFilter] = useState("");
+  const [pendingActivityFilter, setPendingActivityFilter] = useState("");
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewActivityFilter, setReviewActivityFilter] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyStatusFilter, setHistoryStatusFilter] = useState("");
+  const [historyActivityFilter, setHistoryActivityFilter] = useState("");
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(() => ({
     ...emptyForm(),
@@ -635,7 +680,7 @@ export default function VerificationManagement({
     }
   }
 
-  // Memuat daftar verifikasi, log peninjauan, & daftar peralatan karantina/pending
+  // Memuat daftar verifikasi dan peralatan yang menunggu verifikasi.
   async function loadList() {
     setBusy(true);
     try {
@@ -643,14 +688,11 @@ export default function VerificationManagement({
         throw new Error("Akun pengguna belum terhubung dengan lab.");
       }
 
-      const [verificationResult, logResult, equipmentResult, roomsResult] =
+      const [verificationResult, equipmentResult, roomsResult] =
         await Promise.allSettled([
           verifikasiApi.getAll(),
-          verifikasiApi.getLogPeninjauan(),
           peralatanApi.getAll(),
-          isLabScopedUser
-            ? ruanganApi.getAll()
-            : Promise.resolve({ data: [] }),
+          ruanganApi.getAll(),
         ]);
       if (isLabScopedUser && roomsResult.status !== "fulfilled") {
         throw (
@@ -697,23 +739,6 @@ export default function VerificationManagement({
             : allVerifications,
         );
       }
-      if (logResult.status === "fulfilled") {
-        const allLogs = logResult.value?.data || [];
-        setLogs(
-          isLabScopedUser
-            ? allLogs.filter((log) => {
-                const equipment =
-                  log.peralatan ||
-                  equipmentById.get(String(log.id_peralatan));
-                return isEquipmentInUserLab(
-                  equipment,
-                  roomsById,
-                  currentUserLabId,
-                );
-              })
-            : allLogs,
-        );
-      }
       if (equipmentResult.status === "fulfilled") {
         // Peralatan yang perlu verifikasi awal (belum disetujui, belum diajukan, dan belum dihapus)
         const pending = allEquipment.filter(
@@ -727,7 +752,21 @@ export default function VerificationManagement({
                 isEquipmentInUserLab(p, roomsById, currentUserLabId),
               )
             : pending;
-        setPendingEquipment(visiblePending);
+        setPendingEquipment(
+          visiblePending.map((equipment) => {
+            const room =
+              equipment.ruangan ||
+              roomsById.get(
+                String(equipment.ruangan_id ?? equipment.room_id ?? ""),
+              );
+            return {
+              ...equipment,
+              ruangan: room,
+              laboratorium:
+                equipment.laboratorium || room?.labs || equipment.laboratorium,
+            };
+          }),
+        );
       }
     } catch (err) {
       error(err.message || "Gagal memuat data verifikasi.");
@@ -797,7 +836,6 @@ export default function VerificationManagement({
             ) {
               setReviewLogs(logRes.value.data);
             }
-            const isRejected = found.status_verifikasi === "Ditolak";
             const detail = found.detail || {};
             const autoActivity = found.kode_aktivitas || "A1";
             const reqs = ACTIVITY_REQUIREMENTS[autoActivity] || {};
@@ -817,15 +855,10 @@ export default function VerificationManagement({
                 ...prev,
                 id_peralatan: String(equipmentId),
                 kode_aktivitas: autoActivity,
-                peninjauan: isRejected
-                  ? "Alat telah diperbaiki dan siap diverifikasi ulang"
-                  : prev.peninjauan,
                 nomor_sertifikat: detail.no_sertifikat || prev.nomor_sertifikat,
                 berlaku_sampai: detail.tgl_jatuh_tempo
                   ? detail.tgl_jatuh_tempo.slice(0, 10)
                   : prev.berlaku_sampai,
-                acuan_kriteria:
-                  prev.acuan_kriteria || `KK-${found.nomor_aset || "ALAT"}`,
                 hasil_verifikasi: nextResults,
               };
             });
@@ -871,24 +904,11 @@ export default function VerificationManagement({
           : form.hasil_verifikasi[key],
       ]),
     );
-    const tbReasons = {
-      ...form.tb_alasan,
-      ...Object.fromEntries(
-        CHECKS.filter(
-          (key) =>
-            applicableRequirements[key] === "K" &&
-            !form.hasil_verifikasi[key]?.trim(),
-        ).map((key) => [key, "Aspek opsional tidak diisi."]),
-      ),
-    };
     const applicableKeys = CHECKS.filter(
       (key) => applicableRequirements[key] !== "-",
     );
     const requiredKeys = CHECKS.filter(
       (key) => applicableRequirements[key] === "W",
-    );
-    const tbKeys = applicableKeys.filter(
-      (key) => verificationResults[key] === "TB",
     );
     const missingKeys = requiredKeys.filter(
       (key) => !verificationResults[key],
@@ -908,9 +928,15 @@ export default function VerificationManagement({
       error("Hasil pemeriksaan hanya boleh S, TS, atau TB.");
       return;
     }
-    if (tbKeys.some((key) => !tbReasons[key]?.trim())) {
+    const tsKeys = applicableKeys.filter(
+      (key) => verificationResults[key] === "TS",
+    );
+    if (tsKeys.some((key) => !form.ts_alasan[key]?.trim())) {
       error(
-        "Setiap hasil TB (Tidak Berlaku) wajib disertai alasan penjelasan.",
+        `Alasan wajib diisi untuk hasil Tidak Sesuai: ${tsKeys
+          .filter((key) => !form.ts_alasan[key]?.trim())
+          .map((key) => CHECK_LABELS[key])
+          .join(", ")}.`,
       );
       return;
     }
@@ -938,7 +964,8 @@ export default function VerificationManagement({
           penerapan_nilai_koreksi: form.nilai_koreksi,
         },
 
-        alasan_tb: tbReasons,
+        alasan_tb: form.tb_alasan,
+        alasan_ts: form.ts_alasan,
       });
 
       // 1. Buat verifikasi
@@ -956,7 +983,7 @@ export default function VerificationManagement({
                 : verificationResults[key],
             ]),
           ),
-          catatan: JSON.stringify({ alasan_tb: tbReasons }),
+          catatan: JSON.stringify({ alasan_tb: form.tb_alasan }),
         },
       });
 
@@ -971,7 +998,7 @@ export default function VerificationManagement({
       );
 
       if (equipmentId) {
-        navigate("/verifikasi");
+        navigate(returnPath);
       } else {
         setForm(emptyForm());
         setPicSignature(getSavedSignature(currentUser));
@@ -1040,6 +1067,10 @@ export default function VerificationManagement({
       error("Alasan penolakan / evaluasi ketidaksesuaian wajib diisi.");
       return;
     }
+    if (!rejectCatatan.trim()) {
+      error("Keterangan alasan penolakan wajib diisi.");
+      return;
+    }
 
     setBusy(true);
     try {
@@ -1062,18 +1093,77 @@ export default function VerificationManagement({
   }
 
   const id = (item) => item.id_verifikasi ?? item.id;
+  const pendingItems = pendingEquipment.filter((item) => {
+    const query = pendingSearch.trim().toLocaleLowerCase("id-ID");
+    const searchable = [
+      item.nama_peralatan,
+      item.nomor_aset,
+      item.merek,
+      item.tipe_model,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase("id-ID");
+    const category = item.kategori_peralatan?.nama_kategori || "Kategori Umum";
+    return (
+      (!query || searchable.includes(query)) &&
+      (!pendingCategoryFilter || category === pendingCategoryFilter) &&
+      (!pendingActivityFilter ||
+        String(item.kode_aktivitas || "").toUpperCase() === pendingActivityFilter)
+    );
+  });
   const reviewItems = items.filter((item) => item.status === "Diajukan");
-  const historyItems = items.filter(
+  const filteredReviewItems = reviewItems.filter((item) => {
+    const query = reviewSearch.trim().toLocaleLowerCase("id-ID");
+    const searchable = [
+      item.peralatan?.nama_peralatan,
+      item.peralatan?.nomor_aset,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase("id-ID");
+    return (
+      (!query || searchable.includes(query)) &&
+      (!reviewActivityFilter ||
+        String(item.kode_aktivitas || "").toUpperCase() === reviewActivityFilter)
+    );
+  });
+  const pendingCategories = [
+    ...new Set(
+      pendingEquipment.map(
+        (item) => item.kategori_peralatan?.nama_kategori || "Kategori Umum",
+      ),
+    ),
+  ].sort((first, second) => first.localeCompare(second, "id-ID"));
+  const completedItems = items.filter(
     (item) => item.status === "Disetujui" || item.status === "Ditolak",
   );
-  const pendingPagination = usePagination(pendingEquipment.length);
-  const reviewPagination = usePagination(reviewItems.length);
+  const historyItems = completedItems.filter((item) => {
+    const query = historySearch.trim().toLocaleLowerCase("id-ID");
+    const equipmentName = item.peralatan?.nama_peralatan || "";
+    const assetNumber = item.peralatan?.nomor_aset || "";
+    const searchable = `${equipmentName} ${assetNumber}`.toLocaleLowerCase("id-ID");
+    return (
+      (!query || searchable.includes(query)) &&
+      (!historyStatusFilter || item.status === historyStatusFilter) &&
+      (!historyActivityFilter ||
+        String(item.kode_aktivitas || "").toUpperCase() === historyActivityFilter)
+    );
+  });
+  const pendingPagination = usePagination(
+    pendingItems.length,
+    `${pendingSearch}\u0000${pendingCategoryFilter}\u0000${pendingActivityFilter}`,
+  );
+  const reviewPagination = usePagination(
+    filteredReviewItems.length,
+    `${reviewSearch}\u0000${reviewActivityFilter}`,
+  );
   const historyPagination = usePagination(historyItems.length);
-  const pendingPageItems = pendingEquipment.slice(
+  const pendingPageItems = pendingItems.slice(
     pendingPagination.startIndex,
     pendingPagination.endIndex,
   );
-  const reviewPageItems = reviewItems.slice(
+  const reviewPageItems = filteredReviewItems.slice(
     reviewPagination.startIndex,
     reviewPagination.endIndex,
   );
@@ -1089,6 +1179,235 @@ export default function VerificationManagement({
       return null;
     }
   };
+  const pendingColumns = [
+    {
+      key: "number",
+      header: "No.",
+      headerStyle: { width: 40 },
+      cellStyle: { color: "var(--clr-dark-400)", width: 40 },
+      render: (_, index) => pendingPagination.startIndex + index + 1,
+    },
+    {
+      key: "asset",
+      header: "No. Aset",
+      render: (item) => (
+        <code
+          style={{
+            fontSize: "var(--text-xs)",
+            background: "var(--clr-dark-100)",
+            padding: "2px 6px",
+            borderRadius: "var(--radius-sm)",
+          }}
+        >
+          {item.nomor_aset || "-"}
+        </code>
+      ),
+    },
+    {
+      key: "name",
+      header: "Nama Peralatan",
+      render: (item) => (
+        <>
+          <div style={{ fontWeight: "var(--fw-medium)", color: "var(--clr-dark-900)" }}>
+            {item.nama_peralatan}
+          </div>
+          {item.merek && (
+            <div style={{ fontSize: "var(--text-xs)", color: "var(--clr-dark-400)" }}>
+              {item.merek}{item.tipe_model ? ` — ${item.tipe_model}` : ""}
+            </div>
+          )}
+        </>
+      ),
+    },
+    {
+      key: "category-location",
+      header: "Kategori & Lokasi",
+      render: (item) => (
+        <div style={{ fontSize: "var(--text-xs)", color: "var(--clr-dark-700)" }}>
+          <div>{item.kategori_peralatan?.nama_kategori || "Kategori Umum"}</div>
+          <div style={{ color: "var(--clr-dark-400)" }}>
+            {[
+              item.laboratorium?.nama_lab ||
+                item.laboratorium?.nama_labs ||
+                item.ruangan?.labs?.nama_labs ||
+                item.ruangan?.labs?.nama_lab,
+              item.ruangan?.nama_ruangan,
+            ].filter(Boolean).join(" · ") || "Lokasi belum tersedia"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "description",
+      header: "Keterangan",
+      render: (item) => (
+        <>
+          {getActivityLabel(item.kode_aktivitas)}
+          {item.status_verifikasi === "Ditolak" && (
+            <small style={{ display: "block", marginTop: 4, color: "var(--clr-danger-600, #b91c1c)" }}>
+              Perlu verifikasi ulang
+            </small>
+          )}
+        </>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Aksi",
+      cellProps: () => ({ onClick: (event) => event.stopPropagation() }),
+      render: (item) => (
+        (staffIsPengelola || role === "admin") && (
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() =>
+              navigate(
+                `/verifikasi/${getEquipmentId(item)}?returnTo=${encodeURIComponent("/verifikasi")}`,
+              )
+            }
+            title="Mulai pengisian tahapan verifikasi alat"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <ClipboardCheck size={14} />
+            {item.status_verifikasi === "Ditolak" ? "Verifikasi Ulang" : "Mulai Verifikasi"}
+          </button>
+        )
+      ),
+    },
+  ];
+  const reviewColumns = [
+    {
+      key: "number",
+      header: "#",
+      headerStyle: { width: 40 },
+      cellStyle: { color: "var(--clr-dark-400)", width: 40 },
+      render: (_, index) => reviewPagination.startIndex + index + 1,
+    },
+    {
+      key: "asset",
+      header: "No. Aset",
+      render: (item) => (
+        <code className="verification-asset-number">{item.peralatan?.nomor_aset || "-"}</code>
+      ),
+    },
+    {
+      key: "equipment",
+      header: "Peralatan",
+      render: (item) => (
+        <div style={{ fontWeight: "var(--fw-medium)" }}>
+          {item.peralatan?.nama_peralatan || `Peralatan ID ${item.id_peralatan}`}
+        </div>
+      ),
+    },
+    {
+      key: "submitted-at",
+      header: "Tanggal Pengajuan",
+      render: (item) =>
+        item.tanggal_verifikasi
+          ? new Date(item.tanggal_verifikasi).toLocaleDateString("id-ID")
+          : "-",
+    },
+    {
+      key: "description",
+      header: "Keterangan",
+      render: (item) => getActivityLabel(item.kode_aktivitas),
+    },
+    {
+      key: "actions",
+      header: "Aksi",
+      render: (item) =>
+        canApprove ? (
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => {
+              setManagerSignature(getSavedSignature(currentUser));
+              setApprovalMode("approve");
+              setRejectReason("");
+              setRejectCatatan("");
+              setAffirmApproved(false);
+              setSelected(item);
+            }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+          >
+            <ClipboardCheck size={13} /> Tinjau Pengajuan
+          </button>
+        ) : (
+          <button className="btn btn-secondary btn-sm" onClick={() => setSelected(item)}>
+            Lihat Pengajuan
+          </button>
+        ),
+    },
+  ];
+  const historyColumns = [
+    {
+      key: "number",
+      header: "No",
+      headerStyle: { width: 40 },
+      cellStyle: { color: "var(--clr-dark-400)", width: 40 },
+      render: (_, index) => historyPagination.startIndex + index + 1,
+    },
+    {
+      key: "asset",
+      header: "No. Aset",
+      render: (item) => <code className="verification-asset-number">{item.peralatan?.nomor_aset || "-"}</code>,
+    },
+    {
+      key: "equipment",
+      header: "Peralatan",
+      render: (item) => (
+        <div style={{ fontWeight: "var(--fw-medium)" }}>
+          {item.peralatan?.nama_peralatan || `Peralatan ID ${item.id_peralatan}`}
+        </div>
+      ),
+    },
+    {
+      key: "verified-at",
+      header: "Tanggal Verifikasi",
+      render: (item) =>
+        item.tanggal_verifikasi
+          ? new Date(item.tanggal_verifikasi).toLocaleDateString("id-ID")
+          : "-",
+    },
+    {
+      key: "description",
+      header: "Keterangan",
+      render: (item) => getActivityLabel(item.kode_aktivitas),
+    },
+    {
+      key: "actions",
+      header: "Aksi",
+      render: (item) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "nowrap" }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setSelected(item)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
+          >
+            <Eye size={14} /> Lihat
+          </button>
+          {item.status === "Disetujui" && (canApprove || staffIsPengelola) && (
+            <>
+              <button
+                className="btn btn-ghost btn-sm verification-export-action"
+                onClick={() => exportVerificationPdf(item)}
+                title="Export PDF (TLKM13/F/003)"
+                style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+              >
+                <Printer size={14} /> PDF
+              </button>
+              <button
+                className="btn btn-ghost btn-sm verification-export-action"
+                onClick={() => exportVerificationWord(item)}
+                title="Ekspor Word"
+                style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
+              >
+                <FileText size={14} /> Word
+              </button>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   // =========================================================================
   // VIEW 1: Form Verifikasi Langsung (Jika ada equipmentId)
@@ -1108,7 +1427,7 @@ export default function VerificationManagement({
             <button
               className="btn btn-secondary"
               type="button"
-              onClick={() => navigate("/verifikasi")}
+              onClick={() => navigate(returnPath)}
             >
               <ArrowLeft size={16} /> Kembali ke Verifikasi
             </button>
@@ -1118,8 +1437,7 @@ export default function VerificationManagement({
     }
 
     const isRejected = equipmentInfo?.status_verifikasi === "Ditolak";
-    const hasTS = Object.values(form.hasil_verifikasi).includes("TS");
-
+    const activityCode = equipmentInfo?.kode_aktivitas || "A1";
     const equipmentInfoMatchesRoute =
       String(getEquipmentId(equipmentInfo)) === String(equipmentId);
     if (isLabScopedUser && loadingEquipment) {
@@ -1147,7 +1465,7 @@ export default function VerificationManagement({
             <button
               className="btn btn-secondary"
               type="button"
-              onClick={() => navigate("/verifikasi")}
+              onClick={() => navigate(returnPath)}
             >
               <ArrowLeft size={16} /> Kembali ke Verifikasi
             </button>
@@ -1179,31 +1497,31 @@ export default function VerificationManagement({
             <button
               type="button"
               className="btn btn-ghost btn-icon"
-              onClick={() => navigate(`/peralatan/detail/${equipmentId}`)}
-              title="Kembali ke Detail Peralatan"
+              onClick={() => navigate(returnPath)}
+              title={
+                returnPath === "/verifikasi"
+                  ? "Kembali ke Verifikasi"
+                  : "Kembali ke Peralatan"
+              }
             >
               <ArrowLeft size={20} />
             </button>
             <div>
               <h1 className="page-title">
-                {isRejected
-                  ? "Verifikasi Ulang Peralatan"
-                  : "Form Verifikasi Alat Ukur"}
+                {role === "manager"
+              ? "Tinjau Verifikasi Alat Ukur"
+              : isRejected
+                ? "Verifikasi Ulang Peralatan"
+                : "Verifikasi Alat Ukur"}
               </h1>
-              <p className="page-subtitle">
-                Prosedur TLKM13/F/003 — Verifikasi kelayakan fungsi dan
-                metrologi sebelum masuk layanan.
-              </p>
+              {/* <p className="page-subtitle">
+                Form TLKM13/F/003 untuk mencatat pemeriksaan peralatan. Isi
+                hasil sesuai acuan IK/TP/Manual Book, lalu kirim untuk tahap
+                berikutnya.
+              </p> */}
             </div>
           </div>
 
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => navigate(`/peralatan/detail/${equipmentId}`)}
-          >
-            ← Kembali ke Detail
-          </button>
         </div>
 
         {/* Informasi Peralatan */}
@@ -1229,7 +1547,7 @@ export default function VerificationManagement({
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: "flex-start",
                 justifyContent: "space-between",
                 flexWrap: "wrap",
                 gap: "var(--sp-3)",
@@ -1298,16 +1616,20 @@ export default function VerificationManagement({
                 <span
                   className={`badge ${equipmentInfo.status_verifikasi === "Disetujui" ? "badge-aktif" : isRejected ? "badge-rusak" : "badge-gray"}`}
                 >
-                  Status:{" "}
-                  {equipmentInfo.status_verifikasi ||
-                    "Karantina (Belum Diverifikasi)"}
+                  Verifikasi:{" "}
+                  {equipmentInfo.status_verifikasi || "Belum Diverifikasi"}
                 </span>
-                {equipmentInfo.kode_aktivitas && (
-                  <span className="badge badge-gray">
-                    Aktivitas: {equipmentInfo.kode_aktivitas}
-                  </span>
-                )}
               </div>
+            </div>
+            <div
+              style={{
+                marginTop: "var(--sp-2)",
+                fontSize: "var(--text-xs)",
+                color: "var(--clr-dark-600)",
+              }}
+            >
+              <strong>Keterangan:</strong>{" "}
+              {activityCode} — {getActivityLabel(activityCode)}
             </div>
 
             {/* Riwayat Peninjauan jika berstatus Ditolak */}
@@ -1336,9 +1658,16 @@ export default function VerificationManagement({
                   (TLKM13/IK/012):
                 </div>
                 <div style={{ fontSize: "var(--text-sm)", color: "#7f1d1d" }}>
-                  {reviewLogs[0]?.alasan ||
-                    reviewLogs[0]?.catatan ||
-                    "Peralatan memerlukan perbaikan sebelum verifikasi ulang."}
+                  <div>
+                    <strong>Alasan:</strong>{" "}
+                    {reviewLogs[0]?.alasan ||
+                      "Peralatan memerlukan perbaikan sebelum verifikasi ulang."}
+                  </div>
+                  {reviewLogs[0]?.catatan && (
+                    <div style={{ marginTop: 4 }}>
+                      <strong>Keterangan:</strong> {reviewLogs[0].catatan}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1346,7 +1675,7 @@ export default function VerificationManagement({
         ) : null}
 
         {/* Form Pengisian Verifikasi */}
-        <form className="card card-padded" onSubmit={submitVerifikasi}>
+        <form className="card card-padded verification-form" onSubmit={submitVerifikasi}>
           {/* A. Identitas Alat Ukur dan Kegiatan */}
           <div style={{ marginBottom: "var(--sp-6)" }}>
             <h3
@@ -1367,7 +1696,7 @@ export default function VerificationManagement({
             </h3>
             <div className="form-grid-2">
               <div className="form-group">
-                <label className="form-label">ID / Nomor Aset Peralatan</label>
+                <label className="form-label">Nomor Aset</label>
                 <input
                   className="form-input"
                   type="text"
@@ -1376,6 +1705,17 @@ export default function VerificationManagement({
                       ? `${equipmentInfo.nomor_aset}`
                       : `ID: ${form.id_peralatan}`
                   }
+                  readOnly
+                  disabled
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Nama Peralatan</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={equipmentInfo?.nama_peralatan || "-"}
                   readOnly
                   disabled
                 />
@@ -1396,18 +1736,17 @@ export default function VerificationManagement({
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Kode Aktivitas</label>
+              {role === "manager" && <div className="form-group">
+                <label className="form-label">
+                  Kode Aktivitas
+                </label>
                 <input
                   className="form-input"
                   type="text"
                   value={
-                    ACTIVITY_OPTIONS.find(
-                      ([code]) => code === form.kode_aktivitas,
-                    )?.[1] ||
-                    (form.kode_aktivitas
-                      ? `${form.kode_aktivitas} - Aktivitas Peralatan`
-                      : "A1 - Penerimaan alat baru")
+                    role === "manager"
+                      ? form.kode_aktivitas
+                      : getActivityLabel(form.kode_aktivitas)
                   }
                   readOnly
                   disabled
@@ -1422,22 +1761,33 @@ export default function VerificationManagement({
                 >
                   Ditentukan otomatis oleh sistem berdasarkan status peralatan.
                 </small>
-              </div>
+              </div>}
 
               <div className="form-group">
                 <label className="form-label">
-                  Acuan Kriteria Keberterimaan{" "}
+                  Acuan Instruksi Kerja / Test Prosedur / Manual Book{" "}
                   <span style={{ color: "red" }}>*</span>
                 </label>
                 <input
                   className="form-input"
-                  placeholder="Contoh: KK-OTDR-01 / Manual Book"
+                  placeholder="Isi nomor dokumen acuan (contoh: TLKM/IK/LAB/XXX)"
                   value={form.acuan_kriteria}
                   onChange={(e) =>
                     setForm({ ...form, acuan_kriteria: e.target.value })
                   }
                   required
                 />
+                <small
+                  style={{
+                    display: "block",
+                    marginTop: 4,
+                    color: "var(--clr-dark-500)",
+                    fontSize: "var(--text-xs)",
+                  }}
+                >
+                  Gunakan nomor Instruksi Kerja, Test Prosedur, atau Manual
+                  Book sesuai format dokumen laboratorium.
+                </small>
               </div>
             </div>
           </div>
@@ -1458,9 +1808,6 @@ export default function VerificationManagement({
                 className="page-subtitle"
                 style={{ fontSize: "var(--text-xs)", marginTop: 2 }}
               >
-                Kriteria: <strong>S</strong> = Sesuai, <strong>TS</strong> =
-                Tidak Sesuai, <strong>TB</strong> = Tidak Berlaku (wajib isi
-                alasan).
               </p>
             </div>
 
@@ -1506,7 +1853,7 @@ export default function VerificationManagement({
                             fontWeight: "var(--fw-medium)",
                           }}
                         >
-                          {requirement === "W" ? "(Wajib)" : "(Opsional)"}
+                          {requirement === "W" ? "(Wajib)" : "(Kondisional)"}
                         </span>
                       </label>
                       <select
@@ -1523,29 +1870,65 @@ export default function VerificationManagement({
                         }
                       >
                         <option value="">Pilih hasil verifikasi</option>
-                        <option value="S">S — Sesuai</option>
-                        <option value="TS">TS — Tidak Sesuai</option>
-                        <option value="TB">TB — Tidak Berlaku</option>
+                        {key === "firmware" &&
+                        form.kode_aktivitas === "A3" ? (
+                          <>
+                            <option value="S">Ada</option>
+                            <option value="TS">Tidak Ada</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="S">Sesuai</option>
+                            <option value="TS">Tidak Sesuai</option>
+                          </>
+                        )}
+                        {!(key === "firmware" && form.kode_aktivitas === "A3") && (
+                          <option value="TB">Tidak Berlaku</option>
+                        )}
                       </select>
 
-                      {isTB && (
-                        <input
-                          className="form-input"
-                          style={{ marginTop: 6, fontSize: "var(--text-xs)" }}
-                          placeholder="Alasan Tidak Berlaku (wajib diisi)..."
-                          value={form.tb_alasan[key] || ""}
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              tb_alasan: {
-                                ...form.tb_alasan,
-                                [key]: e.target.value,
-                              },
-                            })
-                          }
-                          required={requirement === "W"}
-                        />
+                      {key === "firmware" && (
+                        <small
+                          style={{
+                            display: "block",
+                            marginTop: 6,
+                            color: "var(--clr-dark-500)",
+                            fontSize: "var(--text-xs)",
+                          }}
+                        >
+                          Versi tercatat pada data peralatan:{" "}
+                          {equipmentInfo?.peranti_lunak_versi || "Belum dicatat"}
+                        </small>
                       )}
+
+                      {isTS && (
+                        <div style={{ marginTop: 6 }}>
+                          <label
+                            className="form-label"
+                            style={{ fontSize: "var(--text-xs)" }}
+                          >
+                            Keterangan / alasan Tidak Sesuai{" "}
+                            <span style={{ color: "red" }}>*</span>
+                          </label>
+                          <textarea
+                            className="form-textarea"
+                            rows={2}
+                            placeholder="Jelaskan alasan hasil Tidak Sesuai..."
+                            value={form.ts_alasan[key] || ""}
+                            onChange={(event) =>
+                              setForm({
+                                ...form,
+                                ts_alasan: {
+                                  ...form.ts_alasan,
+                                  [key]: event.target.value,
+                                },
+                              })
+                            }
+                            required
+                          />
+                        </div>
+                      )}
+
                     </div>
                   );
                 })}
@@ -1620,9 +2003,8 @@ export default function VerificationManagement({
                     setForm({ ...form, nilai_koreksi: e.target.value })
                   }
                 >
-                  <option value="Y Diterapkan">Y Diterapkan</option>
-                  <option value="T Tidak diterapkan">T Tidak diterapkan</option>
-                  <option value="TB Tidak berlaku">TB Tidak berlaku</option>
+                  <option value="Y Diterapkan">Y - Diterapkan</option>
+                  <option value="T Tidak diterapkan">T - Tidak Diterapkan</option>
                 </select>
               </div>
             </div>
@@ -1639,27 +2021,6 @@ export default function VerificationManagement({
             >
               D. Keputusan dan Tindak Lanjut
             </h3>
-            <p
-              className="page-subtitle"
-              style={{
-                fontSize: "var(--text-xs)",
-                marginBottom: "var(--sp-3)",
-              }}
-            >
-              Status kelayakan:{" "}
-              {hasTS ? (
-                <span style={{ color: "#b91c1c", fontWeight: "bold" }}>
-                  Tidak Layak Digunakan (Terdapat aspek TS — Karantina
-                  berlanjut)
-                </span>
-              ) : (
-                <span style={{ color: "#15803d", fontWeight: "bold" }}>
-                  Direkomendasikan Layak Digunakan (Menunggu Persetujuan Manager
-                  Lab)
-                </span>
-              )}
-            </p>
-
             <div className="form-group">
               <label className="form-label">
                 Rencana Tindak Lanjut <span style={{ color: "red" }}>*</span>
@@ -1693,19 +2054,18 @@ export default function VerificationManagement({
             </div>
 
             <div className="form-group" style={{ marginTop: "var(--sp-3)" }}>
-              <label className="form-label">
-                Tanda Tangan Pengelola <span style={{ color: "red" }}>*</span>
-              </label>
-              <DigitalSignaturePad
-                value={picSignature}
-                onChange={(signature) =>
-                  handleSignatureChange(setPicSignature, signature)
-                }
-                label="Tanda Tangan Digital Pengelola"
-                savedSignature={savedSignature}
-                onRestore={() => setPicSignature(savedSignature)}
-                onForgetSaved={forgetSavedSignature}
-              />
+              <div style={{ maxWidth: 520 }}>
+                <DigitalSignaturePad
+                  value={picSignature}
+                  onChange={(signature) =>
+                    handleSignatureChange(setPicSignature, signature)
+                  }
+                  label="Tanda Tangan Pengelola"
+                  savedSignature={savedSignature}
+                  onRestore={() => setPicSignature(savedSignature)}
+                  onForgetSaved={forgetSavedSignature}
+                />
+              </div>
             </div>
           </div>
 
@@ -1722,7 +2082,7 @@ export default function VerificationManagement({
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={() => navigate(`/peralatan/detail/${equipmentId}`)}
+              onClick={() => navigate(returnPath)}
             >
               Batal
             </button>
@@ -1734,7 +2094,11 @@ export default function VerificationManagement({
               style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
             >
               <Send size={16} />
-              {busy ? "Mengajukan Verifikasi..." : "Ajukan Verifikasi"}
+              {busy
+                ? "Mengirim..."
+                : role === "manager"
+                  ? "Kirim Verifikasi"
+                  : "Ajukan Verifikasi"}
             </button>
           </div>
         </form>
@@ -1760,10 +2124,6 @@ export default function VerificationManagement({
       >
         <div>
           <h1 className="page-title">Verifikasi Peralatan</h1>
-          <p className="page-subtitle">
-            Alur verifikasi kelayakan peralatan (TLKM13/F/003) sebelum
-            diaktifkan ke dalam inventaris laboratorium.
-          </p>
         </div>
 
         <div
@@ -1774,7 +2134,7 @@ export default function VerificationManagement({
             flexWrap: "wrap",
           }}
         >
-          {canSubmit && (
+          {/* {canSubmit && (
             <button
               className="btn btn-primary btn-sm"
               onClick={() => navigate("/peralatan/tambah")}
@@ -1782,527 +2142,229 @@ export default function VerificationManagement({
             >
               + Tambah Peralatan
             </button>
-          )}
-          <button
-            className="btn btn-secondary btn-icon"
-            onClick={() => setShowLogs(!showLogs)}
-            title="Log Peninjauan (TLKM13/IK/012)"
-          >
-            <ClipboardCheck size={16} />
-          </button>
-          <button
-            className="btn btn-secondary btn-icon"
-            onClick={loadList}
-            disabled={busy}
-            title="Segarkan Data"
-          >
-            <RefreshCw size={16} />
-          </button>
+          )} */}
         </div>
       </div>
 
       {/* Tabs Alur Verifikasi */}
-      <div
-        className="card"
-        style={{
-          padding: 6,
-          display: "flex",
-          gap: 6,
-          width: "fit-content",
-          marginBottom: "var(--sp-5)",
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="tabs" style={{ flexWrap: "wrap" }}>
         <button
-          className={`btn btn-sm ${activeTab === "pending" ? "btn-primary" : "btn-ghost"}`}
+          className={`tab-btn ${activeTab === "pending" ? "active" : ""}`}
           onClick={() => setActiveTab("pending")}
         >
-          Menunggu Verifikasi Pengelola ({pendingEquipment.length})
+          Menunggu Verifikasi ({pendingItems.length})
         </button>
+        {(canApprove || role === "staff") && (
+          <button
+            className={`tab-btn ${activeTab === "review" ? "active" : ""}`}
+            onClick={() => setActiveTab("review")}
+          >
+            Menunggu Persetujuan Manager ({filteredReviewItems.length})
+          </button>
+        )}
         <button
-          className={`btn btn-sm ${activeTab === "review" ? "btn-primary" : "btn-ghost"}`}
-          onClick={() => setActiveTab("review")}
-        >
-          Menunggu Persetujuan Manager ({reviewItems.length})
-        </button>
-        <button
-          className={`btn btn-sm ${activeTab === "history" ? "btn-primary" : "btn-ghost"}`}
+          className={`tab-btn ${activeTab === "history" ? "active" : ""}`}
           onClick={() => setActiveTab("history")}
         >
           Riwayat Verifikasi ({historyItems.length})
         </button>
       </div>
 
-      {/* Log Peninjauan Ketidaksesuaian */}
-      {showLogs && (
-        <div
-          className="card"
-          style={{ marginBottom: "var(--sp-4)", padding: "var(--sp-4)" }}
-        >
-          <h2 style={{ marginTop: 0, fontSize: "var(--text-base)" }}>
-            Log Peninjauan Ketidaksesuaian (TLKM13/IK/012)
-          </h2>
-          {logs.length ? (
-            <ul style={{ margin: 0, paddingLeft: 20 }}>
-              {logs.map((log, index) => (
-                <li key={log.id_log || index} style={{ marginBottom: 4 }}>
-                  <strong>{log.status || "Ditolak"}</strong> —{" "}
-                  {log.alasan || log.catatan || "Tanpa catatan"}
-                  {log.created_at && (
-                    <span
-                      style={{
-                        fontSize: "var(--text-xs)",
-                        color: "var(--clr-dark-400)",
-                        marginLeft: 8,
-                      }}
-                    >
-                      ({new Date(log.created_at).toLocaleString("id-ID")})
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="empty-state-desc" style={{ margin: 0 }}>
-              Belum ada log peninjauan.
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Tabel Konten per Tab */}
-      <div className="card">
+      <div className="verification-table-content">
         {/* TAB 1: MENUNGGU VERIFIKASI (Alat Perlu Verifikasi) */}
         {activeTab === "pending" && (
-          <>
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Foto</th>
-                    <th>Nama Peralatan</th>
-                    <th>No. Aset</th>
-                    <th>Kategori & Lokasi</th>
-                    <th>Status</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingEquipment.length ? (
-                    pendingPageItems.map((p, idx) => {
-                      const eqId = getEquipmentId(p);
-                      const photoUrl = formatPhotoUrl(p.foto);
-                      const isRejected = p.status_verifikasi === "Ditolak";
-                      return (
-                        <tr key={eqId}>
-                          <td
-                            style={{ color: "var(--clr-dark-400)", width: 40 }}
-                          >
-                            {pendingPagination.startIndex + idx + 1}
-                          </td>
-                          <td style={{ width: 52 }}>
-                            {photoUrl ? (
-                              <img
-                                src={photoUrl}
-                                alt={p.nama_peralatan}
-                                style={{
-                                  width: 40,
-                                  height: 40,
-                                  objectFit: "cover",
-                                  borderRadius: "var(--radius-md)",
-                                  border: "1px solid var(--clr-dark-200)",
-                                }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  width: 40,
-                                  height: 40,
-                                  borderRadius: "var(--radius-md)",
-                                  background: "var(--clr-dark-100)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <Package
-                                  size={16}
-                                  style={{ color: "var(--clr-dark-400)" }}
-                                />
-                              </div>
-                            )}
-                          </td>
-                          <td>
-                            <div
-                              style={{
-                                fontWeight: "var(--fw-medium)",
-                                color: "var(--clr-dark-900)",
-                              }}
-                            >
-                              {p.nama_peralatan}
-                            </div>
-                            {p.merek && (
-                              <div
-                                style={{
-                                  fontSize: "var(--text-xs)",
-                                  color: "var(--clr-dark-400)",
-                                }}
-                              >
-                                {p.merek}
-                                {p.tipe_model ? ` — ${p.tipe_model}` : ""}
-                              </div>
-                            )}
-                          </td>
-                          <td>
-                            <code
-                              style={{
-                                fontSize: "var(--text-xs)",
-                                background: "var(--clr-dark-100)",
-                                padding: "2px 6px",
-                                borderRadius: "var(--radius-sm)",
-                              }}
-                            >
-                              {p.nomor_aset || "-"}
-                            </code>
-                          </td>
-                          <td>
-                            <div
-                              style={{
-                                fontSize: "var(--text-xs)",
-                                color: "var(--clr-dark-700)",
-                              }}
-                            >
-                              <div>
-                                {p.kategori_peralatan?.nama_kategori ||
-                                  "Kategori Umum"}
-                              </div>
-                              <div style={{ color: "var(--clr-dark-400)" }}>
-                                {p.ruangan?.nama_ruangan ||
-                                  p.laboratorium?.nama_lab ||
-                                  "-"}
-                              </div>
-                            </div>
-                          </td>
-                          <td>
-                            <span
-                              className={`badge ${isRejected ? "badge-rusak" : "badge-kalibrasi"}`}
-                            >
-                              <span className="badge-dot" />
-                              {isRejected
-                                ? "Perlu Verifikasi Ulang"
-                                : "Perlu Verifikasi"}
-                            </span>
-                          </td>
-                          <td>
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: 6,
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              {staffIsPengelola || role === "admin" ? (
-                                <button
-                                  className="btn btn-primary btn-sm"
-                                  onClick={() =>
-                                    navigate(`/verifikasi/${eqId}`)
-                                  }
-                                  title="Mulai pengisian tahapan verifikasi alat"
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 6,
-                                  }}
-                                >
-                                  <ClipboardCheck size={14} />
-                                  {isRejected
-                                    ? "Verifikasi Ulang"
-                                    : "Mulai Verifikasi"}
-                                </button>
-                              ) : null}
-                              <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={() =>
-                                  navigate(`/peralatan/detail/${eqId}`)
-                                }
-                                title="Lihat detail alat"
-                              >
-                                Detail Alat
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan="7"
-                        style={{
-                          textAlign: "center",
-                          padding: "var(--sp-6)",
-                          color: "var(--clr-dark-500)",
-                        }}
-                      >
-                        {busy
-                          ? "Memuat data peralatan..."
-                          : "Tidak ada peralatan yang menunggu verifikasi."}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              totalItems={pendingEquipment.length}
-              currentPage={pendingPagination.currentPage}
-              onPageChange={pendingPagination.setCurrentPage}
-              startIndex={pendingPagination.startIndex}
-              endIndex={pendingPagination.endIndex}
-              totalPages={pendingPagination.totalPages}
+          <div>
+            <TableFilters
+              fields={[
+                {
+                  type: "search",
+                  id: "pending-search",
+                  label: "Cari peralatan",
+                  placeholder: "Nama, nomor aset, atau merek",
+                  value: pendingSearch,
+                  onChange: (event) => setPendingSearch(event.target.value),
+                },
+                {
+                  type: "select",
+                  id: "pending-category",
+                  label: "Kategori",
+                  placeholder: "Semua kategori",
+                  value: pendingCategoryFilter,
+                  onChange: (event) => setPendingCategoryFilter(event.target.value),
+                  options: pendingCategories.map((category) => ({
+                    value: category,
+                    label: category,
+                  })),
+                },
+                {
+                  type: "select",
+                  id: "pending-activity",
+                  label: "Aktivitas",
+                  placeholder: "Semua aktivitas",
+                  value: pendingActivityFilter,
+                  onChange: (event) => setPendingActivityFilter(event.target.value),
+                  options: ACTIVITY_OPTIONS.map(([code]) => ({
+                    value: code,
+                    label: getActivityLabel(code),
+                  })),
+                },
+              ]}
             />
-          </>
+            <div className="table-card">
+              <DataTable
+                columns={pendingColumns}
+                rows={pendingPageItems}
+                rowKey={(item) => getEquipmentId(item)}
+                wrapperClassName="table-borderless"
+                rowProps={(item) => {
+                  const equipmentId = getEquipmentId(item);
+                  const detailPath = `/peralatan/detail/${equipmentId}?returnTo=${encodeURIComponent("/verifikasi")}`;
+                  return {
+                    className: "cursor-pointer",
+                    onClick: () => navigate(detailPath),
+                    onKeyDown: (event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        navigate(detailPath);
+                      }
+                    },
+                    tabIndex: 0,
+                    role: "link",
+                    "aria-label": `Lihat detail ${item.nama_peralatan}`,
+                  };
+                }}
+                emptyMessage={
+                  busy
+                    ? "Memuat data peralatan..."
+                    : "Tidak ada peralatan yang menunggu verifikasi."
+                }
+              />
+              <Pagination
+                totalItems={pendingItems.length}
+                currentPage={pendingPagination.currentPage}
+                onPageChange={pendingPagination.setCurrentPage}
+                startIndex={pendingPagination.startIndex}
+                endIndex={pendingPagination.endIndex}
+                totalPages={pendingPagination.totalPages}
+              />
+            </div>
+          </div>
         )}
 
         {/* TAB 2: PERSETUJUAN VERIFIKASI (Menunggu Persetujuan Manager) */}
         {activeTab === "review" && (
-          <>
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Peralatan</th>
-                    <th>Tanggal Pengajuan</th>
-                    <th>Kode Aktivitas</th>
-                    <th>Status</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reviewItems.length ? (
-                    reviewPageItems.map((item, index) => (
-                      <tr key={id(item)}>
-                        <td style={{ color: "var(--clr-dark-400)", width: 40 }}>
-                          {reviewPagination.startIndex + index + 1}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: "var(--fw-medium)" }}>
-                            {item.peralatan?.nama_peralatan ||
-                              `Peralatan ID ${item.id_peralatan}`}
-                          </div>
-                          {item.peralatan?.nomor_aset && (
-                            <code
-                              style={{
-                                fontSize: "var(--text-xs)",
-                                background: "var(--clr-dark-100)",
-                                padding: "2px 4px",
-                                borderRadius: 4,
-                              }}
-                            >
-                              {item.peralatan.nomor_aset}
-                            </code>
-                          )}
-                        </td>
-                        <td>
-                          {item.tanggal_verifikasi
-                            ? new Date(
-                                item.tanggal_verifikasi,
-                              ).toLocaleDateString("id-ID")
-                            : "-"}
-                        </td>
-                        <td>
-                          <span className="badge badge-gray">
-                            {item.kode_aktivitas || "-"}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="badge badge-kalibrasi">
-                            <span className="badge-dot" />
-                            {item.status || "Diajukan"}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => {
-                              setManagerSignature(
-                                getSavedSignature(currentUser),
-                              );
-                              setApprovalMode("approve");
-                              setRejectReason("");
-                              setRejectCatatan("");
-                              setAffirmApproved(false);
-                              setSelected(item);
-                            }}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 4,
-                            }}
-                          >
-                            <ClipboardCheck size={13} /> Tinjau
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan="6"
-                        style={{
-                          textAlign: "center",
-                          padding: "var(--sp-6)",
-                          color: "var(--clr-dark-500)",
-                        }}
-                      >
-                        {busy
-                          ? "Memuat data verifikasi..."
-                          : "Belum ada pengajuan verifikasi yang menunggu persetujuan Manager."}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              totalItems={reviewItems.length}
-              currentPage={reviewPagination.currentPage}
-              onPageChange={reviewPagination.setCurrentPage}
-              startIndex={reviewPagination.startIndex}
-              endIndex={reviewPagination.endIndex}
-              totalPages={reviewPagination.totalPages}
+          <div>
+            <TableFilters
+              fields={[
+                {
+                  type: "search",
+                  id: "review-search",
+                  label: "Cari peralatan",
+                  placeholder: "Nama peralatan atau nomor aset",
+                  value: reviewSearch,
+                  onChange: (event) => setReviewSearch(event.target.value),
+                },
+                {
+                  type: "select",
+                  id: "review-activity",
+                  label: "Aktivitas",
+                  placeholder: "Semua aktivitas",
+                  value: reviewActivityFilter,
+                  onChange: (event) => setReviewActivityFilter(event.target.value),
+                  options: ACTIVITY_OPTIONS.map(([code]) => ({
+                    value: code,
+                    label: getActivityLabel(code),
+                  })),
+                },
+              ]}
             />
-          </>
+            <div className="table-card">
+              <DataTable
+                columns={reviewColumns}
+                rows={reviewPageItems}
+                rowKey={(item) => id(item)}
+                wrapperClassName="table-borderless"
+                emptyMessage={
+                  busy
+                    ? "Memuat data verifikasi..."
+                    : "Belum ada pengajuan verifikasi yang menunggu persetujuan Manager."
+                }
+              />
+              <Pagination
+                totalItems={filteredReviewItems.length}
+                currentPage={reviewPagination.currentPage}
+                onPageChange={reviewPagination.setCurrentPage}
+                startIndex={reviewPagination.startIndex}
+                endIndex={reviewPagination.endIndex}
+                totalPages={reviewPagination.totalPages}
+              />
+            </div>
+          </div>
         )}
 
         {/* TAB 3: RIWAYAT VERIFIKASI (Disetujui / Ditolak) */}
         {activeTab === "history" && (
-          <>
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Peralatan</th>
-                    <th>Tanggal Verifikasi</th>
-                    <th>Kode Aktivitas</th>
-                    <th>Status Akhir</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historyItems.length ? (
-                    historyPageItems.map((item, index) => (
-                      <tr key={id(item)}>
-                        <td style={{ color: "var(--clr-dark-400)", width: 40 }}>
-                          {historyPagination.startIndex + index + 1}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: "var(--fw-medium)" }}>
-                            {item.peralatan?.nama_peralatan ||
-                              `Peralatan ID ${item.id_peralatan}`}
-                          </div>
-                          {item.peralatan?.nomor_aset && (
-                            <code
-                              style={{
-                                fontSize: "var(--text-xs)",
-                                background: "var(--clr-dark-100)",
-                                padding: "2px 4px",
-                                borderRadius: 4,
-                              }}
-                            >
-                              {item.peralatan.nomor_aset}
-                            </code>
-                          )}
-                        </td>
-                        <td>
-                          {item.tanggal_verifikasi
-                            ? new Date(
-                                item.tanggal_verifikasi,
-                              ).toLocaleDateString("id-ID")
-                            : "-"}
-                        </td>
-                        <td>
-                          <span className="badge badge-gray">
-                            {item.kode_aktivitas || "-"}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={`badge ${
-                              item.status === "Disetujui"
-                                ? "badge-aktif"
-                                : item.status === "Ditolak"
-                                  ? "badge-rusak"
-                                  : "badge-gray"
-                            }`}
-                          >
-                            {item.status || "-"}
-                          </span>
-                        </td>
-                        <td>
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 6,
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              onClick={() => setSelected(item)}
-                            >
-                              Tinjau
-                            </button>
-                            {item.status === "Disetujui" &&
-                              (canApprove || staffIsPengelola) && (
-                                <button
-                                  className="btn btn-ghost btn-sm"
-                                  onClick={() => exportVerificationPdf(item)}
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 4,
-                                  }}
-                                  title="Export PDF (TLKM13/F/003)"
-                                >
-                                  <Printer size={13} /> Export PDF
-                                </button>
-                              )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan="6"
-                        style={{
-                          textAlign: "center",
-                          padding: "var(--sp-6)",
-                          color: "var(--clr-dark-500)",
-                        }}
-                      >
-                        {busy
-                          ? "Memuat data verifikasi..."
-                          : "Belum ada riwayat verifikasi yang selesai."}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              totalItems={historyItems.length}
-              currentPage={historyPagination.currentPage}
-              onPageChange={historyPagination.setCurrentPage}
-              startIndex={historyPagination.startIndex}
-              endIndex={historyPagination.endIndex}
-              totalPages={historyPagination.totalPages}
+          <div>
+            <TableFilters
+              fields={[
+                {
+                  type: "search",
+                  id: "history-search",
+                  label: "Cari peralatan",
+                  placeholder: "Nama peralatan atau nomor aset",
+                  value: historySearch,
+                  onChange: (event) => setHistorySearch(event.target.value),
+                },
+                {
+                  type: "select",
+                  id: "history-status",
+                  label: "Status akhir",
+                  placeholder: "Semua status",
+                  value: historyStatusFilter,
+                  onChange: (event) => setHistoryStatusFilter(event.target.value),
+                  options: [
+                    { value: "Disetujui", label: "Disetujui" },
+                    { value: "Ditolak", label: "Ditolak" },
+                  ],
+                },
+                {
+                  type: "select",
+                  id: "history-activity",
+                  label: "Aktivitas",
+                  placeholder: "Semua aktivitas",
+                  value: historyActivityFilter,
+                  onChange: (event) => setHistoryActivityFilter(event.target.value),
+                  options: ACTIVITY_OPTIONS.map(([code]) => ({
+                    value: code,
+                    label: getActivityLabel(code),
+                  })),
+                },
+              ]}
             />
-          </>
+            <div className="table-card">
+              <DataTable
+                columns={historyColumns}
+                rows={historyPageItems}
+                rowKey={(item) => id(item)}
+                wrapperClassName="table-borderless"
+                emptyMessage={
+                  busy
+                    ? "Memuat data verifikasi..."
+                    : "Belum ada riwayat verifikasi yang selesai."
+                }
+              />
+              <Pagination
+                totalItems={historyItems.length}
+                currentPage={historyPagination.currentPage}
+                onPageChange={historyPagination.setCurrentPage}
+                startIndex={historyPagination.startIndex}
+                endIndex={historyPagination.endIndex}
+                totalPages={historyPagination.totalPages}
+              />
+            </div>
+          </div>
         )}
       </div>
 
@@ -2323,26 +2385,21 @@ export default function VerificationManagement({
               <div className="modal-header">
                 <div>
                   <h2 className="modal-title">
-                    Tinjau Verifikasi TLKM13/F/003
+                    {role === "manager"
+                      ? "Pengajuan Verifikasi"
+                      : "Rincian Verifikasi"}
                   </h2>
                   <p
                     className="page-subtitle"
                     style={{ margin: "4px 0 0", fontSize: "var(--text-xs)" }}
                   >
+                    {selected.peralatan?.nomor_aset
+                      ? `${selected.peralatan.nomor_aset} — `
+                      : ""}
                     {selected.peralatan?.nama_peralatan ||
                       `Peralatan ID ${selected.id_peralatan}`}
-                    {selected.peralatan?.nomor_aset
-                      ? ` (${selected.peralatan.nomor_aset})`
-                      : ""}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => setSelected(null)}
-                >
-                  Tutup
-                </button>
               </div>
 
               <div className="modal-body">
@@ -2351,13 +2408,17 @@ export default function VerificationManagement({
                   style={{ marginBottom: "var(--sp-3)" }}
                 >
                   <div>
-                    <strong>Kode Aktivitas:</strong>
+                    <strong>
+                      {role === "manager" ? "Kode Aktivitas:" : "Keterangan:"}
+                    </strong>
                     <p style={{ margin: "2px 0 0" }}>
-                      {selected.kode_aktivitas || "-"}
+                      {role === "manager"
+                        ? selected.kode_aktivitas || "-"
+                        : getActivityLabel(selected.kode_aktivitas)}
                     </p>
                   </div>
                   <div>
-                    <strong>Status:</strong>
+                    <strong>Keterangan:</strong>
                     <p style={{ margin: "2px 0 0" }}>
                       <span
                         className={`badge ${
@@ -2368,7 +2429,10 @@ export default function VerificationManagement({
                               : "badge-kalibrasi"
                         }`}
                       >
-                        {selected.status || "-"}
+                        {getEquipmentKeterangan({
+                          ...selected.peralatan,
+                          status_verifikasi: selected.status,
+                        })}
                       </span>
                     </p>
                   </div>
@@ -2442,49 +2506,69 @@ export default function VerificationManagement({
                 >
                   Hasil Aspek Pemeriksaan
                 </h4>
-                <div className="table-wrapper">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Aspek</th>
-                        <th>Hasil</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {CHECKS.filter(
-                        (key) =>
-                          ACTIVITY_REQUIREMENTS[selected.kode_aktivitas]?.[
-                            key
-                          ] !== "-",
-                      ).map((key) => {
-                        const hasil =
+                <DataTable
+                  columns={[
+                    {
+                      key: "check",
+                      header: "Hasil Pemeriksaan",
+                      render: (key) => CHECK_LABELS[key],
+                    },
+                    {
+                      key: "result",
+                      header: "Penilaian",
+                      render: (key) => {
+                        const result =
                           selected.hasil_verifikasi?.[0]?.[key] || "-";
+                        const label =
+                          result === "S"
+                            ? key === "firmware" &&
+                              selected.kode_aktivitas === "A3"
+                              ? "Ada"
+                              : "S (Sesuai)"
+                            : result === "TS"
+                              ? key === "firmware" &&
+                                selected.kode_aktivitas === "A3"
+                                ? "Tidak Ada"
+                                : "TS (Tidak Sesuai)"
+                              : result;
                         return (
-                          <tr key={key}>
-                            <td>{CHECK_LABELS[key]}</td>
-                            <td>
-                              <span
-                                className={`badge ${
-                                  hasil === "S"
-                                    ? "badge-aktif"
-                                    : hasil === "TS"
-                                      ? "badge-rusak"
-                                      : "badge-gray"
-                                }`}
-                              >
-                                {hasil === "S"
-                                  ? "S (Sesuai)"
-                                  : hasil === "TS"
-                                    ? "TS (Tidak Sesuai)"
-                                    : hasil}
-                              </span>
-                            </td>
-                          </tr>
+                          <span
+                            className={`badge ${
+                              result === "S"
+                                ? "badge-aktif"
+                                : result === "TS"
+                                  ? "badge-rusak"
+                                  : "badge-gray"
+                            }`}
+                          >
+                            {label}
+                          </span>
                         );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                      },
+                    },
+                    {
+                      key: "reason",
+                      header: "Alasan Tidak Sesuai",
+                      render: (key) => {
+                        const result =
+                          selected.hasil_verifikasi?.[0]?.[key] || "-";
+                        const notes = officialNotes(selected);
+                        return result === "TS"
+                          ? notes?.alasan_ts?.[key] ||
+                              "Belum ada alasan yang dicatat"
+                          : result === "TB"
+                            ? notes?.alasan_tb?.[key] || "-"
+                            : "-";
+                      },
+                    },
+                  ]}
+                  rows={CHECKS.filter(
+                    (key) =>
+                      ACTIVITY_REQUIREMENTS[selected.kode_aktivitas]?.[key] !==
+                      "-",
+                  )}
+                  rowKey={(key) => key}
+                />
 
                 {officialNotes(selected) && (
                   <div style={{ marginTop: "var(--sp-4)" }}>
@@ -2501,16 +2585,9 @@ export default function VerificationManagement({
                       style={{ fontSize: "var(--text-xs)" }}
                     >
                       <div>
-                        <strong>Acuan Kriteria:</strong>
+                        <strong>Acuan Instruksi Kerja / Test Prosedur / Manual Book:</strong>
                         <p style={{ margin: "2px 0" }}>
                           {officialNotes(selected).acuan_kriteria || "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <strong>Peninjauan Sebelumnya:</strong>
-                        <p style={{ margin: "2px 0" }}>
-                          {officialNotes(selected)
-                            .peninjauan_hasil_sebelumnya || "-"}
                         </p>
                       </div>
                       <div>
@@ -2671,24 +2748,32 @@ export default function VerificationManagement({
                             Alasan Penolakan{" "}
                             <span style={{ color: "red" }}>*</span>
                           </label>
-                          <textarea
-                            className="form-textarea"
-                            rows={3}
-                            placeholder="Tuliskan aspek yang belum memenuhi kriteria..."
+                          <select
+                            className="form-select"
                             value={rejectReason}
                             onChange={(e) => setRejectReason(e.target.value)}
-                          />
+                          >
+                            <option value="">Pilih alasan penolakan</option>
+                            <option value="Hasil aspek tidak sesuai">
+                              Hasil aspek tidak sesuai
+                            </option>
+                            <option value="Data pendukung belum sesuai">
+                              Data pendukung belum sesuai
+                            </option>
+                          </select>
                         </div>
                         <div className="form-group">
                           <label className="form-label">
-                            Catatan Tindak Lanjut
+                            Keterangan Alasan Penolakan{" "}
+                            <span style={{ color: "red" }}>*</span>
                           </label>
                           <textarea
                             className="form-textarea"
                             rows={2}
-                            placeholder="Instruksi perbaikan untuk Pengelola (opsional)..."
+                            placeholder="Jelaskan aspek atau data pendukung yang belum sesuai..."
                             value={rejectCatatan}
                             onChange={(e) => setRejectCatatan(e.target.value)}
+                            required
                           />
                         </div>
                       </div>
@@ -2721,7 +2806,11 @@ export default function VerificationManagement({
                     <button
                       type="button"
                       className="btn btn-ghost"
-                      disabled={busy || !rejectReason.trim()}
+                      disabled={
+                        busy ||
+                        !rejectReason.trim() ||
+                        !rejectCatatan.trim()
+                      }
                       onClick={handleRejectFromModal}
                       style={{
                         display: "inline-flex",
@@ -2736,18 +2825,27 @@ export default function VerificationManagement({
                   ))}
                 {selected.status === "Disetujui" &&
                   (canApprove || staffIsPengelola) && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => exportVerificationPdf(selected)}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
-                      <Printer size={15} /> Export PDF
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => exportVerificationPdf(selected)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <Printer size={15} /> Export PDF
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => exportVerificationWord(selected)}
+                      >
+                        Export Word
+                      </button>
+                    </>
                   )}
                 <button
                   type="button"

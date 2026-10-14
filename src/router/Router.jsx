@@ -29,6 +29,20 @@ export function getHashPath() {
   return '/';
 }
 
+export function getSafeReturnPath(fallback) {
+  const query = window.location.hash.split('?')[1] || '';
+  const returnPath = new URLSearchParams(query).get('returnTo');
+  const allowedPaths = new Set([
+    '/dashboard',
+    '/peralatan',
+    '/peralatan/menunggu-verifikasi',
+    '/peralatan/dalam-peninjauan',
+    '/verifikasi',
+  ]);
+
+  return allowedPaths.has(returnPath) ? returnPath : fallback;
+}
+
 // ------------------------------------------------------------------
 // Helper: match pattern seperti /peralatan/detail/:id dengan path aktual
 // ------------------------------------------------------------------

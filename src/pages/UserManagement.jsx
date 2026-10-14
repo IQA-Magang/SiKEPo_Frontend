@@ -5,6 +5,8 @@ import { ACCESS, ACTIONS, can, getUserRole } from '../utils/permissions.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 import Pagination, { usePagination } from '../components/ui/Pagination.jsx';
+import DataTable from '../components/ui/DataTable.jsx';
+import TableFilters from '../components/ui/TableFilters.jsx';
 
 const EMPTY_FORM = { nip: '', name: '', email: '', password: '', role: 'staff', position: '', pengelola: false, labs_id: '' };
 
@@ -193,38 +195,41 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
       </div>
 
       {/* 2. Filter / Search Bar */}
-      <div className="filter-toolbar">
-        <div className="search-bar filter-search-wrap">
-          <Users className="search-icon" size={16} />
-          <input
-            id="input-search-user"
-            className="form-input"
-            type="text"
-            placeholder="Cari nama, email, NIP..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <select
-          id="select-filter-role"
-          className="form-select filter-select"
-          value={filterRole}
-          onChange={(e) => setFilterRole(e.target.value)}
-        >
-          <option value="">Semua Role</option>
-          <option value="admin">Administrator</option>
-          <option value="manager">Manager</option>
-          <option value="staff">Staff</option>
-        </select>
-        <button
-          className="btn btn-secondary btn-icon"
-          onClick={loadData}
-          id="btn-refresh-user"
-          title="Segarkan data pengguna"
-        >
-          <RefreshCw size={16} />
-        </button>
-      </div>
+      <TableFilters
+        fields={[
+          {
+            type: 'search',
+            id: 'input-search-user',
+            label: 'Cari pengguna',
+            placeholder: 'Nama, email, atau NIP',
+            value: search,
+            onChange: (event) => setSearch(event.target.value),
+          },
+          {
+            type: 'select',
+            id: 'select-filter-role',
+            label: 'Role',
+            placeholder: 'Semua Role',
+            value: filterRole,
+            onChange: (event) => setFilterRole(event.target.value),
+            options: [
+              { value: 'admin', label: 'Administrator' },
+              { value: 'manager', label: 'Manager' },
+              { value: 'staff', label: 'Staff' },
+            ],
+          },
+        ]}
+        actions={
+          <button
+            className="btn btn-secondary btn-icon"
+            onClick={loadData}
+            id="btn-refresh-user"
+            title="Segarkan data pengguna"
+          >
+            <RefreshCw size={16} />
+          </button>
+        }
+      />
 
       {/* 3. Content Table Card */}
       {loading ? (
@@ -243,78 +248,46 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
         </div>
       ) : (
         <div className="table-card">
-          <div className="table-wrapper table-borderless">
-            <table className="data-table data-table-mobile-priority data-table-users">
-              <thead>
-                <tr>
-                  <th style={{ width: 48 }}>#</th>
-                  <th>NIP</th>
-                  <th>Nama</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Jabatan</th>
-                  <th>Pengelola</th>
-                  {(canEdit || canDelete || canSetPengelola) && <th style={{ width: 180 }}>Aksi</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {pageItems.map((u, i) => (
-                  <tr key={u.user_id}>
-                    <td style={{ color: 'var(--clr-dark-400)' }}>{pagination.startIndex + i + 1}</td>
-                    <td><code className="text-mono-xs">{u.nip}</code></td>
-                    <td style={{ fontWeight: 'var(--fw-medium)' }}>{u.name}</td>
-                    <td style={{ color: 'var(--clr-dark-500)', fontSize: 'var(--text-sm)' }}>{u.email}</td>
-                    <td><span className={`badge ${ROLE_BADGE[u.role] || 'badge-gray'}`}>{u.role}</span></td>
-                    <td style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>{u.position}</td>
-                    <td>
-                      {u.pengelola && <span className="badge badge-green"><Shield size={10} /> Pengelola</span>}
-                    </td>
-                    {(canEdit || canDelete || canSetPengelola) && (
-                      <td>
-                        <div className="table-action-btns" style={canSetPengelola ? { flexWrap: 'wrap' } : undefined}>
-                          {canSetPengelola && u.role === 'staff' && (
-                            <button
-                              className={`btn btn-sm ${u.pengelola ? 'btn-secondary' : 'btn-primary'}`}
-                              onClick={() => handleTogglePengelola(u)}
-                              disabled={updatingPengelola === u.user_id}
-                              id={`btn-toggle-pengelola-user-${u.user_id}`}
-                              title={u.pengelola ? 'Lepas status pengelola' : 'Tetapkan sebagai pengelola'}
-                            >
-                              <Shield size={13} />
-                              {updatingPengelola === u.user_id
-                                ? 'Menyimpan...'
-                                : u.pengelola ? 'Lepas Pengelola' : 'Tetapkan Pengelola'}
-                            </button>
-                          )}
-                          {canEdit && (
-                            <button
-                              className="btn-action-icon"
-                              onClick={() => openEdit(u)}
-                              id={`btn-edit-user-${u.user_id}`}
-                              title="Edit pengguna"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                          )}
-                          {canDelete && (
-                            <button
-                              className="btn-action-icon btn-action-delete"
-                              onClick={() => handleDelete(u.user_id)}
-                              disabled={deleting === u.user_id}
-                              id={`btn-hapus-user-${u.user_id}`}
-                              title="Hapus pengguna"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
+          <DataTable
+            wrapperClassName="table-borderless"
+            className="data-table-mobile-priority data-table-users"
+            rows={pageItems}
+            rowKey={(user) => user.user_id}
+            columns={[
+              { key: 'number', header: '#', headerStyle: { width: 48 }, render: (_, i) => pagination.startIndex + i + 1, cellStyle: { color: 'var(--clr-dark-400)' } },
+              { key: 'nip', header: 'NIP', render: (user) => <code className="text-mono-xs">{user.nip}</code> },
+              { key: 'name', header: 'Nama', render: (user) => <span style={{ fontWeight: 'var(--fw-medium)' }}>{user.name}</span> },
+              { key: 'email', header: 'Email', render: (user) => <span style={{ color: 'var(--clr-dark-500)', fontSize: 'var(--text-sm)' }}>{user.email}</span> },
+              { key: 'role', header: 'Role', render: (user) => <span className={`badge ${ROLE_BADGE[user.role] || 'badge-gray'}`}>{user.role}</span> },
+              { key: 'position', header: 'Jabatan', render: (user) => <span style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-600)' }}>{user.position}</span> },
+              { key: 'manager', header: 'Pengelola', render: (user) => user.pengelola && <span className="badge badge-green"><Shield size={10} /> Pengelola</span> },
+              ...((canEdit || canDelete || canSetPengelola) ? [{
+                key: 'actions',
+                header: 'Aksi',
+                headerStyle: { width: 180 },
+                render: (user) => (
+                  <div className="table-action-btns" style={canSetPengelola ? { flexWrap: 'wrap' } : undefined}>
+                    {canSetPengelola && user.role === 'staff' && (
+                      <button
+                        className={`btn btn-sm ${user.pengelola ? 'btn-secondary' : 'btn-primary'}`}
+                        onClick={() => handleTogglePengelola(user)}
+                        disabled={updatingPengelola === user.user_id}
+                        id={`btn-toggle-pengelola-user-${user.user_id}`}
+                        title={user.pengelola ? 'Lepas status pengelola' : 'Tetapkan sebagai pengelola'}
+                      >
+                        <Shield size={13} />
+                        {updatingPengelola === user.user_id
+                          ? 'Menyimpan...'
+                          : user.pengelola ? 'Lepas Pengelola' : 'Tetapkan Pengelola'}
+                      </button>
                     )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    {canEdit && <button className="btn-action-icon" onClick={() => openEdit(user)} id={`btn-edit-user-${user.user_id}`} title="Edit pengguna"><Pencil size={13} /></button>}
+                    {canDelete && <button className="btn-action-icon btn-action-delete" onClick={() => handleDelete(user.user_id)} disabled={deleting === user.user_id} id={`btn-hapus-user-${user.user_id}`} title="Hapus pengguna"><Trash2 size={13} /></button>}
+                  </div>
+                ),
+              }] : []),
+            ]}
+          />
 
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">
