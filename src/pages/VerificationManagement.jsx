@@ -7,7 +7,6 @@ import {
   FileCheck,
   Send,
   XCircle,
-  AlertTriangle,
   Package,
   Eraser,
   Eye,
@@ -642,7 +641,6 @@ export default function VerificationManagement({
     Boolean(equipmentId),
   );
   const [equipmentInfo, setEquipmentInfo] = useState(null);
-  const [reviewLogs, setReviewLogs] = useState([]);
   const [picSignature, setPicSignature] = useState(() =>
     getSavedSignature(currentUser),
   );
@@ -692,7 +690,7 @@ export default function VerificationManagement({
         await Promise.allSettled([
           verifikasiApi.getAll(),
           peralatanApi.getAll(),
-          ruanganApi.getAll(),
+          isLabScopedUser ? ruanganApi.getAll() : Promise.resolve({ data: [] }),
         ]);
       if (isLabScopedUser && roomsResult.status !== "fulfilled") {
         throw (
@@ -785,7 +783,6 @@ export default function VerificationManagement({
   useEffect(() => {
     if (!equipmentId) return;
     setEquipmentInfo(null);
-    setReviewLogs([]);
     setForm((prev) => ({ ...prev, id_peralatan: String(equipmentId) }));
 
     async function fetchEquipment() {
@@ -795,12 +792,9 @@ export default function VerificationManagement({
           throw new Error("Akun pengguna belum terhubung dengan lab.");
         }
 
-        const [res, logRes, roomsRes] = await Promise.allSettled([
+        const [res, roomsRes] = await Promise.allSettled([
           peralatanApi.getAll(),
-          verifikasiApi.getLogByPeralatanId(equipmentId),
-          isLabScopedUser
-            ? ruanganApi.getAll()
-            : Promise.resolve({ data: [] }),
+          isLabScopedUser ? ruanganApi.getAll() : Promise.resolve({ data: [] }),
         ]);
         if (isLabScopedUser && roomsRes.status !== "fulfilled") {
           throw (
@@ -811,7 +805,9 @@ export default function VerificationManagement({
         if (isLabScopedUser && res.status !== "fulfilled") {
           throw (
             res.reason ||
-            new Error("Gagal memuat data peralatan untuk memeriksa lab pengguna.")
+            new Error(
+              "Gagal memuat data peralatan untuk memeriksa lab pengguna.",
+            )
           );
         }
         const roomList =
@@ -830,12 +826,6 @@ export default function VerificationManagement({
               isEquipmentInUserLab(found, roomsById, currentUserLabId));
           if (canViewEquipment) {
             setEquipmentInfo(found);
-            if (
-              logRes.status === "fulfilled" &&
-              Array.isArray(logRes.value.data)
-            ) {
-              setReviewLogs(logRes.value.data);
-            }
             const detail = found.detail || {};
             const autoActivity = found.kode_aktivitas || "A1";
             const reqs = ACTIVITY_REQUIREMENTS[autoActivity] || {};
@@ -879,7 +869,9 @@ export default function VerificationManagement({
     event.preventDefault();
 
     if (!picSignature) {
-      error("Tanda tangan Pengelola wajib tersedia sebelum verifikasi diajukan.");
+      error(
+        "Tanda tangan Pengelola wajib tersedia sebelum verifikasi diajukan.",
+      );
       return;
     }
 
@@ -1450,10 +1442,7 @@ export default function VerificationManagement({
       );
     }
 
-    if (
-      isLabScopedUser &&
-      (!equipmentInfo || !equipmentInfoMatchesRoute)
-    ) {
+    if (isLabScopedUser && (!equipmentInfo || !equipmentInfoMatchesRoute)) {
       return (
         <div className="page-container fade-in-up">
           <div className="card card-padded">
@@ -1632,45 +1621,6 @@ export default function VerificationManagement({
               {activityCode} — {getActivityLabel(activityCode)}
             </div>
 
-            {/* Riwayat Peninjauan jika berstatus Ditolak */}
-            {isRejected && reviewLogs.length > 0 && (
-              <div
-                style={{
-                  marginTop: "var(--sp-3)",
-                  padding: "var(--sp-3)",
-                  background: "#fef2f2",
-                  border: "1px solid #fecaca",
-                  borderRadius: "var(--radius-sm, 4px)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    color: "#b91c1c",
-                    fontWeight: "var(--fw-medium)",
-                    fontSize: "var(--text-xs)",
-                    marginBottom: 2,
-                  }}
-                >
-                  <AlertTriangle size={14} /> Catatan Penolakan Terakhir
-                  (TLKM13/IK/012):
-                </div>
-                <div style={{ fontSize: "var(--text-sm)", color: "#7f1d1d" }}>
-                  <div>
-                    <strong>Alasan:</strong>{" "}
-                    {reviewLogs[0]?.alasan ||
-                      "Peralatan memerlukan perbaikan sebelum verifikasi ulang."}
-                  </div>
-                  {reviewLogs[0]?.catatan && (
-                    <div style={{ marginTop: 4 }}>
-                      <strong>Keterangan:</strong> {reviewLogs[0].catatan}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         ) : null}
 
@@ -2043,7 +1993,9 @@ export default function VerificationManagement({
             </div>
 
             <div className="form-group" style={{ marginTop: "var(--sp-3)" }}>
-              <label className="form-label">Catatan Pemeriksaan Pengelola</label>
+              <label className="form-label">
+                Catatan Pemeriksaan Pengelola
+              </label>
               <textarea
                 className="form-textarea"
                 rows={3}
