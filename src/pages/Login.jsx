@@ -96,7 +96,7 @@ export default function Login({ onNavigate }) {
           <div className="login-left-wrapper">
             <LogoSiKEPo />
             <p className="sikepo-onboarding-sub">
-              Sistem untuk Memantau Posisi &amp; dan Pengoperasian Peralatan
+              Sistem untuk Memantau Posisi dan Pengoperasian Peralatan
             </p>
 
             <div className="login-card">
