@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, HelpCircle, X, Mail, Phone } from 'lucide-react';
+import { Eye, EyeOff, HelpCircle, X, Mail, Phone, KeyRound } from 'lucide-react';
 import WaveBackground from '../components/WaveBackground.jsx';
 import LogoSiKEPo from '../components/LogoSiKEPo.jsx';
 import TelkomTestHouseLogo from '../components/TelkomTestHouseLogo.jsx';
@@ -21,7 +21,7 @@ export default function Login({ onNavigate }) {
 
   useEffect(() => {
     if (getToken()) {
-      onNavigate('/dashboard');
+      onNavigate('/dashboard', { replace: true });
     }
   }, [onNavigate]);
 
@@ -72,7 +72,7 @@ export default function Login({ onNavigate }) {
 
       setIsLoading(false);
       toast.success('Berhasil masuk ke SiKEPo!', 3000);
-      onNavigate('/dashboard');
+      onNavigate('/dashboard', { replace: true });
     } catch (err) {
       setIsLoading(false);
       const msg = err.message || 'Gagal login. Periksa email, password, dan reCAPTCHA.';

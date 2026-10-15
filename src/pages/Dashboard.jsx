@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2 } from 'lucide-react';
-import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi, peminjamanApi } from '../utils/api.js';
+import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2, FileSignature } from 'lucide-react';
+import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi, peminjamanApi, markNotificationsAsReadByRef } from '../utils/api.js';
 import { can, ACCESS, ACTIONS } from '../utils/permissions.js';
 
 // ------------------------------------------------------------------
@@ -94,12 +94,36 @@ async function fetchDashboardLoans() {
   }
 }
 
+function getLoanStatusBadge(status) {
+  switch (status) {
+    case 'MENUNGGU_MANAGER_PEMINJAM':
+      return { label: 'Menunggu Atasan Peminjam', className: 'badge-kalibrasi' };
+    case 'MENUNGGU_PENGELOLA':
+      return { label: 'Menunggu Pengelola', className: 'badge-kalibrasi' };
+    case 'MENUNGGU_MANAGER_LAB':
+      return { label: 'Menunggu Manager Lab', className: 'badge-kalibrasi' };
+    case 'DISETUJUI':
+    case 'MENUNGGU_SERAH_TERIMA':
+      return { label: 'Disetujui — Tunggu Serah Terima', className: 'badge-kalibrasi' };
+    case 'SIAP_DISERAHKAN':
+      return { label: 'Siap Diserahkan — Tunggu TTD Anda', className: 'badge-rusak' };
+    case 'SEDANG_DIPINJAM':
+      return { label: 'Sedang Dipinjam', className: 'badge-aktif' };
+    case 'SELESAI':
+      return { label: 'Selesai Dikembalikan', className: 'badge-gray' };
+    case 'DITOLAK':
+      return { label: 'Ditolak', className: 'badge-rusak' };
+    default:
+      return { label: status || '-', className: 'badge-gray' };
+  }
+}
+
 function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
   const total = loans.length;
   const tahap1 = loans.filter((l) => l.status === 'MENUNGGU_MANAGER_PEMINJAM').length;
   const tahap2 = loans.filter((l) => l.status === 'MENUNGGU_PENGELOLA').length;
   const tahap3 = loans.filter((l) => l.status === 'MENUNGGU_MANAGER_LAB').length;
-  const tahap4 = loans.filter((l) => l.status === 'MENUNGGU_SERAH_TERIMA' || l.status === 'DISETUJUI').length;
+  const tahap4 = loans.filter((l) => l.status === 'MENUNGGU_SERAH_TERIMA' || l.status === 'DISETUJUI' || l.status === 'SIAP_DISERAHKAN').length;
 
   return (
     <div style={{ marginBottom: 'var(--sp-6)' }}>
@@ -667,6 +691,109 @@ function StaffDashboard({ onNavigate, user }) {
 
       {/* Ringkasan 5 Kotak Alur Peminjaman Peralatan (TLKM13/IK/005) */}
       <LoanPipelineSummary loans={loans} onNavigate={onNavigate} loading={loading} />
+
+
+
+      {/* Tabel Status Peminjaman Peralatan Laboratorium Anda */}
+      {loans.length > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--sp-6)' }}>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 className="card-title">Status Peminjaman Laboratorium Anda</h2>
+              <p className="page-subtitle">Daftar permohonan peminjaman alat keluar dan masuk yang melibatkan laboratorium Anda.</p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => onNavigate('/peminjaman')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              Buka Modul Peminjaman &rarr;
+            </button>
+          </div>
+          <div className="table-wrapper table-borderless">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Kode Peminjaman</th>
+                  <th>Peralatan</th>
+                  <th>Lab Pemilik</th>
+                  <th>Rentang Tanggal</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loans.slice(0, 5).map((l) => {
+                  const badge = getLoanStatusBadge(l.status);
+                  const isReady = l.status === 'SIAP_DISERAHKAN';
+                  return (
+                    <tr
+                      key={l.id}
+                      className="cursor-pointer"
+                      onClick={() => {
+                        markNotificationsAsReadByRef({ ticketCode: l.kode, loanId: l.id });
+                        onNavigate('/peminjaman');
+                      }}
+                    >
+                      <td><code className="text-mono-xs" style={{ fontWeight: 600 }}>{l.kode || `PJM-${l.id}`}</code></td>
+                      <td>
+                        <div style={{ fontWeight: 'var(--fw-medium)' }}>{l.peralatan?.nama_peralatan || '-'}</div>
+                        <small style={{ color: 'var(--clr-dark-500)' }}><code className="text-mono-xs">{l.peralatan?.nomor_aset || '-'}</code></small>
+                      </td>
+                      <td>{l.peralatan?.lab_pemilik || '-'}</td>
+                      <td>
+                        <div style={{ fontSize: '13px' }}>
+                          {l.rencana_tanggal_keluar || '-'} &rarr; {l.rencana_tanggal_kembali || '-'}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${badge.className}`}>{badge.label}</span>
+                      </td>
+                      <td>
+                        {isReady ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{
+                              background: '#ea580c',
+                              color: '#fff',
+                              borderColor: '#ea580c',
+                              padding: '4px 10px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markNotificationsAsReadByRef({ ticketCode: l.kode, loanId: l.id });
+                              onNavigate('/peminjaman');
+                            }}
+                          >
+                            Tanda Tangan Terima
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '4px 10px', fontSize: '12px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markNotificationsAsReadByRef({ ticketCode: l.kode, loanId: l.id });
+                              onNavigate('/peminjaman');
+                            }}
+                          >
+                            Detail
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) && (
         <div className="dash-action-group dash-actions-mb">

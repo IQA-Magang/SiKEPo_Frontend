@@ -485,6 +485,42 @@ export const notificationApi = {
     fetchWithAuth(`/api/notifications/${id}/read`, { method: 'PATCH' }),
 };
 
+export async function markNotificationsAsReadByRef({ ticketCode, loanId, typePrefix } = {}) {
+  try {
+    const user = getCurrentUser();
+    const userId = user?.user_id ?? user?.id;
+    if (!userId) return;
+
+    const res = await notificationApi.getByUserId(userId);
+    const notifications = res?.data || [];
+    const unread = notifications.filter((n) => !n.is_read);
+    if (!unread.length) return;
+
+    const codeStr = (ticketCode || '').toLowerCase().trim();
+    const idStr = loanId ? String(loanId) : '';
+
+    const targets = unread.filter((n) => {
+      const msg = (n.message || '').toLowerCase();
+      const title = (n.title || '').toLowerCase();
+      const type = (n.type || '').toLowerCase();
+
+      if (codeStr && (msg.includes(codeStr) || title.includes(codeStr))) return true;
+      if (idStr && (msg.includes(`pjm-${idStr}`) || title.includes(`pjm-${idStr}`))) return true;
+      if (typePrefix && (type.startsWith(typePrefix.toLowerCase()) || title.includes(typePrefix.toLowerCase()))) return true;
+      return false;
+    });
+
+    if (targets.length > 0) {
+      await Promise.allSettled(targets.map((t) => notificationApi.markRead(t.id)));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('notifications:reload'));
+      }
+    }
+  } catch (err) {
+    console.warn('Auto mark notification read failed:', err);
+  }
+}
+
 // =============================================================
 // LOGBOOK PERALATAN — /api/peralatan/:id/logbook
 // GET /:id/logbook?jenis=... → { success, data: LogbookItem[] }
@@ -526,6 +562,8 @@ export const peminjamanApi = {
     fetchWithAuth(`/api/peminjaman/${id}/serah-terima`, { method: 'POST', body: JSON.stringify(body) }),
   konfirmasiTerima: (id, body) =>
     fetchWithAuth(`/api/peminjaman/${id}/konfirmasi-terima`, { method: 'PUT', body: JSON.stringify(body) }),
+  pengembalian: (id, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/pengembalian`, { method: 'POST', body: JSON.stringify(body) }),
 };
 
 

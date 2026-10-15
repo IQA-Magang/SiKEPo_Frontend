@@ -17,7 +17,14 @@ export default function NotificationBell({ onNavigate }) {
       loadNotifications();
       // Polling setiap 30 detik agar notifikasi real-time tanpa ubah backend
       const interval = setInterval(loadNotifications, 30000);
-      return () => clearInterval(interval);
+
+      const handleReload = () => loadNotifications();
+      window.addEventListener('notifications:reload', handleReload);
+
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('notifications:reload', handleReload);
+      };
     }
   }, [user?.user_id]);
 

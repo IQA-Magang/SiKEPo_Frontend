@@ -118,12 +118,23 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
         setRooms(roomsRes.data || []);
 
         const labId = currentUser?.labs_id ?? currentUser?.labs?.id ?? currentUser?.id_labs;
-        const labName = labList.find((lab) => String(lab.id) === String(labId))?.nama_labs
+        const userLab = labList.find((lab) => String(lab.id) === String(labId));
+        const labName = userLab?.nama_labs
           || currentUser?.labs?.nama_labs
           || currentUser?.nama_labs
           || currentUser?.lab
           || '';
-        if (labName) setForm((prev) => ({ ...prev, nama_lab_asal: labName }));
+        const managerName = userLab?.manager?.nama_lengkap
+          || userLab?.manager?.name
+          || currentUser?.manager?.nama_lengkap
+          || currentUser?.manager?.name
+          || (userLab ? `Manager Lab ${userLab.nama_labs}` : '');
+
+        setForm((prev) => ({
+          ...prev,
+          nama_lab_asal: labName || prev.nama_lab_asal,
+          atasan_peminjam: managerName || prev.atasan_peminjam,
+        }));
       } catch (err) {
         if (!cancelled) error(err.message || 'Gagal memuat daftar peralatan.');
       } finally {
@@ -577,12 +588,13 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 id="input-atasan-peminjam"
                 className="form-input"
                 type="text"
-                placeholder="Nama atasan langsung / Manajer peminjam..."
-                value={form.atasan_peminjam}
-                onChange={(e) => setForm({ ...form, atasan_peminjam: e.target.value })}
+                value={form.atasan_peminjam || 'Otomatis disinkronkan dengan Manajer Lab'}
+                readOnly
+                disabled
+                style={{ color: '#94a3b8', background: '#f8fafc', cursor: 'not-allowed' }}
               />
               <span className="form-hint">
-                Sistem akan mengirim notifikasi validasi ke Manajer Peminjam sebelum diteruskan ke Pengelola Peralatan (Tahap 2 Swimlane).
+                Otomatis disinkronkan dengan Manajer Laboratorium asal peminjam untuk validasi (Tahap 1 Swimlane).
               </span>
             </div>
 
@@ -868,7 +880,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                   return (
                     <optgroup key={lab.id} label={`${lab.kode_labs || lab.nama_labs} — ${lab.nama_labs}`}>
                       {labRooms.map((room) => {
-                        const locationValue = [room.kode_ruangan, room.nama_ruangan, lab.nama_labs].filter(Boolean).join(' — ');
+                        const locationValue = [room.kode_ruangan, room.nama_ruangan].filter(Boolean).join(' - ');
                         return <option key={room.id} value={locationValue}>{locationValue}</option>;
                       })}
                     </optgroup>
