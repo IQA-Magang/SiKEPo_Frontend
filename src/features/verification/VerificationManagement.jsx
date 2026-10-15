@@ -596,6 +596,7 @@ const emptyForm = () => ({
   penyedia_kalibrasi: "",
   berlaku_sampai: "",
   nilai_koreksi: "T Tidak diterapkan",
+  firmware_versi_aktual: "",
   tb_alasan: {},
   ts_alasan: {},
   hasil_verifikasi: Object.fromEntries(CHECKS.map((key) => [key, ""])),
@@ -849,6 +850,8 @@ export default function VerificationManagement({
                 berlaku_sampai: detail.tgl_jatuh_tempo
                   ? detail.tgl_jatuh_tempo.slice(0, 10)
                   : prev.berlaku_sampai,
+                firmware_versi_aktual:
+                  found.peranti_lunak_versi || prev.firmware_versi_aktual,
                 hasil_verifikasi: nextResults,
               };
             });
@@ -912,6 +915,13 @@ export default function VerificationManagement({
       );
       return;
     }
+    if (
+      verificationResults.firmware === "S" &&
+      !form.firmware_versi_aktual.trim()
+    ) {
+      error("Versi firmware yang terpasang wajib diisi jika firmware tersedia.");
+      return;
+    }
     const invalidKeys = applicableKeys.filter((key) => {
       const allowedResults =
         key === "firmware" ? ["S", "TS"] : ["S", "TS", "TB"];
@@ -955,6 +965,13 @@ export default function VerificationManagement({
         format: "TLKM13/F/003-v05",
         catatan_pic: form.catatan,
         acuan_kriteria: form.acuan_kriteria,
+        firmware: {
+          versi_tercatat: equipmentInfo?.peranti_lunak_versi || "",
+          versi_aktual:
+            verificationResults.firmware === "S"
+              ? form.firmware_versi_aktual.trim()
+              : "",
+        },
         sertifikat: {
           nomor: form.nomor_sertifikat,
           penyedia: form.penyedia_kalibrasi,
@@ -1061,6 +1078,10 @@ export default function VerificationManagement({
   async function handleRejectFromModal() {
     const target = selected || approvalModalItem;
     if (!target) return;
+    if (!managerSignature?.trim()) {
+      error("Tanda tangan digital manager wajib tersedia sebelum verifikasi ditolak.");
+      return;
+    }
     if (!rejectReason.trim()) {
       error("Alasan penolakan / evaluasi ketidaksesuaian wajib diisi.");
       return;
@@ -1076,6 +1097,7 @@ export default function VerificationManagement({
       await verifikasiApi.reject(verifikasiId, {
         alasan: rejectReason.trim(),
         catatan: rejectCatatan.trim(),
+        signature: managerSignature.trim(),
       });
       success(
         "Verifikasi ditolak dan dicatat pada log peninjauan (TLKM13/IK/012).",
@@ -1822,15 +1844,24 @@ export default function VerificationManagement({
                       <select
                         className="form-select"
                         value={form.hasil_verifikasi[key]}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const value = e.target.value;
                           setForm({
                             ...form,
                             hasil_verifikasi: {
                               ...form.hasil_verifikasi,
-                              [key]: e.target.value,
+                              [key]: value,
                             },
-                          })
-                        }
+                            ...(key === "firmware"
+                              ? {
+                                  firmware_versi_aktual:
+                                    value === "S"
+                                      ? equipmentInfo?.peranti_lunak_versi || ""
+                                      : "",
+                                }
+                              : {}),
+                          });
+                        }}
                       >
                         <option value="">Pilih hasil verifikasi</option>
                         {key === "firmware" ? (
@@ -1850,17 +1881,54 @@ export default function VerificationManagement({
                       </select>
 
                       {key === "firmware" && (
-                        <small
-                          style={{
-                            display: "block",
-                            marginTop: 6,
-                            color: "var(--clr-dark-500)",
-                            fontSize: "var(--text-xs)",
-                          }}
-                        >
-                          Versi tercatat pada data peralatan:{" "}
-                          {equipmentInfo?.peranti_lunak_versi || "Belum dicatat"}
-                        </small>
+                        <div style={{ marginTop: 6 }}>
+                          <small
+                            style={{
+                              display: "block",
+                              marginBottom: 6,
+                              color: "var(--clr-dark-500)",
+                              fontSize: "var(--text-xs)",
+                            }}
+                          >
+                            Versi tercatat pada data peralatan:{" "}
+                            {equipmentInfo?.peranti_lunak_versi || "Belum dicatat"}
+                          </small>
+                          {form.hasil_verifikasi.firmware === "S" && (
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label className="form-label" style={{ fontSize: "var(--text-xs)" }}>
+                                Nama / versi firmware yang terpasang{" "}
+                                <span style={{ color: "red" }}>*</span>
+                              </label>
+                              <input
+                                className="form-input"
+                                type="text"
+                                value={form.firmware_versi_aktual}
+                                onChange={(e) =>
+                                  setForm({
+                                    ...form,
+                                    firmware_versi_aktual: e.target.value,
+                                  })
+                                }
+                                placeholder="Masukkan nama atau versi firmware"
+                                required
+                              />
+                              {form.firmware_versi_aktual.trim() &&
+                                form.firmware_versi_aktual.trim() !==
+                                  (equipmentInfo?.peranti_lunak_versi || "").trim() && (
+                                  <small
+                                    style={{
+                                      display: "block",
+                                      marginTop: 6,
+                                      color: "#b45309",
+                                      fontSize: "var(--text-xs)",
+                                    }}
+                                  >
+                                    Versi berbeda dari data peralatan. Catat versi ini untuk pembaruan data peralatan.
+                                  </small>
+                                )}
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       {isTS && (
@@ -2569,6 +2637,12 @@ export default function VerificationManagement({
                         </p>
                       </div>
                       <div>
+                        <strong>Firmware terverifikasi:</strong>
+                        <p style={{ margin: "2px 0" }}>
+                          {officialNotes(selected).firmware?.versi_aktual || "-"}
+                        </p>
+                      </div>
+                      <div>
                         <strong>Nilai Koreksi:</strong>
                         <p style={{ margin: "2px 0" }}>
                           {officialNotes(selected).sertifikat
@@ -2712,6 +2786,19 @@ export default function VerificationManagement({
                       </div>
                     ) : (
                       <div>
+                        <DigitalSignaturePad
+                          value={managerSignature}
+                          onChange={(signature) =>
+                            handleSignatureChange(
+                              setManagerSignature,
+                              signature,
+                            )
+                          }
+                          label="Tanda Tangan Digital Manager untuk Penolakan"
+                          savedSignature={savedSignature}
+                          onRestore={() => setManagerSignature(savedSignature)}
+                          onForgetSaved={forgetSavedSignature}
+                        />
                         <div className="form-group">
                           <label className="form-label">
                             Alasan Penolakan{" "}
@@ -2777,6 +2864,7 @@ export default function VerificationManagement({
                       className="btn btn-ghost"
                       disabled={
                         busy ||
+                        !managerSignature?.trim() ||
                         !rejectReason.trim() ||
                         !rejectCatatan.trim()
                       }
