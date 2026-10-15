@@ -104,7 +104,19 @@ export default function EquipmentCreate({ onNavigate }) {
   }, []);
 
   function setField(name, value) {
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const updated = { ...prev, [name]: value };
+      if (
+        Number(prev.kategori_id) === 1 &&
+        ['tgl_kalibrasi', 'interval_bulan'].includes(name)
+      ) {
+        updated.tgl_jatuh_tempo = calculateCalibrationDueDate(
+          updated.tgl_kalibrasi,
+          updated.interval_bulan,
+        );
+      }
+      return updated;
+    });
     if (error) setError('');
   }
 
@@ -961,13 +973,13 @@ export default function EquipmentCreate({ onNavigate }) {
 // ------------------------------------------------------------------
 // Komponen Input Stabil untuk Detail Teknis (Module-level agar fokus tidak hilang saat mengetik)
 // ------------------------------------------------------------------
-function DetailInputField({ id, label, type = 'text', value, onChange, placeholder, helpText, required = true }) {
+function DetailInputField({ id, label, type = 'text', value, onChange, placeholder, helpText, required = true, readOnly = false }) {
   return (
     <div className="form-group">
       <label className="form-label" htmlFor={id}>
         {label} {required && <span className="required">*</span>}
       </label>
-      <input id={id} type={type} className="form-input" placeholder={placeholder} value={value} onChange={onChange} aria-describedby={helpText ? `${id}-help` : undefined} />
+      <input id={id} type={type} className="form-input" placeholder={placeholder} value={value} onChange={onChange} readOnly={readOnly} aria-describedby={helpText ? `${id}-help` : undefined} />
       {helpText && <FieldHelp id={`${id}-help`}>{helpText}</FieldHelp>}
     </div>
   );
@@ -991,7 +1003,7 @@ function DetailTeknis({ form, setField, kategoriId }) {
         <DetailInputField id="d-sertifikat" label="No. Sertifikat Kalibrasi" value={form.no_sertifikat} onChange={(e) => setField('no_sertifikat', e.target.value)} placeholder="CAL-2026-0012" helpText="Salin nomor yang tercantum pada sertifikat kalibrasi terbaru." />
         <DetailInputField id="d-interval" label="Interval Kalibrasi (Bulan)" type="number" value={form.interval_bulan} onChange={(e) => setField('interval_bulan', e.target.value)} placeholder="12" helpText="Jarak waktu kalibrasi dalam bulan, dihitung dari tanggal kalibrasi terakhir." />
         <DetailInputField id="d-tgl-kalibrasi" label="Tgl. Kalibrasi Terakhir" type="date" value={form.tgl_kalibrasi} onChange={(e) => setField('tgl_kalibrasi', e.target.value)} helpText="Tanggal pelaksanaan yang tertera pada sertifikat." />
-        <DetailInputField id="d-tgl-jatuh" label="Tgl. Jatuh Tempo Kalibrasi" type="date" value={form.tgl_jatuh_tempo} onChange={(e) => setField('tgl_jatuh_tempo', e.target.value)} helpText="Tanggal kalibrasi berikutnya sesuai interval atau ketentuan sertifikat." />
+        <DetailInputField id="d-tgl-jatuh" label="Tgl. Jatuh Tempo Kalibrasi" type="date" value={form.tgl_jatuh_tempo} readOnly helpText="Dihitung otomatis dari tanggal kalibrasi terakhir dan interval kalibrasi." />
         <div className="form-group">
           <label className="form-label" htmlFor="d-metode-kelayakan">Metode Kelayakan</label>
           <select id="d-metode-kelayakan" className="form-select" value={form.metode_kelayakan || 'kalibrasi eksternal'} onChange={(e) => setField('metode_kelayakan', e.target.value)} aria-describedby="d-metode-kelayakan-help">
@@ -1018,9 +1030,12 @@ function DetailTeknis({ form, setField, kategoriId }) {
             <option value="do not use">Jangan digunakan</option>
           </select>
         </div>
-        <label className="form-group" htmlFor="d-alat-standar" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+        <label className="standard-equipment-toggle" htmlFor="d-alat-standar">
           <input id="d-alat-standar" type="checkbox" checked={form.fungsi_sbg_alat_standar} onChange={(e) => setField('fungsi_sbg_alat_standar', e.target.checked)} />
-          <span>Digunakan sebagai alat standar</span>
+          <span className="standard-equipment-toggle-copy">
+            <strong>Digunakan sebagai alat standar</strong>
+            <span>Tandai jika peralatan ini digunakan sebagai acuan untuk pengukuran atau pengujian.</span>
+          </span>
         </label>
       </div>
     </div>
@@ -1050,9 +1065,12 @@ function DetailTeknis({ form, setField, kategoriId }) {
       <DetailInputField id="d-tgl-pemeriksaan" label="Tgl. Pemeriksaan Terakhir" type="date" value={form.tgl_pemeriksaan_terakhir} onChange={(e) => setField('tgl_pemeriksaan_terakhir', e.target.value)} />
       <DetailInputField id="d-karakteristik-acuan" label="Karakteristik Acuan" value={form.karakteristik_acuan} onChange={(e) => setField('karakteristik_acuan', e.target.value)} required={false} helpText="Besaran atau karakteristik yang dijadikan acuan saat pemeriksaan." />
       <DetailInputField id="d-jadwal-karakterisasi" label="Jadwal Karakterisasi Ulang" value={form.jadwal_karakterisasi_ulang} onChange={(e) => setField('jadwal_karakterisasi_ulang', e.target.value)} required={false} helpText="Isi jadwal atau interval karakterisasi ulang bila berlaku." />
-      <label className="form-group" htmlFor="d-alat-standar-ab" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+      <label className="standard-equipment-toggle" htmlFor="d-alat-standar-ab">
         <input id="d-alat-standar-ab" type="checkbox" checked={form.fungsi_sbg_alat_standar} onChange={(e) => setField('fungsi_sbg_alat_standar', e.target.checked)} />
-        <span>Digunakan sebagai alat standar</span>
+        <span className="standard-equipment-toggle-copy">
+          <strong>Digunakan sebagai alat standar</strong>
+          <span>Tandai jika peralatan ini digunakan sebagai acuan untuk pengukuran atau pengujian.</span>
+        </span>
       </label>
       <div className="form-group" style={{ gridColumn: '1/-1' }}>
         <label className="form-label" htmlFor="d-kriteria">
@@ -1148,6 +1166,38 @@ function DetailTeknis({ form, setField, kategoriId }) {
   );
 
   return <p>Pilih kategori pada langkah sebelumnya.</p>;
+}
+
+function calculateCalibrationDueDate(calibrationDate, intervalMonths) {
+  const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(calibrationDate || '');
+  const months = Number(intervalMonths);
+  if (!dateParts || !Number.isInteger(months) || months <= 0) return '';
+
+  const year = Number(dateParts[1]);
+  const month = Number(dateParts[2]);
+  const day = Number(dateParts[3]);
+  const sourceDate = new Date(`${calibrationDate}T00:00:00Z`);
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    Number.isNaN(sourceDate.getTime()) ||
+    sourceDate.toISOString().slice(0, 10) !== calibrationDate
+  ) {
+    return '';
+  }
+
+  const targetMonthIndex = month - 1 + months;
+  const targetYear = year + Math.floor(targetMonthIndex / 12);
+  if (targetYear > 9999) return '';
+
+  const targetMonth = targetMonthIndex % 12;
+  const lastDayOfTargetMonth = new Date(0);
+  lastDayOfTargetMonth.setUTCHours(0, 0, 0, 0);
+  lastDayOfTargetMonth.setUTCFullYear(targetYear, targetMonth + 1, 0);
+  const dueDay = Math.min(day, lastDayOfTargetMonth.getUTCDate());
+
+  return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`;
 }
 
 function ConfirmRow({ label, value }) {

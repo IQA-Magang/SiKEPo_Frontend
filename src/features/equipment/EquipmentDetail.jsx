@@ -173,7 +173,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
       id: `verification-${log.id_verifikasi ?? log.id ?? index}`,
       date: log.tanggal_verifikasi || log.created_at,
       status: log.status || 'Verifikasi',
-      title: `Verifikasi${log.kode_aktivitas ? ` — ${log.kode_aktivitas}` : ''}`,
+      title: `Verifikasi${log.kode_aktivitas ? ` — ${getActivityName(log.kode_aktivitas)}` : ''}`,
       description: log.keputusan ? `Keputusan: ${log.keputusan}` : '',
       note: log.tindak_lanjut || '',
       record: log,
@@ -411,7 +411,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                       <InfoRow key={label} label={label} value={value} />
                     ))}
                     {peralatan.kode_aktivitas && (
-                      <InfoRow label="Kode Aktivitas" value={peralatan.kode_aktivitas} />
+                      <InfoRow label="Nama Aktivitas" value={getActivityName(peralatan.kode_aktivitas)} />
                     )}
                     <InfoRow label="Keterangan" value={peralatan.keterangan || '–'} />
                   </div>
@@ -574,7 +574,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                 <InfoRow label="Status" value={selectedActivityLog.status} />
                 <InfoRow label="Tanggal" value={formatDate(selectedActivityLog.date)} />
                 {selectedActivityLog.record.kode_aktivitas && (
-                  <InfoRow label="Kode Aktivitas" value={selectedActivityLog.record.kode_aktivitas} />
+                  <InfoRow label="Nama Aktivitas" value={getActivityName(selectedActivityLog.record.kode_aktivitas)} />
                 )}
                 {selectedActivityLog.record.keputusan && (
                   <InfoRow label="Keputusan" value={selectedActivityLog.record.keputusan} />
@@ -719,6 +719,18 @@ function formatVerificationResult(result, key) {
 }
 
 // helpers
+function getActivityName(code) {
+  const activityNames = {
+    A1: 'Penerimaan alat baru',
+    A2: 'Kalibrasi',
+    A3: 'Peminjaman / pemindahan / penyewaan',
+    A4: 'Pemeliharaan',
+    A5: 'Pengecekan antara / verifikasi fungsi',
+  };
+  const activityCode = String(code || '').trim().toUpperCase();
+  return activityNames[activityCode] || code;
+}
+
 function getEquipmentDetailRows(peralatan) {
   const categoryId = getEquipmentCategoryId(peralatan);
   const detail = peralatan.detail || peralatan.detail_alat_ukur || peralatan.detail_alat_bantu || peralatan.detail_artefak_acuan || peralatan.detail_komponen_pendukung || peralatan;

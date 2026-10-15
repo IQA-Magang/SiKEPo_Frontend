@@ -1575,6 +1575,56 @@
   cursor: pointer;
 }
 
+.standard-equipment-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--clr-dark-200);
+  border-radius: var(--radius-lg);
+  background: var(--clr-dark-50);
+  cursor: pointer;
+  transition: border-color var(--duration-fast), background-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.standard-equipment-toggle:has(input:checked) {
+  border-color: var(--clr-primary-200);
+  background: var(--clr-primary-50);
+}
+
+.standard-equipment-toggle:focus-within {
+  outline: 2px solid var(--clr-primary-500);
+  outline-offset: 2px;
+}
+
+.standard-equipment-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 2px 0 0;
+  accent-color: var(--clr-primary-600);
+  cursor: pointer;
+}
+
+.standard-equipment-toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--clr-dark-700);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.standard-equipment-toggle-copy strong {
+  color: var(--clr-dark-900);
+  font-weight: var(--fw-semibold);
+}
+
+.standard-equipment-toggle-copy > span {
+  color: var(--clr-dark-500);
+  font-size: var(--text-xs);
+}
+
 /* ---- LOADING OVERLAY ---- */
 .loading-overlay {
   position: absolute;
