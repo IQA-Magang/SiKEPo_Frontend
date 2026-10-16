@@ -485,35 +485,42 @@ export const notificationApi = {
     fetchWithAuth(`/api/notifications/${id}/read`, { method: 'PATCH' }),
 };
 
-export async function markNotificationsAsReadByRef({ ticketCode, loanId, typePrefix } = {}) {
+export async function markNotificationsAsReadByRef({ ticketCode } = {}) {
   try {
     const user = getCurrentUser();
     const userId = user?.user_id ?? user?.id;
     if (!userId) return;
+
+    const codeStr = (ticketCode || '').trim();
+    // Harus ada kode tiket spesifik dengan format valid (misal: PJM-2026-0001)
+    if (!codeStr || codeStr.length < 5) return;
+
+    // 1. Dispatch optimistic reload seketika agar angka pada badge lonceng langsung berkurang
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notifications:reload', { detail: { ticketCode: codeStr } }));
+    }
 
     const res = await notificationApi.getByUserId(userId);
     const notifications = res?.data || [];
     const unread = notifications.filter((n) => !n.is_read);
     if (!unread.length) return;
 
-    const codeStr = (ticketCode || '').toLowerCase().trim();
-    const idStr = loanId ? String(loanId) : '';
+    // Gunakan word boundary regex agar hanya mencocokkan kode tiket utuh dan presisi
+    // (Mencegah false positive substring seperti 'pjm-20' mencocokkan semua tahun '2026')
+    const escaped = codeStr.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
 
     const targets = unread.filter((n) => {
-      const msg = (n.message || '').toLowerCase();
-      const title = (n.title || '').toLowerCase();
-      const type = (n.type || '').toLowerCase();
-
-      if (codeStr && (msg.includes(codeStr) || title.includes(codeStr))) return true;
-      if (idStr && (msg.includes(`pjm-${idStr}`) || title.includes(`pjm-${idStr}`))) return true;
-      if (typePrefix && (type.startsWith(typePrefix.toLowerCase()) || title.includes(typePrefix.toLowerCase()))) return true;
-      return false;
+      const msg = n.message || '';
+      const title = n.title || '';
+      return regex.test(msg) || regex.test(title);
     });
 
     if (targets.length > 0) {
-      await Promise.allSettled(targets.map((t) => notificationApi.markRead(t.id)));
+      const readIds = targets.map((t) => t.id);
+      await Promise.allSettled(readIds.map((id) => notificationApi.markRead(id)));
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('notifications:reload'));
+        window.dispatchEvent(new CustomEvent('notifications:reload', { detail: { ticketCode: codeStr, readIds } }));
       }
     }
   } catch (err) {

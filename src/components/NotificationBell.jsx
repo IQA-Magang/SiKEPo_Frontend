@@ -4,6 +4,7 @@ import { notificationApi, getCurrentUser } from '../utils/api.js';
 
 export default function NotificationBell({ onNavigate }) {
   const user = getCurrentUser();
+  const userId = user?.user_id ?? user?.id;
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,12 +14,33 @@ export default function NotificationBell({ onNavigate }) {
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   useEffect(() => {
-    if (user?.user_id) {
+    if (userId) {
       loadNotifications();
       // Polling setiap 30 detik agar notifikasi real-time tanpa ubah backend
       const interval = setInterval(loadNotifications, 30000);
 
-      const handleReload = () => loadNotifications();
+      const handleReload = (e) => {
+        // Optimistic instant update: kurangi angka lonceng seketika tanpa jeda
+        if (e?.detail?.ticketCode) {
+          const code = String(e.detail.ticketCode).trim();
+          const escaped = code.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+          const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+          setNotifications((prev) =>
+            prev.map((n) => {
+              if (!n.is_read && (regex.test(n.message || '') || regex.test(n.title || ''))) {
+                return { ...n, is_read: true };
+              }
+              return n;
+            })
+          );
+        } else if (e?.detail?.readIds && Array.isArray(e.detail.readIds)) {
+          setNotifications((prev) =>
+            prev.map((n) => (e.detail.readIds.includes(n.id) ? { ...n, is_read: true } : n))
+          );
+        }
+        // Sinkronisasi data terkini dengan backend
+        loadNotifications();
+      };
       window.addEventListener('notifications:reload', handleReload);
 
       return () => {
@@ -26,7 +48,7 @@ export default function NotificationBell({ onNavigate }) {
         window.removeEventListener('notifications:reload', handleReload);
       };
     }
-  }, [user?.user_id]);
+  }, [userId]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -40,11 +62,11 @@ export default function NotificationBell({ onNavigate }) {
   }, [open]);
 
   async function loadNotifications() {
-    if (!user?.user_id) return;
+    if (!userId) return;
     setLoading(true);
     setLoadError('');
     try {
-      const res = await notificationApi.getByUserId(user.user_id);
+      const res = await notificationApi.getByUserId(userId);
       setNotifications(res.data || []);
     } catch (err) {
       setLoadError(err.message || 'Gagal memuat notifikasi. Silakan coba lagi.');
@@ -59,19 +81,22 @@ export default function NotificationBell({ onNavigate }) {
     const title = (notif.title || '').toLowerCase();
     const message = (notif.message || '').toLowerCase();
 
-    // Notifikasi Peminjaman & Serah Terima (misal: serah_terima_menunggu_ttd, "Peralatan siap diserahkan", dsb)
+    // Notifikasi Peminjaman, Serah Terima & Pengembalian
     if (
       type.startsWith('peminjaman') ||
       type.startsWith('serah_terima') ||
+      type.includes('pengembalian') ||
       type === 'serah_terima_menunggu_ttd' ||
       type === 'serah_terima_selesai' ||
       title.includes('peminjaman') ||
       title.includes('serah terima') ||
+      title.includes('pengembalian') ||
       title.includes('siap diserahkan') ||
       title.includes('diserahterimakan') ||
       message.includes('pengajuan pjm-') ||
       message.includes('konfirmasi penerimaan') ||
-      message.includes('serah terima')
+      message.includes('serah terima') ||
+      message.includes('pengembalian')
     ) {
       return '/peminjaman';
     }
@@ -157,7 +182,7 @@ export default function NotificationBell({ onNavigate }) {
         className="icon-badge-button"
         onClick={() => {
           setOpen((prev) => !prev);
-          if (!open && user?.user_id) loadNotifications();
+          if (!open && userId) loadNotifications();
         }}
         title="Notifikasi Masuk"
         id="btn-notif-bell"
