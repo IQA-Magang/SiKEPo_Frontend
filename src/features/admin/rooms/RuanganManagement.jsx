@@ -4,8 +4,8 @@ import { ruanganApi, labsApi, usersApi, getCurrentUser } from '../../../shared/s
 import { ACCESS, ACTIONS, can } from '../../../shared/utils/permissions.js';
 import { useToast } from '../../../app/providers/ToastContext.jsx';
 import { useConfirm } from '../../../app/providers/ConfirmContext.jsx';
-import Pagination, { usePagination } from '../../../shared/components/ui/Pagination.jsx';
-import DataTable from '../../../shared/components/ui/DataTable.jsx';
+import { usePagination } from '../../../shared/components/ui/Pagination.jsx';
+import PaginatedDataTable from '../../../shared/components/ui/PaginatedDataTable.jsx';
 import TableFilters from '../../../shared/components/ui/TableFilters.jsx';
 
 const EMPTY_FORM = {
@@ -173,7 +173,6 @@ export default function RuanganManagement({ onNavigate }) {
     return matchQ && matchLab;
   });
   const pagination = usePagination(filtered.length, `${search}\u0000${filterLab}`);
-  const pageItems = filtered.slice(pagination.startIndex, pagination.endIndex);
 
   return (
     <div className="page-container fade-in-up">
@@ -249,9 +248,10 @@ export default function RuanganManagement({ onNavigate }) {
         </div>
       ) : (
         <div className="table-card">
-          <DataTable
+          <PaginatedDataTable
             wrapperClassName="table-borderless"
-            rows={pageItems}
+            rows={filtered}
+            pagination={pagination}
             rowKey={(room) => room.id}
             columns={[
               { key: 'number', header: '#', headerStyle: { width: 48 }, render: (_, i) => pagination.startIndex + i + 1, cellStyle: { color: 'var(--clr-dark-400)' } },
@@ -288,21 +288,14 @@ export default function RuanganManagement({ onNavigate }) {
                 </div>,
               },
             ]}
-          />
+          >
 
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">
             <span>Total ruangan uji: <strong>{filtered.length}</strong> dari <strong>{ruanganList.length}</strong></span>
             <span>Tersebar di <strong>{labs.length}</strong> laboratorium</span>
           </div>
-          <Pagination
-            totalItems={filtered.length}
-            currentPage={pagination.currentPage}
-            onPageChange={pagination.setCurrentPage}
-            startIndex={pagination.startIndex}
-            endIndex={pagination.endIndex}
-            totalPages={pagination.totalPages}
-          />
+          </PaginatedDataTable>
         </div>
       )}
 

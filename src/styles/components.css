@@ -692,6 +692,36 @@
   margin-left: 2px;
 }
 
+.signature-field__canvas-frame {
+  width: 100%;
+  max-width: 520px;
+  margin-left: auto;
+}
+
+.signature-field__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: 6px;
+}
+
+.signature-field__saved-actions {
+  display: flex;
+  gap: 6px;
+}
+
+@media (max-width: 480px) {
+  .signature-field__actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .signature-field__saved-actions {
+    flex-wrap: wrap;
+  }
+}
+
 .form-input,
 .form-select,
 .form-textarea {
@@ -2468,12 +2498,6 @@ textarea:focus-visible {
 .verification-signature-card > div:first-child {
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.verification-signature-pad-frame {
-  width: 100%;
-  max-width: 520px;
-  margin-left: auto;
 }
 
 .verification-form .form-input:not(:disabled):not([readonly]),

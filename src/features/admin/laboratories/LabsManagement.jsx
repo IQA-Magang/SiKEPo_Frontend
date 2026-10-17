@@ -4,8 +4,8 @@ import { labsApi, usersApi } from '../../../shared/services/api.js';
 import { ACCESS, ACTIONS, can } from '../../../shared/utils/permissions.js';
 import { useToast } from '../../../app/providers/ToastContext.jsx';
 import { useConfirm } from '../../../app/providers/ConfirmContext.jsx';
-import Pagination, { usePagination } from '../../../shared/components/ui/Pagination.jsx';
-import DataTable from '../../../shared/components/ui/DataTable.jsx';
+import { usePagination } from '../../../shared/components/ui/Pagination.jsx';
+import PaginatedDataTable from '../../../shared/components/ui/PaginatedDataTable.jsx';
 import TableFilters from '../../../shared/components/ui/TableFilters.jsx';
 
 const EMPTY_FORM = { nama_labs: '', kode_labs: '', manager_id: '' };
@@ -153,7 +153,6 @@ export default function LabsManagement({ onNavigate }) {
     );
   });
   const pagination = usePagination(filtered.length, search);
-  const pageItems = filtered.slice(pagination.startIndex, pagination.endIndex);
 
   return (
     <div className="page-container fade-in-up">
@@ -217,9 +216,10 @@ export default function LabsManagement({ onNavigate }) {
         </div>
       ) : (
         <div className="table-card">
-          <DataTable
+          <PaginatedDataTable
             wrapperClassName="table-borderless"
-            rows={pageItems}
+            rows={filtered}
+            pagination={pagination}
             rowKey={(lab) => lab.id}
             columns={[
               { key: 'number', header: '#', headerStyle: { width: 48 }, render: (_, i) => pagination.startIndex + i + 1, cellStyle: { color: 'var(--clr-dark-400)' } },
@@ -255,21 +255,14 @@ export default function LabsManagement({ onNavigate }) {
                 ),
               },
             ]}
-          />
+          >
 
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">
             <span>Total laboratorium pengujian: <strong>{filtered.length}</strong> dari <strong>{labs.length}</strong></span>
             <span>Standar: <strong>ISO/IEC 17025:2017</strong></span>
           </div>
-          <Pagination
-            totalItems={filtered.length}
-            currentPage={pagination.currentPage}
-            onPageChange={pagination.setCurrentPage}
-            startIndex={pagination.startIndex}
-            endIndex={pagination.endIndex}
-            totalPages={pagination.totalPages}
-          />
+          </PaginatedDataTable>
         </div>
       )}
 

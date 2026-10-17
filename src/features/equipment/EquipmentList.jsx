@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Package, Plus, RefreshCw, Hand } from 'lucide-react';
 import { getEquipmentId, getEquipmentCategoryId, peralatanApi, ruanganApi, STATUS_BADGE_CLASS } from '../../shared/services/api.js';
 import { ACCESS, ACTIONS, can } from '../../shared/utils/permissions.js';
-import Pagination, { usePagination } from '../../shared/components/ui/Pagination.jsx';
-import DataTable from '../../shared/components/ui/DataTable.jsx';
+import { usePagination } from '../../shared/components/ui/Pagination.jsx';
+import PaginatedDataTable from '../../shared/components/ui/PaginatedDataTable.jsx';
 import TableFilters from '../../shared/components/ui/TableFilters.jsx';
 
 
@@ -67,7 +67,6 @@ export default function EquipmentList({
     return matchQ && matchKat && matchLifecycle;
   });
   const pagination = usePagination(filtered.length, `${search}\u0000${filterKat}\u0000${lifecycleView}`);
-  const pageItems = filtered.slice(pagination.startIndex, pagination.endIndex);
   const columns = [
     {
       key: 'number',
@@ -283,9 +282,10 @@ export default function EquipmentList({
         </div>
       ) : (
         <div className="table-card">
-          <DataTable
+          <PaginatedDataTable
             columns={columns}
-            rows={pageItems}
+            rows={filtered}
+            pagination={pagination}
             rowKey={(equipment) => getEquipmentId(equipment)}
             className="data-table-mobile-priority equipment-list-table"
             rowProps={(equipment) => {
@@ -307,14 +307,6 @@ export default function EquipmentList({
               };
             }}
             emptyMessage="Tidak ada peralatan ditemukan."
-          />
-          <Pagination
-            totalItems={filtered.length}
-            currentPage={pagination.currentPage}
-            onPageChange={pagination.setCurrentPage}
-            startIndex={pagination.startIndex}
-            endIndex={pagination.endIndex}
-            totalPages={pagination.totalPages}
           />
         </div>
       )}

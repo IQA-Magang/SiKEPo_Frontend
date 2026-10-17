@@ -4,8 +4,8 @@ import { labsApi, usersApi } from '../../../shared/services/api.js';
 import { ACCESS, ACTIONS, can, getUserRole } from '../../../shared/utils/permissions.js';
 import { useToast } from '../../../app/providers/ToastContext.jsx';
 import { useConfirm } from '../../../app/providers/ConfirmContext.jsx';
-import Pagination, { usePagination } from '../../../shared/components/ui/Pagination.jsx';
-import DataTable from '../../../shared/components/ui/DataTable.jsx';
+import { usePagination } from '../../../shared/components/ui/Pagination.jsx';
+import PaginatedDataTable from '../../../shared/components/ui/PaginatedDataTable.jsx';
 import TableFilters from '../../../shared/components/ui/TableFilters.jsx';
 
 const EMPTY_FORM = { nip: '', name: '', email: '', password: '', role: 'staff', position: '', pengelola: false, labs_id: '' };
@@ -173,7 +173,6 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
     return matchQ && matchRole;
   });
   const pagination = usePagination(filtered.length, `${search}\u0000${filterRole}`);
-  const pageItems = filtered.slice(pagination.startIndex, pagination.endIndex);
 
   return (
     <div className="page-container fade-in-up">
@@ -248,10 +247,11 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
         </div>
       ) : (
         <div className="table-card">
-          <DataTable
+          <PaginatedDataTable
             wrapperClassName="table-borderless"
             className="data-table-mobile-priority data-table-users"
-            rows={pageItems}
+            rows={filtered}
+            pagination={pagination}
             rowKey={(user) => user.user_id}
             columns={[
               { key: 'number', header: '#', headerStyle: { width: 48 }, render: (_, i) => pagination.startIndex + i + 1, cellStyle: { color: 'var(--clr-dark-400)' } },
@@ -287,21 +287,14 @@ export default function UserManagement({ onNavigate, viewOnly = false }) {
                 ),
               }] : []),
             ]}
-          />
+          >
 
           {/* 5. Summary Footer */}
           <div className="table-footer-summary">
             <span>Total pengguna terdaftar: <strong>{filtered.length}</strong> dari <strong>{users.length}</strong></span>
             <span>Total Pengelola Aktif: <strong>{users.filter((u) => u.pengelola).length}</strong></span>
           </div>
-          <Pagination
-            totalItems={filtered.length}
-            currentPage={pagination.currentPage}
-            onPageChange={pagination.setCurrentPage}
-            startIndex={pagination.startIndex}
-            endIndex={pagination.endIndex}
-            totalPages={pagination.totalPages}
-          />
+          </PaginatedDataTable>
         </div>
       )}
 

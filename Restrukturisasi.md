@@ -51,7 +51,20 @@ src/
 │   ├── settings/
 │   │   └── Settings.jsx
 │   └── verification/
-│       └── VerificationManagement.jsx
+│       ├── components/
+│       │   ├── PendingVerificationTable.jsx
+│       │   ├── ReviewVerificationTable.jsx
+│       │   ├── SignatureDisplayCard.jsx
+│       │   ├── VerificationCertificateSection.jsx
+│       │   ├── VerificationChecklistSection.jsx
+│       │   ├── VerificationDetailsModal.jsx
+│       │   ├── VerificationFollowUpSection.jsx
+│       │   ├── VerificationFormPage.jsx
+│       │   ├── VerificationHistoryTable.jsx
+│       │   ├── VerificationIdentitySection.jsx
+│       │   └── VerificationListPage.jsx
+│       ├── VerificationManagement.jsx
+│       └── verificationData.js
 ├── pages/
 │   ├── Forbidden.jsx
 │   ├── LandingPage.jsx
@@ -64,7 +77,9 @@ src/
 │   │   ├── ui/
 │   │   │   ├── ConfirmDialog.jsx
 │   │   │   ├── DataTable.jsx
+│   │   │   ├── PaginatedDataTable.jsx
 │   │   │   ├── Pagination.jsx
+│   │   │   ├── SignatureField.jsx
 │   │   │   ├── TableFilters.jsx
 │   │   │   └── Toast.jsx
 │   │   ├── Captcha.jsx
