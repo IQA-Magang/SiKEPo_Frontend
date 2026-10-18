@@ -859,6 +859,17 @@ export default function LoanApproval({ onNavigate }) {
   const [returnSigPeminjam, setReturnSigPeminjam] = useState('');
   const [showDirectPeminjamSigPad, setShowDirectPeminjamSigPad] = useState(false);
 
+  // Form State untuk Perpanjangan Peminjaman (Peminjam)
+  const [extensionNewDate, setExtensionNewDate] = useState('');
+  const [extensionReason, setExtensionReason] = useState('');
+  const [isExtensionSubmitting, setIsExtensionSubmitting] = useState(false);
+
+  // Form State untuk Pengesahan Perpanjangan (Manager Lab)
+  const [extensionDecisionAction, setExtensionDecisionAction] = useState('setuju'); // 'setuju' | 'tolak'
+  const [extensionDecisionNote, setExtensionDecisionNote] = useState('');
+  const [extensionDecisionSig, setExtensionDecisionSig] = useState('');
+  const [isExtensionDecisionSubmitting, setIsExtensionDecisionSubmitting] = useState(false);
+
   // State Logbook Peralatan Riil (GET /api/peralatan/:id/logbook)
   const [logbookData, setLogbookData] = useState([]);
   const [isLogbookLoading, setIsLogbookLoading] = useState(false);
@@ -967,6 +978,9 @@ export default function LoanApproval({ onNavigate }) {
       if (loan.status === 'MENUNGGU_MANAGER_LAB' && (isManagerLab || isAdmin)) {
         return { canReview: true, stage: 'manager_lab', label: 'Tahap 3: Pengesahan Manager Lab' };
       }
+      if (loan.status === 'SEDANG_DIPINJAM' && loan.perpanjangan?.some((p) => p.status === 'menunggu') && (isManagerLab || isAdmin)) {
+        return { canReviewExtension: true, label: 'Pengesahan Perpanjangan: Review Manager Lab' };
+      }
       return null;
     }
 
@@ -980,6 +994,10 @@ export default function LoanApproval({ onNavigate }) {
     }
     if (loan.status === 'MENUNGGU_MANAGER_LAB' && (isManagerLab || isAdmin)) {
       return { canReview: true, stage: 'manager_lab', label: 'Tahap 3: Pengesahan Manager Lab' };
+    }
+    // Review Perpanjangan Waktu (Wewenang Manager Lab)
+    if (loan.status === 'SEDANG_DIPINJAM' && loan.perpanjangan?.some((p) => p.status === 'menunggu') && (isManagerLab || isAdmin)) {
+      return { canReviewExtension: true, label: 'Pengesahan Perpanjangan: Review Manager Lab' };
     }
     // Tahap 4A: Pengelola memeriksa & mengisi Lampiran A
     if (isStageApprovedPengelola && (isPengelola || isAdmin)) {
@@ -1097,7 +1115,7 @@ export default function LoanApproval({ onNavigate }) {
 
     if (statusFilter === 'MENUNGGU_SAYA') {
       const pending = getPendingActionForUser(item);
-      return Boolean(pending?.canReview || pending?.canHandover || pending?.canReturnConfirm);
+      return Boolean(pending?.canReview || pending?.canHandover || pending?.canReturnConfirm || pending?.canReviewExtension);
     }
     if (statusFilter === 'DISETUJUI' || statusFilter === 'MENUNGGU_SERAH_TERIMA') {
       if (item.status !== 'MENUNGGU_SERAH_TERIMA' && item.status !== 'DISETUJUI') return false;
@@ -1376,6 +1394,123 @@ export default function LoanApproval({ onNavigate }) {
       } catch (err) {
         console.warn('Gagal fetch detail peminjaman:', err);
       }
+    }
+  }
+
+  // Helper hitung minimum tanggal perpanjangan (H+1 dari rencana_tanggal_kembali)
+  function getMinExtensionDate(loan) {
+    if (!loan?.rencana_tanggal_kembali) {
+      const now = new Date();
+      now.setDate(now.getDate() + 1);
+      return now.toISOString().split('T')[0];
+    }
+    const current = new Date(loan.rencana_tanggal_kembali);
+    current.setDate(current.getDate() + 1);
+    return current.toISOString().split('T')[0];
+  }
+
+  // Handler buka modal ajukan perpanjangan (Peminjam)
+  function handleOpenExtensionRequest(loan) {
+    setSelectedLoan(loan);
+    setModalMode('extension_request');
+    setExtensionReason('');
+    setExtensionNewDate(getMinExtensionDate(loan));
+  }
+
+  // Handler buka modal review perpanjangan (Manager Lab)
+  function handleOpenExtensionReview(loan) {
+    setSelectedLoan(loan);
+    setModalMode('extension_review');
+    setExtensionDecisionAction('setuju');
+    setExtensionDecisionNote('');
+    setExtensionDecisionSig('');
+  }
+
+  // Handler Submit Pengajuan Perpanjangan (Peminjam)
+  async function handleSubmitExtensionRequest(e) {
+    e.preventDefault();
+    if (!selectedLoan) return;
+
+    if (!extensionNewDate) {
+      toastError('Harap tentukan tanggal kembali baru.');
+      return;
+    }
+
+    if (!extensionReason.trim()) {
+      toastError('Harap isi alasan permohonan perpanjangan.');
+      return;
+    }
+
+    if (extensionNewDate <= selectedLoan.rencana_tanggal_kembali) {
+      toastError(`Tanggal kembali baru harus setelah tanggal kembali saat ini (${selectedLoan.rencana_tanggal_kembali}).`);
+      return;
+    }
+
+    setIsExtensionSubmitting(true);
+    try {
+      const payload = {
+        tanggal_kembali_baru: extensionNewDate,
+        alasan: extensionReason.trim(),
+      };
+      const res = await peminjamanApi.ajukanPerpanjangan(selectedLoan.id, payload);
+      if (res?.success) {
+        success('Permohonan perpanjangan berhasil diajukan dan sedang menunggu persetujuan Manager Lab.');
+        setSelectedLoan(null);
+        fetchLoans();
+      } else {
+        toastError(res?.message || 'Gagal mengajukan perpanjangan.');
+      }
+    } catch (err) {
+      toastError(err.message || 'Terjadi kesalahan saat mengajukan perpanjangan.');
+    } finally {
+      setIsExtensionSubmitting(false);
+    }
+  }
+
+  // Handler Submit Keputusan Perpanjangan (Manager Lab)
+  async function handleSubmitExtensionDecision(e) {
+    e.preventDefault();
+    if (!selectedLoan) return;
+
+    const waitingPj = selectedLoan.perpanjangan?.find((p) => p.status === 'menunggu');
+    if (!waitingPj) {
+      toastError('Tidak ada pengajuan perpanjangan yang sedang menunggu verifikasi.');
+      return;
+    }
+
+    if (extensionDecisionAction === 'tolak' && !extensionDecisionNote.trim()) {
+      toastError('Harap isi alasan penolakan perpanjangan.');
+      return;
+    }
+
+    if (extensionDecisionAction === 'setuju' && !extensionDecisionSig) {
+      toastError('Harap bubuhkan tanda tangan digital Anda untuk pengesahan.');
+      return;
+    }
+
+    setIsExtensionDecisionSubmitting(true);
+    try {
+      const payload = {
+        aksi: extensionDecisionAction,
+        catatan: extensionDecisionNote.trim(),
+        signature: extensionDecisionAction === 'setuju' ? extensionDecisionSig : undefined,
+      };
+      const res = await peminjamanApi.keputusanPerpanjangan(selectedLoan.id, waitingPj.id, payload);
+      if (res?.success) {
+        success(
+          extensionDecisionAction === 'setuju'
+            ? 'Perpanjangan peminjaman berhasil disetujui & disahkan.'
+            : 'Perpanjangan peminjaman telah ditolak.'
+        );
+        setSelectedLoan(null);
+        fetchLoans();
+      } else {
+        toastError(res?.message || 'Gagal memproses keputusan perpanjangan.');
+      }
+    } catch (err) {
+      toastError(err.message || 'Terjadi kesalahan saat memproses keputusan.');
+    } finally {
+      setIsExtensionDecisionSubmitting(false);
     }
   }
 
@@ -1994,7 +2129,7 @@ export default function LoanApproval({ onNavigate }) {
                           key={loan.id}
                           style={{
                             borderBottom: '1px solid #e2e8f0',
-                            background: isWaitingForReview || isReadyForHandover ? '#fffbeb' : '#ffffff',
+                            background: isWaitingForReview || isReadyForHandover || pendingAction?.canReviewExtension ? '#fffbeb' : '#ffffff',
                             transition: 'background 0.2s',
                           }}
                         >
@@ -2114,6 +2249,12 @@ export default function LoanApproval({ onNavigate }) {
                             <div style={{ fontSize: '12px', color: '#0f172a', fontWeight: 500 }}>
                               {loan.rencana_tanggal_keluar} s.d {loan.rencana_tanggal_kembali}
                             </div>
+                            {loan.rencana_tanggal_kembali_awal && loan.rencana_tanggal_kembali_awal !== loan.rencana_tanggal_kembali && (
+                              <div style={{ fontSize: '10px', color: '#059669', marginTop: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
+                                <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>{loan.rencana_tanggal_kembali_awal}</span>
+                                <span>➔ {loan.rencana_tanggal_kembali}</span>
+                              </div>
+                            )}
                             <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>
                               Jatuh tempo kalibrasi: {loan.peralatan.tgl_jatuh_tempo}
                             </div>
@@ -2136,6 +2277,28 @@ export default function LoanApproval({ onNavigate }) {
                             >
                               <Clock size={12} /> {meta.label}
                             </span>
+
+                            {/* Indikator Menunggu Review Perpanjangan */}
+                            {loan.status === 'SEDANG_DIPINJAM' && loan.perpanjangan?.some((p) => p.status === 'menunggu') && (
+                              <div style={{ marginTop: 4 }}>
+                                <span
+                                  className="badge"
+                                  style={{
+                                    fontSize: '10px',
+                                    background: '#fef3c7',
+                                    color: '#b45309',
+                                    border: '1px solid #fde68a',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    padding: '2px 6px',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  <Clock size={9} /> Perpanjangan Menunggu
+                                </span>
+                              </div>
+                            )}
 
                             {/* Mini Stepper 4 Tahap (Hijau = Selesai/Lolos | Merah = Ditolak | Abu = Belum) */}
                             <div style={{ display: 'flex', gap: 4, marginTop: 6 }} title="Status Alur 4 Tahap: Hijau = Selesai/Disetujui | Merah = Ditolak | Abu-abu = Belum">
@@ -2284,28 +2447,95 @@ export default function LoanApproval({ onNavigate }) {
                                   <ShieldCheck size={14} /> Review & TTD
                                 </button>
                               ) : loan.status === 'SEDANG_DIPINJAM' ? (
-                                (isPengelola || isAdmin) ? (
-                                  <button
-                                    type="button"
-                                    className="btn btn-primary btn-sm"
-                                    onClick={() => handleOpenReturn(loan)}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 5,
-                                      fontSize: '11px',
-                                      padding: '5px 10px',
-                                      background: '#0284c7',
-                                      borderColor: '#0369a1',
-                                      color: '#ffffff',
-                                      fontWeight: 600,
-                                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
-                                    }}
-                                    title="Lakukan pemeriksaan fisik pengembalian peralatan & tanda tangan bersama peminjam"
-                                  >
-                                    <ClipboardCheck size={13} /> Pengembalian
-                                  </button>
-                                ) : null
+                                <>
+                                  {/* Jika ada perpanjangan yang menunggu persetujuan Manager Lab */}
+                                  {loan.perpanjangan?.some((p) => p.status === 'menunggu') ? (
+                                    (isManagerLab || isAdmin) ? (
+                                      <button
+                                        type="button"
+                                        className="btn btn-warning btn-sm"
+                                        onClick={() => handleOpenExtensionReview(loan)}
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 5,
+                                          fontSize: '11px',
+                                          padding: '5px 10px',
+                                          background: '#ea580c',
+                                          borderColor: '#c2410c',
+                                          color: '#ffffff',
+                                          fontWeight: 600,
+                                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+                                        }}
+                                        title="Ada pengajuan perpanjangan yang membutuhkan review & pengesahan Manager Lab"
+                                      >
+                                        <ShieldCheck size={13} /> Review Perpanjangan
+                                      </button>
+                                    ) : (
+                                      <span
+                                        className="badge badge-warning"
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 4,
+                                          fontSize: '11px',
+                                          padding: '4px 8px',
+                                          cursor: 'default',
+                                        }}
+                                        title="Permohonan perpanjangan sedang menunggu pengesahan Manager Lab"
+                                      >
+                                        <Clock size={11} /> Menunggu Mgr Lab
+                                      </span>
+                                    )
+                                  ) : (
+                                    /* Jika status SEDANG_DIPINJAM dan peminjam dapat mengajukan perpanjangan */
+                                    (isPeminjam || isAdmin) && loan.dapat_diperpanjang ? (
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm"
+                                        onClick={() => handleOpenExtensionRequest(loan)}
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 5,
+                                          fontSize: '11px',
+                                          padding: '5px 10px',
+                                          background: '#f59e0b',
+                                          borderColor: '#d97706',
+                                          color: '#ffffff',
+                                          fontWeight: 600,
+                                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+                                        }}
+                                        title="Ajukan permohonan perpanjangan waktu pengembalian peralatan"
+                                      >
+                                        <CalendarClock size={13} /> Ajukan Perpanjangan
+                                      </button>
+                                    ) : null
+                                  )}
+
+                                  {(isPengelola || isAdmin) ? (
+                                    <button
+                                      type="button"
+                                      className="btn btn-primary btn-sm"
+                                      onClick={() => handleOpenReturn(loan)}
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 5,
+                                        fontSize: '11px',
+                                        padding: '5px 10px',
+                                        background: '#0284c7',
+                                        borderColor: '#0369a1',
+                                        color: '#ffffff',
+                                        fontWeight: 600,
+                                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+                                      }}
+                                      title="Lakukan pemeriksaan fisik pengembalian peralatan & tanda tangan bersama peminjam"
+                                    >
+                                      <ClipboardCheck size={13} /> Pengembalian
+                                    </button>
+                                  ) : null}
+                                </>
                               ) : null}
 
                               <button
@@ -2339,7 +2569,7 @@ export default function LoanApproval({ onNavigate }) {
       {/* ==================================================================== */}
       {/* 6. MODAL 1: REVIEW PERSETUJUAN (TAHAP 1, 2, 3) & DETAIL             */}
       {/* ==================================================================== */}
-      {selectedLoan && modalMode !== 'checkout' && modalMode !== 'return' && (() => {
+      {selectedLoan && modalMode !== 'checkout' && modalMode !== 'return' && modalMode !== 'extension_request' && modalMode !== 'extension_review' && (() => {
         const isReviewAction = modalMode === 'review' && getPendingActionForUser(selectedLoan)?.canReview;
         return (
           <div
@@ -2424,6 +2654,113 @@ export default function LoanApproval({ onNavigate }) {
 
             {/* Modal Body */}
             <div style={{ padding: 'var(--sp-6)' }}>
+                  {/* Banner Informasi / Aksi Perpanjangan Peminjaman */}
+                  {selectedLoan.status === 'SEDANG_DIPINJAM' && (() => {
+                    const waitingPj = selectedLoan.perpanjangan?.find((p) => p.status === 'menunggu');
+                    const { isPeminjam, isManagerLab, isAdmin } = getLoanUserRelationship(selectedLoan);
+
+                    if (waitingPj) {
+                      return (
+                        <div
+                          style={{
+                            padding: '12px 16px',
+                            background: '#fffbeb',
+                            border: '1.5px solid #fef3c7',
+                            borderRadius: 'var(--radius-md, 8px)',
+                            marginBottom: 'var(--sp-4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: 10,
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <Clock size={24} style={{ color: '#d97706', flexShrink: 0 }} />
+                            <div>
+                              <div style={{ fontWeight: 700, color: '#92400e', fontSize: '13px' }}>
+                                Permohonan Perpanjangan Waktu Sedang Diproses
+                              </div>
+                              <div style={{ color: '#78350f', fontSize: '11px', marginTop: 2 }}>
+                                Permintaan kembali hingga <strong>{waitingPj.tanggal_kembali_baru}</strong> diajukan pada {waitingPj.diajukan_pada ? String(waitingPj.diajukan_pada).slice(0, 10) : '-'}. Menunggu pengesahan Manager Lab.
+                              </div>
+                            </div>
+                          </div>
+                          {(isManagerLab || isAdmin) && (
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              onClick={() => handleOpenExtensionReview(selectedLoan)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                background: '#ea580c',
+                                borderColor: '#c2410c',
+                                color: '#ffffff',
+                                fontWeight: 700,
+                                fontSize: '12px',
+                                padding: '6px 12px',
+                              }}
+                            >
+                              <ShieldCheck size={15} /> Review & Putuskan Perpanjangan
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    if (selectedLoan.dapat_diperpanjang && (isPeminjam || isAdmin)) {
+                      return (
+                        <div
+                          style={{
+                            padding: '12px 16px',
+                            background: '#fefce8',
+                            border: '1.5px solid #fef08a',
+                            borderRadius: 'var(--radius-md, 8px)',
+                            marginBottom: 'var(--sp-4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: 10,
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <CalendarClock size={24} style={{ color: '#ca8a04', flexShrink: 0 }} />
+                            <div>
+                              <div style={{ fontWeight: 700, color: '#854d0e', fontSize: '13px' }}>
+                                Peralatan Sedang Aktif Digunakan
+                              </div>
+                              <div style={{ color: '#713f12', fontSize: '11px', marginTop: 2 }}>
+                                Butuh waktu lebih lama untuk pengujian? Anda dapat mengajukan permohonan perpanjangan waktu pengembalian.
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            onClick={() => handleOpenExtensionRequest(selectedLoan)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              background: '#eab308',
+                              borderColor: '#ca8a04',
+                              color: '#ffffff',
+                              fontWeight: 700,
+                              fontSize: '12px',
+                              padding: '6px 12px',
+                            }}
+                          >
+                            <CalendarClock size={15} /> Ajukan Perpanjangan Waktu
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  })()}
 
                   {/* Rincian Peralatan & Pengajuan */}
                   <div
@@ -3214,6 +3551,121 @@ export default function LoanApproval({ onNavigate }) {
                       )}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Riwayat Perpanjangan Peminjaman */}
+              {Array.isArray(selectedLoan.perpanjangan) && selectedLoan.perpanjangan.length > 0 && (
+                <div
+                  style={{
+                    border: '1.5px solid #fed7aa',
+                    borderRadius: 'var(--radius-md, 8px)',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    marginTop: 'var(--sp-4)',
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      background: '#fff7ed',
+                      borderBottom: '1px solid #fed7aa',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <CalendarClock size={16} style={{ color: '#ea580c' }} />
+                    <strong style={{ fontSize: '13px', color: '#9a3412' }}>
+                      Riwayat Permohonan Perpanjangan Waktu Peminjaman
+                    </strong>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
+                          <th style={{ padding: '8px 10px', textAlign: 'center', width: 40 }}>Ke-</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'left' }}>Tgl Pengajuan</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'left' }}>Perubahan Tanggal Kembali</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'left' }}>Alasan Permohonan</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Status</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'left' }}>Keputusan Manager Lab</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedLoan.perpanjangan.map((item, idx) => {
+                          const statusBg =
+                            item.status === 'disetujui' ? '#dcfce7' : item.status === 'ditolak' ? '#fee2e2' : '#fef3c7';
+                          const statusColor =
+                            item.status === 'disetujui' ? '#15803d' : item.status === 'ditolak' ? '#b91c1c' : '#b45309';
+                          const statusLabel =
+                            item.status === 'disetujui'
+                              ? 'Disetujui'
+                              : item.status === 'ditolak'
+                                ? 'Ditolak'
+                                : 'Menunggu Verifikasi';
+
+                          return (
+                            <tr key={item.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600 }}>{idx + 1}</td>
+                              <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
+                                {item.diajukan_pada ? String(item.diajukan_pada).slice(0, 10) : '-'}
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>
+                                  {item.tanggal_kembali_lama}
+                                </span>{' '}
+                                ➔ <strong style={{ color: '#059669' }}>{item.tanggal_kembali_baru}</strong>
+                              </td>
+                              <td style={{ padding: '8px 10px', fontStyle: 'italic', color: '#334155' }}>
+                                "{item.alasan}"
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                <span
+                                  className="badge"
+                                  style={{
+                                    background: statusBg,
+                                    color: statusColor,
+                                    fontSize: '10px',
+                                    padding: '2px 8px',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {statusLabel}
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 10px', fontSize: '11px' }}>
+                                {item.status === 'menunggu' ? (
+                                  <span style={{ color: '#b45309', fontStyle: 'italic' }}>
+                                    Menunggu telaah Manager Lab
+                                  </span>
+                                ) : (
+                                  <div>
+                                    <div style={{ color: '#1e293b' }}>
+                                      {item.catatan ? item.catatan : '-'}
+                                    </div>
+                                    <div style={{ color: '#64748b', fontSize: '10px', marginTop: 2 }}>
+                                      Oleh: {item.manager_lab?.nama || 'Manager Lab'} •{' '}
+                                      {item.diputuskan_pada ? String(item.diputuskan_pada).slice(0, 10) : ''}
+                                    </div>
+                                    {item.ttd_manager_lab && (
+                                      <div style={{ marginTop: 4 }}>
+                                        <img
+                                          src={item.ttd_manager_lab}
+                                          alt="TTD Manager Lab"
+                                          style={{ maxHeight: 35, maxWidth: 100, objectFit: 'contain' }}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
@@ -4911,6 +5363,408 @@ export default function LoanApproval({ onNavigate }) {
             </div>
           </div>
         )}
+
+      {/* ==================================================================== */}
+      {/* 8. MODAL 8: AJUKAN PERPANJANGAN PEMINJAMAN (OLEH PEMINJAM)            */}
+      {/* ==================================================================== */}
+      {selectedLoan && modalMode === 'extension_request' && (
+        <div
+          className="modal-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 'var(--sp-4)',
+          }}
+          onClick={() => !isExtensionSubmitting && setSelectedLoan(null)}
+        >
+          <div
+            className="modal-content card"
+            style={{
+              width: '100%',
+              maxWidth: '560px',
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              borderRadius: 'var(--radius-lg, 12px)',
+              padding: 0,
+              background: '#ffffff',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: 'var(--sp-4) var(--sp-6)',
+                borderBottom: '1.5px solid #fed7aa',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#fff7ed',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CalendarClock size={22} style={{ color: '#d97706' }} />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#9a3412' }}>
+                    Permohonan Perpanjangan Peminjaman
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#c2410c' }}>
+                    Tiket: {selectedLoan.kode || selectedLoan.id} • {selectedLoan.peralatan?.nama_peralatan}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setSelectedLoan(null)}
+                disabled={isExtensionSubmitting}
+                style={{ padding: 4 }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleSubmitExtensionRequest} style={{ padding: 'var(--sp-6)' }}>
+              {/* Info Peralatan & Tanggal Saat Ini */}
+              <div
+                style={{
+                  padding: '12px 14px',
+                  background: '#f8fafc',
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                  marginBottom: 'var(--sp-4)',
+                  fontSize: '12px',
+                }}
+              >
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div>
+                    <span style={{ color: '#64748b' }}>Nomor Aset:</span><br />
+                    <strong>{selectedLoan.peralatan?.nomor_aset || '-'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b' }}>Lab Pemilik:</span><br />
+                    <strong>{selectedLoan.peralatan?.lab_pemilik || '-'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b' }}>Tanggal Mulai Pinjam:</span><br />
+                    <strong>{selectedLoan.rencana_tanggal_keluar}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b' }}>Rencana Kembali Saat Ini:</span><br />
+                    <strong style={{ color: '#ea580c' }}>{selectedLoan.rencana_tanggal_kembali}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tanggal Kembali Baru */}
+              <div className="form-group" style={{ marginBottom: 'var(--sp-4)' }}>
+                <label className="form-label" style={{ fontWeight: 600 }}>
+                  Rencana Tanggal Kembali Baru <span className="required">*</span>
+                </label>
+                <input
+                  type="date"
+                  className="form-input"
+                  min={getMinExtensionDate(selectedLoan)}
+                  value={extensionNewDate}
+                  onChange={(e) => setExtensionNewDate(e.target.value)}
+                  required
+                />
+                <span className="form-help" style={{ fontSize: '11px', color: '#64748b' }}>
+                  Minimal tanggal setelah tanggal pengembalian saat ini ({selectedLoan.rencana_tanggal_kembali}).
+                </span>
+              </div>
+
+              {/* Alasan Perpanjangan */}
+              <div className="form-group" style={{ marginBottom: 'var(--sp-5)' }}>
+                <label className="form-label" style={{ fontWeight: 600 }}>
+                  Alasan Permohonan Perpanjangan <span className="required">*</span>
+                </label>
+                <textarea
+                  className="form-textarea"
+                  rows={3}
+                  placeholder="Jelaskan kebutuhan pengujian tambahan atau alasan teknis mengapa membutuhkan perpanjangan waktu..."
+                  value={extensionReason}
+                  onChange={(e) => setExtensionReason(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, borderTop: '1px solid #e2e8f0', paddingTop: 'var(--sp-4)' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSelectedLoan(null)}
+                  disabled={isExtensionSubmitting}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isExtensionSubmitting}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontWeight: 700,
+                    background: '#ea580c',
+                    borderColor: '#c2410c',
+                  }}
+                >
+                  {isExtensionSubmitting ? (
+                    <>
+                      <RefreshCw size={15} className="spin" /> Mengirimkan...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={15} /> Ajukan ke Manager Lab
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* 9. MODAL 9: PENGESAHAN PERPANJANGAN (OLEH MANAGER LAB)                 */}
+      {/* ==================================================================== */}
+      {selectedLoan && modalMode === 'extension_review' && (() => {
+        const waitingPj = selectedLoan.perpanjangan?.find((p) => p.status === 'menunggu');
+
+        return (
+          <div
+            className="modal-overlay"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: 'var(--sp-4)',
+            }}
+            onClick={() => !isExtensionDecisionSubmitting && setSelectedLoan(null)}
+          >
+            <div
+              className="modal-content card"
+              style={{
+                width: '100%',
+                maxWidth: '640px',
+                maxHeight: '94vh',
+                overflowY: 'auto',
+                borderRadius: 'var(--radius-lg, 12px)',
+                padding: 0,
+                background: '#ffffff',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div
+                style={{
+                  padding: 'var(--sp-4) var(--sp-6)',
+                  borderBottom: '1.5px solid #fed7aa',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: '#fff7ed',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ShieldCheck size={22} style={{ color: '#ea580c' }} />
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#9a3412' }}>
+                      Pengesahan Perpanjangan Peminjaman Peralatan
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#c2410c' }}>
+                      Wewenang Manager Lab Pemilik Peralatan • Tiket {selectedLoan.kode || selectedLoan.id}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setSelectedLoan(null)}
+                  disabled={isExtensionDecisionSubmitting}
+                  style={{ padding: 4 }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <form onSubmit={handleSubmitExtensionDecision} style={{ padding: 'var(--sp-6)' }}>
+                {/* Box Detail Pengajuan */}
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    background: '#f8fafc',
+                    borderRadius: 8,
+                    border: '1.5px solid #e2e8f0',
+                    marginBottom: 'var(--sp-5)',
+                    fontSize: '12px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px' }}>
+                        {selectedLoan.peralatan?.nama_peralatan}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>
+                        Aset: {selectedLoan.peralatan?.nomor_aset} • Pemilik: {selectedLoan.peralatan?.lab_pemilik}
+                      </div>
+                    </div>
+                    <span className="badge badge-warning" style={{ fontSize: '11px' }}>
+                      Perpanjangan Diajukan
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '8px 10px', background: '#ffffff', borderRadius: 6, border: '1px solid #cbd5e1', marginBottom: 8 }}>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Peminjam:</span><br />
+                      <strong>{selectedLoan.peminjam?.nama || selectedLoan.peminjam_nama || '-'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Diajukan Pada:</span><br />
+                      <strong>{waitingPj?.diajukan_pada ? String(waitingPj.diajukan_pada).slice(0, 10) : '-'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Tanggal Kembali Saat Ini:</span><br />
+                      <strong style={{ color: '#64748b', textDecoration: 'line-through' }}>{waitingPj?.tanggal_kembali_lama || selectedLoan.rencana_tanggal_kembali}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Rencana Kembali Baru:</span><br />
+                      <strong style={{ color: '#059669', fontSize: '13px' }}>{waitingPj?.tanggal_kembali_baru}</strong>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '8px 10px', background: '#fffbeb', borderRadius: 6, border: '1px solid #fef3c7' }}>
+                    <div style={{ fontWeight: 600, color: '#92400e', marginBottom: 2 }}>Alasan Permohonan Peminjam:</div>
+                    <div style={{ color: '#78350f', fontStyle: 'italic' }}>"{waitingPj?.alasan}"</div>
+                  </div>
+                </div>
+
+                {/* Radio Pilihan Keputusan */}
+                <div className="form-group" style={{ marginBottom: 'var(--sp-3)' }}>
+                  <label className="form-label">
+                    Keputusan <span className="required">*</span>
+                  </label>
+                  <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'center' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="decision_choice"
+                        value="setuju"
+                        checked={extensionDecisionAction === 'setuju'}
+                        onChange={() => setExtensionDecisionAction('setuju')}
+                      />
+                      <span style={{ fontWeight: 600, color: '#16a34a' }}>
+                        ✓ Setujui Pengajuan
+                      </span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="decision_choice"
+                        value="tolak"
+                        checked={extensionDecisionAction === 'tolak'}
+                        onChange={() => setExtensionDecisionAction('tolak')}
+                      />
+                      <span style={{ fontWeight: 600, color: '#dc2626' }}>
+                        ✕ Tolak Pengajuan
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Catatan Keputusan */}
+                <div className="form-group" style={{ marginBottom: 'var(--sp-3)' }}>
+                  <label className="form-label">
+                    {extensionDecisionAction === 'setuju' ? 'Catatan / Arahan (Opsional)' : 'Alasan Penolakan (Wajib)'}
+                  </label>
+                  <textarea
+                    className="form-textarea"
+                    rows={2}
+                    placeholder={
+                      extensionDecisionAction === 'setuju'
+                        ? 'Catatan pemeriksaan teknis atau instruksi khusus...'
+                        : 'Uraikan alasan penolakan perpanjangan...'
+                    }
+                    value={extensionDecisionNote}
+                    onChange={(e) => setExtensionDecisionNote(e.target.value)}
+                    required={extensionDecisionAction === 'tolak'}
+                  />
+                </div>
+
+                {/* Tanda Tangan Digital Pad (Wajib jika Setuju) */}
+                {extensionDecisionAction === 'setuju' && (
+                  <div style={{ marginBottom: 'var(--sp-4)' }}>
+                    <DigitalSignaturePad
+                      value={extensionDecisionSig}
+                      onChange={setExtensionDecisionSig}
+                      label="Tanda Tangan Digital Manager Lab"
+                      required={true}
+                      helperText="Goreskan tanda tangan persetujuan perpanjangan"
+                    />
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, borderTop: '1px solid #e2e8f0', paddingTop: 'var(--sp-4)' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setSelectedLoan(null)}
+                    disabled={isExtensionDecisionSubmitting}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn"
+                    disabled={isExtensionDecisionSubmitting}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontWeight: 700,
+                      background: extensionDecisionAction === 'setuju' ? '#16a34a' : '#dc2626',
+                      borderColor: extensionDecisionAction === 'setuju' ? '#15803d' : '#b91c1c',
+                      color: '#ffffff',
+                    }}
+                  >
+                    {isExtensionDecisionSubmitting ? (
+                      <>
+                        <RefreshCw size={15} className="spin" /> Memproses...
+                      </>
+                    ) : extensionDecisionAction === 'setuju' ? (
+                      <>
+                        <CheckCircle2 size={15} /> Sahkan & Bubuhkan TTD
+                      </>
+                    ) : (
+                      <>
+                        <XCircle size={15} /> Kirim Penolakan
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

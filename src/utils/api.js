@@ -571,6 +571,10 @@ export const peminjamanApi = {
     fetchWithAuth(`/api/peminjaman/${id}/konfirmasi-terima`, { method: 'PUT', body: JSON.stringify(body) }),
   pengembalian: (id, body) =>
     fetchWithAuth(`/api/peminjaman/${id}/pengembalian`, { method: 'POST', body: JSON.stringify(body) }),
+  ajukanPerpanjangan: (id, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/perpanjangan`, { method: 'POST', body: JSON.stringify(body) }),
+  keputusanPerpanjangan: (id, perpanjanganId, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/perpanjangan/${perpanjanganId}/keputusan`, { method: 'PUT', body: JSON.stringify(body) }),
 };
 
 
