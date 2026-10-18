@@ -1491,8 +1491,11 @@ export default function LoanApproval({ onNavigate }) {
     setIsExtensionDecisionSubmitting(true);
     try {
       const payload = {
-        aksi: extensionDecisionAction,
+        keputusan: extensionDecisionAction,
         catatan: extensionDecisionNote.trim(),
+        ttd: extensionDecisionAction === 'setuju' ? extensionDecisionSig : '',
+        // Fallback untuk backward-compatibility
+        aksi: extensionDecisionAction,
         signature: extensionDecisionAction === 'setuju' ? extensionDecisionSig : undefined,
       };
       const res = await peminjamanApi.keputusanPerpanjangan(selectedLoan.id, waitingPj.id, payload);
@@ -1503,6 +1506,10 @@ export default function LoanApproval({ onNavigate }) {
             : 'Perpanjangan peminjaman telah ditolak.'
         );
         setSelectedLoan(null);
+        setModalMode(null);
+        setExtensionDecisionAction('setuju');
+        setExtensionDecisionNote('');
+        setExtensionDecisionSig('');
         fetchLoans();
       } else {
         toastError(res?.message || 'Gagal memproses keputusan perpanjangan.');
@@ -2145,7 +2152,7 @@ export default function LoanApproval({ onNavigate }) {
                                 </span>
                               )}
                               {roleFilter === 'pengelola' && (
-                                <span className="badge badge-purple" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                <span className="badge badge-red" style={{ fontSize: '9px', padding: '1px 5px' }}>
                                   Pengelola
                                 </span>
                               )}
@@ -2169,7 +2176,7 @@ export default function LoanApproval({ onNavigate }) {
                                     </span>
                                   )}
                                   {isPengelola && (
-                                    <span className="badge badge-purple" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                    <span className="badge badge-red" style={{ fontSize: '9px', padding: '1px 5px' }}>
                                       Pengelola
                                     </span>
                                   )}

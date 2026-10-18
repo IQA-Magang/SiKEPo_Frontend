@@ -270,7 +270,24 @@ export default function EquipmentList({ onNavigate, initialLifecycle = 'all' }) 
                       </div>
                     </td>
                     <td>
-                      <span style={{ color: 'var(--clr-dark-400)' }}>–</span>
+                      {p.pemakai_terakhir ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+                          <span style={{ fontWeight: 600, color: 'var(--clr-dark-800)', fontSize: '13px' }}>
+                            {p.pemakai_terakhir.nama}
+                          </span>
+                          {p.pemakai_terakhir.sedang_digunakan ? (
+                            <span className="badge badge-warning" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                              Sedang Digunakan
+                            </span>
+                          ) : (
+                            <small style={{ color: 'var(--clr-dark-500)', fontSize: '11px' }}>
+                              {p.pemakai_terakhir.tanggal_keluar ? String(p.pemakai_terakhir.tanggal_keluar).slice(0, 10) : ''}
+                            </small>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--clr-dark-400)' }}>–</span>
+                      )}
                     </td>
                     <td onClick={(event) => event.stopPropagation()}>
                       <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>

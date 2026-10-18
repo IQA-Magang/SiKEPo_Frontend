@@ -581,6 +581,14 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                     {technicalRows.map(({ label, value }) => (
                       <InfoRow key={label} label={label} value={value} />
                     ))}
+                    <InfoRow
+                      label="Pemakai Terakhir"
+                      value={
+                        peralatan.pemakai_terakhir
+                          ? `${peralatan.pemakai_terakhir.nama}${peralatan.pemakai_terakhir.sedang_digunakan ? ' (Sedang Digunakan)' : peralatan.pemakai_terakhir.tanggal_keluar ? ` (${String(peralatan.pemakai_terakhir.tanggal_keluar).slice(0, 10)})` : ''}`
+                          : 'Belum pernah dipinjam'
+                      }
+                    />
                     <InfoRow label="Keterangan" value={peralatan.keterangan || '–'} />
                   </div>
                   <div className="equipment-info-photo">
