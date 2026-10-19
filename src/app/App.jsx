@@ -31,6 +31,7 @@ const Settings = lazy(() => import('../features/settings/Settings.jsx'));
 import NotFound from '../pages/NotFound.jsx';
 import Forbidden from '../pages/Forbidden.jsx';
 const VerificationManagement = lazy(() => import('../features/verification/VerificationManagement.jsx'));
+const JadwalPemeriksaanBerkala = lazy(() => import('../features/scheduling/JadwalPemeriksaanBerkala.jsx'));
 const LandingPage = lazy(() => import('../pages/LandingPage.jsx'));
 const GuestEquipmentPage = lazy(() => import('../features/guest-equipment/GuestEquipmentPage.jsx'));
 const QRScannerModal = lazy(() => import('../shared/components/QRScannerModal.jsx'));
@@ -306,6 +307,14 @@ function AppContent() {
           element={
             <ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}>
               <VerificationRoute />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/penjadwalan"
+          element={
+            <ProtectedRoute feature={ACCESS.DIGITAL_CHECK_FORM}>
+              <JadwalPemeriksaanBerkala />
             </ProtectedRoute>
           }
         />

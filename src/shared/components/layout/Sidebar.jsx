@@ -151,7 +151,12 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
             </NavGroup>
 
             {/* PEMERIKSAAN PERALATAN */}
-            <NavGroup label="PEMERIKSAAN PERALATAN" icon={ShieldCheck} defaultOpen={false}>
+            <NavGroup
+              label="PEMERIKSAAN PERALATAN"
+              icon={ShieldCheck}
+              defaultOpen={currentPath.startsWith('/penjadwalan')}
+            >
+              <NavItem label="Penjadwalan" path="/penjadwalan" feature={ACCESS.DIGITAL_CHECK_FORM} />
               <NavItem label="Kalibrasi" path="/pemeriksaan/kalibrasi" feature={ACCESS.CALIBRATION_DOCUMENTS} disabled />
               <NavItem label="Verifikasi Fungsi" path="/pemeriksaan/verifikasi-fungsi" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />
               <NavItem label="Pengecekan Antara" path="/pemeriksaan/pengecekan-antara" feature={ACCESS.DIGITAL_CHECK_FORM} disabled />

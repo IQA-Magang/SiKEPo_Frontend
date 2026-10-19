@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2 } from 'lucide-react';
-import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, notificationApi } from '../../shared/services/api.js';
+import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2, CalendarDays, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, jadwalPemeriksaanBerkalaApi, notificationApi } from '../../shared/services/api.js';
 import { can, ACCESS, ACTIONS } from '../../shared/utils/permissions.js';
 import DataTable from '../../shared/components/ui/DataTable.jsx';
 
@@ -16,8 +16,214 @@ export default function Dashboard({ onNavigate }) {
       {role === 'admin'   && <AdminDashboard onNavigate={onNavigate} />}
       {role === 'manager' && <ManagerDashboard onNavigate={onNavigate} user={user} />}
       {role === 'staff'   && <StaffDashboard onNavigate={onNavigate} user={user} />}
+      <ScheduleDateCards onNavigate={onNavigate} />
     </div>
   );
+}
+
+function ScheduleDateCards({ onNavigate }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDateKey(new Date()));
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [scheduleResponse, equipmentResponse] = await Promise.all([
+          jadwalPemeriksaanBerkalaApi.getAll(),
+          peralatanApi.getAll(),
+        ]);
+        if (!Array.isArray(scheduleResponse?.data) || !Array.isArray(equipmentResponse?.data)) {
+          throw new Error('Format data jadwal atau peralatan tidak valid.');
+        }
+        const equipmentById = new Map(
+          equipmentResponse.data.map((equipment) => [
+            String(equipment.id ?? equipment.peralatan_id),
+            equipment,
+          ])
+        );
+        const schedules = scheduleResponse.data
+          .map((schedule) => ({
+            ...schedule,
+            equipment: equipmentById.get(String(schedule.peralatan_id)),
+            dueDate: schedule.tanggal_jatuh_tempo ? String(schedule.tanggal_jatuh_tempo).slice(0, 10) : '',
+          }))
+          .filter((schedule) => !schedule.dueDate || !Number.isNaN(new Date(`${schedule.dueDate}T00:00:00`).getTime()))
+          .sort((first, second) => first.dueDate.localeCompare(second.dueDate));
+        setItems(schedules);
+        setLoadError('');
+      } catch (err) {
+        console.error('Gagal memuat kalender jadwal dashboard:', err);
+        setLoadError(err.message || 'Gagal memuat jadwal pemeriksaan.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const scheduleTypeLabels = {
+    kalibrasi: 'Kalibrasi',
+    verifikasi_fungsi: 'Verifikasi Fungsi',
+    pengecekan_antara: 'Pengecekan Antara',
+    pemeliharaan: 'Pemeliharaan',
+  };
+  const monthLabel = visibleMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  const firstDayOfMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
+  const calendarStart = new Date(
+    firstDayOfMonth.getFullYear(),
+    firstDayOfMonth.getMonth(),
+    1 - ((firstDayOfMonth.getDay() + 6) % 7)
+  );
+  const calendarDays = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(calendarStart.getFullYear(), calendarStart.getMonth(), calendarStart.getDate() + index);
+    return { date, key: getLocalDateKey(date) };
+  });
+  const schedulesByDate = new Map();
+  items.forEach((schedule) => {
+    if (!schedule.dueDate) return;
+    const scheduledOnDate = schedulesByDate.get(schedule.dueDate) || [];
+    scheduledOnDate.push(schedule);
+    schedulesByDate.set(schedule.dueDate, scheduledOnDate);
+  });
+  const selectedDateValue = new Date(`${selectedDate}T00:00:00`);
+  const selectedDateLabel = Number.isNaN(selectedDateValue.getTime())
+    ? selectedDate
+    : selectedDateValue.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const selectedSchedules = schedulesByDate.get(selectedDate) || [];
+
+  function changeMonth(offset) {
+    setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() + offset, 1));
+  }
+
+  function selectDate(date, key) {
+    setSelectedDate(key);
+    if (date.getMonth() !== visibleMonth.getMonth() || date.getFullYear() !== visibleMonth.getFullYear()) {
+      setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+    }
+  }
+
+  return (
+    <section className="dashboard-schedule-section" aria-labelledby="dashboard-schedule-title">
+      <div className="dashboard-schedule-heading">
+        <div>
+          <h2 className="card-title" id="dashboard-schedule-title">Kalender Pemeriksaan</h2>
+          <p className="page-subtitle">Pilih tanggal untuk melihat jadwal pemeriksaan peralatan.</p>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/penjadwalan')}>
+          Semua jadwal <ArrowRight size={14} />
+        </button>
+      </div>
+
+      {loadError ? (
+        <div className="alert alert-warning" role="alert">{loadError}</div>
+      ) : loading ? (
+        <div className="card-padded" role="status">Memuat kalender pemeriksaan...</div>
+      ) : (
+        <div className="dashboard-calendar">
+          <div className="dashboard-calendar-toolbar">
+            <div className="dashboard-calendar-month">{monthLabel}</div>
+            <div className="dashboard-calendar-controls">
+              <button className="btn btn-secondary btn-sm" onClick={() => changeMonth(-1)} aria-label="Bulan sebelumnya">
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  const today = new Date();
+                  setVisibleMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+                  setSelectedDate(getLocalDateKey(today));
+                }}
+              >
+                Hari ini
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={() => changeMonth(1)} aria-label="Bulan berikutnya">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className="dashboard-calendar-grid" aria-label={`Kalender ${monthLabel}`}>
+            {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((day) => (
+              <div className="dashboard-calendar-weekday" key={day}>{day}</div>
+            ))}
+            {calendarDays.map(({ date, key }) => {
+              const daySchedules = schedulesByDate.get(key) || [];
+              const isCurrentMonth = date.getMonth() === visibleMonth.getMonth();
+              const isToday = key === getLocalDateKey(new Date());
+              const isSelected = key === selectedDate;
+              return (
+                <button
+                  className={`dashboard-calendar-day${isCurrentMonth ? '' : ' is-outside-month'}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${daySchedules.length ? ' has-schedules' : ''}`}
+                  key={key}
+                  onClick={() => selectDate(date, key)}
+                  aria-pressed={isSelected}
+                  aria-label={`${date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}${daySchedules.length ? `, ${daySchedules.length} jadwal` : ''}`}
+                >
+                  <span className="dashboard-calendar-day-number">{date.getDate()}</span>
+                  {daySchedules.length > 0 && (
+                    <span className="dashboard-calendar-event-count">
+                      <span className="dashboard-calendar-event-dot" />
+                      {daySchedules.length} jadwal
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="dashboard-calendar-agenda">
+            <div className="dashboard-calendar-agenda-heading">
+              <h3>{selectedDateLabel}</h3>
+              <span>{selectedSchedules.length} jadwal</span>
+            </div>
+            {selectedSchedules.length ? (
+              <div className="dashboard-calendar-agenda-list">
+                {selectedSchedules.map((schedule) => {
+                  const dueDate = new Date(`${schedule.dueDate}T00:00:00`);
+                  return (
+                    <div className="dashboard-calendar-agenda-row" key={schedule.id}>
+                      <div className={`dashboard-calendar-agenda-marker ${getDueDateBadgeClass(dueDate)}`} />
+                      <div className="dashboard-calendar-agenda-info">
+                        <strong>{schedule.equipment?.nama_peralatan || `Peralatan #${schedule.peralatan_id}`}</strong>
+                        <span>
+                          {schedule.equipment?.nomor_aset || 'Nomor aset tidak tersedia'}
+                          {' · '}
+                          {scheduleTypeLabels[schedule.jenis_jadwal] || schedule.jenis_jadwal || 'Pemeriksaan'}
+                          {schedule.peran_jadwal ? ` · ${schedule.peran_jadwal}` : ''}
+                        </span>
+                      </div>
+                      <span className={`badge ${getDueDateBadgeClass(dueDate)}`}>{formatDueDate(dueDate)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="dashboard-calendar-no-events">
+                <CalendarDays size={18} />
+                <span>Tidak ada jadwal pada tanggal ini.</span>
+                {items.length === 0 && (
+                  <button className="btn btn-primary btn-sm" onClick={() => onNavigate('/penjadwalan')}>Buat Jadwal</button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function getLocalDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function getProcessStage(equipment) {
@@ -37,6 +243,11 @@ function getProcessStage(equipment) {
 }
 
 function getCalibrationDueDate(equipment) {
+  const scheduleDate = equipment.jadwal_terdekat?.tanggal_jatuh_tempo;
+  if (scheduleDate) {
+    const parsedScheduleDate = new Date(`${String(scheduleDate).slice(0, 10)}T00:00:00`);
+    if (!Number.isNaN(parsedScheduleDate.getTime())) return parsedScheduleDate;
+  }
   const detail = equipment.detail
     || equipment.detail_alat_ukur
     || equipment.detail_alat_bantu
@@ -409,35 +620,47 @@ function StaffDashboard({ onNavigate, user }) {
   const [peralatan, setPeralatan] = useState([]);
   const [loading, setLoading] = useState(true);
   const [detailLoadError, setDetailLoadError] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await peralatanApi.getAll();
-        const equipmentList = res.data || [];
-        const detailedItems = [];
-        let failedDetailRequests = 0;
-
-        for (let index = 0; index < equipmentList.length; index += 8) {
-          const batch = equipmentList.slice(index, index + 8);
-          const results = await Promise.allSettled(batch.map(async (equipment) => {
-            if (!equipment.nomor_aset) return equipment;
-            const detailResponse = await peralatanApi.getByAssetNumber(equipment.nomor_aset);
-            return { ...equipment, detail: detailResponse.data?.data?.detail || null };
-          }));
-
-          results.forEach((result, batchIndex) => {
-            if (result.status === 'fulfilled') {
-              detailedItems.push(result.value);
-            } else {
-              failedDetailRequests += 1;
-              detailedItems.push(batch[batchIndex]);
-              console.warn(`Gagal memuat jadwal peralatan ${batch[batchIndex].nomor_aset || batchIndex + 1}:`, result.reason);
-            }
-          });
+        const [equipmentResult, scheduleResult] = await Promise.allSettled([
+          peralatanApi.getAll(),
+          jadwalPemeriksaanBerkalaApi.getAll(),
+        ]);
+        if (equipmentResult.status === 'rejected') throw equipmentResult.reason;
+        if (!Array.isArray(equipmentResult.value?.data)) {
+          throw new Error('Format respons daftar peralatan tidak valid.');
         }
 
-        detailedItems.sort((a, b) => {
+        const equipmentList = equipmentResult.value.data;
+        let scheduleLoadFailed = false;
+        let schedules = [];
+        if (scheduleResult.status === 'fulfilled') {
+          if (!Array.isArray(scheduleResult.value?.data)) {
+            throw new Error('Format respons daftar jadwal tidak valid.');
+          }
+          schedules = scheduleResult.value.data;
+        } else {
+          scheduleLoadFailed = true;
+          console.error('Gagal memuat jadwal pemeriksaan berkala:', scheduleResult.reason);
+        }
+
+        const schedulesByEquipment = new Map();
+        schedules.forEach((schedule) => {
+          const key = String(schedule.peralatan_id);
+          const current = schedulesByEquipment.get(key);
+          const date = schedule.tanggal_jatuh_tempo;
+          if (!current || (date && (!current.tanggal_jatuh_tempo || date < current.tanggal_jatuh_tempo))) {
+            schedulesByEquipment.set(key, schedule);
+          }
+        });
+        const scheduledItems = equipmentList.map((equipment) => ({
+          ...equipment,
+          jadwal_terdekat: schedulesByEquipment.get(String(equipment.id ?? equipment.peralatan_id)),
+        }));
+        scheduledItems.sort((a, b) => {
           const dueA = getCalibrationDueDate(a);
           const dueB = getCalibrationDueDate(b);
           if (!dueA && !dueB) return String(a.nama_peralatan || '').localeCompare(String(b.nama_peralatan || ''));
@@ -446,8 +669,12 @@ function StaffDashboard({ onNavigate, user }) {
           return dueA.getTime() - dueB.getTime();
         });
 
-        setPeralatan(detailedItems);
-        setDetailLoadError(failedDetailRequests > 0);
+        setPeralatan(scheduledItems);
+        setDetailLoadError(scheduleLoadFailed);
+        setLoadError('');
+      } catch (err) {
+        setLoadError(err.message || 'Gagal memuat daftar peralatan dan jadwal.');
+        setPeralatan([]);
       } finally {
         setLoading(false);
       }
@@ -486,13 +713,20 @@ function StaffDashboard({ onNavigate, user }) {
       <div className="card">
         <div className="card-header">
           <div>
-            <h2 className="card-title">Prioritas Kalibrasi & Tahapan Proses</h2>
-            {/* <p className="page-subtitle">Diurutkan dari tanggal jatuh tempo terdekat; jadwal yang belum tersedia ditampilkan terakhir.</p> */}
+            <h2 className="card-title">Prioritas Pemeriksaan & Tahapan Proses</h2>
           </div>
+          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/penjadwalan')}>
+            Buka Penjadwalan
+          </button>
         </div>
+        {loadError && (
+          <div className="alert alert-warning" role="alert" style={{ margin: 'var(--sp-4)' }}>
+            {loadError}
+          </div>
+        )}
         {detailLoadError && (
           <div className="alert alert-warning" role="status" style={{ margin: '0 var(--sp-4) var(--sp-3)' }}>
-            Sebagian jadwal jatuh tempo gagal dimuat. Tanggal tersebut mungkin belum tampil di daftar.
+            Jadwal pemeriksaan berkala gagal dimuat. Tanggal dari data lama mungkin masih ditampilkan.
           </div>
         )}
         {loading ? (

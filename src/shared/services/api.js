@@ -422,6 +422,24 @@ export const peralatanApi = {
 };
 
 // =============================================================
+// JADWAL PEMERIKSAAN BERKALA — /api/jadwal-pemeriksaan-berkala
+// =============================================================
+export const jadwalPemeriksaanBerkalaApi = {
+  getAll: () => fetchWithAuth('/api/jadwal-pemeriksaan-berkala/'),
+  getById: (id) => fetchWithAuth(`/api/jadwal-pemeriksaan-berkala/${id}`),
+  create: (body) =>
+    fetchWithAuth('/api/jadwal-pemeriksaan-berkala/', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateRealisasi: (id, tanggalRealisasi) =>
+    fetchWithAuth(`/api/jadwal-pemeriksaan-berkala/${id}/realisasi`, {
+      method: 'PUT',
+      body: JSON.stringify({ tanggal_realisasi: tanggalRealisasi }),
+    }),
+};
+
+// =============================================================
 // KATEGORI PERALATAN  — /api/kategori-peralatan
 // =============================================================
 export const kategoriPeralatanApi = {
