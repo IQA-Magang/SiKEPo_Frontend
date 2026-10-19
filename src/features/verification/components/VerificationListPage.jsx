@@ -6,6 +6,7 @@ import {
   exportVerificationWord,
 } from "../../../shared/lib/verificationPdf.js";
 import { getEquipmentId } from "../../../shared/services/api.js";
+import { Button, Tabs } from "../../../shared/components/ui/index.js";
 import { ACTIVITY_OPTIONS, getActivityLabel } from "../verificationData.js";
 import VerificationHistoryTable from "./VerificationHistoryTable.jsx";
 import PendingVerificationTable from "./PendingVerificationTable.jsx";
@@ -177,19 +178,19 @@ export default function VerificationListPage({
       cellProps: () => ({ onClick: (event) => event.stopPropagation() }),
       render: (item) => (
         (staffIsPengelola || role === "admin") && (
-          <button
-            className="btn btn-primary btn-sm"
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<ClipboardCheck size={14} />}
             onClick={() =>
               onNavigate(
                 `/verifikasi/${getEquipmentId(item)}?returnTo=${encodeURIComponent("/verifikasi")}`,
               )
             }
             title="Mulai pengisian tahapan verifikasi alat"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
-            <ClipboardCheck size={14} />
             {item.status_verifikasi === "Ditolak" ? "Verifikasi Ulang" : "Mulai Verifikasi"}
-          </button>
+          </Button>
         )
       ),
     },
@@ -236,17 +237,18 @@ export default function VerificationListPage({
       header: "Aksi",
       render: (item) =>
         canApprove ? (
-          <button
-            className="btn btn-primary btn-sm"
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<ClipboardCheck size={13} />}
             onClick={() => onReview(item)}
-            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
           >
-            <ClipboardCheck size={13} /> Tinjau Pengajuan
-          </button>
+            Tinjau Pengajuan
+          </Button>
         ) : (
-          <button className="btn btn-secondary btn-sm" onClick={() => onSelect(item)}>
+          <Button variant="secondary" size="sm" onClick={() => onSelect(item)}>
             Lihat Pengajuan
-          </button>
+          </Button>
         ),
     },
   ];
@@ -290,31 +292,36 @@ export default function VerificationListPage({
       header: "Aksi",
       render: (item) => (
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "nowrap" }}>
-          <button
-            className="btn btn-secondary btn-sm"
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Eye size={14} />}
             onClick={() => onSelect(item)}
-            style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
           >
-            <Eye size={14} /> Lihat
-          </button>
+            Lihat
+          </Button>
           {item.status === "Disetujui" && (canApprove || staffIsPengelola) && (
             <>
-              <button
-                className="btn btn-ghost btn-sm verification-export-action"
+              <Button
+                variant="ghost"
+                size="sm"
+                className="verification-export-action"
+                icon={<Printer size={14} />}
                 onClick={() => exportVerificationPdf(item)}
                 title="Export PDF (TLKM13/F/003)"
-                style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
               >
-                <Printer size={14} /> PDF
-              </button>
-              <button
-                className="btn btn-ghost btn-sm verification-export-action"
+                PDF
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="verification-export-action"
+                icon={<FileText size={14} />}
                 onClick={() => exportVerificationWord(item)}
                 title="Ekspor Word"
-                style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
               >
-                <FileText size={14} /> Word
-              </button>
+                Word
+              </Button>
             </>
           )}
         </div>
@@ -342,28 +349,28 @@ export default function VerificationListPage({
       </div>
 
       {/* Tabs Alur Verifikasi */}
-      <div className="tabs" style={{ flexWrap: "wrap" }}>
-        <button
-          className={`tab-btn ${activeTab === "pending" ? "active" : ""}`}
-          onClick={() => setActiveTab("pending")}
-        >
-          Menunggu Verifikasi ({pendingItems.length})
-        </button>
-        {(canApprove || role === "staff") && (
-          <button
-            className={`tab-btn ${activeTab === "review" ? "active" : ""}`}
-            onClick={() => setActiveTab("review")}
-          >
-            Menunggu Persetujuan Manager ({filteredReviewItems.length})
-          </button>
-        )}
-        <button
-          className={`tab-btn ${activeTab === "history" ? "active" : ""}`}
-          onClick={() => setActiveTab("history")}
-        >
-          Riwayat Verifikasi ({historyItems.length})
-        </button>
-      </div>
+      <Tabs
+        className="tabs"
+        ariaLabel="Alur verifikasi"
+        activeId={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          {
+            id: "pending",
+            label: `Menunggu Verifikasi (${pendingItems.length})`,
+          },
+          ...((canApprove || role === "staff")
+            ? [{
+                id: "review",
+                label: `Menunggu Persetujuan Manager (${filteredReviewItems.length})`,
+              }]
+            : []),
+          {
+            id: "history",
+            label: `Riwayat Verifikasi (${historyItems.length})`,
+          },
+        ]}
+      />
 
       {/* Tabel Konten per Tab */}
       <div className="verification-table-content">

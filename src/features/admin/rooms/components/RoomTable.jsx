@@ -1,5 +1,6 @@
 import { Building2, Layers, Pencil, Trash2 } from 'lucide-react';
 import PaginatedDataTable from '../../../../shared/components/ui/PaginatedDataTable.jsx';
+import { IconButton } from '../../../../shared/components/ui/index.js';
 import { getRoomLab, getRoomPic } from '../roomData.js';
 
 export default function RoomTable({
@@ -80,14 +81,29 @@ export default function RoomTable({
       render: (room) => (
         <div className="table-action-btns">
           {canEdit && (
-            <button className="btn-action-icon" onClick={() => onEdit(room)} id={`btn-edit-ruangan-${room.id}`} title="Edit Ruangan">
-              <Pencil size={13} />
-            </button>
+            <IconButton
+              icon={<Pencil size={13} />}
+              label={`Edit ruangan ${room.nama_ruangan}`}
+              variant="secondary"
+              className="btn-action-icon"
+              onClick={() => onEdit(room)}
+              id={`btn-edit-ruangan-${room.id}`}
+              title="Edit Ruangan"
+              style={{ width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 }}
+            />
           )}
           {canDelete && (
-            <button className="btn-action-icon btn-action-delete" onClick={() => onDelete(room.id)} disabled={deleting === room.id} id={`btn-hapus-ruangan-${room.id}`} title="Hapus Ruangan">
-              <Trash2 size={13} />
-            </button>
+            <IconButton
+              icon={<Trash2 size={13} />}
+              label={`Hapus ruangan ${room.nama_ruangan}`}
+              variant="secondary"
+              className="btn-action-icon btn-action-delete"
+              onClick={() => onDelete(room.id)}
+              disabled={deleting === room.id}
+              id={`btn-hapus-ruangan-${room.id}`}
+              title="Hapus Ruangan"
+              style={{ width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 }}
+            />
           )}
         </div>
       ),

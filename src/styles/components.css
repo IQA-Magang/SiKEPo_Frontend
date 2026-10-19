@@ -1257,6 +1257,65 @@
   padding: 0 10px;
 }
 
+.settings-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid #E5E7EB;
+  margin-bottom: 28px;
+  overflow-x: auto;
+}
+
+.settings-tabs .tab-btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  background: none;
+  color: #6B7280;
+  margin-bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-tabs .tab-btn.active {
+  color: #E30613;
+  border-bottom: 3px solid #E30613;
+}
+
+.settings-tabs .tab-btn:not(.active) {
+  border-bottom: 3px solid transparent;
+}
+
+.qr-scanner-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--clr-dark-200);
+  background: var(--clr-dark-50);
+}
+
+.qr-scanner-tabs .tab-btn {
+  padding: 12px;
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  color: var(--clr-dark-600);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.qr-scanner-tabs .tab-btn.active {
+  font-weight: var(--fw-bold);
+  color: var(--clr-primary-600);
+  border-bottom-color: var(--clr-primary-500);
+  background: #fff;
+}
+
 .ui-badge {
   display: inline-flex;
   align-items: center;
@@ -1525,6 +1584,10 @@
   width: min(100%, 720px);
 }
 
+.ui-modal--xl {
+  width: min(100%, 920px);
+}
+
 .ui-modal__header {
   display: flex;
   align-items: center;
@@ -1558,6 +1621,12 @@
   justify-content: flex-end;
   gap: 8px;
   padding: 0 20px 20px;
+}
+
+.login-info-modal-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
 }
 
 @keyframes ui-spin {

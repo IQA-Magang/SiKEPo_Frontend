@@ -1,13 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   getCurrentUser,
   getSavedSignature,
   saveSignature,
   removeSavedSignature,
   verifikasiApi,
-  peralatanApi,
-  ruanganApi,
-  getEquipmentId,
 } from "../../shared/services/api.js";
 import { useToast } from "../../app/providers/ToastContext.jsx";
 import { getUserRole, isStaffPengelola } from "../../shared/utils/permissions.js";
@@ -15,12 +12,12 @@ import { getSafeReturnPath, useNavigate } from "../../app/router/Router.jsx";
 import VerificationFormPage from "./components/VerificationFormPage.jsx";
 import VerificationListPage from "./components/VerificationListPage.jsx";
 import VerificationDetailsModal from "./components/VerificationDetailsModal.jsx";
+import useVerificationManagement from "./hooks/useVerificationManagement.js";
 import {
   ACTIVITY_REQUIREMENTS,
   CHECKS,
   CHECK_LABELS,
   emptyForm,
-  isEquipmentInUserLab,
   isMetrologyApplicable,
 } from "./verificationData.js";
 
@@ -43,29 +40,37 @@ export default function VerificationManagement({
     getSavedSignature(currentUser),
   );
 
-  const [items, setItems] = useState([]);
-  const [pendingEquipment, setPendingEquipment] = useState([]);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(() => ({
     ...emptyForm(),
     id_peralatan: equipmentId || "",
   }));
   const [busy, setBusy] = useState(false);
-  const [loadingEquipment, setLoadingEquipment] = useState(
-    Boolean(equipmentId),
-  );
-  const [equipmentInfo, setEquipmentInfo] = useState(null);
   const [picSignature, setPicSignature] = useState(() =>
     getSavedSignature(currentUser),
   );
   const [managerSignature, setManagerSignature] = useState(() =>
     getSavedSignature(currentUser),
   );
-  const [approvalModalItem, setApprovalModalItem] = useState(null);
   const [approvalMode, setApprovalMode] = useState("approve"); // 'approve' | 'reject'
   const [rejectReason, setRejectReason] = useState("");
   const [rejectCatatan, setRejectCatatan] = useState("");
   const [affirmApproved, setAffirmApproved] = useState(false);
+
+  const {
+    items,
+    pendingEquipment,
+    equipmentInfo,
+    loadingEquipment,
+    loadList,
+  } = useVerificationManagement({
+    equipmentId,
+    isLabScopedUser,
+    currentUserLabId,
+    setForm,
+    setBusy,
+    onError: error,
+  });
 
   function handleSignatureChange(setSignature, signature) {
     setSignature(signature);
@@ -91,194 +96,6 @@ export default function VerificationManagement({
       error(err.message || "Gagal menghapus tanda tangan tersimpan.");
     }
   }
-
-  // Memuat daftar verifikasi dan peralatan yang menunggu verifikasi.
-  async function loadList() {
-    setBusy(true);
-    try {
-      if (isLabScopedUser && currentUserLabId == null) {
-        throw new Error("Akun pengguna belum terhubung dengan lab.");
-      }
-
-      const [verificationResult, equipmentResult, roomsResult] =
-        await Promise.allSettled([
-          verifikasiApi.getAll(),
-          peralatanApi.getAll(),
-          isLabScopedUser ? ruanganApi.getAll() : Promise.resolve({ data: [] }),
-        ]);
-      if (isLabScopedUser && roomsResult.status !== "fulfilled") {
-        throw (
-          roomsResult.reason ||
-          new Error("Gagal memuat data ruangan untuk memeriksa lab pengguna.")
-        );
-      }
-      if (isLabScopedUser && equipmentResult.status !== "fulfilled") {
-        throw (
-          equipmentResult.reason ||
-          new Error("Gagal memuat data peralatan untuk memeriksa lab pengguna.")
-        );
-      }
-      const roomList =
-        roomsResult.status === "fulfilled" ? roomsResult.value?.data || [] : [];
-      const roomsById = new Map(
-        roomList.map((room) => [String(room.id), room]),
-      );
-      const allEquipment =
-        equipmentResult.status === "fulfilled"
-          ? equipmentResult.value?.data || []
-          : [];
-      const equipmentById = new Map(
-        allEquipment.map((equipment) => [
-          String(getEquipmentId(equipment)),
-          equipment,
-        ]),
-      );
-
-      if (verificationResult.status === "fulfilled") {
-        const allVerifications = verificationResult.value?.data || [];
-        setItems(
-          isLabScopedUser
-            ? allVerifications.filter((item) => {
-                const equipment =
-                  item.peralatan ||
-                  equipmentById.get(String(item.id_peralatan));
-                return isEquipmentInUserLab(
-                  equipment,
-                  roomsById,
-                  currentUserLabId,
-                );
-              })
-            : allVerifications,
-        );
-      }
-      if (equipmentResult.status === "fulfilled") {
-        // Peralatan yang perlu verifikasi awal (belum disetujui, belum diajukan, dan belum dihapus)
-        const pending = allEquipment.filter(
-          (p) =>
-            p.status_verifikasi !== "Disetujui" &&
-            p.status_verifikasi !== "Diajukan",
-        );
-        const visiblePending =
-          isLabScopedUser
-            ? pending.filter((p) =>
-                isEquipmentInUserLab(p, roomsById, currentUserLabId),
-              )
-            : pending;
-        setPendingEquipment(
-          visiblePending.map((equipment) => {
-            const room =
-              equipment.ruangan ||
-              roomsById.get(
-                String(equipment.ruangan_id ?? equipment.room_id ?? ""),
-              );
-            return {
-              ...equipment,
-              ruangan: room,
-              laboratorium:
-                equipment.laboratorium || room?.labs || equipment.laboratorium,
-            };
-          }),
-        );
-      }
-    } catch (err) {
-      error(err.message || "Gagal memuat data verifikasi.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!equipmentId) {
-      loadList();
-    }
-  }, [equipmentId]);
-
-  // Saat equipmentId tersedia (setelah input data peralatan atau klik tombol Verifikasi)
-  useEffect(() => {
-    if (!equipmentId) return;
-    setEquipmentInfo(null);
-    setForm((prev) => ({ ...prev, id_peralatan: String(equipmentId) }));
-
-    async function fetchEquipment() {
-      setLoadingEquipment(true);
-      try {
-        if (isLabScopedUser && currentUserLabId == null) {
-          throw new Error("Akun pengguna belum terhubung dengan lab.");
-        }
-
-        const [res, roomsRes] = await Promise.allSettled([
-          peralatanApi.getAll(),
-          isLabScopedUser ? ruanganApi.getAll() : Promise.resolve({ data: [] }),
-        ]);
-        if (isLabScopedUser && roomsRes.status !== "fulfilled") {
-          throw (
-            roomsRes.reason ||
-            new Error("Gagal memuat data ruangan untuk memeriksa lab pengguna.")
-          );
-        }
-        if (isLabScopedUser && res.status !== "fulfilled") {
-          throw (
-            res.reason ||
-            new Error(
-              "Gagal memuat data peralatan untuk memeriksa lab pengguna.",
-            )
-          );
-        }
-        const roomList =
-          roomsRes.status === "fulfilled" ? roomsRes.value?.data || [] : [];
-        const roomsById = new Map(
-          roomList.map((room) => [String(room.id), room]),
-        );
-
-        if (res.status === "fulfilled") {
-          const found = (res.value.data || []).find(
-            (p) => String(getEquipmentId(p)) === String(equipmentId),
-          );
-          const canViewEquipment =
-            found &&
-            (!isLabScopedUser ||
-              isEquipmentInUserLab(found, roomsById, currentUserLabId));
-          if (canViewEquipment) {
-            setEquipmentInfo(found);
-            const detail = found.detail || {};
-            const autoActivity = found.kode_aktivitas || "A1";
-            const reqs = ACTIVITY_REQUIREMENTS[autoActivity] || {};
-
-            setForm((prev) => {
-              const nextResults = { ...prev.hasil_verifikasi };
-              CHECKS.forEach((key) => {
-                if (
-                  reqs[key] === "-" ||
-                  (key === "metrologi" && !isMetrologyApplicable(found))
-                ) {
-                  nextResults[key] = "TB";
-                }
-              });
-
-              return {
-                ...prev,
-                id_peralatan: String(equipmentId),
-                kode_aktivitas: autoActivity,
-                nomor_sertifikat: detail.no_sertifikat || prev.nomor_sertifikat,
-                berlaku_sampai: detail.tgl_jatuh_tempo
-                  ? detail.tgl_jatuh_tempo.slice(0, 10)
-                  : prev.berlaku_sampai,
-                firmware_versi_aktual:
-                  found.peranti_lunak_versi || prev.firmware_versi_aktual,
-                hasil_verifikasi: nextResults,
-              };
-            });
-          }
-        }
-      } catch (err) {
-        error(err.message || "Gagal mengambil data peralatan.");
-      } finally {
-        setLoadingEquipment(false);
-      }
-    }
-
-    fetchEquipment();
-  }, [equipmentId]);
 
   // Submit verifikasi — langsung diajukan ke Manager (tanpa draft)
   async function submitVerifikasi(event) {
@@ -439,18 +256,7 @@ export default function VerificationManagement({
     }
   }
 
-  // Manager Modal Actions
-  function openApprovalModal(item) {
-    setApprovalModalItem(item);
-    setApprovalMode("approve");
-    setManagerSignature(getSavedSignature(currentUser));
-    setRejectReason("");
-    setRejectCatatan("");
-    setAffirmApproved(false);
-  }
-
   function closeApprovalModal() {
-    setApprovalModalItem(null);
     setManagerSignature(getSavedSignature(currentUser));
     setRejectReason("");
     setRejectCatatan("");
@@ -458,7 +264,7 @@ export default function VerificationManagement({
   }
 
   async function handleApproveFromModal() {
-    const target = selected || approvalModalItem;
+    const target = selected;
     if (!target) return;
     if (!managerSignature?.trim()) {
       error(
@@ -489,7 +295,7 @@ export default function VerificationManagement({
   }
 
   async function handleRejectFromModal() {
-    const target = selected || approvalModalItem;
+    const target = selected;
     if (!target) return;
     if (!managerSignature?.trim()) {
       error("Tanda tangan digital manager wajib tersedia sebelum verifikasi ditolak.");

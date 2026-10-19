@@ -1,12 +1,13 @@
 import { createPortal } from "react-dom";
-import { CheckCircle2, FileCheck, FileText, Printer, XCircle } from "lucide-react";
+import { CheckCircle2, FileText, Printer, XCircle } from "lucide-react";
 import DataTable from "../../../shared/components/ui/DataTable.jsx";
+import { Button } from "../../../shared/components/ui/index.js";
 import {
   exportVerificationPdf,
   exportVerificationWord,
 } from "../../../shared/lib/verificationPdf.js";
-import SignatureField from "../../../shared/components/ui/SignatureField.jsx";
 import SignatureDisplayCard from "./SignatureDisplayCard.jsx";
+import VerificationDecisionForm from "./VerificationDecisionForm.jsx";
 import {
   ACTIVITY_REQUIREMENTS,
   CHECKS,
@@ -316,170 +317,21 @@ export default function VerificationDetailsModal({
 
                 {/* Form Persetujuan Manager — inline di dalam modal tinjau */}
                 {canApprove && selected.status === "Diajukan" && (
-                  <div
-                    style={{
-                      marginTop: "var(--sp-5)",
-                      borderTop: "2px solid var(--clr-dark-200)",
-                      paddingTop: "var(--sp-4)",
-                    }}
-                  >
-                    <h3
-                      style={{
-                        fontSize: "var(--text-sm)",
-                        fontWeight: "var(--fw-bold)",
-                        marginBottom: "var(--sp-3)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <FileCheck
-                        size={16}
-                        style={{ color: "var(--clr-primary-500)" }}
-                      />
-                      Keputusan Manager
-                    </h3>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                        marginBottom: "var(--sp-4)",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className={`btn btn-sm ${approvalMode === "approve" ? "btn-primary" : "btn-ghost"}`}
-                        onClick={() => setApprovalMode("approve")}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <CheckCircle2 size={14} /> Setujui
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-sm ${approvalMode === "reject" ? "btn-ghost" : "btn-ghost"}`}
-                        onClick={() => setApprovalMode("reject")}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                          color:
-                            approvalMode === "reject"
-                              ? "var(--clr-error-500, #ef4444)"
-                              : undefined,
-                        }}
-                      >
-                        <XCircle size={14} /> Tolak
-                      </button>
-                    </div>
-
-                    {approvalMode === "approve" ? (
-                      <div>
-                        <SignatureField
-                          value={managerSignature}
-                          onChange={(signature) =>
-                            handleSignatureChange(
-                              setManagerSignature,
-                              signature,
-                            )
-                          }
-                          label="Tanda Tangan Digital Manager"
-                          savedSignature={savedSignature}
-                          onRestore={() => setManagerSignature(savedSignature)}
-                          onForgetSaved={forgetSavedSignature}
-                        />
-                        <div
-                          style={{
-                            marginTop: "var(--sp-3)",
-                            padding: "var(--sp-3)",
-                            background: "#f0fdf4",
-                            border: "1px solid #bbf7d0",
-                            borderRadius: "var(--radius-md)",
-                          }}
-                        >
-                          <label
-                            style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: 8,
-                              cursor: "pointer",
-                              fontSize: "var(--text-xs)",
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={affirmApproved}
-                              onChange={(e) =>
-                                setAffirmApproved(e.target.checked)
-                              }
-                              style={{ marginTop: 2, flexShrink: 0 }}
-                            />
-                            <span>
-                              Saya menyatakan peralatan ini{" "}
-                              <strong>
-                                telah memenuhi seluruh kriteria kelayakan
-                              </strong>{" "}
-                              sesuai prosedur TLKM13/F/003 dan persetujuan ini
-                              sah secara sistem.
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <SignatureField
-                          value={managerSignature}
-                          onChange={(signature) =>
-                            handleSignatureChange(
-                              setManagerSignature,
-                              signature,
-                            )
-                          }
-                          label="Tanda Tangan Digital Manager untuk Penolakan"
-                          savedSignature={savedSignature}
-                          onRestore={() => setManagerSignature(savedSignature)}
-                          onForgetSaved={forgetSavedSignature}
-                        />
-                        <div className="form-group">
-                          <label className="form-label">
-                            Alasan Penolakan{" "}
-                            <span style={{ color: "red" }}>*</span>
-                          </label>
-                          <select
-                            className="form-select"
-                            value={rejectReason}
-                            onChange={(e) => setRejectReason(e.target.value)}
-                          >
-                            <option value="">Pilih alasan penolakan</option>
-                            <option value="Hasil aspek tidak sesuai">
-                              Hasil aspek tidak sesuai
-                            </option>
-                            <option value="Data pendukung belum sesuai">
-                              Data pendukung belum sesuai
-                            </option>
-                          </select>
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">
-                            Keterangan Alasan Penolakan{" "}
-                            <span style={{ color: "red" }}>*</span>
-                          </label>
-                          <textarea
-                            className="form-textarea"
-                            rows={2}
-                            placeholder="Jelaskan aspek atau data pendukung yang belum sesuai..."
-                            value={rejectCatatan}
-                            onChange={(e) => setRejectCatatan(e.target.value)}
-                            required
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <VerificationDecisionForm
+                    approvalMode={approvalMode}
+                    setApprovalMode={setApprovalMode}
+                    managerSignature={managerSignature}
+                    setManagerSignature={setManagerSignature}
+                    handleSignatureChange={handleSignatureChange}
+                    savedSignature={savedSignature}
+                    forgetSavedSignature={forgetSavedSignature}
+                    affirmApproved={affirmApproved}
+                    setAffirmApproved={setAffirmApproved}
+                    rejectReason={rejectReason}
+                    setRejectReason={setRejectReason}
+                    rejectCatatan={rejectCatatan}
+                    setRejectCatatan={setRejectCatatan}
+                  />
                 )}
               </div>
 
@@ -487,26 +339,21 @@ export default function VerificationDetailsModal({
                 {canApprove &&
                   selected.status === "Diajukan" &&
                   (approvalMode === "approve" ? (
-                    <button
-                      type="button"
-                      className="btn btn-primary verification-review-confirm"
+                    <Button
+                      variant="primary"
+                      className="verification-review-confirm"
+                      icon={<CheckCircle2 size={15} />}
                       disabled={
                         busy || !managerSignature?.trim() || !affirmApproved
                       }
                       onClick={handleApproveFromModal}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
                     >
-                      <CheckCircle2 size={15} />
                       {busy ? "Menyetujui..." : "Konfirmasi Persetujuan"}
-                    </button>
+                    </Button>
                   ) : (
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
+                    <Button
+                      variant="danger"
+                      icon={<XCircle size={15} />}
                       disabled={
                         busy ||
                         !managerSignature?.trim() ||
@@ -514,48 +361,35 @@ export default function VerificationDetailsModal({
                         !rejectCatatan.trim()
                       }
                       onClick={handleRejectFromModal}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        color: "var(--clr-error-500, #ef4444)",
-                      }}
                     >
-                      <XCircle size={15} />
                       {busy ? "Menolak..." : "Konfirmasi Penolakan"}
-                    </button>
+                    </Button>
                   ))}
                 {selected.status === "Disetujui" &&
                   (canApprove || staffIsPengelola) && (
                     <>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
+                      <Button
+                        variant="secondary"
+                        icon={<Printer size={15} />}
                         onClick={() => exportVerificationPdf(selected)}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
                       >
-                        <Printer size={15} /> Export PDF
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
+                        Export PDF
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        icon={<FileText size={15} />}
                         onClick={() => exportVerificationWord(selected)}
                       >
                         Export Word
-                      </button>
+                      </Button>
                     </>
                   )}
-                <button
-                  type="button"
-                  className="btn btn-secondary"
+                <Button
+                  variant="secondary"
                   onClick={() => setSelected(null)}
                 >
                   Tutup
-                </button>
+                </Button>
               </div>
             </div>
           </div>,

@@ -1,5 +1,6 @@
 import { Pencil, Shield, Trash2 } from 'lucide-react';
 import PaginatedDataTable from '../../../../shared/components/ui/PaginatedDataTable.jsx';
+import { Button, IconButton } from '../../../../shared/components/ui/index.js';
 import { ROLE_BADGE } from '../userData.js';
 
 export default function UserTable({
@@ -40,28 +41,44 @@ export default function UserTable({
       render: (user) => (
         <div className="table-action-btns" style={canSetPengelola ? { flexWrap: 'wrap' } : undefined}>
           {canSetPengelola && user.role === 'staff' && (
-            <button
-              className={`btn btn-sm ${user.pengelola ? 'btn-secondary' : 'btn-primary'}`}
+            <Button
+              variant={user.pengelola ? 'secondary' : 'primary'}
+              size="sm"
+              icon={<Shield size={13} />}
               onClick={() => onTogglePengelola(user)}
               disabled={updatingPengelola === user.user_id}
               id={`btn-toggle-pengelola-user-${user.user_id}`}
               title={user.pengelola ? 'Lepas status pengelola' : 'Tetapkan sebagai pengelola'}
             >
-              <Shield size={13} />
               {updatingPengelola === user.user_id
                 ? 'Menyimpan...'
                 : user.pengelola ? 'Lepas Pengelola' : 'Tetapkan Pengelola'}
-            </button>
+            </Button>
           )}
           {canEdit && (
-            <button className="btn-action-icon" onClick={() => onEdit(user)} id={`btn-edit-user-${user.user_id}`} title="Edit pengguna">
-              <Pencil size={13} />
-            </button>
+            <IconButton
+              icon={<Pencil size={13} />}
+              label={`Edit pengguna ${user.name}`}
+              variant="secondary"
+              className="btn-action-icon"
+              onClick={() => onEdit(user)}
+              id={`btn-edit-user-${user.user_id}`}
+              title="Edit pengguna"
+              style={{ width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 }}
+            />
           )}
           {canDelete && (
-            <button className="btn-action-icon btn-action-delete" onClick={() => onDelete(user.user_id)} disabled={deleting === user.user_id} id={`btn-hapus-user-${user.user_id}`} title="Hapus pengguna">
-              <Trash2 size={13} />
-            </button>
+            <IconButton
+              icon={<Trash2 size={13} />}
+              label={`Hapus pengguna ${user.name}`}
+              variant="secondary"
+              className="btn-action-icon btn-action-delete"
+              onClick={() => onDelete(user.user_id)}
+              disabled={deleting === user.user_id}
+              id={`btn-hapus-user-${user.user_id}`}
+              title="Hapus pengguna"
+              style={{ width: 32, height: 32, minWidth: 32, minHeight: 32, padding: 0 }}
+            />
           )}
         </div>
       ),

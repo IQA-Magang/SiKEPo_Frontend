@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, HelpCircle, X, Mail, Phone, KeyRound } from 'lucide-react';
+import { Eye, EyeOff, HelpCircle, Mail, Phone, KeyRound } from 'lucide-react';
 import WaveBackground from '../../shared/components/WaveBackground.jsx';
 import LogoSiKEPo from '../../shared/components/LogoSiKEPo.jsx';
 import TelkomTestHouseLogo from '../../shared/components/TelkomTestHouseLogo.jsx';
 import Captcha from '../../shared/components/Captcha.jsx';
 import { authApi, getToken } from '../../shared/services/api.js';
 import { useToast } from '../../app/providers/ToastContext.jsx';
-import { Button, FormField } from '../../shared/components/ui/index.js';
+import { Button, FormField, Modal } from '../../shared/components/ui/index.js';
 
 export default function Login({ onNavigate }) {
   const [emailOrNip, setEmailOrNip] = useState('');
@@ -287,50 +287,27 @@ export default function Login({ onNavigate }) {
         </section>
       </main>
 
-      {/* Accessible Info & Help Modal Dialog */}
-      {infoModal && (
-        <div
-          className="confirm-modal-overlay fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setInfoModal(null);
-          }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="login-info-modal-title"
-        >
-          <div className="confirm-dialog-card zoom-in">
-            <div className="confirm-dialog-header">
-              <div className="confirm-icon-wrap bg-primary-subtle text-primary">
-                {infoModal.icon ? <infoModal.icon size={22} /> : <HelpCircle size={22} />}
-              </div>
-              <button
-                className="confirm-dialog-close"
-                onClick={() => setInfoModal(null)}
-                aria-label="Tutup jendela informasi"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div>
-              <h3 id="login-info-modal-title" className="confirm-dialog-title">
-                {infoModal.title}
-              </h3>
-              <p style={{ fontSize: '12px', color: 'var(--clr-dark-500, #6B7280)', marginBottom: 14 }}>
-                {infoModal.subtitle}
-              </p>
-              {infoModal.content}
-            </div>
-            <div className="confirm-dialog-footer">
-              <Button
-                variant="primary"
-                onClick={() => setInfoModal(null)}
-              >
-                Mengerti
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={Boolean(infoModal)}
+        onClose={() => setInfoModal(null)}
+        title={infoModal && (
+          <span className="login-info-modal-title">
+            <span className="confirm-icon-wrap bg-primary-subtle text-primary">
+              {infoModal.icon ? <infoModal.icon size={22} /> : <HelpCircle size={22} />}
+            </span>
+            {infoModal.title}
+          </span>
+        )}
+        description={infoModal?.subtitle}
+        className="login-info-modal"
+        footer={(
+          <Button variant="primary" onClick={() => setInfoModal(null)}>
+            Mengerti
+          </Button>
+        )}
+      >
+        {infoModal?.content}
+      </Modal>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { ArrowLeft, Package, Send } from "lucide-react";
 import { getEquipmentId } from "../../../shared/services/api.js";
+import { Button } from "../../../shared/components/ui/index.js";
 import { getActivityLabel } from "../verificationData.js";
 import VerificationIdentitySection from "./VerificationIdentitySection.jsx";
 import VerificationChecklistSection from "./VerificationChecklistSection.jsx";
@@ -36,13 +37,13 @@ export default function VerificationFormPage({
               verifikasi. Staff lainnya tetap dapat melihat verifikasi beserta
               detailnya.
             </p>
-            <button
-              className="btn btn-secondary"
-              type="button"
+            <Button
+              variant="secondary"
+              icon={<ArrowLeft size={16} />}
               onClick={() => navigate(returnPath)}
             >
-              <ArrowLeft size={16} /> Kembali ke Verifikasi
-            </button>
+              Kembali ke Verifikasi
+            </Button>
           </div>
         </div>
       );
@@ -71,13 +72,13 @@ export default function VerificationFormPage({
               Data verifikasi hanya dapat dilihat oleh pengguna dari lab yang
               memiliki ruangan peralatan tersebut.
             </p>
-            <button
-              className="btn btn-secondary"
-              type="button"
+            <Button
+              variant="secondary"
+              icon={<ArrowLeft size={16} />}
               onClick={() => navigate(returnPath)}
             >
-              <ArrowLeft size={16} /> Kembali ke Verifikasi
-            </button>
+              Kembali ke Verifikasi
+            </Button>
           </div>
         </div>
       );
@@ -103,10 +104,11 @@ export default function VerificationFormPage({
               gap: "var(--sp-3)",
             }}
           >
-            <button
-              type="button"
-              className="btn btn-ghost btn-icon"
+            <Button
+              variant="ghost"
+              className="btn-icon"
               onClick={() => navigate(returnPath)}
+              aria-label={returnPath === "/verifikasi" ? "Kembali ke Verifikasi" : "Kembali ke Peralatan"}
               title={
                 returnPath === "/verifikasi"
                   ? "Kembali ke Verifikasi"
@@ -114,7 +116,7 @@ export default function VerificationFormPage({
               }
             >
               <ArrowLeft size={20} />
-            </button>
+            </Button>
             <div>
               <h1 className="page-title">
                 {role === "manager"
@@ -276,27 +278,25 @@ export default function VerificationFormPage({
               paddingTop: "var(--sp-4)",
             }}
           >
-            <button
-              type="button"
-              className="btn btn-secondary"
+            <Button
+              variant="secondary"
               onClick={() => navigate(returnPath)}
             >
               Batal
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="btn btn-primary"
+              variant="primary"
+              icon={<Send size={16} />}
               disabled={busy}
               id="btn-ajukan-verifikasi"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
             >
-              <Send size={16} />
               {busy
                 ? "Mengirim..."
                 : role === "manager"
                   ? "Kirim Verifikasi"
                   : "Ajukan Verifikasi"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { getCurrentUser, usersApi } from '../../shared/services/api.js';
 import UserManagement from '../admin/users/UserManagement.jsx';
-import { Button, FormField, Card, Badge, PageHeader } from '../../shared/components/ui/index.js';
+import { Button, FormField, Card, Badge, PageHeader, Tabs } from '../../shared/components/ui/index.js';
 
 export default function Settings({ onNavigate }) {
   const user = getCurrentUser();
@@ -104,61 +104,26 @@ export default function Settings({ onNavigate }) {
         style={{ marginBottom: '20px' }}
       />
 
-      {/* Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '8px',
-          borderBottom: '2px solid #E5E7EB',
-          marginBottom: '28px',
-          overflowX: 'auto',
-        }}
-      >
-        <button
-          onClick={() => setActiveTab('profile')}
-          style={{
-            padding: '10px 18px',
-            fontSize: '14px',
-            fontWeight: 700,
-            border: 'none',
-            background: 'none',
-            cursor: 'pointer',
-            color: activeTab === 'profile' ? '#E30613' : '#6B7280',
-            borderBottom: activeTab === 'profile' ? '3px solid #E30613' : '3px solid transparent',
-            marginBottom: '-2px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-          id="tab-btn-profile"
-        >
-          <User size={16} /> Profil & Akun
-        </button>
-
-        {canViewUsers && (
-          <button
-            onClick={() => setActiveTab('users')}
-            style={{
-              padding: '10px 18px',
-              fontSize: '14px',
-              fontWeight: 700,
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              color: activeTab === 'users' ? '#E30613' : '#6B7280',
-              borderBottom: activeTab === 'users' ? '3px solid #E30613' : '3px solid transparent',
-              marginBottom: '-2px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-            id="tab-btn-users"
-          >
-            <Users size={16} /> Manajemen Pengguna {role === 'manager' ? '(Lihat)' : ''}
-          </button>
-        )}
-
-      </div>
+      <Tabs
+        className="settings-tabs"
+        ariaLabel="Pengaturan akun"
+        activeId={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          {
+            id: 'profile',
+            idAttribute: 'tab-btn-profile',
+            label: <><User size={16} /> Profil & Akun</>,
+          },
+          ...(canViewUsers
+            ? [{
+                id: 'users',
+                idAttribute: 'tab-btn-users',
+                label: <><Users size={16} /> Manajemen Pengguna {role === 'manager' ? '(Lihat)' : ''}</>,
+              }]
+            : []),
+        ]}
+      />
 
       {/* Tab 1: Profile & Password */}
       {activeTab === 'profile' && (

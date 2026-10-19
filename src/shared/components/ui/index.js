@@ -8,6 +8,7 @@ import EmptyState from './EmptyState.jsx';
 import LoadingState from './LoadingState.jsx';
 import ErrorState from './ErrorState.jsx';
 import Modal from './Modal.jsx';
+import Tabs from './Tabs.jsx';
 
 export {
   Button,
@@ -20,6 +21,7 @@ export {
   LoadingState,
   ErrorState,
   Modal,
+  Tabs,
 };
 
 export default {
@@ -33,4 +35,5 @@ export default {
   LoadingState,
   ErrorState,
   Modal,
+  Tabs,
 };
