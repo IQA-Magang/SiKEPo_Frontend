@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, HelpCircle, X, Mail, Phone } from 'lucide-react';
+import { Eye, EyeOff, HelpCircle, X, Mail, Phone, KeyRound } from 'lucide-react';
 import WaveBackground from '../../shared/components/WaveBackground.jsx';
 import LogoSiKEPo from '../../shared/components/LogoSiKEPo.jsx';
 import TelkomTestHouseLogo from '../../shared/components/TelkomTestHouseLogo.jsx';
 import Captcha from '../../shared/components/Captcha.jsx';
 import { authApi, getToken } from '../../shared/services/api.js';
 import { useToast } from '../../app/providers/ToastContext.jsx';
+import { Button, FormField } from '../../shared/components/ui/index.js';
 
 export default function Login({ onNavigate }) {
   const [emailOrNip, setEmailOrNip] = useState('');
@@ -107,10 +108,13 @@ export default function Login({ onNavigate }) {
                   </div>
                 )}
 
-                <div className="form-group">
-                  <label htmlFor="emailOrNip" className="input-label">
-                    Email Terdaftar <span className="required">*</span>
-                  </label>
+                <FormField
+                  label="Email Terdaftar"
+                  htmlFor="emailOrNip"
+                  required
+                  error={errors.email}
+                  className="form-group"
+                >
                   <div className="input-wrapper">
                     <input
                       id="emailOrNip"
@@ -128,13 +132,15 @@ export default function Login({ onNavigate }) {
                       aria-invalid={Boolean(errors.email)}
                     />
                   </div>
-                  {errors.email && <span className="error-text" role="alert">{errors.email}</span>}
-                </div>
+                </FormField>
 
-                <div className="form-group">
-                  <label htmlFor="password" className="input-label">
-                    Password <span className="required">*</span>
-                  </label>
+                <FormField
+                  label="Password"
+                  htmlFor="password"
+                  required
+                  error={errors.password}
+                  className="form-group"
+                >
                   <div className="input-wrapper">
                     <input
                       id="password"
@@ -161,8 +167,7 @@ export default function Login({ onNavigate }) {
                       {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                     </button>
                   </div>
-                  {errors.password && <span className="error-text" role="alert">{errors.password}</span>}
-                </div>
+                </FormField>
 
                 {/* Google reCAPTCHA v2 Checkbox */}
                 <Captcha
@@ -178,7 +183,7 @@ export default function Login({ onNavigate }) {
                   disabled={isLoading}
                 />
 
-                <button type="submit" className="btn-masuk" disabled={isLoading} id="btn-login-submit">
+                <Button type="submit" className="btn-masuk" disabled={isLoading} id="btn-login-submit">
                   {isLoading ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <span className="spinner-mini" /> Memproses...
@@ -186,7 +191,7 @@ export default function Login({ onNavigate }) {
                   ) : (
                     'Masuk'
                   )}
-                </button>
+                </Button>
 
                 {/* Accessible Replacement for alert() */}
                 <div className="form-links">
@@ -255,8 +260,10 @@ export default function Login({ onNavigate }) {
                     <span className="test-creds-text">
                       Akun Standar: <strong>admin@sikepo.local</strong>
                     </span>
-                    <button
+                    <Button
                       type="button"
+                      variant="secondary"
+                      size="sm"
                       className="btn-test-creds"
                       onClick={() => {
                         setEmailOrNip('admin@sikepo.local');
@@ -266,7 +273,7 @@ export default function Login({ onNavigate }) {
                       }}
                     >
                       Isi Kredensial Pengujian
-                    </button>
+                    </Button>
                   </div>
                 )}
               </form>
@@ -314,13 +321,12 @@ export default function Login({ onNavigate }) {
               {infoModal.content}
             </div>
             <div className="confirm-dialog-footer">
-              <button
-                type="button"
-                className="btn btn-primary"
+              <Button
+                variant="primary"
                 onClick={() => setInfoModal(null)}
               >
                 Mengerti
-              </button>
+              </Button>
             </div>
           </div>
         </div>

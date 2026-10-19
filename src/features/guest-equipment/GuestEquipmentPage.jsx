@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, CircleAlert, Package, ShieldCheck } from 'lucide-react';
 import { formatPhotoUrl, getToken, peralatanApi } from '../../shared/services/api.js';
+import { Button, Card, Badge } from '../../shared/components/ui/index.js';
 import './guest-equipment.css';
 
 export default function GuestEquipmentPage({ equipmentNumber, onNavigate }) {
@@ -91,14 +92,15 @@ export default function GuestEquipmentPage({ equipmentNumber, onNavigate }) {
           <p className="guest-state-message">
             {error || 'Data peralatan tidak ditemukan untuk akses guest.'}
           </p>
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<ArrowLeft size={17} />}
             className="guest-back-button"
             onClick={() => onNavigate?.('/')}
           >
-            <ArrowLeft size={17} />
             Kembali
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -108,10 +110,15 @@ export default function GuestEquipmentPage({ equipmentNumber, onNavigate }) {
     <div className="guest-equipment-page">
       <div className="guest-equipment-shell">
         <header className="guest-page-header">
-          <button type="button" className="guest-back-button" onClick={() => onNavigate?.('/')}>
-            <ArrowLeft size={17} />
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<ArrowLeft size={17} />}
+            className="guest-back-button"
+            onClick={() => onNavigate?.('/')}
+          >
             Kembali
-          </button>
+          </Button>
           <span className="guest-header-brand"><span className="guest-brand-mark"><Package size={16} /></span>SiKEPo</span>
         </header>
 
@@ -144,10 +151,21 @@ export default function GuestEquipmentPage({ equipmentNumber, onNavigate }) {
                 <span>Nomor aset</span>
                 <strong>{peralatan.nomor_aset || 'Tidak tersedia'}</strong>
               </div>
-              <div className="guest-status-pill">
+              <Badge
+                tone={
+                  peralatan.status_alat === 'Aktif'
+                    ? 'success'
+                    : peralatan.status_alat === 'Dalam Kalibrasi'
+                    ? 'warning'
+                    : peralatan.status_alat === 'Rusak'
+                    ? 'danger'
+                    : 'neutral'
+                }
+                className="guest-status-pill"
+              >
                 <span className="guest-status-dot" />
                 {peralatan.status_alat || 'Status tidak tersedia'}
-              </div>
+              </Badge>
             </div>
           </section>
 
@@ -166,9 +184,14 @@ export default function GuestEquipmentPage({ equipmentNumber, onNavigate }) {
 
           <footer className="guest-page-footer">
             <span>Informasi aset laboratorium</span>
-            <button type="button" onClick={() => onNavigate?.('/login')}>
-              Masuk ke SiKEPo <ArrowUpRight size={16} />
-            </button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<ArrowUpRight size={16} />}
+              onClick={() => onNavigate?.('/login')}
+            >
+              Masuk ke SiKEPo
+            </Button>
           </footer>
         </main>
       </div>
@@ -217,13 +240,18 @@ function getGuestEquipmentDisplayData(equipment) {
 
 function DataSection({ title, data, number, hideId = false }) {
   return (
-    <section className="guest-data-section">
-      <header className="guest-section-heading">
-        <span className="guest-section-number">{number}</span>
-        <h2>{title}</h2>
-      </header>
+    <Card
+      as="section"
+      className="guest-data-section"
+      title={
+        <div className="guest-section-heading">
+          <span className="guest-section-number">{number}</span>
+          <h2>{title}</h2>
+        </div>
+      }
+    >
       <DataFields data={data} hideId={hideId} />
-    </section>
+    </Card>
   );
 }
 

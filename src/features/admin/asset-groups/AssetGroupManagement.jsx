@@ -1,49 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { FolderKanban, Plus, Pencil, Trash2, X, RefreshCw, Building2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { FolderKanban, Plus, RefreshCw } from 'lucide-react';
 import { kelompokAssetApi, labsApi, usersApi } from '../../../shared/services/api.js';
 import { ACCESS, ACTIONS, can } from '../../../shared/utils/permissions.js';
 import { useToast } from '../../../app/providers/ToastContext.jsx';
 import { useConfirm } from '../../../app/providers/ConfirmContext.jsx';
 import { usePagination } from '../../../shared/components/ui/Pagination.jsx';
-import PaginatedDataTable from '../../../shared/components/ui/PaginatedDataTable.jsx';
 import TableFilters from '../../../shared/components/ui/TableFilters.jsx';
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+} from '../../../shared/components/ui/index.js';
+import AssetGroupFormModal from './components/AssetGroupFormModal.jsx';
+import AssetGroupTable from './components/AssetGroupTable.jsx';
+import {
+  EMPTY_ASSET_GROUP_FORM,
+  createAssetGroupForm,
+  createAssetGroupPayload,
+  filterAssetGroups,
+  getAssetGroupValidationError,
+} from './assetGroupData.js';
 
-const EMPTY_FORM = {
-  kode: '',
-  nama: '',
-  lab_id: '',
-  pic_id: '',
-};
-
-export default function AssetGroupManagement({ onNavigate }) {
+export default function AssetGroupManagement() {
   const canAdd = can(ACCESS.MASTER_EQUIPMENT, ACTIONS.ADD);
   const canEdit = can(ACCESS.MASTER_EQUIPMENT, ACTIONS.EDIT);
   const canDelete = can(ACCESS.MASTER_EQUIPMENT, ACTIONS.DELETE);
+  const toast = useToast();
+  const confirm = useConfirm();
+
   const [assetGroups, setAssetGroups] = useState([]);
   const [labs, setLabs] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null); // null | { mode: 'create'|'edit', id }
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [loadError, setLoadError] = useState('');
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState(EMPTY_ASSET_GROUP_FORM);
+  const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [deleting, setDeleting] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [search, setSearch] = useState('');
   const [filterLab, setFilterLab] = useState('');
-
-  const toast = useToast();
-  const confirm = useConfirm();
-
-  // Escape key listener for modal
-  useEffect(() => {
-    function handleKeyDown(e) {
-      if (e.key === 'Escape' && modal) {
-        setModal(null);
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [modal]);
 
   useEffect(() => {
     loadData();
@@ -51,96 +49,91 @@ export default function AssetGroupManagement({ onNavigate }) {
 
   async function loadData() {
     setLoading(true);
+    setLoadError('');
+
     try {
-      const [groupsRes, labsRes, usersRes] = await Promise.allSettled([
+      const [groupsResult, labsResult, usersResult] = await Promise.allSettled([
         kelompokAssetApi.getAll(),
         labsApi.getAll(),
-        (canAdd || canEdit) ? usersApi.getAll() : Promise.resolve({ data: [] }),
+        canAdd || canEdit ? usersApi.getAll() : Promise.resolve({ data: [] }),
       ]);
 
-      if (groupsRes.status === 'fulfilled') {
-        setAssetGroups(groupsRes.value.data || []);
+      if (groupsResult.status === 'fulfilled') {
+        setAssetGroups(groupsResult.value.data || []);
       } else {
-        setError(groupsRes.reason?.message || 'Gagal memuat kelompok aset');
+        setLoadError(groupsResult.reason?.message || 'Gagal memuat kelompok aset.');
       }
 
-      if (labsRes.status === 'fulfilled') {
-        setLabs(labsRes.value.data || []);
+      if (labsResult.status === 'fulfilled') {
+        setLabs(labsResult.value.data || []);
       }
 
-      if (usersRes.status === 'fulfilled') {
-        setUsers(usersRes.value.data || []);
+      if (usersResult.status === 'fulfilled') {
+        setUsers(usersResult.value.data || []);
       }
     } catch (err) {
-      setError(err.message);
+      setLoadError(err.message || 'Gagal memuat kelompok aset.');
     } finally {
       setLoading(false);
     }
   }
 
-  function openCreate() {
-    setForm(EMPTY_FORM);
-    setError('');
+  function openCreateModal() {
+    setForm(EMPTY_ASSET_GROUP_FORM);
+    setFormError('');
     setModal({ mode: 'create' });
   }
 
-  function openEdit(item) {
-    setForm({
-      kode: item.kode || '',
-      nama: item.nama || '',
-      lab_id: item.lab_id ? String(item.lab_id) : '',
-      pic_id: item.pic_id ? String(item.pic_id) : '',
-    });
-    setError('');
-    setModal({ mode: 'edit', id: item.id });
+  function openEditModal(assetGroup) {
+    setForm(createAssetGroupForm(assetGroup));
+    setFormError('');
+    setModal({ mode: 'edit', id: assetGroup.id });
   }
 
-  async function handleSave() {
-    if (!form.kode.trim() || !form.nama.trim()) {
-      setError('Kode dan Nama Kelompok Aset wajib diisi.');
-      return;
-    }
-    if (!form.lab_id) {
-      setError('Laboratorium wajib dipilih.');
-      return;
-    }
-    if (!form.pic_id) {
-      setError('PIC wajib dipilih.');
+  function closeModal() {
+    if (saving) return;
+    setModal(null);
+    setFormError('');
+  }
+
+  async function saveAssetGroup() {
+    const validationError = getAssetGroupValidationError(form);
+    if (validationError) {
+      setFormError(validationError);
       return;
     }
 
     setSaving(true);
-    setError('');
+    setFormError('');
 
     try {
-      const payload = {
-        kode: form.kode.trim().toUpperCase(),
-        nama: form.nama.trim(),
-        lab_id: Number(form.lab_id),
-        pic_id: Number(form.pic_id),
-      };
-
+      const payload = createAssetGroupPayload(form);
       if (modal.mode === 'create') {
         await kelompokAssetApi.create(payload);
       } else {
         await kelompokAssetApi.update(modal.id, payload);
       }
 
+      const wasCreating = modal.mode === 'create';
       setModal(null);
-      toast.success(modal.mode === 'create' ? 'Kelompok aset baru berhasil ditambahkan.' : 'Data kelompok aset berhasil diperbarui.');
+      toast.success(
+        wasCreating
+          ? 'Kelompok aset baru berhasil ditambahkan.'
+          : 'Data kelompok aset berhasil diperbarui.',
+      );
       await loadData();
     } catch (err) {
-      setError(err.message || 'Gagal menyimpan kelompok aset.');
-      toast.error(err.message || 'Gagal menyimpan kelompok aset.');
+      const message = err.message || 'Gagal menyimpan kelompok aset.';
+      setFormError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete(id) {
-    const targetGroup = assetGroups.find((g) => g.id === id);
+  async function deleteAssetGroup(id) {
+    const targetGroup = assetGroups.find((group) => group.id === id);
     const groupName = targetGroup?.nama ? `"${targetGroup.nama}"` : 'kelompok aset ini';
-
     const confirmed = await confirm({
       title: 'Hapus Kelompok Aset',
       message: `Apakah Anda yakin ingin menghapus ${groupName}? Seluruh pengelompokan peralatan uji terkait dapat terpengaruh.`,
@@ -151,51 +144,45 @@ export default function AssetGroupManagement({ onNavigate }) {
 
     if (!confirmed) return;
 
-    setDeleting(id);
+    setDeletingId(id);
     try {
       await kelompokAssetApi.delete(id);
-      setAssetGroups((prev) => prev.filter((g) => g.id !== id));
+      setAssetGroups((currentGroups) => currentGroups.filter((group) => group.id !== id));
       toast.success(`Kelompok aset ${groupName} berhasil dihapus.`);
     } catch (err) {
       toast.error(err.message || 'Gagal menghapus kelompok aset.');
     } finally {
-      setDeleting(null);
+      setDeletingId(null);
     }
   }
 
-  const filtered = assetGroups.filter((g) => {
-    const q = search.toLowerCase();
-    const matchQ =
-      !q ||
-      g.nama?.toLowerCase().includes(q) ||
-      g.kode?.toLowerCase().includes(q) ||
-      g.lab?.nama_labs?.toLowerCase().includes(q) ||
-      g.pic?.name?.toLowerCase().includes(q);
-
-    const matchLab = !filterLab || String(g.lab_id) === filterLab;
-
-    return matchQ && matchLab;
+  const filteredAssetGroups = filterAssetGroups(assetGroups, {
+    search,
+    labId: filterLab,
   });
-  const pagination = usePagination(filtered.length, `${search}\u0000${filterLab}`);
+  const pagination = usePagination(
+    filteredAssetGroups.length,
+    `${search}\u0000${filterLab}`,
+  );
 
   return (
     <div className="page-container fade-in-up">
-      {/* 1. Page Header */}
-      <div className="page-header-row">
-        <div>
-          <h1 className="page-title">Kelompok Aset Peralatan</h1>
-          <p className="page-subtitle">
-            Klasifikasi pengelompokan aset laboratorium ({filtered.length} terdaftar)
-          </p>
-        </div>
-        {canAdd && (
-          <button className="btn btn-primary" onClick={openCreate} id="btn-tambah-kelompok-aset">
-            <Plus size={16} /> Tambah Kelompok Aset
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Kelompok Aset Peralatan"
+        subtitle={`Klasifikasi pengelompokan aset laboratorium (${filteredAssetGroups.length} terdaftar)`}
+        actions={canAdd ? (
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Plus size={16} />}
+            onClick={openCreateModal}
+            id="btn-tambah-kelompok-aset"
+          >
+            Tambah Kelompok Aset
+          </Button>
+        ) : null}
+      />
 
-      {/* 2. Filter Bar */}
       <TableFilters
         fields={[
           {
@@ -219,212 +206,71 @@ export default function AssetGroupManagement({ onNavigate }) {
             })),
           },
         ]}
-        actions={
-          <button
-            className="btn btn-secondary btn-icon"
+        actions={(
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<RefreshCw size={16} />}
             onClick={loadData}
             id="btn-refresh-kelompok-aset"
             title="Segarkan data kelompok aset"
           >
-            <RefreshCw size={16} />
-          </button>
-        }
+            Segarkan
+          </Button>
+        )}
       />
 
-      {/* 3. Table Content Card */}
       {loading ? (
-        <div className="card skeleton-list">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="skeleton skeleton-row" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">
-            <FolderKanban size={32} />
-          </div>
-          <p className="empty-state-title">Tidak ada kelompok aset ditemukan</p>
-          {canAdd && (
-            <button className="btn btn-primary" onClick={openCreate}>
-              <Plus size={16} /> Tambah Kelompok Aset
-            </button>
-          )}
-        </div>
+        <LoadingState message="Memuat kelompok aset..." />
+      ) : loadError ? (
+        <ErrorState
+          title="Gagal memuat kelompok aset"
+          message={loadError}
+          onRetry={loadData}
+        />
+      ) : filteredAssetGroups.length === 0 ? (
+        <EmptyState
+          title="Tidak ada kelompok aset ditemukan"
+          description="Belum ada data kelompok aset yang sesuai dengan pencarian saat ini."
+          icon={<FolderKanban size={32} />}
+          action={canAdd ? (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Plus size={16} />}
+              onClick={openCreateModal}
+            >
+              Tambah Kelompok Aset
+            </Button>
+          ) : null}
+        />
       ) : (
-        <div className="table-card">
-          <PaginatedDataTable
-            wrapperClassName="table-borderless"
-            rows={filtered}
-            pagination={pagination}
-            rowKey={(group) => group.id}
-            columns={[
-              { key: 'number', header: '#', headerStyle: { width: 48 }, render: (_, i) => pagination.startIndex + i + 1, cellStyle: { color: 'var(--clr-dark-400)' } },
-              { key: 'code', header: 'Kode Kelompok', headerStyle: { width: 130 }, render: (group) => <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>{group.kode}</code> },
-              { key: 'name', header: 'Nama Kelompok Aset', render: (group) => <span style={{ fontWeight: 'var(--fw-semibold)' }}>{group.nama}</span> },
-              {
-                key: 'lab',
-                header: 'Laboratorium',
-                render: (group) => {
-                  const lab = group.lab || labs.find((item) => item.id === group.lab_id);
-                  return lab
-                    ? <span className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Building2 size={12} />{lab.nama_labs}</span>
-                    : <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)' }}>-</span>;
-                },
-              },
-              {
-                key: 'pic',
-                header: 'PIC Aset',
-                render: (group) => {
-                  const pic = group.pic || users.find((item) => item.user_id === group.pic_id);
-                  return pic
-                    ? <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}><div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--clr-primary-100)', color: 'var(--clr-primary-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>{pic.name ? pic.name[0].toUpperCase() : 'P'}</div><span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>{pic.name}</span></div>
-                    : <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-xs)', fontStyle: 'italic' }}>Belum ditentukan</span>;
-                },
-              },
-              {
-                key: 'actions',
-                header: 'Aksi',
-                headerStyle: { width: 100 },
-                render: (group) => <div className="table-action-btns">
-                  {canEdit && <button className="btn-action-icon" onClick={() => openEdit(group)} id={`btn-edit-kelompok-aset-${group.id}`} title="Edit Kelompok Aset"><Pencil size={13} /></button>}
-                  {canDelete && <button className="btn-action-icon btn-action-delete" onClick={() => handleDelete(group.id)} disabled={deleting === group.id} id={`btn-hapus-kelompok-aset-${group.id}`} title="Hapus Kelompok Aset"><Trash2 size={13} /></button>}
-                </div>,
-              },
-            ]}
-          >
-
-          {/* 5. Summary Footer */}
-          <div className="table-footer-summary">
-            <span>Total kelompok aset: <strong>{filtered.length}</strong> dari <strong>{assetGroups.length}</strong></span>
-            <span>Laboratorium Terkait: <strong>{labs.length}</strong></span>
-          </div>
-          </PaginatedDataTable>
-        </div>
+        <AssetGroupTable
+          assetGroups={filteredAssetGroups}
+          labs={labs}
+          users={users}
+          pagination={pagination}
+          totalGroups={assetGroups.length}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          deletingId={deletingId}
+          onEdit={openEditModal}
+          onDelete={deleteAssetGroup}
+        />
       )}
 
-      {/* Modal Kelompok Aset */}
-      {modal && (
-        <div
-          className="modal-overlay"
-          onClick={(e) => e.target === e.currentTarget && setModal(null)}
-        >
-          <div className="modal" id="modal-kelompok-aset">
-            <div className="modal-header">
-              <h2 className="modal-title">
-                {modal.mode === 'create'
-                  ? 'Tambah Kelompok Aset'
-                  : 'Edit Kelompok Aset'}
-              </h2>
-              <button className="modal-close" onClick={() => setModal(null)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="modal-body">
-              {error && (
-                <div className="alert alert-error" style={{ marginBottom: 'var(--sp-4)' }}>
-                  {error}
-                </div>
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="modal-kode-aset">
-                    Kode Kelompok Aset <span className="required">*</span>
-                  </label>
-                  <input
-                    id="modal-kode-aset"
-                    className="form-input"
-                    placeholder="Contoh: KA-RF-01, KA-CAL-02"
-                    value={form.kode}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, kode: e.target.value.toUpperCase() }))
-                    }
-                  />
-                  <div className="form-hint">
-                    Kode ini digunakan sebagai referensi penomoran aset ISO/IEC 17025.
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="modal-nama-aset">
-                    Nama Kelompok Aset <span className="required">*</span>
-                  </label>
-                  <input
-                    id="modal-nama-aset"
-                    className="form-input"
-                    placeholder="Contoh: Spectrum Analyzer & Signal Generator Group"
-                    value={form.nama}
-                    onChange={(e) => setForm((p) => ({ ...p, nama: e.target.value }))}
-                  />
-                </div>
-
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="modal-lab-aset-select">
-                      Laboratorium Terkait <span className="required">*</span>
-                    </label>
-                    <select
-                      id="modal-lab-aset-select"
-                      className="form-select"
-                      value={form.lab_id}
-                      onChange={(e) => setForm((p) => ({ ...p, lab_id: e.target.value }))}
-                    >
-                      <option value="">-- Pilih Laboratorium --</option>
-                      {labs.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.nama_labs} ({l.kode_labs})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="modal-pic-aset-select">
-                      PIC Kelompok Aset <span className="required">*</span>
-                    </label>
-                    <select
-                      id="modal-pic-aset-select"
-                      className="form-select"
-                      value={form.pic_id}
-                      onChange={(e) => setForm((p) => ({ ...p, pic_id: e.target.value }))}
-                    >
-                      <option value="">-- Pilih PIC Aset --</option>
-                      {users.map((u) => (
-                        <option key={u.user_id} value={u.user_id}>
-                          {u.name} {u.pengelola ? '(Pengelola)' : ''} - {u.role}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-                        {canDelete && <button
-                className="btn btn-secondary"
-                onClick={() => setModal(null)}
-                id="btn-batal-kelompok-aset"
-              >
-                Batal
-                        </button>}
-              <button
-                className="btn btn-primary"
-                onClick={handleSave}
-                disabled={saving}
-                id="btn-simpan-kelompok-aset"
-              >
-                {saving ? (
-                  <>
-                    <div className="spinner" />
-                    Menyimpan...
-                  </>
-                ) : (
-                  'Simpan'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AssetGroupFormModal
+        isOpen={Boolean(modal)}
+        mode={modal?.mode}
+        form={form}
+        labs={labs}
+        users={users}
+        error={formError}
+        saving={saving}
+        onChange={setForm}
+        onClose={closeModal}
+        onSave={saveAssetGroup}
+      />
     </div>
   );
 }

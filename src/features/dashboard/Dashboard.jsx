@@ -3,6 +3,7 @@ import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCh
 import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, jadwalPemeriksaanBerkalaApi, notificationApi } from '../../shared/services/api.js';
 import { can, ACCESS, ACTIONS } from '../../shared/utils/permissions.js';
 import DataTable from '../../shared/components/ui/DataTable.jsx';
+import { Button, Badge, Card, PageHeader, LoadingState, ErrorState, EmptyState } from '../../shared/components/ui/index.js';
 
 // ------------------------------------------------------------------
 // Dashboard: tampilan berbeda berdasarkan role
@@ -115,25 +116,26 @@ function ScheduleDateCards({ onNavigate }) {
           <h2 className="card-title" id="dashboard-schedule-title">Kalender Pemeriksaan</h2>
           <p className="page-subtitle">Pilih tanggal untuk melihat jadwal pemeriksaan peralatan.</p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/penjadwalan')}>
-          Semua jadwal <ArrowRight size={14} />
-        </button>
+        <Button variant="secondary" size="sm" icon={<ArrowRight size={14} />} onClick={() => onNavigate('/penjadwalan')}>
+          Semua jadwal
+        </Button>
       </div>
 
       {loadError ? (
-        <div className="alert alert-warning" role="alert">{loadError}</div>
+        <ErrorState title="Gagal memuat kalender" message={loadError} onRetry={() => window.location.reload()} />
       ) : loading ? (
-        <div className="card-padded" role="status">Memuat kalender pemeriksaan...</div>
+        <LoadingState message="Memuat kalender pemeriksaan..." />
       ) : (
         <div className="dashboard-calendar">
           <div className="dashboard-calendar-toolbar">
             <div className="dashboard-calendar-month">{monthLabel}</div>
             <div className="dashboard-calendar-controls">
-              <button className="btn btn-secondary btn-sm" onClick={() => changeMonth(-1)} aria-label="Bulan sebelumnya">
+              <Button variant="secondary" size="sm" onClick={() => changeMonth(-1)} aria-label="Bulan sebelumnya">
                 <ChevronLeft size={16} />
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => {
                   const today = new Date();
                   setVisibleMonth(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -141,10 +143,10 @@ function ScheduleDateCards({ onNavigate }) {
                 }}
               >
                 Hari ini
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={() => changeMonth(1)} aria-label="Bulan berikutnya">
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => changeMonth(1)} aria-label="Bulan berikutnya">
                 <ChevronRight size={16} />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -180,7 +182,7 @@ function ScheduleDateCards({ onNavigate }) {
           <div className="dashboard-calendar-agenda">
             <div className="dashboard-calendar-agenda-heading">
               <h3>{selectedDateLabel}</h3>
-              <span>{selectedSchedules.length} jadwal</span>
+              <Badge tone={selectedSchedules.length > 0 ? 'info' : 'neutral'}>{selectedSchedules.length} jadwal</Badge>
             </div>
             {selectedSchedules.length ? (
               <div className="dashboard-calendar-agenda-list">
@@ -198,7 +200,7 @@ function ScheduleDateCards({ onNavigate }) {
                           {schedule.peran_jadwal ? ` · ${schedule.peran_jadwal}` : ''}
                         </span>
                       </div>
-                      <span className={`badge ${getDueDateBadgeClass(dueDate)}`}>{formatDueDate(dueDate)}</span>
+                      <Badge tone={getDueDateBadgeTone(dueDate)}>{formatDueDate(dueDate)}</Badge>
                     </div>
                   );
                 })}
@@ -208,7 +210,9 @@ function ScheduleDateCards({ onNavigate }) {
                 <CalendarDays size={18} />
                 <span>Tidak ada jadwal pada tanggal ini.</span>
                 {items.length === 0 && (
-                  <button className="btn btn-primary btn-sm" onClick={() => onNavigate('/penjadwalan')}>Buat Jadwal</button>
+                  <Button variant="primary" size="sm" onClick={() => onNavigate('/penjadwalan')}>
+                    Buat Jadwal
+                  </Button>
                 )}
               </div>
             )}
@@ -229,16 +233,16 @@ function getLocalDateKey(date) {
 function getProcessStage(equipment) {
   switch (equipment.status_verifikasi) {
     case 'Disetujui':
-      return { label: 'Verifikasi selesai', description: 'Persetujuan manager sudah diberikan', tone: 'badge-aktif' };
+      return { label: 'Verifikasi selesai', description: 'Persetujuan manager sudah diberikan', tone: 'badge-aktif', badgeTone: 'success' };
     case 'Diajukan':
-      return { label: 'Menunggu persetujuan', description: 'Pengajuan sedang menunggu manager', tone: 'badge-kalibrasi' };
+      return { label: 'Menunggu persetujuan', description: 'Pengajuan sedang menunggu manager', tone: 'badge-kalibrasi', badgeTone: 'warning' };
     case 'Ditolak':
-      return { label: 'Perlu tindak lanjut', description: 'Perbaiki catatan lalu ajukan ulang', tone: 'badge-rusak' };
+      return { label: 'Perlu tindak lanjut', description: 'Perbaiki catatan lalu ajukan ulang', tone: 'badge-rusak', badgeTone: 'danger' };
     case 'Draft':
-      return { label: 'Draft verifikasi', description: 'Belum diajukan untuk persetujuan manager', tone: 'badge-gray' };
+      return { label: 'Draft verifikasi', description: 'Belum diajukan untuk persetujuan manager', tone: 'badge-gray', badgeTone: 'neutral' };
     case 'Belum Diverifikasi':
     default:
-      return { label: 'Belum diverifikasi', description: 'PIC perlu memulai pemeriksaan alat', tone: 'badge-gray' };
+      return { label: 'Belum diverifikasi', description: 'PIC perlu memulai pemeriksaan alat', tone: 'badge-gray', badgeTone: 'neutral' };
   }
 }
 
@@ -283,6 +287,16 @@ function getDueDateBadgeClass(date) {
   if (days <= 0) return 'badge-rusak';
   if (days <= 30) return 'badge-kalibrasi';
   return 'badge-aktif';
+}
+
+function getDueDateBadgeTone(date) {
+  if (!date) return 'neutral';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.ceil((date.getTime() - today.getTime()) / 86400000);
+  if (days <= 0) return 'danger';
+  if (days <= 30) return 'warning';
+  return 'success';
 }
 
 // ------------------------------------------------------------------
@@ -344,25 +358,21 @@ function AdminDashboard({ onNavigate }) {
   return (
     <>
       {/* Level 1: Page Header */}
-      <div className="dash-header">
-        <div className="dash-header-left">
-          <div className="dash-title-row">
-            <h1 className="page-title">Dashboard Administrator</h1>
-            <span className="live-tag">Live Data</span>
-          </div>
-          <p className="page-subtitle">
-            Ringkasan inventaris peralatan, personel, dan monitoring peminjaman laboratorium Telkom Test House
-          </p>
-        </div>
-        <div className="dash-header-actions">
-          <button className="btn-pill-secondary" onClick={load} id="btn-refresh-dashboard">
-            <RefreshCw size={15} /> Segarkan
-          </button>
-          <button className="btn-pill-primary" onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan">
-            <Plus size={16} /> Tambah Peralatan
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Dashboard Administrator"
+        subtitle="Ringkasan inventaris peralatan, personel, dan monitoring peminjaman laboratorium Telkom Test House"
+        eyebrow="Live Data"
+        actions={(
+          <>
+            <Button variant="secondary" size="sm" icon={<RefreshCw size={15} />} onClick={load} id="btn-refresh-dashboard">
+              Segarkan
+            </Button>
+            <Button variant="primary" size="sm" icon={<Plus size={16} />} onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan">
+              Tambah Peralatan
+            </Button>
+          </>
+        )}
+      />
 
       {/* Level 1: 4 KPI Stat Cards */}
       <div className="stats-grid">
@@ -425,8 +435,7 @@ function AdminDashboard({ onNavigate }) {
 
       {/* Level 2: Ringkasan kondisi peralatan */}
       <div className="dash-level2-grid">
-        <div className="card card-padded">
-          <h2 className="card-title dash-section-title">Kondisi & Tata Kelola Peralatan</h2>
+        <Card title="Kondisi & Tata Kelola Peralatan">
           <div className="dash-category-list">
             <div className="dash-cat-item">
               <div className="dash-cat-header">
@@ -492,20 +501,19 @@ function AdminDashboard({ onNavigate }) {
               </div>
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="card card-padded">
-          <div className="dash-card-header-row">
-            <div>
-              <h2 className="card-title dash-section-title">Tahapan Verifikasi</h2>
-              <p className="page-subtitle">Status proses dan tindak lanjut setiap pengajuan</p>
-            </div>
-            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/verifikasi')}>
+        <Card
+          title="Tahapan Verifikasi"
+          subtitle="Status proses dan tindak lanjut setiap pengajuan"
+          action={(
+            <Button variant="secondary" size="sm" onClick={() => onNavigate('/verifikasi')}>
               Buka Verifikasi
-            </button>
-          </div>
+            </Button>
+          )}
+        >
           <ProcessSummary peralatan={loading ? [] : stats.processItems} />
-        </div>
+        </Card>
       </div>
     </>
   );
@@ -541,10 +549,10 @@ function ManagerDashboard({ onNavigate, user }) {
 
   return (
     <>
-      <div className="page-header">
-        <h1 className="page-title">Dashboard Manager Lab</h1>
-        <p className="page-subtitle">Selamat datang, <strong>{user?.name}</strong>. Pantau kondisi peralatan di laboratorium Anda.</p>
-      </div>
+      <PageHeader
+        title="Dashboard Manager Lab"
+        subtitle={`Selamat datang, ${user?.name}. Pantau kondisi peralatan di laboratorium Anda.`}
+      />
 
       <div className="stats-grid dash-stats-mb">
         <div className="stat-card accent-red">
@@ -570,12 +578,14 @@ function ManagerDashboard({ onNavigate, user }) {
       </div>
 
       {/* Notifikasi terbaru */}
-      {!loading && unread.length > 0 && (
-        <div className="card dash-card-mb">
-          <div className="card-header">
-            <h2 className="card-title">Notifikasi Terbaru</h2>
-            <span className="badge badge-red">{unread.length} belum dibaca</span>
-          </div>
+      {loading ? (
+        <LoadingState message="Memuat notifikasi dan status peralatan..." />
+      ) : unread.length > 0 ? (
+        <Card
+          className="dash-card-mb"
+          title="Notifikasi Terbaru"
+          action={<Badge tone="danger">{unread.length} belum dibaca</Badge>}
+        >
           <div className="notif-list-container">
             {unread.slice(0, 5).map((n) => (
               <div key={n.id} className="notif-item unread">
@@ -588,27 +598,33 @@ function ManagerDashboard({ onNavigate, user }) {
             ))}
           </div>
           <div style={{ padding: '0 var(--sp-4) var(--sp-4)', display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/verifikasi')}>
+            <Button variant="secondary" size="sm" onClick={() => onNavigate('/verifikasi')}>
               Buka Proses Verifikasi
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
+      ) : (
+        <EmptyState
+          title="Tidak ada notifikasi baru"
+          description="Semua pemberitahuan sudah dibaca atau belum ada aktivitas terbaru."
+          icon={<Bell size={22} />}
+          action={<Button variant="secondary" size="sm" onClick={() => onNavigate('/verifikasi')}>Lihat proses</Button>}
+        />
       )}
 
-      <div className="card card-padded">
-        <div className="dash-card-header-row">
-          <div>
-            <h2 className="card-title">Tahapan Proses Peralatan</h2>
-            <p className="page-subtitle">Pantau verifikasi dari pengajuan PIC sampai keputusan manager.</p>
-          </div>
-          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/verifikasi')}>
+      <Card
+        title="Tahapan Proses Peralatan"
+        subtitle="Pantau verifikasi dari pengajuan PIC sampai keputusan manager."
+        action={(
+          <Button variant="secondary" size="sm" onClick={() => onNavigate('/verifikasi')}>
             Buka Verifikasi
-          </button>
-        </div>
-        {loading ? <div className="skeleton-list">{[...Array(4)].map((_, i) => <div key={i} className="skeleton skeleton-row" />)}</div> : (
+          </Button>
+        )}
+      >
+        {loading ? <LoadingState message="Memuat tahapan proses peralatan..." /> : (
           <ProcessSummary peralatan={peralatan} />
         )}
-      </div>
+      </Card>
     </>
   );
 }
@@ -684,10 +700,10 @@ function StaffDashboard({ onNavigate, user }) {
 
   return (
     <>
-      <div className="page-header">
-        <h1 className="page-title">Dashboard Staff Lab</h1>
-        <p className="page-subtitle">Selamat datang, <strong>{user?.name}</strong>.</p>
-      </div>
+      <PageHeader
+        title="Dashboard Staff Lab"
+        subtitle={`Selamat datang, ${user?.name}.`}
+      />
 
       <div className="stats-grid dash-stats-mb">
         <div className="stat-card accent-red">
@@ -704,40 +720,39 @@ function StaffDashboard({ onNavigate, user }) {
 
       {can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) && (
         <div className="dash-action-group dash-actions-mb">
-          <button className="btn btn-primary" onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan-staff">
-            <Plus size={16} /> Tambah Peralatan Baru
-          </button>
+          <Button variant="primary" icon={<Plus size={16} />} onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan-staff">
+            Tambah Peralatan Baru
+          </Button>
         </div>
       )}
 
-      <div className="card">
-        <div className="card-header">
-          <div>
-            <h2 className="card-title">Prioritas Pemeriksaan & Tahapan Proses</h2>
-          </div>
-          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/penjadwalan')}>
+      <Card
+        title="Prioritas Pemeriksaan & Tahapan Proses"
+        action={(
+          <Button variant="secondary" size="sm" onClick={() => onNavigate('/penjadwalan')}>
             Buka Penjadwalan
-          </button>
-        </div>
+          </Button>
+        )}
+      >
         {loadError && (
-          <div className="alert alert-warning" role="alert" style={{ margin: 'var(--sp-4)' }}>
-            {loadError}
-          </div>
+          <ErrorState title="Gagal memuat data" message={loadError} onRetry={() => window.location.reload()} />
         )}
         {detailLoadError && (
-          <div className="alert alert-warning" role="status" style={{ margin: '0 var(--sp-4) var(--sp-3)' }}>
-            Jadwal pemeriksaan berkala gagal dimuat. Tanggal dari data lama mungkin masih ditampilkan.
-          </div>
+          <ErrorState
+            title="Jadwal pemeriksaan tidak lengkap"
+            message="Jadwal pemeriksaan berkala gagal dimuat. Tanggal dari data lama mungkin masih ditampilkan."
+            variant={undefined}
+          />
         )}
         {loading ? (
-          <div className="skeleton-list">
-            {[...Array(5)].map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
-          </div>
+          <LoadingState message="Memuat prioritas pemeriksaan dan proses..." />
         ) : peralatan.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon"><Package size={28} /></div>
-            <p className="empty-state-title">Belum ada peralatan terdaftar</p>
-          </div>
+          <EmptyState
+            title="Belum ada peralatan terdaftar"
+            description="Tambahkan peralatan baru untuk mulai memantau jadwal pemeriksaan dan status proses."
+            icon={<Package size={28} />}
+            action={can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) ? <Button variant="primary" size="sm" onClick={() => onNavigate('/peralatan/tambah')}>Tambah Peralatan</Button> : null}
+          />
         ) : (
           <DataTable
             wrapperClassName="table-borderless"
@@ -757,7 +772,7 @@ function StaffDashboard({ onNavigate, user }) {
                   const dueDate = getCalibrationDueDate(equipment);
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                      <span className={`badge ${getDueDateBadgeClass(dueDate)}`}>{formatDueDate(dueDate)}</span>
+                      <Badge tone={getDueDateBadgeTone(dueDate)}>{formatDueDate(dueDate)}</Badge>
                       {dueDate && <small style={{ color: 'var(--clr-dark-500)' }}>{dueDate.toLocaleDateString('id-ID')}</small>}
                     </div>
                   );
@@ -770,7 +785,7 @@ function StaffDashboard({ onNavigate, user }) {
                   const process = getProcessStage(equipment);
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                      <span className={`badge ${process.tone}`}>{process.label}</span>
+                      <Badge tone={process.badgeTone || 'neutral'}>{process.label}</Badge>
                       <small style={{ color: 'var(--clr-dark-500)' }}>{process.description}</small>
                     </div>
                   );
@@ -779,7 +794,7 @@ function StaffDashboard({ onNavigate, user }) {
             ]}
           />
         )}
-      </div>
+      </Card>
     </>
   );
 }

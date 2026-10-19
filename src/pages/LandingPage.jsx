@@ -8,6 +8,7 @@ import {
   X,
 } from 'lucide-react';
 import tthLogo from '../assets/logo/tth-logo.png';
+import { Button } from '../shared/components/ui/index.js';
 import '../styles/landing-page.css';
 
 const QRScannerModal = lazy(() => import('../shared/components/QRScannerModal.jsx'));
@@ -48,18 +49,23 @@ export default function LandingPage({ onNavigate }) {
           </nav>
 
           <div className="header-actions">
-            <button
+            <Button
+              variant="secondary"
               className="button-qr"
+              icon={<QrCode size={17} />}
               onClick={openQrScanner}
               aria-label="Buka pemindai QR peralatan"
               title="Scan QR Peralatan"
             >
-              <QrCode size={17} />
-              <span>Scan QR</span>
-            </button>
-            <button className="button-secondary" onClick={() => onNavigate('/login')}>
+              Scan QR
+            </Button>
+            <Button
+              variant="secondary"
+              className="button-secondary"
+              onClick={() => onNavigate('/login')}
+            >
               Masuk
-            </button>
+            </Button>
             <button
               className="mobile-menu-button"
               onClick={() => setIsMobileMenuOpen((open) => !open)}

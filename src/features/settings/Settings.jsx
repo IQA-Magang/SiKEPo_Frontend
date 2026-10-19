@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { getCurrentUser, usersApi } from '../../shared/services/api.js';
 import UserManagement from '../admin/users/UserManagement.jsx';
+import { Button, FormField, Card, Badge, PageHeader } from '../../shared/components/ui/index.js';
 
 export default function Settings({ onNavigate }) {
   const user = getCurrentUser();
@@ -97,12 +98,11 @@ export default function Settings({ onNavigate }) {
 
   return (
     <div className="page-container fade-in-up">
-      <div className="page-header" style={{ marginBottom: '20px' }}>
-        <h1 className="page-title">Pengaturan Sistem & Akun</h1>
-        <p className="page-subtitle">
-          Kelola profil dan kredensial akun
-        </p>
-      </div>
+      <PageHeader
+        title="Pengaturan Sistem & Akun"
+        subtitle="Kelola profil dan kredensial akun"
+        style={{ marginBottom: '20px' }}
+      />
 
       {/* Tabs */}
       <div
@@ -164,7 +164,7 @@ export default function Settings({ onNavigate }) {
       {activeTab === 'profile' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--sp-6)' }}>
           {/* Profile Card */}
-          <div className="card" style={{ padding: 'var(--sp-6)' }}>
+          <Card padding style={{ padding: 'var(--sp-6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)', marginBottom: 'var(--sp-6)' }}>
               <div
                 style={{
@@ -188,10 +188,10 @@ export default function Settings({ onNavigate }) {
                   {user?.name || 'Nama Pengguna'}
                 </h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginTop: 4 }}>
-                  <span className={`badge ${user?.role === 'admin' ? 'badge-role-admin' : user?.role === 'manager' ? 'badge-role-manager' : 'badge-role-staff'}`}>
+                  <Badge tone={user?.role === 'admin' ? 'primary' : user?.role === 'manager' ? 'info' : 'neutral'}>
                     {user?.role?.toUpperCase() || 'STAFF'}
-                  </span>
-                  {user?.pengelola && <span className="badge badge-green">PENGELOLA</span>}
+                  </Badge>
+                  {user?.pengelola && <Badge tone="success">PENGELOLA</Badge>}
                 </div>
               </div>
             </div>
@@ -212,19 +212,20 @@ export default function Settings({ onNavigate }) {
             </div>
 
             <div style={{ marginTop: 'var(--sp-6)', paddingTop: 'var(--sp-4)', borderTop: '1px solid var(--clr-dark-100)' }}>
-              <button
-                className="btn btn-outline"
+              <Button
+                variant="outline"
                 onClick={handleLogout}
                 style={{ width: '100%', borderColor: 'var(--clr-error-500)', color: 'var(--clr-error-600)' }}
                 id="btn-settings-logout"
+                icon={<LogOut size={16} />}
               >
-                <LogOut size={16} /> Keluar dari Aplikasi
-              </button>
+                Keluar dari Aplikasi
+              </Button>
             </div>
-          </div>
+          </Card>
 
           {/* Change Password Card */}
-          <div className="card" style={{ padding: 'var(--sp-6)' }}>
+          <Card padding style={{ padding: 'var(--sp-6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-4)' }}>
               <KeyRound size={20} style={{ color: '#E30613' }} />
               <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)' }}>
@@ -249,10 +250,7 @@ export default function Settings({ onNavigate }) {
             )}
 
             <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="input-current-password">
-                  Password Saat Ini <span className="required">*</span>
-                </label>
+              <FormField label="Password Saat Ini" htmlFor="input-current-password" required>
                 <input
                   id="input-current-password"
                   type="password"
@@ -262,12 +260,9 @@ export default function Settings({ onNavigate }) {
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   autoComplete="current-password"
                 />
-              </div>
+              </FormField>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="input-new-password">
-                  Password Baru <span className="required">*</span>
-                </label>
+              <FormField label="Password Baru" htmlFor="input-new-password" required>
                 <input
                   id="input-new-password"
                   type="password"
@@ -277,12 +272,9 @@ export default function Settings({ onNavigate }) {
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
                 />
-              </div>
+              </FormField>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="input-confirm-password">
-                  Konfirmasi Password Baru
-                </label>
+              <FormField label="Konfirmasi Password Baru" htmlFor="input-confirm-password">
                 <input
                   id="input-confirm-password"
                   type="password"
@@ -292,14 +284,15 @@ export default function Settings({ onNavigate }) {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   autoComplete="new-password"
                 />
-              </div>
+              </FormField>
 
-              <button
+              <Button
                 type="submit"
-                className="btn btn-primary"
+                variant="primary"
                 disabled={savingPassword}
                 id="btn-simpan-password"
                 style={{ alignSelf: 'flex-start' }}
+                icon={!savingPassword ? <Check size={16} /> : undefined}
               >
                 {savingPassword ? (
                   <>
@@ -307,13 +300,11 @@ export default function Settings({ onNavigate }) {
                     Menyimpan...
                   </>
                 ) : (
-                  <>
-                    <Check size={16} /> Simpan Password
-                  </>
+                  'Simpan Password'
                 )}
-              </button>
+              </Button>
             </form>
-          </div>
+          </Card>
         </div>
       )}
 

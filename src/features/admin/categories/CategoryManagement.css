@@ -1,0 +1,188 @@
+.category-management {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+.category-management__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--sp-4);
+}
+
+.category-management__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--clr-dark-200);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.category-management__item.is-selected {
+  border: 2px solid var(--category-color);
+  background: var(--category-background);
+  box-shadow: var(--shadow-md);
+}
+
+.category-management__select {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.category-management__select:focus-visible {
+  outline: 2px solid var(--category-color);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.category-management__item-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-1);
+}
+
+.category-management__icon,
+.category-management__details-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--category-color);
+  background: var(--category-background);
+  border: 1px solid var(--category-border);
+}
+
+.category-management__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+}
+
+.category-management__name {
+  color: var(--clr-dark-900);
+  font-size: var(--text-base);
+  font-weight: var(--fw-bold);
+}
+
+.category-management__description {
+  color: var(--clr-dark-500);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.category-management__details {
+  padding: var(--sp-6);
+  border-left: 5px solid var(--category-color);
+}
+
+.category-management__details-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.category-management__details-icon {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+}
+
+.category-management__details-title {
+  margin: 0;
+  color: var(--clr-dark-900);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+}
+
+.category-management__standard {
+  color: var(--clr-dark-500);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+}
+
+.category-management__details-description {
+  margin: 0 0 var(--sp-5);
+  color: var(--clr-dark-700);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.category-management__requirements {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--sp-5);
+}
+
+.category-management__requirement-card {
+  padding: var(--sp-4);
+  border-radius: var(--radius-md);
+  background: var(--clr-dark-50);
+}
+
+.category-management__requirement-card h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-3);
+  color: var(--clr-dark-800);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+}
+
+.category-management__requirement-card h3 svg {
+  color: var(--category-color);
+  flex: 0 0 auto;
+}
+
+.category-management__requirement-card ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding-left: var(--sp-4);
+}
+
+.category-management__requirement-card li {
+  color: var(--clr-dark-600);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.category-management__requirement-card .category-management__field-list {
+  padding: 0;
+  list-style: none;
+}
+
+.category-management__field-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--clr-dark-700);
+}
+
+.category-management__field-list li svg {
+  flex: 0 0 auto;
+  color: var(--clr-success-500);
+}
+
+.category-management__edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}

@@ -1,10 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import './equipment.css';
 import { Package, ArrowLeft, Upload, FileText, Download, QrCode, Printer } from 'lucide-react';
-import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, kelompokAssetApi, ruanganApi, labsApi, formatPhotoUrl, getEquipmentId, getEquipmentCategoryId, STATUS_BADGE_CLASS, API_BASE } from '../../shared/services/api.js';
+import { fetchBlobWithAuth, peralatanApi, dokumenApi, verifikasiApi, kelompokAssetApi, ruanganApi, labsApi, formatPhotoUrl, getEquipmentId, STATUS_BADGE_CLASS, API_BASE } from '../../shared/services/api.js';
 import { ACCESS, ACTIONS, can, getUserRole, isStaffPengelola } from '../../shared/utils/permissions.js';
 import { exportVerificationPdf } from '../../shared/lib/verificationPdf.js';
 import { getSafeReturnPath } from '../../app/router/Router.jsx';
+import { Card, Badge, Button, LoadingState, EmptyState } from '../../shared/components/ui/index.js';
+import {
+  formatDate,
+  formatVerificationResult,
+  getActivityName,
+  getEquipmentDetailRows,
+  getVerificationCheckLabel,
+  parseVerificationNotes,
+} from './equipmentDetailData.js';
+
+function InfoRow({ label, value, mono }) {
+  return (
+    <div className="equipment-info-row">
+      <div className="equipment-info-row__label">{label}</div>
+      <div className={`equipment-info-row__value${mono ? ' is-mono' : ''}`}>
+        {value || '–'}
+      </div>
+    </div>
+  );
+}
 
 // ------------------------------------------------------------------
 // Halaman Detail Peralatan
@@ -139,24 +160,18 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
 
   if (loading) return (
     <div className="page-container fade-in-up">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
-        {[...Array(5)].map((_, i) => <div key={i} className="skeleton" style={{ height: 60 }} />)}
-      </div>
+      <LoadingState message="Memuat detail peralatan..." />
     </div>
   );
 
   if (!peralatan) return (
     <div className="page-container fade-in-up">
-      <div className="empty-state">
-        <div className="empty-state-icon"><Package size={32} /></div>
-        <p className="empty-state-title">
-          {loadError ? 'Gagal memuat peralatan' : 'Peralatan tidak ditemukan'}
-        </p>
-        {loadError && <p className="empty-state-desc">{loadError}</p>}
-        <button className="btn btn-secondary" onClick={() => onNavigate(returnPath)}>
-          <ArrowLeft size={16} /> Kembali
-        </button>
-      </div>
+      <EmptyState
+        title={loadError ? 'Gagal memuat peralatan' : 'Peralatan tidak ditemukan'}
+        description={loadError || undefined}
+        icon={<Package size={32} />}
+        action={<Button variant="secondary" icon={<ArrowLeft size={16} />} onClick={() => onNavigate(returnPath)}>Kembali</Button>}
+      />
     </div>
   );
 
@@ -235,32 +250,33 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
     <div className="page-container fade-in-up">
       {/* Back & Title */}
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)', flexWrap: 'wrap' }}>
-        <button className="btn btn-ghost btn-icon" onClick={() => onNavigate(returnPath)} id="btn-kembali-peralatan">
+        <Button variant="ghost" className="btn-icon" onClick={() => onNavigate(returnPath)} id="btn-kembali-peralatan" aria-label="Kembali ke daftar peralatan">
           <ArrowLeft size={20} />
-        </button>
+        </Button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 className="page-title" style={{ wordBreak: 'break-word' }}>{peralatan.nama_peralatan}</h1>
           <p className="page-subtitle" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <code style={{ fontSize: 'var(--text-xs)', background: 'var(--clr-dark-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', wordBreak: 'break-all' }}>
               {peralatan.nomor_aset}
             </code>
-            <span className={`badge ${STATUS_BADGE_CLASS[displayStatus] || 'badge-gray'}`}>
+            <Badge className={STATUS_BADGE_CLASS[displayStatus] || 'badge-gray'}>
               {displayStatus}
-            </span>
-            <span className={`badge ${isVerified ? 'badge-aktif' : peralatan.status_verifikasi === 'Ditolak' ? 'badge-rusak' : 'badge-gray'}`}>
+            </Badge>
+            <Badge className={isVerified ? 'badge-aktif' : peralatan.status_verifikasi === 'Ditolak' ? 'badge-rusak' : 'badge-gray'}>
               Verifikasi: {peralatan.status_verifikasi || 'Belum Diverifikasi'}
-            </span>
+            </Badge>
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {canViewVerification && !isVerified && (
-            <button
-              className="btn btn-secondary btn-sm"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => onNavigate(`/verifikasi/${canonicalEquipmentId}?returnTo=${encodeURIComponent(returnPath)}`)}
               title="Buka form verifikasi peralatan (TLKM13/IK/003)"
             >
               {peralatan.status_verifikasi === 'Ditolak' ? 'Ajukan Verifikasi Ulang' : 'Verifikasi / Periksa'}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -287,12 +303,12 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
 
         <main className="equipment-detail-content">
           {visibleDetailSection === 'log' && (
-            <section className="card card-padded">
+            <Card as="section" className="card-padded">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--sp-3)', flexWrap: 'wrap', marginBottom: 'var(--sp-4)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
                 <h2 className="card-title">Log Aktivitas Peralatan</h2>
                 {selectedLogType === 'verifikasi' && verificationHistory.length > 0 && (
-                  <span className="badge badge-gray">{verificationHistory.length}</span>
+                  <Badge className="badge-gray">{verificationHistory.length}</Badge>
                 )}
               </div>
               <select
@@ -332,9 +348,9 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                           borderBottom: index < verificationHistory.length - 1 ? '1px solid var(--clr-dark-200)' : 'none',
                         }}
                       >
-                        <span className={`badge ${log.status === 'Disetujui' ? 'badge-aktif' : log.status === 'Ditolak' ? 'badge-rusak' : 'badge-kalibrasi'}`}>
+                        <Badge className={log.status === 'Disetujui' ? 'badge-aktif' : log.status === 'Ditolak' ? 'badge-rusak' : 'badge-kalibrasi'}>
                           {log.status}
-                        </span>
+                        </Badge>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-800)', fontWeight: 'var(--fw-medium)' }}>
                             {log.title}
@@ -353,13 +369,14 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                             {formatDate(log.date)}
                           </div>
                         </div>
-                        <button
+                        <Button
                           type="button"
-                          className="btn btn-secondary btn-sm"
+                          variant="secondary"
+                          size="sm"
                           onClick={() => setSelectedActivityLog(log)}
                         >
                           Tinjau
-                        </button>
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -370,27 +387,28 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                 Sumber data {logTypeLabels[selectedLogType].toLowerCase()} belum tersedia.
               </p>
             )}
-            </section>
+            </Card>
           )}
 
           {visibleDetailSection === 'informasi' && (
-            <section className="card card-padded equipment-info-card">
+            <Card as="section" className="card-padded equipment-info-card">
                 <div className="equipment-info-heading">
                   <div className="equipment-info-icon"><Package size={21} /></div>
                   <h2 className="card-title">Informasi Alat</h2>
-                  <span className={`badge ${displayStatus === 'Aktif' ? 'badge-aktif' : displayStatus === 'Rusak' ? 'badge-rusak' : 'badge-gray'}`}>
+                  <Badge className={displayStatus === 'Aktif' ? 'badge-aktif' : displayStatus === 'Rusak' ? 'badge-rusak' : 'badge-gray'}>
                     {displayStatus === 'Aktif' ? 'Tersedia' : displayStatus || '–'}
-                  </span>
+                  </Badge>
                   {isVerified && latestApprovedVerification && canExportVerification && (
-                    <button
+                    <Button
                       type="button"
-                      className="btn btn-secondary btn-sm"
+                      variant="secondary"
+                      size="sm"
                       onClick={() => exportVerificationPdf(latestApprovedVerification)}
                       title="Export PDF (TLKM13/F/003)"
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}
                     >
                       <Printer size={14} /> Export PDF
-                    </button>
+                    </Button>
                   )}
                 </div>
                 <div className="equipment-info-body">
@@ -445,20 +463,17 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                   </div>}
                   </div>
                 </div>
-            </section>
+            </Card>
           )}
 
           {visibleDetailSection === 'dokumen' && (
-          <section className="card equipment-document-card">
+          <Card as="section" className="card equipment-document-card" padding={false}>
             <div className="card-header">
               <h2 className="card-title">Dokumen Peralatan</h2>
-              <span className="badge badge-gray">{dokumen.length} dokumen</span>
+              <Badge className="badge-gray">{dokumen.length} dokumen</Badge>
             </div>
             {dokumen.length === 0 ? (
-              <div className="empty-state" style={{ padding: 'var(--sp-8)' }}>
-                <div className="empty-state-icon"><FileText size={24} /></div>
-                <p className="empty-state-title">Belum ada dokumen</p>
-              </div>
+              <EmptyState title="Belum ada dokumen" icon={<FileText size={24} />} />
             ) : (
               <div style={{ padding: 'var(--sp-2)' }}>
                 {dokumen.map((d) => (
@@ -480,24 +495,26 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                         {d.nama_dokumen}
                       </div>
                     </div>
-                    <a
+                    <Button
+                      as="a"
+                      variant="ghost"
+                      size="sm"
                       href={`${API_BASE}${d.path_dokumen.startsWith('/') ? '' : '/'}${d.path_dokumen}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="btn btn-ghost btn-sm"
                       title="Unduh/Lihat"
                     >
                       <Download size={14} />
-                    </a>
+                    </Button>
                   </div>
                 ))}
               </div>
             )}
-          </section>
+          </Card>
           )}
 
           {visibleDetailSection === 'qr' && isVerified && (
-            <section className="card card-padded equipment-qr-card">
+            <Card as="section" className="card-padded equipment-qr-card">
               <h2 className="section-title">QR Code Peralatan</h2>
               {isVerified ? (
                 <div className="qr-container">
@@ -515,16 +532,17 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                   <p style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>
                     QR ID Peralatan: <strong>#{canonicalEquipmentId}</strong> ({peralatan.nomor_aset})
                   </p>
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={handleDownloadQR}
                     disabled={!qrSrc}
-                    className="btn btn-secondary btn-sm"
                     id="btn-unduh-qr"
                     style={{ cursor: 'pointer' }}
                   >
                     <Download size={14} /> Unduh QR
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <div className="empty-state" style={{ padding: 'var(--sp-6)' }}>
@@ -535,7 +553,7 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                   </p>
                 </div>
               )}
-            </section>
+            </Card>
           )}
         </main>
       </div>
@@ -560,13 +578,14 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
                     {peralatan.nama_peralatan} ({peralatan.nomor_aset})
                   </p>
                 </div>
-                <button
+                <Button
                   type="button"
-                  className="btn btn-secondary btn-sm"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setSelectedActivityLog(null)}
                 >
                   Tutup
-                </button>
+                </Button>
               </div>
               <div className="modal-body">
                 <div className="equipment-info-grid">
@@ -679,148 +698,4 @@ export default function EquipmentDetail({ equipmentId, onNavigate, initialSectio
       )}
     </div>
   );
-}
-
-function parseVerificationNotes(rawNotes) {
-  if (!rawNotes) return null;
-  if (typeof rawNotes === 'object') return rawNotes;
-  try {
-    const parsed = JSON.parse(rawNotes);
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function getVerificationCheckLabel(key) {
-  const labels = {
-    identitas: 'Identitas Alat Ukur',
-    kelengkapan: 'Kelengkapan Aksesoris',
-    firmware: 'Firmware / Peranti Lunak',
-    kondisi_fisik: 'Kondisi Fisik / Visual',
-    segel: 'Keutuhan Segel Kalibrasi',
-    fungsi_awal: 'Pemeriksaan Fungsi Awal',
-    metrologi: 'Kesesuaian Spesifikasi Metrologi',
-    sertifikat: 'Validitas Sertifikat Kalibrasi',
-  };
-  return labels[key] || key.replaceAll('_', ' ');
-}
-
-function formatVerificationResult(result, key) {
-  if (key === 'firmware') {
-    if (result === 'S') return 'Ada';
-    if (result === 'TS') return 'Tidak Ada';
-    if (result === 'TB') return 'Belum dinilai';
-  }
-  if (result === 'S') return 'Sesuai';
-  if (result === 'TS') return 'Tidak Sesuai';
-  if (result === 'TB') return 'Tidak Berlaku';
-  return result;
-}
-
-// helpers
-function getActivityName(code) {
-  const activityNames = {
-    A1: 'Penerimaan alat baru',
-    A2: 'Kalibrasi',
-    A3: 'Peminjaman / pemindahan / penyewaan',
-    A4: 'Pemeliharaan',
-    A5: 'Pengecekan antara / verifikasi fungsi',
-  };
-  const activityCode = String(code || '').trim().toUpperCase();
-  return activityNames[activityCode] || code;
-}
-
-function getEquipmentDetailRows(peralatan) {
-  const categoryId = getEquipmentCategoryId(peralatan);
-  const detail = peralatan.detail || peralatan.detail_alat_ukur || peralatan.detail_alat_bantu || peralatan.detail_artefak_acuan || peralatan.detail_komponen_pendukung || peralatan;
-  const fieldsByCategory = {
-    1: [
-      ['Metode Kelayakan', 'metode_kelayakan'],
-      ['No. Sertifikat', 'no_sertifikat'],
-      ['Kalibrasi Terakhir', 'tgl_kalibrasi', 'date'],
-      ['Jatuh Tempo Kalibrasi', 'tgl_jatuh_tempo', 'date'],
-      ['Interval Kalibrasi', 'interval_bulan', 'months'],
-      ['Fungsi sebagai Alat Standar', 'fungsi_sbg_alat_standar', 'boolean'],
-      ['Parameter / Rentang Ukur', 'parameter_rentang_ukur'],
-      ['Resolusi', 'resolusi'],
-      ['Akurasi Spesifikasi', 'akurasi_spesifikasi'],
-      ['Satuan', 'satuan'],
-      ['Nilai Koreksi', 'nilai_koreksi'],
-      ['Ketidakpastian', 'ketidakpastian'],
-      ['Jenis Label', 'jenis_label'],
-      ['Status Kelayakan', 'status_kelayakan'],
-    ],
-    2: [
-      ['Fungsi / Kegunaan', 'fungsi_kegunaan'],
-      ['Jenis Pemeriksaan Berkala', 'jenis_pemeriksaan_berkala'],
-      ['Kriteria Pemeriksaan', 'kriteria_pemeriksaan'],
-      ['Tgl. Pemeriksaan Terakhir', 'tgl_pemeriksaan_terakhir', 'date'],
-      ['Jatuh Tempo Pemeriksaan', 'tgl_jatuh_tempo', 'date'],
-      ['Interval Pemeriksaan', 'interval_bulan', 'months'],
-      ['Fungsi sebagai Alat Standar', 'fungsi_sbg_alat_standar', 'boolean'],
-      ['Karakteristik Acuan', 'karakteristik_acuan'],
-      ['Jadwal Karakterisasi Ulang', 'jadwal_karakterisasi_ulang'],
-    ],
-    3: [
-      ['Jenis Deskripsi', 'jenis_deskripsi'],
-      ['Karakteristik yang Diacu', 'karakteristik_yang_diacu'],
-      ['Nilai Spesifikasi Karakterisasi', 'nilai_spesifikasi_karakterisasi'],
-      ['Metode Karakterisasi', 'metode_karakterisasi'],
-      ['No. Laporan Karakterisasi', 'no_laporan_karakterisasi'],
-      ['Tgl. Karakterisasi Terakhir', 'tgl_karakterisasi_terakhir', 'date'],
-      ['Tgl. Karakterisasi Ulang', 'tgl_karakterisasi', 'date'],
-      ['Interval Karakterisasi', 'interval_bulan', 'months'],
-      ['Kondisi Penyimpanan', 'kondisi_penyimpanan'],
-      ['Status Artefak', 'status'],
-    ],
-    4: [
-      ['Sub Kategori', 'sub_kategori'],
-      ['Deskripsi / Spesifikasi', 'deskripsi_spesifikasi'],
-      ['Grade Mutu', 'grade_mutu'],
-      ['Sumber / Pemasok', 'sumber_pemasok'],
-      ['No. Lot / Batch / Edisi', 'no_lot_batch_edisi'],
-      ['Satuan Kemasan', 'satuan_kemasan'],
-      ['Tgl. Terima / Terbit', 'tgl_terima_terbit', 'date'],
-      ['Tgl. Kedaluwarsa', 'tgl_kedaluwarsa', 'date'],
-      ['Kondisi Penyimpanan', 'kondisi_penyimpanan'],
-      ['Status Ketersediaan', 'status_ketersediaan'],
-    ],
-  };
-
-  return (fieldsByCategory[categoryId] || []).flatMap(([label, key, type]) => {
-    const rawValue = detail[key];
-    if (rawValue === null || rawValue === undefined || rawValue === '') {
-      if (categoryId === 1 && ['tgl_kalibrasi', 'tgl_jatuh_tempo'].includes(key)) {
-        return [{ label, value: 'Belum tersedia' }];
-      }
-      return [];
-    }
-
-    let value = rawValue;
-    if (type === 'date') value = formatDate(rawValue);
-    if (type === 'months') value = rawValue ? `${rawValue} Bulan` : '';
-    if (type === 'boolean') value = rawValue ? 'Ya' : 'Tidak';
-    if (value === '') return [];
-    return [{ label, value }];
-  });
-}
-
-function InfoRow({ label, value, mono }) {
-  return (
-    <div style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--fw-semibold)', color: 'var(--clr-dark-500)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--clr-dark-900)', fontFamily: mono ? 'monospace' : 'inherit', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-        {value || '–'}
-      </div>
-    </div>
-  );
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return '–';
-  try { return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }); }
-  catch { return dateStr; }
 }

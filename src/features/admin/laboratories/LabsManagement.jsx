@@ -1,16 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, X, RefreshCw, Building2 } from 'lucide-react';
+import { Plus, RefreshCw, Building2 } from 'lucide-react';
 import { labsApi, usersApi } from '../../../shared/services/api.js';
 import { ACCESS, ACTIONS, can } from '../../../shared/utils/permissions.js';
 import { useToast } from '../../../app/providers/ToastContext.jsx';
 import { useConfirm } from '../../../app/providers/ConfirmContext.jsx';
 import { usePagination } from '../../../shared/components/ui/Pagination.jsx';
-import PaginatedDataTable from '../../../shared/components/ui/PaginatedDataTable.jsx';
 import TableFilters from '../../../shared/components/ui/TableFilters.jsx';
+import { PageHeader, LoadingState, EmptyState, ErrorState, Button } from '../../../shared/components/ui/index.js';
+import LaboratoryTable from './components/LaboratoryTable.jsx';
+import LaboratoryFormModal from './components/LaboratoryFormModal.jsx';
+import {
+  EMPTY_LAB_FORM,
+  createLabForm,
+  createLabPayload,
+  filterLabs,
+  getLabValidationError,
+} from './laboratoryData.js';
 
-const EMPTY_FORM = { nama_labs: '', kode_labs: '', manager_id: '' };
-
-export default function LabsManagement({ onNavigate }) {
+export default function LabsManagement() {
   const canAdd = can(ACCESS.MASTER_LAB, ACTIONS.ADD);
   const canEdit = can(ACCESS.MASTER_LAB, ACTIONS.EDIT);
   const canDelete = can(ACCESS.MASTER_LAB, ACTIONS.DELETE);
@@ -18,7 +25,7 @@ export default function LabsManagement({ onNavigate }) {
   const [managers, setManagers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // null | { mode: 'create'|'edit', id }
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(EMPTY_LAB_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(null);
@@ -44,6 +51,7 @@ export default function LabsManagement({ onNavigate }) {
 
   async function loadData() {
     setLoading(true);
+    setError('');
     try {
       const [labsRes, usersRes] = await Promise.allSettled([
         labsApi.getAll(),
@@ -69,24 +77,21 @@ export default function LabsManagement({ onNavigate }) {
   }
 
   function openCreate() {
-    setForm(EMPTY_FORM);
+    setForm(EMPTY_LAB_FORM);
     setError('');
     setModal({ mode: 'create' });
   }
 
   function openEdit(lab) {
-    setForm({
-      nama_labs: lab.nama_labs || '',
-      kode_labs: lab.kode_labs || '',
-      manager_id: lab.manager_id ? String(lab.manager_id) : '',
-    });
+    setForm(createLabForm(lab));
     setError('');
     setModal({ mode: 'edit', id: lab.id });
   }
 
   async function handleSave() {
-    if (!form.nama_labs.trim() || !form.kode_labs.trim() || !form.manager_id) {
-      setError('Kode Lab, Nama Lab, dan Manager / Penanggung Jawab wajib diisi.');
+    const validationError = getLabValidationError(form);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -94,11 +99,7 @@ export default function LabsManagement({ onNavigate }) {
     setError('');
 
     try {
-      const payload = {
-        nama_labs: form.nama_labs.trim(),
-        kode_labs: form.kode_labs.trim().toUpperCase(),
-        manager_id: form.manager_id ? Number(form.manager_id) : null,
-      };
+      const payload = createLabPayload(form);
 
       if (modal.mode === 'create') {
         await labsApi.create(payload);
@@ -143,35 +144,21 @@ export default function LabsManagement({ onNavigate }) {
     }
   }
 
-  const filtered = labs.filter((lab) => {
-    const q = search.toLowerCase();
-    return (
-      !q ||
-      lab.nama_labs?.toLowerCase().includes(q) ||
-      lab.kode_labs?.toLowerCase().includes(q) ||
-      lab.manager?.name?.toLowerCase().includes(q)
-    );
-  });
+  const filtered = filterLabs(labs, search);
   const pagination = usePagination(filtered.length, search);
 
   return (
     <div className="page-container fade-in-up">
-      {/* 1. Page Header */}
-      <div className="page-header-row">
-        <div>
-          <h1 className="page-title">Laboratorium Pengujian</h1>
-          <p className="page-subtitle">
-            Kelola laboratorium uji Telkom Test House ({filtered.length} terdaftar)
-          </p>
-        </div>
-        {canAdd && (
-          <button className="btn btn-primary" onClick={openCreate} id="btn-tambah-lab">
-            <Plus size={16} /> Tambah Lab
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Laboratorium Pengujian"
+        subtitle={`Kelola laboratorium uji Telkom Test House (${filtered.length} terdaftar)`}
+        actions={canAdd ? (
+          <Button variant="primary" size="sm" icon={<Plus size={16} />} onClick={openCreate} id="btn-tambah-lab">
+            Tambah Lab
+          </Button>
+        ) : null}
+      />
 
-      {/* 2. Filters & Actions */}
       <TableFilters
         fields={[
           {
@@ -184,188 +171,52 @@ export default function LabsManagement({ onNavigate }) {
           },
         ]}
         actions={
-          <button
-            className="btn btn-secondary btn-icon"
-            onClick={loadData}
-            id="btn-refresh-lab"
-            title="Segarkan data laboratorium"
-          >
-            <RefreshCw size={16} />
-          </button>
+          <Button variant="secondary" size="sm" icon={<RefreshCw size={16} />} onClick={loadData} id="btn-refresh-lab" title="Segarkan data laboratorium">
+            Segarkan
+          </Button>
         }
       />
 
-      {/* 3. Table / Content Card */}
       {loading ? (
-        <div className="card skeleton-list">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="skeleton skeleton-row" />
-          ))}
-        </div>
+        <LoadingState message="Memuat laboratorium..." />
+      ) : error ? (
+        <ErrorState title="Gagal memuat laboratorium" message={error} onRetry={loadData} />
       ) : filtered.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">
-            <Building2 size={32} />
-          </div>
-          <p className="empty-state-title">Tidak ada laboratorium ditemukan</p>
-          {canAdd && (
-            <button className="btn btn-primary" onClick={openCreate}>
-              <Plus size={16} /> Tambah Lab
-            </button>
-          )}
-        </div>
+        <EmptyState
+          title="Tidak ada laboratorium ditemukan"
+          description="Belum ada data laboratorium yang sesuai dengan pencarian saat ini."
+          icon={<Building2 size={32} />}
+          action={canAdd ? (
+            <Button variant="primary" size="sm" icon={<Plus size={16} />} onClick={openCreate}>
+              Tambah Lab
+            </Button>
+          ) : null}
+        />
       ) : (
-        <div className="table-card">
-          <PaginatedDataTable
-            wrapperClassName="table-borderless"
-            rows={filtered}
-            pagination={pagination}
-            rowKey={(lab) => lab.id}
-            columns={[
-              { key: 'number', header: '#', headerStyle: { width: 48 }, render: (_, i) => pagination.startIndex + i + 1, cellStyle: { color: 'var(--clr-dark-400)' } },
-              { key: 'code', header: 'Kode Lab', headerStyle: { width: 140 }, render: (lab) => <code className="text-mono-xs" style={{ color: 'var(--clr-primary-700)', fontWeight: 700 }}>{lab.kode_labs}</code> },
-              { key: 'name', header: 'Nama Laboratorium', render: (lab) => <span style={{ fontWeight: 'var(--fw-semibold)' }}>{lab.nama_labs}</span> },
-              {
-                key: 'manager',
-                header: 'Penanggung Jawab / Manager',
-                render: (lab) => {
-                  const manager = lab.manager || managers.find((item) => item.user_id === lab.manager_id);
-                  return manager ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--clr-primary-50)', color: 'var(--clr-primary-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>
-                        {manager.name ? manager.name[0].toUpperCase() : 'M'}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)' }}>{manager.name}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500)' }}>{manager.email}</div>
-                      </div>
-                    </div>
-                  ) : <span style={{ color: 'var(--clr-dark-400)', fontSize: 'var(--text-sm)', fontStyle: 'italic' }}>Belum ditentukan</span>;
-                },
-              },
-              {
-                key: 'actions',
-                header: 'Aksi',
-                headerStyle: { width: 100 },
-                render: (lab) => (
-                  <div className="table-action-btns">
-                    {canEdit && <button className="btn-action-icon" onClick={() => openEdit(lab)} id={`btn-edit-lab-${lab.id}`} title="Edit Lab"><Pencil size={13} /></button>}
-                    {canDelete && <button className="btn-action-icon btn-action-delete" onClick={() => handleDelete(lab.id)} disabled={deleting === lab.id} id={`btn-hapus-lab-${lab.id}`} title="Hapus Lab"><Trash2 size={13} /></button>}
-                  </div>
-                ),
-              },
-            ]}
-          >
-
-          {/* 5. Summary Footer */}
-          <div className="table-footer-summary">
-            <span>Total laboratorium pengujian: <strong>{filtered.length}</strong> dari <strong>{labs.length}</strong></span>
-            <span>Standar: <strong>ISO/IEC 17025:2017</strong></span>
-          </div>
-          </PaginatedDataTable>
-        </div>
+        <LaboratoryTable
+          labs={filtered}
+          managers={managers}
+          pagination={pagination}
+          totalLabs={labs.length}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          deleting={deleting}
+          onEdit={openEdit}
+          onDelete={handleDelete}
+        />
       )}
 
-      {/* Modal Tambah / Edit */}
       {modal && (
-        <div
-          className="modal-overlay"
-          onClick={(e) => e.target === e.currentTarget && setModal(null)}
-        >
-          <div className="modal" id="modal-lab">
-            <div className="modal-header">
-              <h2 className="modal-title">
-                {modal.mode === 'create' ? 'Tambah Laboratorium' : 'Edit Laboratorium'}
-              </h2>
-              <button className="modal-close" onClick={() => setModal(null)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="modal-body">
-              {error && (
-                <div className="alert alert-error" style={{ marginBottom: 'var(--sp-4)' }}>
-                  {error}
-                </div>
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="modal-lab-kode">
-                    Kode Laboratorium <span className="required">*</span>
-                  </label>
-                  <input
-                    id="modal-lab-kode"
-                    className="form-input"
-                    placeholder="Contoh: LAB-RF, LAB-EMC, LAB-CAL"
-                    value={form.kode_labs}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, kode_labs: e.target.value.toUpperCase() }))
-                    }
-                  />
-                  <div className="form-hint">Gunakan kode unik berupa singkatan resmi lab.</div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="modal-lab-nama">
-                    Nama Laboratorium <span className="required">*</span>
-                  </label>
-                  <input
-                    id="modal-lab-nama"
-                    className="form-input"
-                    placeholder="Contoh: Lab Radio Frequency & Microwave"
-                    value={form.nama_labs}
-                    onChange={(e) => setForm((p) => ({ ...p, nama_labs: e.target.value }))}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="modal-lab-manager">
-                    Manager / Penanggung Jawab <span className="required">*</span>
-                  </label>
-                  <select
-                    id="modal-lab-manager"
-                    className="form-select"
-                    value={form.manager_id}
-                    onChange={(e) => setForm((p) => ({ ...p, manager_id: e.target.value }))}
-                  >
-                    <option value="">-- Pilih Manager Lab --</option>
-                    {managers.map((m) => (
-                      <option key={m.user_id} value={m.user_id}>
-                        {m.name} ({m.position || m.role})
-                      </option>
-                    ))}
-                  </select>
-                  <div className="form-hint">
-                    Manager ini akan menerima notifikasi status peralatan untuk lab terkait.
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn btn-secondary"
-                onClick={() => setModal(null)}
-                id="btn-batal-lab"
-              >
-                Batal
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleSave}
-                disabled={saving}
-                id="btn-simpan-lab"
-              >
-                {saving ? (
-                  <>
-                    <div className="spinner" />
-                    Menyimpan...
-                  </>
-                ) : (
-                  'Simpan'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+        <LaboratoryFormModal
+          mode={modal.mode}
+          form={form}
+          managers={managers}
+          error={error}
+          saving={saving}
+          onChange={setForm}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+        />
       )}
     </div>
   );

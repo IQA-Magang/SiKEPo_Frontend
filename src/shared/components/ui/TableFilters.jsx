@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search } from 'lucide-react';
 
-export default function TableFilters({ fields, actions, className = '' }) {
+export default function TableFilters({ fields = [], actions, className = '' }) {
   return (
     <div className={`table-filters ${className}`.trim()}>
       <div className="table-filters-fields">
@@ -20,7 +20,7 @@ export default function TableFilters({ fields, actions, className = '' }) {
                 <option value={field.placeholderValue ?? ''}>
                   {field.placeholder}
                 </option>
-                {field.options.map((option) => (
+                {(field.options || []).map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>

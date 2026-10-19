@@ -1,17 +1,23 @@
 import React from 'react';
 
 export default function DataTable({
-  columns,
-  rows,
+  columns = [],
+  rows = [],
   rowKey,
   rowProps,
   className = '',
   wrapperClassName = '',
   emptyMessage = 'Tidak ada data.',
+  ariaLabel,
+  dense = false,
 }) {
+  const tableClassName = ['ui-table', 'data-table', dense ? 'ui-table--dense' : '', className]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className={`table-wrapper ${wrapperClassName}`.trim()}>
-      <table className={`data-table ${className}`.trim()}>
+    <div className={['table-wrapper', 'ui-table-wrapper', wrapperClassName].filter(Boolean).join(' ')}>
+      <table className={tableClassName} aria-label={ariaLabel}>
         <thead>
           <tr>
             {columns.map((column) => (
@@ -29,12 +35,8 @@ export default function DataTable({
           {rows.length === 0 ? (
             <tr>
               <td
-                colSpan={columns.length}
-                style={{
-                  padding: 'var(--sp-6)',
-                  textAlign: 'center',
-                  color: 'var(--clr-dark-500)',
-                }}
+                colSpan={columns.length || 1}
+                className="ui-table__empty"
               >
                 {emptyMessage}
               </td>
@@ -52,9 +54,7 @@ export default function DataTable({
                     style={column.cellStyle}
                     {...(column.cellProps ? column.cellProps(row, index) : {})}
                   >
-                    {column.render
-                      ? column.render(row, index)
-                      : row[column.key]}
+                    {column.render ? column.render(row, index) : row[column.key]}
                   </td>
                 ))}
               </tr>

@@ -1,13 +1,14 @@
 import React from 'react';
 import { HelpCircle, Home, ArrowLeft } from 'lucide-react';
 import { useNavigate } from '../app/router/Router.jsx';
+import { Button, Card, Badge } from '../shared/components/ui/index.js';
 
 export default function NotFound() {
   const navigate = useNavigate();
 
   return (
     <div className="page-container fade-in-up" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="card" style={{ maxWidth: 480, width: '100%', padding: 'var(--sp-8)', textAlign: 'center' }}>
+      <Card padding style={{ maxWidth: 480, width: '100%', padding: 'var(--sp-8)', textAlign: 'center' }}>
         <div
           style={{
             width: 64,
@@ -24,9 +25,9 @@ export default function NotFound() {
           <HelpCircle size={32} />
         </div>
 
-        <span className="badge badge-red" style={{ marginBottom: 'var(--sp-2)' }}>
+        <Badge tone="danger" style={{ marginBottom: 'var(--sp-2)' }}>
           Error 404
-        </span>
+        </Badge>
 
         <h1 className="page-title" style={{ fontSize: 'var(--text-xl)', marginTop: 8, marginBottom: 8 }}>
           Halaman Tidak Ditemukan
@@ -37,14 +38,14 @@ export default function NotFound() {
         </p>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
-          <button className="btn btn-secondary" onClick={() => window.history.back()}>
-            <ArrowLeft size={16} /> Kembali
-          </button>
-          <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>
-            <Home size={16} /> Ke Dashboard
-          </button>
+          <Button variant="secondary" icon={<ArrowLeft size={16} />} onClick={() => window.history.back()}>
+            Kembali
+          </Button>
+          <Button variant="primary" icon={<Home size={16} />} onClick={() => navigate('/dashboard')}>
+            Ke Dashboard
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

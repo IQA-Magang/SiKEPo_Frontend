@@ -1,0 +1,100 @@
+.equipment-list-table__asset-number {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--clr-dark-100);
+  font-size: var(--text-xs);
+}
+
+.equipment-list-table__identity,
+.equipment-list-table__stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+}
+
+.equipment-list-table__name {
+  color: var(--clr-dark-900);
+  font-weight: var(--fw-medium);
+}
+
+.equipment-list-table__metadata {
+  color: var(--clr-dark-400);
+  font-size: var(--text-xs);
+}
+
+.equipment-list-table__firmware,
+.equipment-list-table__location {
+  color: var(--clr-dark-500);
+  font-size: var(--text-xs);
+}
+
+.equipment-list-table__category {
+  font-size: var(--text-xs);
+}
+
+.equipment-list-table__actions {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.equipment-list-table__empty-value {
+  color: var(--clr-dark-400);
+}
+
+.equipment-create-confirm-row {
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--clr-dark-100);
+}
+
+.equipment-create-confirm-row__label {
+  flex: 0 0 200px;
+  color: var(--clr-dark-500);
+  font-size: var(--text-sm);
+}
+
+.equipment-create-confirm-row__value {
+  color: var(--clr-dark-900);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+}
+
+.equipment-create-field-help {
+  margin: var(--sp-1) 0 0;
+  color: var(--clr-dark-500);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.equipment-technical-details__stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.equipment-info-row {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.equipment-info-row__label {
+  margin-bottom: 2px;
+  color: var(--clr-dark-500);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.equipment-info-row__value {
+  color: var(--clr-dark-900);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.equipment-info-row__value.is-mono {
+  font-family: monospace;
+}

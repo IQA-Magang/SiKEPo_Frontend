@@ -2,6 +2,7 @@ import React from 'react';
 import { ShieldAlert, Home, ArrowLeft } from 'lucide-react';
 import { useNavigate } from '../app/router/Router.jsx';
 import { getCurrentUser } from '../shared/services/api.js';
+import { Button, Card, Badge } from '../shared/components/ui/index.js';
 
 export default function Forbidden() {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ export default function Forbidden() {
 
   return (
     <div className="page-container fade-in-up" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="card" style={{ maxWidth: 480, width: '100%', padding: 'var(--sp-8)', textAlign: 'center' }}>
+      <Card padding style={{ maxWidth: 480, width: '100%', padding: 'var(--sp-8)', textAlign: 'center' }}>
         <div
           style={{
             width: 64,
@@ -27,9 +28,9 @@ export default function Forbidden() {
           <ShieldAlert size={32} />
         </div>
 
-        <span className="badge" style={{ background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A', marginBottom: 'var(--sp-2)' }}>
+        <Badge tone="warning" style={{ marginBottom: 'var(--sp-2)' }}>
           Akses Terbatas • 403 Forbidden
-        </span>
+        </Badge>
 
         <h1 className="page-title" style={{ fontSize: 'var(--text-xl)', marginTop: 8, marginBottom: 8 }}>
           Akses Ditolak
@@ -40,14 +41,14 @@ export default function Forbidden() {
         </p>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
-          <button className="btn btn-secondary" onClick={() => window.history.back()}>
-            <ArrowLeft size={16} /> Kembali
-          </button>
-          <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>
-            <Home size={16} /> Ke Dashboard
-          </button>
+          <Button variant="secondary" icon={<ArrowLeft size={16} />} onClick={() => window.history.back()}>
+            Kembali
+          </Button>
+          <Button variant="primary" icon={<Home size={16} />} onClick={() => navigate('/dashboard')}>
+            Ke Dashboard
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

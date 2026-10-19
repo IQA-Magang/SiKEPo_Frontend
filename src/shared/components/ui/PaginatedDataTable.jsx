@@ -2,13 +2,22 @@ import DataTable from './DataTable.jsx';
 import Pagination from './Pagination.jsx';
 
 export default function PaginatedDataTable({
-  rows,
-  columns,
-  pagination,
+  rows = [],
+  columns = [],
+  pagination = {},
   children,
   ...tableProps
 }) {
-  const pageRows = rows.slice(pagination.startIndex, pagination.endIndex);
+  const safePagination = {
+    currentPage: 1,
+    setCurrentPage: () => {},
+    startIndex: 0,
+    endIndex: rows.length,
+    totalPages: 1,
+    ...pagination,
+  };
+
+  const pageRows = rows.slice(safePagination.startIndex, safePagination.endIndex);
 
   return (
     <>
@@ -16,11 +25,11 @@ export default function PaginatedDataTable({
       {children}
       <Pagination
         totalItems={rows.length}
-        currentPage={pagination.currentPage}
-        onPageChange={pagination.setCurrentPage}
-        startIndex={pagination.startIndex}
-        endIndex={pagination.endIndex}
-        totalPages={pagination.totalPages}
+        currentPage={safePagination.currentPage}
+        onPageChange={safePagination.setCurrentPage}
+        startIndex={safePagination.startIndex}
+        endIndex={safePagination.endIndex}
+        totalPages={safePagination.totalPages}
       />
     </>
   );
