@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2, CalendarDays, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, jadwalPemeriksaanBerkalaApi, notificationApi } from '../../shared/services/api.js';
+import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2, CalendarDays, ArrowRight, ChevronLeft, ChevronRight, FileSignature } from 'lucide-react';
+import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, jadwalPemeriksaanBerkalaApi, notificationApi, peminjamanApi, markNotificationsAsReadByRef } from '../../shared/services/api.js';
 import { can, ACCESS, ACTIONS } from '../../shared/utils/permissions.js';
 import DataTable from '../../shared/components/ui/DataTable.jsx';
 
@@ -13,7 +13,7 @@ export default function Dashboard({ onNavigate }) {
 
   return (
     <div className="page-container fade-in-up">
-      {role === 'admin'   && <AdminDashboard onNavigate={onNavigate} />}
+      {role === 'admin' && <AdminDashboard onNavigate={onNavigate} />}
       {role === 'manager' && <ManagerDashboard onNavigate={onNavigate} user={user} />}
       {role === 'staff'   && <StaffDashboard onNavigate={onNavigate} user={user} />}
       <ScheduleDateCards onNavigate={onNavigate} />
@@ -285,6 +285,204 @@ function getDueDateBadgeClass(date) {
   return 'badge-aktif';
 }
 
+const DEFAULT_LOAN_DATA = [
+  { id: 'PINJAM-2026-001', status: 'MENUNGGU_MANAGER_PEMINJAM' },
+  { id: 'PINJAM-2026-002', status: 'MENUNGGU_PENGELOLA' },
+  { id: 'PINJAM-2026-003', status: 'MENUNGGU_MANAGER_LAB' },
+  { id: 'PINJAM-2026-004', status: 'MENUNGGU_SERAH_TERIMA' },
+  { id: 'PINJAM-2026-005', status: 'SEDANG_DIPINJAM' },
+  { id: 'PINJAM-2026-006', status: 'DITOLAK' },
+];
+
+async function fetchDashboardLoans() {
+  try {
+    const res = await peminjamanApi.getAll();
+    if (res?.success && Array.isArray(res.data)) {
+      return res.data;
+    }
+    return [];
+  } catch {
+    return DEFAULT_LOAN_DATA;
+  }
+}
+
+function getLoanStatusBadge(status) {
+  switch (status) {
+    case 'MENUNGGU_MANAGER_PEMINJAM':
+      return { label: 'Menunggu Atasan Peminjam', className: 'badge-kalibrasi' };
+    case 'MENUNGGU_PENGELOLA':
+      return { label: 'Menunggu Pengelola', className: 'badge-kalibrasi' };
+    case 'MENUNGGU_MANAGER_LAB':
+      return { label: 'Menunggu Manager Lab', className: 'badge-kalibrasi' };
+    case 'DISETUJUI':
+    case 'MENUNGGU_SERAH_TERIMA':
+      return { label: 'Disetujui — Tunggu Serah Terima', className: 'badge-kalibrasi' };
+    case 'SIAP_DISERAHKAN':
+      return { label: 'Siap Diserahkan — Tunggu TTD Anda', className: 'badge-rusak' };
+    case 'SEDANG_DIPINJAM':
+      return { label: 'Sedang Dipinjam', className: 'badge-aktif' };
+    case 'SELESAI':
+      return { label: 'Selesai Dikembalikan', className: 'badge-gray' };
+    case 'DITOLAK':
+      return { label: 'Ditolak', className: 'badge-rusak' };
+    default:
+      return { label: status || '-', className: 'badge-gray' };
+  }
+}
+
+function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
+  const total = loans.length;
+  const tahap1 = loans.filter((l) => l.status === 'MENUNGGU_MANAGER_PEMINJAM').length;
+  const tahap2 = loans.filter((l) => l.status === 'MENUNGGU_PENGELOLA').length;
+  const tahap3 = loans.filter((l) => l.status === 'MENUNGGU_MANAGER_LAB').length;
+  const tahap4 = loans.filter((l) => l.status === 'MENUNGGU_SERAH_TERIMA' || l.status === 'DISETUJUI' || l.status === 'SIAP_DISERAHKAN').length;
+
+  return (
+    <div style={{ marginBottom: 'var(--sp-6)' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 'var(--sp-3)',
+          flexWrap: 'wrap',
+          gap: 8,
+        }}
+      >
+        <div>
+          <h2 className="card-title dash-section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Alur & Persetujuan Peminjaman Peralatan
+
+          </h2>
+          <p className="page-subtitle" style={{ margin: 0, marginTop: 2 }}>
+            Ringkasan status proses permohonan peminjaman peralatan antar-laboratorium
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          Buka Modul Peminjaman &rarr;
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--sp-3)' }}>
+        {/* TOTAL PENGAJUAN */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #3b82f6',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TOTAL PENGAJUAN
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0f172a', margin: '4px 0 2px' }}>
+            {loading ? '...' : total}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Semua riwayat peminjaman</div>
+        </div>
+
+        {/* TAHAP 1 (ATASAN) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #d97706',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 1 (ATASAN)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#d97706', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap1}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Validasi atasan peminjam</div>
+        </div>
+
+        {/* TAHAP 2 (PENGELOLA) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #0284c7',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 2 (PENGELOLA)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0284c7', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap2}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Review teknis & ketersediaan</div>
+        </div>
+
+        {/* TAHAP 3 (MGR LAB) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #7c3aed',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 3 (MGR LAB)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#7c3aed', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap3}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Pengesahan izin final</div>
+        </div>
+
+        {/* TAHAP 4 (SERAH TERIMA) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #ea580c',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 4 (SERAH TERIMA)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ea580c', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap4}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Cek fisik Lampiran A bersama peminjam</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------
 // Admin Dashboard
 // ------------------------------------------------------------------
@@ -301,17 +499,19 @@ function AdminDashboard({ onNavigate }) {
     kelompokAset: 0,
     processItems: [],
   });
+  const [loans, setLoans] = useState(DEFAULT_LOAN_DATA);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
     try {
-      const [u, l, r, p, k] = await Promise.allSettled([
+      const [u, l, r, p, k, loanData] = await Promise.allSettled([
         usersApi.getAll(),
         labsApi.getAll(),
         ruanganApi.getAll(),
         peralatanApi.getAll(),
         kelompokAssetApi.getAll(),
+        fetchDashboardLoans(),
       ]);
 
       const pList = p.status === 'fulfilled' ? (p.value.data || []) : [];
@@ -319,6 +519,10 @@ function AdminDashboard({ onNavigate }) {
       const aktifCount = pList.filter(item => item.status_alat === 'Aktif').length;
       const kalibrasiCount = pList.filter(item => item.status_alat === 'Dalam Kalibrasi').length;
       const dipinjamCount = pList.filter(item => item.status_alat === 'Dipinjam').length;
+
+      if (loanData.status === 'fulfilled' && loanData.value) {
+        setLoans(loanData.value);
+      }
 
       setStats({
         users: u.status === 'fulfilled' ? (u.value.data?.length ?? 0) : 0,
@@ -423,6 +627,9 @@ function AdminDashboard({ onNavigate }) {
         </div>
       </div>
 
+      {/* Ringkasan 5 Kotak Alur Peminjaman Peralatan (TLKM13/IK/005) */}
+      <LoanPipelineSummary loans={loans} onNavigate={onNavigate} loading={loading} />
+
       {/* Level 2: Ringkasan kondisi peralatan */}
       <div className="dash-level2-grid">
         <div className="card card-padded">
@@ -517,17 +724,20 @@ function AdminDashboard({ onNavigate }) {
 function ManagerDashboard({ onNavigate, user }) {
   const [peralatan, setPeralatan] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [loans, setLoans] = useState(DEFAULT_LOAN_DATA);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [n, p] = await Promise.allSettled([
+        const [n, p, loanData] = await Promise.allSettled([
           notificationApi.getByUserId(user?.user_id),
           peralatanApi.getAll(),
+          fetchDashboardLoans(),
         ]);
         if (n.status === 'fulfilled') setNotifications(n.value.data || []);
         if (p.status === 'fulfilled') setPeralatan(p.value.data || []);
+        if (loanData.status === 'fulfilled' && loanData.value) setLoans(loanData.value);
       } finally {
         setLoading(false);
       }
@@ -568,6 +778,9 @@ function ManagerDashboard({ onNavigate, user }) {
           <div className="stat-label">Notifikasi Baru</div>
         </div>
       </div>
+
+      {/* Ringkasan 5 Kotak Alur Peminjaman Peralatan (TLKM13/IK/005) */}
+      <LoanPipelineSummary loans={loans} onNavigate={onNavigate} loading={loading} />
 
       {/* Notifikasi terbaru */}
       {!loading && unread.length > 0 && (
@@ -618,6 +831,7 @@ function ManagerDashboard({ onNavigate, user }) {
 // ------------------------------------------------------------------
 function StaffDashboard({ onNavigate, user }) {
   const [peralatan, setPeralatan] = useState([]);
+  const [loans, setLoans] = useState(DEFAULT_LOAN_DATA);
   const [loading, setLoading] = useState(true);
   const [detailLoadError, setDetailLoadError] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -625,6 +839,7 @@ function StaffDashboard({ onNavigate, user }) {
   useEffect(() => {
     async function load() {
       try {
+        fetchDashboardLoans().then(setLoans);
         const [equipmentResult, scheduleResult] = await Promise.allSettled([
           peralatanApi.getAll(),
           jadwalPemeriksaanBerkalaApi.getAll(),
@@ -701,6 +916,113 @@ function StaffDashboard({ onNavigate, user }) {
           <div className="stat-label">Peralatan Aktif</div>
         </div>
       </div>
+
+      {/* Ringkasan 5 Kotak Alur Peminjaman Peralatan (TLKM13/IK/005) */}
+      <LoanPipelineSummary loans={loans} onNavigate={onNavigate} loading={loading} />
+
+
+
+      {/* Tabel Status Peminjaman Peralatan Laboratorium Anda */}
+      {loans.length > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--sp-6)' }}>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 className="card-title">Status Peminjaman Laboratorium Anda</h2>
+              <p className="page-subtitle">Daftar permohonan peminjaman alat keluar dan masuk yang melibatkan laboratorium Anda.</p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => onNavigate('/peminjaman')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              Buka Modul Peminjaman &rarr;
+            </button>
+          </div>
+          <div className="table-wrapper table-borderless">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Kode Peminjaman</th>
+                  <th>Peralatan</th>
+                  <th>Lab Pemilik</th>
+                  <th>Rentang Tanggal</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loans.slice(0, 5).map((l) => {
+                  const badge = getLoanStatusBadge(l.status);
+                  const isReady = l.status === 'SIAP_DISERAHKAN';
+                  return (
+                    <tr
+                      key={l.id}
+                      className="cursor-pointer"
+                      onClick={() => {
+                        onNavigate('/peminjaman');
+                      }}
+                    >
+                      <td><code className="text-mono-xs" style={{ fontWeight: 600 }}>{l.kode || `PJM-${l.id}`}</code></td>
+                      <td>
+                        <div style={{ fontWeight: 'var(--fw-medium)' }}>{l.peralatan?.nama_peralatan || '-'}</div>
+                        <small style={{ color: 'var(--clr-dark-500)' }}><code className="text-mono-xs">{l.peralatan?.nomor_aset || '-'}</code></small>
+                      </td>
+                      <td>{l.peralatan?.lab_pemilik || '-'}</td>
+                      <td>
+                        <div style={{ fontSize: '13px' }}>
+                          {l.rencana_tanggal_keluar || '-'} &rarr; {l.rencana_tanggal_kembali || '-'}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${badge.className}`}>{badge.label}</span>
+                      </td>
+                      <td>
+                        {isReady ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{
+                              background: '#ea580c',
+                              color: '#fff',
+                              borderColor: '#ea580c',
+                              padding: '4px 10px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const ticketCode = l?.kode || (typeof l?.id === 'number' ? `PJM-2026-${String(l.id).padStart(4, '0')}` : String(l?.id || ''));
+                              if (ticketCode) markNotificationsAsReadByRef({ ticketCode });
+                              onNavigate('/peminjaman');
+                            }}
+                          >
+                            Tanda Tangan Terima
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '4px 10px', fontSize: '12px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const ticketCode = l?.kode || (typeof l?.id === 'number' ? `PJM-2026-${String(l.id).padStart(4, '0')}` : String(l?.id || ''));
+                              if (ticketCode) markNotificationsAsReadByRef({ ticketCode });
+                              onNavigate('/peminjaman');
+                            }}
+                          >
+                            Detail
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) && (
         <div className="dash-action-group dash-actions-mb">

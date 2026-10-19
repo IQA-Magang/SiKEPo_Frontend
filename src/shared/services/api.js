@@ -515,6 +515,98 @@ export const notificationApi = {
     fetchWithAuth(`/api/notifications/${id}/read`, { method: 'PATCH' }),
 };
 
+export async function markNotificationsAsReadByRef({ ticketCode } = {}) {
+  try {
+    const user = getCurrentUser();
+    const userId = user?.user_id ?? user?.id;
+    if (!userId) return;
+
+    const codeStr = (ticketCode || '').trim();
+    // Harus ada kode tiket spesifik dengan format valid (misal: PJM-2026-0001)
+    if (!codeStr || codeStr.length < 5) return;
+
+    // 1. Dispatch optimistic reload seketika agar angka pada badge lonceng langsung berkurang
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notifications:reload', { detail: { ticketCode: codeStr } }));
+    }
+
+    const res = await notificationApi.getByUserId(userId);
+    const notifications = res?.data || [];
+    const unread = notifications.filter((n) => !n.is_read);
+    if (!unread.length) return;
+
+    // Gunakan word boundary regex agar hanya mencocokkan kode tiket utuh dan presisi
+    // (Mencegah false positive substring seperti 'pjm-20' mencocokkan semua tahun '2026')
+    const escaped = codeStr.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+
+    const targets = unread.filter((n) => {
+      const msg = n.message || '';
+      const title = n.title || '';
+      return regex.test(msg) || regex.test(title);
+    });
+
+    if (targets.length > 0) {
+      const readIds = targets.map((t) => t.id);
+      await Promise.allSettled(readIds.map((id) => notificationApi.markRead(id)));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('notifications:reload', { detail: { ticketCode: codeStr, readIds } }));
+      }
+    }
+  } catch (err) {
+    console.warn('Auto mark notification read failed:', err);
+  }
+}
+
+// =============================================================
+// LOGBOOK PERALATAN — /api/peralatan/:id/logbook
+// GET /:id/logbook?jenis=... → { success, data: LogbookItem[] }
+// =============================================================
+export const logbookApi = {
+  getByPeralatanId: (peralatanId, jenis = 'peminjaman') => {
+    const query = jenis ? `?jenis=${encodeURIComponent(jenis)}` : '';
+    return fetchWithAuth(`/api/peralatan/${peralatanId}/logbook${query}`);
+  },
+};
+
+// =============================================================
+// PEMINJAMAN PERALATAN — /api/peminjaman
+// GET /          → { success, data: Peminjaman[] }
+// POST /         → { success, data: Peminjaman }
+// GET /:id       → { success, data: Peminjaman }
+// PUT /:id/keputusan → { success, data: Peminjaman }
+// =============================================================
+export const peminjamanApi = {
+  getAll: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.peran) searchParams.append('peran', params.peran);
+    if (params.status && params.status !== 'SEMUA') searchParams.append('status', params.status);
+    if (params.menunggu_saya !== undefined && params.menunggu_saya !== null && params.menunggu_saya !== '') {
+      searchParams.append('menunggu_saya', String(params.menunggu_saya));
+    }
+    if (params.peralatan_id) searchParams.append('peralatan_id', String(params.peralatan_id));
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return fetchWithAuth(`/api/peminjaman${query}`);
+  },
+  getById: (id) => fetchWithAuth(`/api/peminjaman/${id}`),
+  getAllJadwal: () => fetchWithAuth('/api/peminjaman/jadwal'),
+  getJadwal: (peralatanId) => fetchWithAuth(`/api/peminjaman/jadwal/${peralatanId}`),
+  create: (body) =>
+    fetchWithAuth('/api/peminjaman', { method: 'POST', body: JSON.stringify(body) }),
+  keputusan: (id, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/keputusan`, { method: 'PUT', body: JSON.stringify(body) }),
+  serahTerima: (id, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/serah-terima`, { method: 'POST', body: JSON.stringify(body) }),
+  konfirmasiTerima: (id, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/konfirmasi-terima`, { method: 'PUT', body: JSON.stringify(body) }),
+  pengembalian: (id, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/pengembalian`, { method: 'POST', body: JSON.stringify(body) }),
+  ajukanPerpanjangan: (id, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/perpanjangan`, { method: 'POST', body: JSON.stringify(body) }),
+  keputusanPerpanjangan: (id, perpanjanganId, body) =>
+    fetchWithAuth(`/api/peminjaman/${id}/perpanjangan/${perpanjanganId}/keputusan`, { method: 'PUT', body: JSON.stringify(body) }),
+};
+
 
 export const STATUS_ALAT_OPTIONS = [
   'Karantina', 'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak'

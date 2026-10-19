@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, RefreshCw, Hand } from 'lucide-react';
-import { getEquipmentId, getEquipmentCategoryId, peralatanApi, ruanganApi, STATUS_BADGE_CLASS } from '../../shared/services/api.js';
+import { getEquipmentId, getEquipmentCategoryId, peralatanApi, ruanganApi, peminjamanApi, STATUS_BADGE_CLASS } from '../../shared/services/api.js';
 import { ACCESS, ACTIONS, can } from '../../shared/utils/permissions.js';
 import { usePagination } from '../../shared/components/ui/Pagination.jsx';
 import PaginatedDataTable from '../../shared/components/ui/PaginatedDataTable.jsx';
@@ -24,7 +24,34 @@ export default function EquipmentList({
   const [filterKat, setFilterKat] = useState('');
   const [lifecycleView, setLifecycleView] = useState(initialLifecycle);
   const [rooms, setRooms] = useState([]);
+  const [jadwal, setJadwal] = useState([]);
+  const hariIni = new Date();
+  const hariIniStr = `${hariIni.getFullYear()}-${String(hariIni.getMonth()+1).padStart(2,'0')}-${String(hariIni.getDate()).padStart(2,'0')}`;
+  const jadwalPerAlat = new Map();
+  for (const j of jadwal) {
+    const pid = String(j.peralatan_id);
+    if (!jadwalPerAlat.has(pid)) jadwalPerAlat.set(pid, []);
+    jadwalPerAlat.get(pid).push(j);
+  }
+  function formatTgl(dateStr) {
+    if (!dateStr) return '';
+    const d = String(dateStr).slice(0, 10);
+    const parts = d.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return dateStr;
+  }
 
+  function isCurrentlyOut(p) {
+    const pid = String(getEquipmentId(p));
+    const ranges = jadwalPerAlat.get(pid) || [];
+    for (const r of ranges) {
+      if (hariIniStr >= r.rencana_tanggal_keluar && hariIniStr <= r.rencana_tanggal_kembali) return r;
+    }
+    if (p.status_alat === 'Dipinjam' && ranges.length > 0) {
+      return ranges[0];
+    }
+    return null;
+  }
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { setLifecycleView(initialLifecycle); }, [initialLifecycle]);
@@ -32,15 +59,17 @@ export default function EquipmentList({
   async function loadData() {
     setLoading(true);
     try {
-      const [res, roomsRes] = await Promise.all([
+      const [res, roomsRes, jadwalRes] = await Promise.all([
         peralatanApi.getAll(),
         ruanganApi.getAll().catch((err) => {
           console.error('Gagal memuat lokasi peralatan:', err);
           return { data: [] };
         }),
+        peminjamanApi.getAllJadwal().catch(() => ({ data: [] })),
       ]);
       setList(res.data || []);
       setRooms(roomsRes.data || []);
+      setJadwal(jadwalRes.data || []);
     } catch (err) {
       console.error('Gagal memuat peralatan:', err);
     } finally {
@@ -155,7 +184,25 @@ export default function EquipmentList({
     {
       key: 'last-user',
       header: 'Pemakai Terakhir',
-      render: () => <span style={{ color: 'var(--clr-dark-400)' }}>–</span>,
+      render: (p) => {
+        if (!p.pemakai_terakhir) return <span style={{ color: 'var(--clr-dark-400)' }}>–</span>;
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+            <span style={{ fontWeight: 600, color: 'var(--clr-dark-800)', fontSize: '13px' }}>
+              {p.pemakai_terakhir.nama}
+            </span>
+            {p.pemakai_terakhir.sedang_digunakan ? (
+              <span className="badge badge-warning" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                Sedang Digunakan
+              </span>
+            ) : (
+              <small style={{ color: 'var(--clr-dark-500)', fontSize: '11px' }}>
+                {p.pemakai_terakhir.tanggal_keluar ? String(p.pemakai_terakhir.tanggal_keluar).slice(0, 10) : ''}
+              </small>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'actions',
@@ -167,6 +214,7 @@ export default function EquipmentList({
         const rejected = equipment.status_verifikasi === 'Ditolak';
         const detailPath = `/peralatan/detail/${equipmentId}?returnTo=${encodeURIComponent(returnPath)}`;
         const verificationPath = `/verifikasi/${equipmentId}?returnTo=${encodeURIComponent(returnPath)}`;
+        const out = isCurrentlyOut(equipment);
         return (
           <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>
             {canViewVerification && !approved && !rejected && (
@@ -184,10 +232,36 @@ export default function EquipmentList({
                 </button>
               </>
             )}
-            {canRequestLoan && approved && equipment.status_alat === 'Aktif' && (
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate('/peminjaman')} title="Pinjam peralatan">
-                <Hand size={14} /> Pinjam
-              </button>
+            {canRequestLoan && approved && (
+              <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => onNavigate(`/peminjaman/${equipmentId}`)}
+                  title={out ? `Alat sedang dipinjam: ${out.rencana_tanggal_keluar} s.d. ${out.rencana_tanggal_kembali}. Klik untuk mengajukan peminjaman pada jadwal lain.` : "Pinjam peralatan"}
+                  id={`btn-pinjam-${equipmentId}`}
+                >
+                  <Hand size={14} /> Pinjam
+                </button>
+                {out && (
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--clr-primary-700, #c53030)',
+                      background: 'var(--clr-primary-50, #fff5f5)',
+                      border: '1px solid var(--clr-primary-200, #fed7d7)',
+                      padding: '1px 5px',
+                      borderRadius: 'var(--radius-sm, 4px)',
+                      whiteSpace: 'nowrap',
+                      lineHeight: 1.25,
+                      fontWeight: 'var(--fw-medium, 500)',
+                    }}
+                    title={`Dipinjam dari ${out.rencana_tanggal_keluar} s.d. ${out.rencana_tanggal_kembali}`}
+                  >
+                    Dipinjam: {formatTgl(out.rencana_tanggal_keluar)} – {formatTgl(out.rencana_tanggal_kembali)}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         );
