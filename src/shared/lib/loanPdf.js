@@ -9,6 +9,8 @@
  * - 4 pihak penandatangan: Peminjam, Mengetahui Mgr. Lab Peminjam, Diperiksa PIC Peralatan, Menyetujui Mgr. Lab Pemilik Peralatan.
  */
 
+import { peminjamanApi } from '../services/api.js';
+
 function formatTanggalIndo(dateStr) {
   if (!dateStr) return '-';
   try {
@@ -25,11 +27,50 @@ function formatTanggalIndo(dateStr) {
 }
 
 function renderCheckbox(checked, label) {
-  const box = checked ? '☑' : '☐';
   const mark = checked
     ? `<span style="display:inline-block; width:13px; height:13px; border:1.5px solid #000; text-align:center; line-height:12px; font-size:10pt; font-weight:bold; margin-right:4px;">&#10003;</span>`
     : `<span style="display:inline-block; width:13px; height:13px; border:1.5px solid #000; margin-right:4px; vertical-align:middle;"></span>`;
   return `<span style="white-space:nowrap; margin-right:14px; font-size:9pt;">${mark} ${label}</span>`;
+}
+
+/**
+ * Normalisasi tanda tangan:
+ * - Jika berupa data URL base64 atau SVG valid dari canvas/backend, gunakan langsung.
+ * - Jika berupa string dummy mockSign dari data mock frontend, otomatis ubah menjadi
+ *   goresan tanda tangan SVG valid (tinta biru) agar saat demo/testing selalu tampil nyata.
+ */
+function getCleanSignature(rawTtd, roleSeed = '1') {
+  if (!rawTtd) return null;
+  const str = String(rawTtd).trim();
+  if (!str) return null;
+
+  // Jika string dummy mockSign dari state mock frontend, transformasikan ke SVG signature valid
+  if (str.includes('mockSign')) {
+    const seed = str.slice(-1) || roleSeed || '1';
+    const curves = {
+      '1': 'M15,48 Q40,12 65,42 T100,38 T135,50 Q155,20 175,40 M45,45 Q75,52 145,45',
+      '2': 'M20,38 Q50,15 75,48 T115,35 T145,55 Q160,25 180,38 M30,50 Q85,55 160,48',
+      '3': 'M18,48 Q42,18 70,40 T110,45 T140,35 Q165,22 178,48 M50,48 Q90,54 150,46',
+      '4': 'M22,42 Q48,16 72,46 T108,36 T142,52 Q162,26 176,42 M35,46 Q78,54 155,44',
+    };
+    const d = curves[seed] || curves['1'];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 70" width="190" height="70">
+      <path d="${d}" fill="none" stroke="#0f2b5c" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  }
+
+  // Jika berupa data URI valid (PNG/JPEG/SVG)
+  if (str.startsWith('data:image/')) {
+    return str;
+  }
+
+  // Jika raw base64 string tanpa prefix data:image/...
+  if (str.length > 50 && !str.includes(' ') && !str.startsWith('http')) {
+    return `data:image/png;base64,${str}`;
+  }
+
+  return str;
 }
 
 export function buildLoanF006Html(loan, options = {}) {
@@ -94,24 +135,24 @@ export function buildLoanF006Html(loan, options = {}) {
   const isAdaTS = serahKeluar.ada_ts === true;
   const isLayak = !isAdaTS;
 
-  // Bagian C: 4 Penandatangan
+  // Bagian C: 4 Penandatangan dengan resolver tanda tangan valid
   // 1. Peminjam
-  const ttdPeminjam = checkoutSigPeminjam || serahKeluar.ttd_peminjam || null;
+  const ttdPeminjam = getCleanSignature(checkoutSigPeminjam || serahKeluar.ttd_peminjam || null, '1');
   const tglTtdPeminjam = formatTanggalIndo(serahKeluar.tanggal_diterima || serahKeluar.tanggal || rawTanggal);
 
   // 2. Mengetahui, Mgr. Lab Peminjam
   const mgrPeminjamNama = appMgrPeminjam.nama || 'Mgr. Lab Peminjam';
-  const ttdMgrPeminjam = appMgrPeminjam.ttd || null;
+  const ttdMgrPeminjam = getCleanSignature(appMgrPeminjam.ttd || null, '2');
   const tglTtdMgrPeminjam = formatTanggalIndo(appMgrPeminjam.tanggal || rawTanggal);
 
   // 3. Diperiksa, PIC Peralatan
   const picNama = appPengelola.nama || serahKeluar.pic_petugas || 'PIC Peralatan / Pengelola';
-  const ttdPIC = checkoutSigPengelola || serahKeluar.ttd_pengelola || appPengelola.ttd || null;
+  const ttdPIC = getCleanSignature(checkoutSigPengelola || serahKeluar.ttd_pengelola || appPengelola.ttd || null, '3');
   const tglTtdPIC = formatTanggalIndo(serahKeluar.tanggal || appPengelola.tanggal || rawTanggal);
 
   // 4. Menyetujui, Mgr. Lab Pemilik Peralatan
   const mgrLabNama = appMgrLab.nama || 'Mgr. Lab Pemilik Peralatan';
-  const ttdMgrLab = appMgrLab.ttd || null;
+  const ttdMgrLab = getCleanSignature(appMgrLab.ttd || null, '4');
   const tglTtdMgrLab = formatTanggalIndo(appMgrLab.tanggal || rawTanggal);
 
   return `<!DOCTYPE html>
@@ -257,7 +298,7 @@ export function buildLoanF006Html(loan, options = {}) {
       line-height: 1.2;
     }
 
-    /* Signature Table */
+    /* Signature Table - Gunakan display block & text-align center agar stabil di print engine */
     .sig-table {
       width: 100%;
       border-collapse: collapse;
@@ -277,37 +318,42 @@ export function buildLoanF006Html(loan, options = {}) {
     }
     .sig-table td {
       border: 1px solid #000000;
-      padding: 4px 6px;
-      text-align: left;
+      padding: 6px 6px 4px 6px;
+      text-align: center;
       vertical-align: top;
       width: 25%;
+      height: 95px;
     }
     .sig-box-img {
       height: 52px;
-      display: flex;
-      align-items: center;
-      justifyContent: center;
+      line-height: 52px;
+      text-align: center;
       margin-bottom: 4px;
     }
     .sig-img {
-      max-height: 48px;
-      max-width: 130px;
-      object-fit: contain;
+      max-height: 50px;
+      max-width: 140px;
+      display: inline-block;
+      vertical-align: middle;
+      margin: 0 auto;
     }
     .sig-digital-badge {
       display: inline-block;
       font-size: 7.5pt;
+      line-height: normal;
       color: #047857;
       background: #ecfdf5;
       border: 1px solid #a7f3d0;
       padding: 3px 6px;
       border-radius: 4px;
       font-weight: 600;
+      vertical-align: middle;
     }
     .sig-meta-line {
       font-size: 8pt;
       line-height: 1.25;
       margin-top: 1px;
+      text-align: left;
     }
 
     /* Notes Box */
@@ -550,7 +596,6 @@ export function buildLoanF006Html(loan, options = {}) {
       <li>Tandai pilihan dengan tanda centang (✓) pada kotak ☐.</li>
       <li>Untuk peminjaman eksternal, surat ini dibawa bersama peralatan selama berada di luar lingkungan TTH.</li>
       <li>Kondisi peralatan saat keluar dan kembali dicatat pada Lembar Serah Terima Peralatan (lampiran TLKM13/F/010).</li>
-      <li>Rujukan: TLKM13/P butir 8.2.7 · TLKM13/IK/005 · SNI ISO/IEC 17025:2017 klausul 6.2, 6.4.3, 6.4.4, 6.4.8, 6.4.13.</li>
     </ul>
   </div>
 
@@ -566,8 +611,31 @@ export function buildLoanF006Html(loan, options = {}) {
 
 /**
  * Mengekspor Surat Keterangan Peminjaman (F/006) ke dialog cetak browser (Save as PDF).
+ * Secara otomatis memuat detail gambar TTD dari backend jika objek loan belum memuatnya.
  */
-export function exportLoanF006Pdf(loan, options = {}) {
+export async function exportLoanF006Pdf(loanInput, options = {}) {
+  let loan = loanInput;
+
+  // Jika loan memiliki ID numerik dan belum memuat data gambar TTD lengkap,
+  // fetch data detail lengkap dari backend terlebih dahulu agar gambar TTD terambil utuh.
+  if (
+    loan &&
+    loan.id &&
+    !isNaN(Number(loan.id)) &&
+    !loan.approval_manager_lab?.ttd &&
+    !loan.approval_manager_peminjam?.ttd &&
+    !loan.serah_terima_keluar?.ttd_pengelola
+  ) {
+    try {
+      const res = await peminjamanApi.getById(loan.id);
+      if (res?.success && res.data) {
+        loan = res.data;
+      }
+    } catch (e) {
+      console.warn('Gagal memuat detail TTD dari backend untuk cetak PDF, mencetak data lokal:', e);
+    }
+  }
+
   const html = buildLoanF006Html(loan, options);
   if (!html) {
     alert('Data peminjaman tidak lengkap untuk mencetak formulir F/006.');
@@ -585,15 +653,37 @@ export function exportLoanF006Pdf(loan, options = {}) {
   printWindow.document.close();
   printWindow.focus();
 
+  // Waktu jeda 450ms agar gambar base64 / SVG ter-decode sepenuhnya di DOM sebelum dialog print aktif
   setTimeout(() => {
     printWindow.print();
-  }, 400);
+  }, 450);
 }
 
 /**
  * Mengekspor Surat Keterangan Peminjaman (F/006) ke format Word (.doc)
+ * Secara otomatis memuat detail gambar TTD dari backend jika objek loan belum memuatnya.
  */
-export function exportLoanF006Word(loan, options = {}) {
+export async function exportLoanF006Word(loanInput, options = {}) {
+  let loan = loanInput;
+
+  if (
+    loan &&
+    loan.id &&
+    !isNaN(Number(loan.id)) &&
+    !loan.approval_manager_lab?.ttd &&
+    !loan.approval_manager_peminjam?.ttd &&
+    !loan.serah_terima_keluar?.ttd_pengelola
+  ) {
+    try {
+      const res = await peminjamanApi.getById(loan.id);
+      if (res?.success && res.data) {
+        loan = res.data;
+      }
+    } catch (e) {
+      console.warn('Gagal memuat detail TTD dari backend untuk Word:', e);
+    }
+  }
+
   const html = buildLoanF006Html(loan, options);
   if (!html) return;
 
