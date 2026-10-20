@@ -3,8 +3,11 @@ import { Button } from "../../../shared/components/ui/index.js";
 import PaginatedDataTable from "../../../shared/components/ui/PaginatedDataTable.jsx";
 import {
   formatDate,
-  getDueStatus,
+  getDaysUntilDue,
+  getEquipmentStatusInfo,
   getScheduleLabel,
+  getScheduleStatus,
+  getScheduleStatusInfo,
 } from "../schedulingData.js";
 
 export default function ScheduleTable({
@@ -15,86 +18,125 @@ export default function ScheduleTable({
 }) {
   const columns = [
     {
-      key: "number",
-      header: "#",
-      headerStyle: { width: 48 },
-      cellStyle: { color: "var(--clr-dark-400)" },
-      render: (_, index) => pagination.startIndex + index + 1,
+      key: "asset",
+      header: "Nomor aset",
+      headerStyle: { minWidth: 110 },
+      cellClassName: "schedule-table-asset",
+      render: (schedule) => {
+        const equipment = equipmentById.get(String(schedule.peralatan_id));
+        return equipment?.nomor_aset || `#${schedule.peralatan_id}`;
+      },
     },
     {
       key: "equipment",
-      header: "Peralatan",
-      headerStyle: { minWidth: 190 },
+      header: "Nama alat",
+      headerStyle: { minWidth: 175 },
       render: (schedule) => {
-        const item = equipmentById.get(String(schedule.peralatan_id));
+        const equipment = equipmentById.get(String(schedule.peralatan_id));
         return (
-          <div>
-            <div style={{ fontWeight: "var(--fw-medium)", color: "var(--clr-dark-900)" }}>
-              {item?.nama_peralatan || `Peralatan #${schedule.peralatan_id}`}
-            </div>
-            <code style={{ fontSize: "var(--text-xs)", color: "var(--clr-dark-500)" }}>
-              {item?.nomor_aset || "Nomor aset tidak tersedia"}
-            </code>
+          <div className="schedule-list-equipment">
+            <strong>{equipment?.nama_peralatan || `Peralatan #${schedule.peralatan_id}`}</strong>
+            <span>
+              Lab {equipment?.lab?.kode_labs || equipment?.lab?.nama_labs || "—"}
+              {schedule.frekuensi_penggunaan
+                ? ` · dipakai ${frequencyDescription(schedule.frekuensi_penggunaan)}`
+                : ""}
+            </span>
           </div>
         );
       },
     },
     {
-      key: "jenis_jadwal",
-      header: "Jenis Pemeriksaan",
-      headerStyle: { minWidth: 160 },
+      key: "type",
+      header: "Jenis pemeriksaan",
+      headerStyle: { minWidth: 180 },
       render: (schedule) => (
-        <div>
-          <div>{getScheduleLabel(schedule)}</div>
-          <small style={{ color: "var(--clr-dark-500)" }}>
-            {schedule.peran_jadwal === "utama" ? "Jadwal utama" : "Jadwal tambahan"}
-          </small>
+        <div className="schedule-list-type">
+          <strong>{getScheduleLabel(schedule)}</strong>
+          <span>
+            {schedule.metode_kalibrasi || schedule.metode_verifikasi || schedule.jenis_pemeliharaan
+              || `${schedule.interval_bulan || "—"} bulan sekali`}
+          </span>
         </div>
       ),
     },
     {
-      key: "interval_bulan",
-      header: "Interval",
-      headerStyle: { width: 100 },
-      render: (schedule) => `${schedule.interval_bulan} bulan`,
-    },
-    {
-      key: "tanggal_terakhir",
+      key: "last",
       header: "Terakhir",
-      render: (schedule) => formatDate(schedule.tanggal_terakhir),
+      headerStyle: { minWidth: 120 },
+      render: (schedule) => (
+        <div className="schedule-list-type">
+          <strong>{formatDate(schedule.tanggal_realisasi || schedule.tanggal_terakhir)}</strong>
+          <span>{schedule.tanggal_realisasi ? "Realisasi" : "Tanggal tercatat"}</span>
+        </div>
+      ),
     },
     {
-      key: "tanggal_jatuh_tempo",
-      header: "Jatuh Tempo",
-      headerStyle: { minWidth: 170 },
+      key: "due",
+      header: "Jatuh tempo",
+      headerStyle: { minWidth: 135 },
       render: (schedule) => {
-        const status = getDueStatus(schedule.tanggal_jatuh_tempo);
+        const days = getDaysUntilDue(schedule.tanggal_jatuh_tempo);
         return (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
-            <span className={`badge ${status.className}`}>{status.label}</span>
-            <small style={{ color: "var(--clr-dark-500)" }}>
-              {formatDate(schedule.tanggal_jatuh_tempo)}
-            </small>
+          <div className="schedule-list-type">
+            <strong>{formatDate(schedule.tanggal_jatuh_tempo)}</strong>
+            <span className={days !== null && days < 0 ? "schedule-overdue" : ""}>
+              {days === null
+                ? "Interval belum diisi"
+                : days < 0
+                  ? `${Math.abs(days)} hari lewat`
+                  : `${days} hari lagi`}
+            </span>
           </div>
         );
       },
     },
-    { key: "pic", header: "PIC", render: (schedule) => schedule.pic || "–" },
+    {
+      key: "status",
+      header: "Status pemeriksaan",
+      headerStyle: { minWidth: 150 },
+      render: (schedule) => {
+        const status = getScheduleStatusInfo(
+          getScheduleStatus(
+            schedule,
+            equipmentById.get(String(schedule.peralatan_id)),
+          ),
+        );
+        return (
+          <span className={`schedule-status-chip ${status.className}`}>
+            {status.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: "equipment_status",
+      header: "Status alat",
+      headerStyle: { minWidth: 125 },
+      render: (schedule) => {
+        const status = getEquipmentStatusInfo(
+          equipmentById.get(String(schedule.peralatan_id))?.status_alat,
+        );
+        return status.className === "is-ready"
+          ? <span className="schedule-equipment-ready">{status.label}</span>
+          : <span className={`schedule-equipment-state ${status.className}`}>{status.label}</span>;
+      },
+    },
     {
       key: "actions",
       header: "Aksi",
-      headerStyle: { width: 170 },
+      headerStyle: { width: 155, textAlign: "right" },
+      cellStyle: { textAlign: "right", whiteSpace: "nowrap" },
       render: (schedule) => (
-        <div className="table-action-btns">
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={<CheckCircle2 size={14} />}
-            onClick={() => onRecordRealization(schedule)}
-          >
-            Catat Realisasi
-          </Button>
-        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<CheckCircle2 size={14} />}
+          aria-label={`Catat hasil ${schedule.jenis_jadwal}`}
+          onClick={() => onRecordRealization(schedule)}
+        >
+          Catat hasil
+        </Button>
       ),
     },
   ];
@@ -105,8 +147,14 @@ export default function ScheduleTable({
       columns={columns}
       pagination={pagination}
       rowKey={(schedule) => schedule.id}
-      wrapperClassName="table-borderless"
+      wrapperClassName="table-borderless scheduling-action-table"
       emptyMessage="Tidak ada jadwal yang cocok dengan pencarian."
     />
   );
+}
+
+function frequencyDescription(frequency) {
+  if (frequency === "tinggi") return "hampir setiap bulan";
+  if (frequency === "rendah") return "jarang";
+  return "secara berkala";
 }
