@@ -12,14 +12,14 @@ export const CHECKS = [
 ];
 
 export const CHECK_LABELS = {
-  identitas: "Identitas Alat Ukur",
-  kelengkapan: "Kelengkapan Aksesori dan Manual",
-  firmware: "Versi Firmware / Peranti Lunak",
-  kondisi_fisik: "Kondisi Fisik",
-  segel: "Keutuhan Label Kalibrasi dan Void",
-  fungsi_awal: "Fungsi Kerja",
-  metrologi: "Kesesuaian Spesifikasi Metrologi",
-  sertifikat: "Validitas Sertifikat Kalibrasi",
+  identitas: "Identitas alat (merek, tipe/model, nomor seri)",
+  kelengkapan: "Kelengkapan aksesori dan manual",
+  firmware: "Versi peranti lunak/firmware",
+  kondisi_fisik: "kondisi fisik",
+  segel: "Keutuhan segel",
+  fungsi_awal: "Fungsi awal",
+  metrologi: "Karakteristik metrologi",
+  sertifikat: "Sertifikat kalibrasi",
 };
 
 export const ACTIVITY_OPTIONS = [
