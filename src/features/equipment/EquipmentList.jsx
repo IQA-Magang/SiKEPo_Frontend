@@ -88,11 +88,12 @@ export default function EquipmentList({
     const catId = getEquipmentCategoryId(p);
     const matchKat = !filterKat || String(catId) === filterKat;
     const approved = p.status_verifikasi === 'Disetujui';
-    const active = p.status_alat === 'Aktif';
+    // Peralatan berstatus Aktif maupun Dipinjam tetap tampil di daftar utama
+    const available = p.status_alat === 'Aktif' || p.status_alat === 'Dipinjam';
     const rejected = p.status_verifikasi === 'Ditolak';
     const pending = !approved && !rejected;
     const matchLifecycle = lifecycleView === 'pending' ? pending
-      : lifecycleView === 'review' ? rejected : active && approved;
+      : lifecycleView === 'review' ? rejected : available && approved;
     return matchQ && matchKat && matchLifecycle;
   });
   const pagination = usePagination(filtered.length, `${search}\u0000${filterKat}\u0000${lifecycleView}`);
