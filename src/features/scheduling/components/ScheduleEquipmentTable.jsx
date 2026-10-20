@@ -2,18 +2,13 @@ import { Button } from "../../../shared/components/ui/index.js";
 import PaginatedDataTable from "../../../shared/components/ui/PaginatedDataTable.jsx";
 import {
   formatDate,
+  getFrequencyLabel,
   getDaysUntilDue,
   getEquipmentStatusInfo,
   getScheduleLabel,
   getScheduleStatus,
   getScheduleStatusInfo,
 } from "../schedulingData.js";
-
-const FREQUENCY_LABELS = {
-  tinggi: { label: "Tinggi", detail: "Hampir setiap bulan" },
-  sedang: { label: "Sedang", detail: "Tidak rutin tiap bulan" },
-  rendah: { label: "Rendah", detail: "Paling banyak 6 kali setahun" },
-};
 
 export default function ScheduleEquipmentTable({
   groups,
@@ -49,11 +44,9 @@ export default function ScheduleEquipmentTable({
       render: (group) => {
         const frequency = [...group.mainSchedules, ...group.additionalSchedules]
           .find((schedule) => schedule.frekuensi_penggunaan)?.frekuensi_penggunaan;
-        const detail = FREQUENCY_LABELS[frequency];
         return (
           <div className="schedule-frequency">
-            <strong>{detail?.label || "Belum diatur"}</strong>
-            <span>{detail?.detail || "Frekuensi belum tersedia"}</span>
+            <strong>{getFrequencyLabel(frequency)}</strong>
           </div>
         );
       },
@@ -71,7 +64,6 @@ export default function ScheduleEquipmentTable({
       render: (group) => (
         <ScheduleCells
           schedules={group.mainSchedules}
-          equipment={group.equipment}
           onRecordRealization={onRecordRealization}
         />
       ),
@@ -85,9 +77,12 @@ export default function ScheduleEquipmentTable({
           schedules={group.additionalSchedules.filter((schedule) => (
             schedule.jenis_jadwal === "pengecekan_antara"
           ))}
-          equipment={group.equipment}
           onRecordRealization={onRecordRealization}
-          emptyHint={group.frequency === "tinggi" ? "Jadwal belum dibuat" : "Alat tidak sering dipakai"}
+          emptyHint={group.frequency === "tinggi"
+            ? "Jadwal belum dibuat"
+            : group.frequency
+              ? "Tidak berlaku untuk frekuensi ini"
+              : "Frekuensi belum diatur"}
         />
       ),
     },
@@ -100,11 +95,12 @@ export default function ScheduleEquipmentTable({
           schedules={group.additionalSchedules.filter((schedule) => (
             schedule.jenis_jadwal === "pemeliharaan"
           ))}
-          equipment={group.equipment}
           onRecordRealization={onRecordRealization}
           emptyHint={group.frequency && group.frequency !== "tinggi"
             ? "Jadwal belum dibuat"
-            : "Alat tidak jarang dipakai"}
+            : group.frequency
+              ? "Tidak berlaku untuk frekuensi ini"
+              : "Frekuensi belum diatur"}
         />
       ),
     },
@@ -137,7 +133,6 @@ function EquipmentStatus({ equipment }) {
 
 function ScheduleCells({
   schedules,
-  equipment,
   onRecordRealization,
   emptyHint = "Belum ada jadwal",
 }) {
@@ -148,16 +143,14 @@ function ScheduleCells({
   return (
     <div className="schedule-cell-list">
       {schedules.map((schedule) => {
-        const state = getScheduleStatus(schedule, equipment);
+        const state = getScheduleStatus(schedule);
         const status = getScheduleStatusInfo(state);
         const days = getDaysUntilDue(schedule.tanggal_jatuh_tempo);
         const dueLabel = days === null
-          ? "Interval belum diisi"
-          : state === "hold"
-            ? "Dijeda selama perbaikan"
-            : days < 0
-              ? `${Math.abs(days)} hari lewat`
-              : `${days} hari lagi`;
+          ? "Jatuh tempo belum tersedia"
+          : days < 0
+            ? `${Math.abs(days)} hari lewat`
+            : `${days} hari lagi`;
         return (
           <div className="schedule-cell" key={schedule.id}>
             <strong className="schedule-cell-type">{getScheduleLabel(schedule)}</strong>

@@ -3,6 +3,7 @@ import { Button } from "../../../shared/components/ui/index.js";
 import PaginatedDataTable from "../../../shared/components/ui/PaginatedDataTable.jsx";
 import {
   formatDate,
+  getFrequencyLabel,
   getDaysUntilDue,
   getEquipmentStatusInfo,
   getScheduleLabel,
@@ -46,7 +47,7 @@ export default function ScheduleTable({
             <span>
               Lab {equipment?.lab?.kode_labs || equipment?.lab?.nama_labs || "—"}
               {schedule.frekuensi_penggunaan
-                ? ` · dipakai ${frequencyDescription(schedule.frekuensi_penggunaan)}`
+                ? ` · frekuensi ${getFrequencyLabel(schedule.frekuensi_penggunaan)}`
                 : ""}
             </span>
           </div>
@@ -61,8 +62,10 @@ export default function ScheduleTable({
         <div className="schedule-list-type">
           <strong>{getScheduleLabel(schedule)}</strong>
           <span>
-            {schedule.metode_kalibrasi || schedule.metode_verifikasi || schedule.jenis_pemeliharaan
-              || `${schedule.interval_bulan || "—"} bulan sekali`}
+            {[
+              schedule.metode_kalibrasi || schedule.metode_verifikasi || schedule.jenis_pemeliharaan,
+              schedule.interval_bulan ? `${schedule.interval_bulan} bulan` : "",
+            ].filter(Boolean).join(" · ") || "—"}
           </span>
         </div>
       ),
@@ -89,7 +92,7 @@ export default function ScheduleTable({
             <strong>{formatDate(schedule.tanggal_jatuh_tempo)}</strong>
             <span className={days !== null && days < 0 ? "schedule-overdue" : ""}>
               {days === null
-                ? "Interval belum diisi"
+                ? "Jatuh tempo belum tersedia"
                 : days < 0
                   ? `${Math.abs(days)} hari lewat`
                   : `${days} hari lagi`}
@@ -100,15 +103,10 @@ export default function ScheduleTable({
     },
     {
       key: "status",
-      header: "Status pemeriksaan",
+      header: "Status jatuh tempo",
       headerStyle: { minWidth: 150 },
       render: (schedule) => {
-        const status = getScheduleStatusInfo(
-          getScheduleStatus(
-            schedule,
-            equipmentById.get(String(schedule.peralatan_id)),
-          ),
-        );
+        const status = getScheduleStatusInfo(getScheduleStatus(schedule));
         return (
           <span className={`schedule-status-chip ${status.className}`}>
             {status.label}
@@ -158,10 +156,4 @@ export default function ScheduleTable({
       emptyMessage="Tidak ada jadwal yang cocok dengan pencarian."
     />
   );
-}
-
-function frequencyDescription(frequency) {
-  if (frequency === "tinggi") return "hampir setiap bulan";
-  if (frequency === "rendah") return "jarang";
-  return "secara berkala";
 }

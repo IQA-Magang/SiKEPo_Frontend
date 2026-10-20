@@ -8,9 +8,7 @@ import {
   CircleHelp,
   CircleX,
   Grid2X2,
-  Pause,
   Plus,
-  RefreshCw,
   ShieldCheck,
   Target,
   Wrench,
@@ -52,25 +50,25 @@ const SCHEDULE_TYPES = [
   {
     key: "kalibrasi",
     label: "Kalibrasi",
-    description: "Untuk alat yang bisa dikalibrasi",
+    description: "Jadwal utama",
     icon: Target,
   },
   {
     key: "verifikasi_fungsi",
     label: "Verifikasi Fungsi",
-    description: "Untuk alat yang tidak bisa dikalibrasi",
+    description: "Jadwal utama",
     icon: ShieldCheck,
   },
   {
     key: "pengecekan_antara",
     label: "Pengecekan Antara",
-    description: "Untuk alat yang sering dipakai",
+    description: "Jadwal tambahan",
     icon: Activity,
   },
   {
     key: "pemeliharaan",
     label: "Pemeliharaan",
-    description: "Untuk alat yang jarang dipakai",
+    description: "Jadwal tambahan",
     icon: Wrench,
   },
 ];
@@ -81,8 +79,6 @@ const SCHEDULE_STATUS_CHIPS = [
   { key: "soon", label: "Mendekati jatuh tempo", icon: CalendarDays },
   { key: "unset", label: "Belum diatur", icon: CircleHelp },
   { key: "safe", label: "Aman", icon: CheckCircle2 },
-  { key: "doing", label: "Sedang diproses", icon: RefreshCw },
-  { key: "hold", label: "Dijeda", icon: Pause },
 ];
 
 export default function JadwalPemeriksaanBerkala() {
@@ -115,9 +111,18 @@ export default function JadwalPemeriksaanBerkala() {
         peralatanApi.getAll(),
         ruanganApi.getAll(),
       ]);
-      setSchedules(Array.isArray(scheduleResponse.data) ? scheduleResponse.data : []);
-      setEquipment(Array.isArray(equipmentResponse.data) ? equipmentResponse.data : []);
-      setRooms(Array.isArray(roomResponse.data) ? roomResponse.data : []);
+      if (!Array.isArray(scheduleResponse?.data)) {
+        throw new Error("Format respons data jadwal tidak valid.");
+      }
+      if (!Array.isArray(equipmentResponse?.data)) {
+        throw new Error("Format respons data peralatan tidak valid.");
+      }
+      if (!Array.isArray(roomResponse?.data)) {
+        throw new Error("Format respons data ruangan tidak valid.");
+      }
+      setSchedules(scheduleResponse.data);
+      setEquipment(equipmentResponse.data);
+      setRooms(roomResponse.data);
     } catch (err) {
       const message = err.message || "Gagal memuat data penjadwalan.";
       setLoadError(message);
@@ -186,7 +191,7 @@ export default function JadwalPemeriksaanBerkala() {
         schedule.jenis_jadwal,
         schedule.pic,
       ].some((value) => String(value || "").toLowerCase().includes(query));
-      const state = getScheduleStatus(schedule, equipmentItem);
+      const state = getScheduleStatus(schedule);
       const matchesStatus = statusFilter
         ? state === statusFilter
         : showAllStatuses || getScheduleStatusInfo(state).needsAction;
@@ -197,10 +202,8 @@ export default function JadwalPemeriksaanBerkala() {
           && String(equipmentItem?.ruangan?.pic_user_id) === String(currentUserId));
       return matchesSearch && matchesStatus && matchesType && matchesLab && matchesOwner;
     }).sort((left, right) => {
-      const leftEquipment = equipmentById.get(String(left.peralatan_id));
-      const rightEquipment = equipmentById.get(String(right.peralatan_id));
-      const statusDifference = getScheduleStatusOrder(getScheduleStatus(left, leftEquipment))
-        - getScheduleStatusOrder(getScheduleStatus(right, rightEquipment));
+      const statusDifference = getScheduleStatusOrder(getScheduleStatus(left))
+        - getScheduleStatusOrder(getScheduleStatus(right));
       if (statusDifference) return statusDifference;
       return (getDaysUntilDue(left.tanggal_jatuh_tempo) ?? Number.MAX_SAFE_INTEGER)
         - (getDaysUntilDue(right.tanggal_jatuh_tempo) ?? Number.MAX_SAFE_INTEGER);
@@ -244,17 +247,14 @@ export default function JadwalPemeriksaanBerkala() {
   const summaryCards = useMemo(() => SCHEDULE_TYPES.map((type) => {
     const summary = schedules.reduce((counts, schedule) => {
       if (schedule.jenis_jadwal !== type.key) return counts;
-      const state = getScheduleStatus(
-        schedule,
-        equipmentById.get(String(schedule.peralatan_id)),
-      );
+      const state = getScheduleStatus(schedule);
       if (state === "late") counts.late += 1;
       if (state === "urgent") counts.urgent += 1;
       if (state === "soon") counts.soon += 1;
       return counts;
     }, { late: 0, urgent: 0, soon: 0 });
     return { ...type, ...summary };
-  }), [schedules, equipmentById]);
+  }), [schedules]);
 
   function resetFilters() {
     setSearch("");
@@ -451,7 +451,7 @@ export default function JadwalPemeriksaanBerkala() {
           )}
         />
         {activeView === "actions" && (
-          <div className="scheduling-status-filters" aria-label="Filter status jadwal">
+          <div className="scheduling-status-filters" aria-label="Filter jatuh tempo">
             <button
               type="button"
               className={`scheduling-filter-chip is-need${!showAllStatuses && !statusFilter ? " is-selected" : ""}`}
@@ -477,7 +477,7 @@ export default function JadwalPemeriksaanBerkala() {
             <span className="scheduling-chip-divider" aria-hidden="true" />
             {SCHEDULE_STATUS_CHIPS.map(({ key, label, icon: Icon }) => {
               const count = schedules.filter((schedule) => (
-                getScheduleStatus(schedule, equipmentById.get(String(schedule.peralatan_id))) === key
+                getScheduleStatus(schedule) === key
               )).length;
               const selected = statusFilter === key;
               return (

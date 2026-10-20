@@ -70,6 +70,7 @@ export default function ScheduleFormModal({
               onChange={onChange}
               required
             >
+              <option value="">Pilih jenis pemeriksaan</option>
               <option value="kalibrasi">Kalibrasi</option>
               <option value="verifikasi_fungsi">Verifikasi Fungsi</option>
             </select>
@@ -78,11 +79,11 @@ export default function ScheduleFormModal({
           <FormField
             label="Frekuensi Penggunaan"
             htmlFor="schedule-frequency"
-            hint={
-              form.frekuensi_penggunaan === "tinggi"
-                ? "Jadwal tambahan: pengecekan antara."
-                : "Jadwal tambahan: pemeliharaan."
-            }
+            hint={form.frekuensi_penggunaan === "tinggi"
+              ? "Jadwal tambahan: pengecekan antara."
+              : ["sedang", "rendah"].includes(form.frekuensi_penggunaan)
+                ? "Jadwal tambahan: pemeliharaan."
+                : "Pilih frekuensi untuk menentukan jenis jadwal tambahan."}
             required
           >
             <select
@@ -93,6 +94,7 @@ export default function ScheduleFormModal({
               onChange={onChange}
               required
             >
+              <option value="">Pilih frekuensi penggunaan</option>
               <option value="tinggi">Tinggi</option>
               <option value="sedang">Sedang</option>
               <option value="rendah">Rendah</option>

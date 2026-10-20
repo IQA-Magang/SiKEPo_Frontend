@@ -1,7 +1,7 @@
 export const INITIAL_SCHEDULE_FORM = {
   peralatan_id: "",
-  jenis_utama: "kalibrasi",
-  frekuensi_penggunaan: "sedang",
+  jenis_utama: "",
+  frekuensi_penggunaan: "",
   interval_utama: "",
   interval_tambahan: "",
   tanggal_terakhir: "",
@@ -53,6 +53,16 @@ export function getScheduleLabel(schedule) {
   return typeLabels[schedule.jenis_jadwal] || schedule.jenis_jadwal || "–";
 }
 
+export function getFrequencyLabel(value) {
+  const labels = {
+    tinggi: "Tinggi",
+    sedang: "Sedang",
+    rendah: "Rendah",
+  };
+  const frequency = String(value || "").trim().toLowerCase();
+  return labels[frequency] || value || "Belum diatur";
+}
+
 export function getScheduleRole(schedule) {
   if (schedule.peran_jadwal === "tambahan" || schedule.peran_jadwal === "utama") {
     return schedule.peran_jadwal;
@@ -62,44 +72,15 @@ export function getScheduleRole(schedule) {
     : "utama";
 }
 
-export function getDueStatus(value) {
-  if (!value) return { label: "Belum ada tanggal", className: "badge-gray" };
-  const days = getDaysUntilDue(value);
-  if (days === null) {
-    return { label: "Tanggal tidak valid", className: "badge-gray" };
-  }
-  if (days < 0) {
-    return {
-      label: `Terlambat ${Math.abs(days)} hari`,
-      className: "badge-rusak",
-    };
-  }
-  if (days <= 30) {
-    return {
-      label: days === 0 ? "Jatuh tempo hari ini" : `${days} hari lagi`,
-      className: "badge-kalibrasi",
-    };
-  }
-  return { label: "Terjadwal", className: "badge-aktif" };
-}
-
 const SCHEDULE_STATUS = {
   late: { label: "Terlambat", className: "schedule-status--late", needsAction: true },
   urgent: { label: "Mendesak", className: "schedule-status--urgent", needsAction: true },
   soon: { label: "Mendekati jatuh tempo", className: "schedule-status--soon", needsAction: true },
   unset: { label: "Belum diatur", className: "schedule-status--unset", needsAction: true },
   safe: { label: "Aman", className: "schedule-status--safe", needsAction: false },
-  doing: { label: "Sedang diproses", className: "schedule-status--doing", needsAction: false },
-  hold: { label: "Dijeda", className: "schedule-status--hold", needsAction: false },
 };
 
-export function getScheduleStatus(schedule, equipment) {
-  const equipmentStatus = String(equipment?.status_alat || "").toLowerCase();
-  if (equipmentStatus.includes("kalibrasi")) return "doing";
-  if (["rusak", "karantina"].some((status) => equipmentStatus.includes(status))) {
-    return "hold";
-  }
-
+export function getScheduleStatus(schedule) {
   const days = getDaysUntilDue(schedule.tanggal_jatuh_tempo);
   if (days === null || !Number(schedule.interval_bulan)) return "unset";
   if (days < 0) return "late";
@@ -113,28 +94,34 @@ export function getScheduleStatusInfo(status) {
 }
 
 export function getScheduleStatusOrder(status) {
-  return ["late", "urgent", "soon", "unset", "doing", "safe", "hold"].indexOf(status);
+  return ["late", "urgent", "soon", "unset", "safe"].indexOf(status);
 }
 
 export function getEquipmentStatusInfo(value) {
   const status = String(value || "").trim();
   const normalized = status.toLowerCase();
-  if (!status || normalized === "aktif") {
-    return { label: "Siap Pakai", className: "is-ready" };
+  if (!status) {
+    return { label: "Belum tersedia", className: "is-unknown" };
   }
-  if (normalized.includes("pinjam")) {
+  if (normalized === "aktif") {
+    return { label: status, className: "is-ready" };
+  }
+  if (normalized === "dipinjam") {
     return { label: "Dipinjam", className: "is-loaned" };
   }
-  if (normalized.includes("kalibrasi")) {
-    return { label: "Sedang Dikalibrasi", className: "is-processing" };
+  if (normalized === "dalam kalibrasi") {
+    return { label: status, className: "is-processing" };
   }
-  if (normalized.includes("rusak")) {
+  if (normalized === "rusak") {
     return { label: "Rusak", className: "is-broken" };
   }
-  if (normalized.includes("karantina")) {
+  if (normalized === "karantina") {
     return { label: "Karantina", className: "is-hold" };
   }
-  return { label: status, className: "is-hold" };
+  if (normalized === "dihapuskan") {
+    return { label: "Dihapuskan", className: "is-removed" };
+  }
+  return { label: status, className: "is-unknown" };
 }
 
 export function groupSchedulesByEquipment(schedules, equipmentById) {

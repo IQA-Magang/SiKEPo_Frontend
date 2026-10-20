@@ -299,18 +299,6 @@
   color: #15803d;
 }
 
-.schedule-status--doing {
-  border-color: #93c5fd;
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.schedule-status--hold {
-  border-color: #d1d5db;
-  background: #f3f4f6;
-  color: #4b5563;
-}
-
 .scheduling-equipment-heading {
   display: flex;
   min-height: 58px;
@@ -764,6 +752,13 @@
   border-color: #fcd34d;
   background: #fef9c3;
   color: #854d0e;
+}
+
+.schedule-equipment-state.is-removed,
+.schedule-equipment-state.is-unknown {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+  color: #4b5563;
 }
 
 .scheduling-equipment-table .ui-table td {

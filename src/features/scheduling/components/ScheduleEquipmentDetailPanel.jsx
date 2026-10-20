@@ -4,6 +4,7 @@ import { AlertTriangle, CalendarDays, Clock3, X } from "lucide-react";
 import { Button } from "../../../shared/components/ui/index.js";
 import {
   formatDate,
+  getFrequencyLabel,
   getDaysUntilDue,
   getEquipmentStatusInfo,
   getScheduleLabel,
@@ -32,11 +33,7 @@ export default function ScheduleEquipmentDetailPanel({
   const equipmentStatus = getEquipmentStatusInfo(equipment.status_alat);
   const frequency = schedules.find((schedule) => schedule.frekuensi_penggunaan)
     ?.frekuensi_penggunaan;
-  const frequencyLabel = {
-    tinggi: "Tinggi · hampir setiap bulan",
-    sedang: "Sedang · tidak rutin tiap bulan",
-    rendah: "Rendah · paling banyak 6 kali setahun",
-  }[frequency] || "Belum diatur";
+  const frequencyLabel = getFrequencyLabel(frequency);
   const labName = equipment.lab?.kode_labs || equipment.lab?.nama_labs || "—";
   const roomName = equipment.ruangan?.nama_ruangan || "—";
 
@@ -83,7 +80,7 @@ export default function ScheduleEquipmentDetailPanel({
             ) : (
               <div className="schedule-detail-schedule-list">
                 {schedules.map((schedule) => {
-                  const state = getScheduleStatus(schedule, equipment);
+                  const state = getScheduleStatus(schedule);
                   const status = getScheduleStatusInfo(state);
                   const days = getDaysUntilDue(schedule.tanggal_jatuh_tempo);
                   const isLate = days !== null && days < 0;
@@ -112,7 +109,12 @@ export default function ScheduleEquipmentDetailPanel({
                         />
                         <DetailField label="Metode" value={method || "—"} />
                         <DetailField label="No. dokumen" value={documentNumber || "—"} />
-                        <DetailField label="Alat standar / benda uji" value={schedule.alat_standar_benda_uji || "—"} />
+                        {schedule.alat_standar_benda_uji && (
+                          <DetailField label="Alat standar / benda uji" value={schedule.alat_standar_benda_uji} />
+                        )}
+                        {schedule.jenis_pemeliharaan && (
+                          <DetailField label="Jenis pemeliharaan" value={schedule.jenis_pemeliharaan} />
+                        )}
                         <DetailField label="PIC" value={schedule.pic || "—"} />
                       </div>
                       {schedule.keterangan && (
