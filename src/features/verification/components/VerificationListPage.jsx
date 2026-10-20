@@ -390,7 +390,7 @@ export default function VerificationListPage({
         tabs={[
           {
             id: "pending",
-            label: `Menunggu Verifikasi (${pendingItems.length})`,
+            label: `Menunggu Verifikasi pengelola (${pendingItems.length})`,
           },
           ...((canApprove || role === "staff")
             ? [{

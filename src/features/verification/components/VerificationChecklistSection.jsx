@@ -33,7 +33,10 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                   const requirement =
                     ACTIVITY_REQUIREMENTS[form.kode_aktivitas][key];
                   const isTB = form.hasil_verifikasi[key] === "TB";
-                  const isTS = form.hasil_verifikasi[key] === "TS";
+                  const isFirmwareUnavailable =
+                    key === "firmware" && form.hasil_verifikasi[key] === "TS";
+                  const isTS =
+                    key !== "firmware" && form.hasil_verifikasi[key] === "TS";
                   return (
                     <div
                       key={key}
@@ -43,10 +46,10 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                         borderRadius: "var(--radius-md, 6px)",
                         background: isTS
                           ? "#fff1f2"
-                          : isTB
+                          : isTB || isFirmwareUnavailable
                             ? "#f8fafc"
                             : "#f0fdf4",
-                        border: `1px solid ${isTS ? "#fecdd3" : isTB ? "#e2e8f0" : "#bbf7d0"}`,
+                        border: `1px solid ${isTS ? "#fecdd3" : isTB || isFirmwareUnavailable ? "#e2e8f0" : "#bbf7d0"}`,
                       }}
                     >
                       <label
@@ -108,24 +111,14 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                             <option value="TS">Tidak Sesuai</option>
                           </>
                         )}
-                        {key !== "firmware" && (
+                        {key !== "firmware" && requirement !== "W" && (
                           <option value="TB">Tidak Berlaku</option>
                         )}
                       </select>
 
                       {key === "firmware" && (
                         <div style={{ marginTop: 6 }}>
-                          <small
-                            style={{
-                              display: "block",
-                              marginBottom: 6,
-                              color: "var(--clr-dark-500)",
-                              fontSize: "var(--text-xs)",
-                            }}
-                          >
-                            Versi tercatat pada data peralatan:{" "}
-                            {equipmentInfo?.peranti_lunak_versi || "Belum dicatat"}
-                          </small>
+           
                           {form.hasil_verifikasi.firmware === "S" && (
                             <div className="form-group" style={{ marginBottom: 0 }}>
                               <label className="form-label" style={{ fontSize: "var(--text-xs)" }}>

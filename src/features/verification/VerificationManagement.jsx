@@ -154,7 +154,9 @@ export default function VerificationManagement({
     }
     const invalidKeys = applicableKeys.filter((key) => {
       const allowedResults =
-        key === "firmware" ? ["S", "TS"] : ["S", "TS", "TB"];
+        key === "firmware" || applicableRequirements[key] === "W"
+          ? ["S", "TS"]
+          : ["S", "TS", "TB"];
       return (
         verificationResults[key] &&
         !allowedResults.includes(verificationResults[key])
@@ -162,12 +164,12 @@ export default function VerificationManagement({
     });
     if (invalidKeys.length > 0) {
       error(
-        "Hasil firmware hanya boleh Ada atau Tidak Ada; aspek lainnya hanya boleh Sesuai, Tidak Sesuai, atau Tidak Berlaku.",
+        "Firmware hanya boleh Ada atau Tidak Ada; aspek wajib hanya boleh Sesuai atau Tidak Sesuai; aspek opsional boleh Tidak Berlaku.",
       );
       return;
     }
     const tsKeys = applicableKeys.filter(
-      (key) => verificationResults[key] === "TS",
+      (key) => key !== "firmware" && verificationResults[key] === "TS",
     );
     if (tsKeys.some((key) => !form.ts_alasan[key]?.trim())) {
       error(
@@ -179,10 +181,7 @@ export default function VerificationManagement({
       return;
     }
 
-    if (
-      applicableKeys.some((key) => verificationResults[key] === "TS") &&
-      !form.tindak_lanjut
-    ) {
+    if (tsKeys.length > 0 && !form.tindak_lanjut) {
       error(
         "Hasil TS (Tidak Sesuai/Tidak Ada) harus disertai pemilihan tindak lanjut alat.",
       );

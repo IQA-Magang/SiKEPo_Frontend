@@ -218,7 +218,9 @@ export default function VerificationDetailsModal({
                               result === "S"
                                 ? "badge-aktif"
                                 : result === "TS"
-                                  ? "badge-rusak"
+                                  ? key === "firmware"
+                                    ? "badge-gray"
+                                    : "badge-rusak"
                                   : "badge-gray"
                             }`}
                           >
