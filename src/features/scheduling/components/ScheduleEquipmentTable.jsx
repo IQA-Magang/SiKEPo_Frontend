@@ -19,6 +19,7 @@ export default function ScheduleEquipmentTable({
   groups,
   pagination,
   onRecordRealization,
+  onOpenDetails,
 }) {
   const columns = [
     {
@@ -28,7 +29,13 @@ export default function ScheduleEquipmentTable({
       render: (group) => (
         <div className="schedule-equipment-identity">
           <code>{group.equipment?.nomor_aset || `ID ${group.id}`}</code>
-          <strong>{group.equipment?.nama_peralatan || `Peralatan #${group.id}`}</strong>
+          <button
+            type="button"
+            className="schedule-equipment-detail-trigger"
+            onClick={() => onOpenDetails(group.id)}
+          >
+            {group.equipment?.nama_peralatan || `Peralatan #${group.id}`}
+          </button>
           <span>
             Lab {group.equipment?.lab?.kode_labs || group.equipment?.lab?.nama_labs || "—"}
           </span>

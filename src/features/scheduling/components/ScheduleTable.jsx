@@ -15,6 +15,7 @@ export default function ScheduleTable({
   equipmentById,
   pagination,
   onRecordRealization,
+  onOpenDetails,
 }) {
   const columns = [
     {
@@ -35,7 +36,13 @@ export default function ScheduleTable({
         const equipment = equipmentById.get(String(schedule.peralatan_id));
         return (
           <div className="schedule-list-equipment">
-            <strong>{equipment?.nama_peralatan || `Peralatan #${schedule.peralatan_id}`}</strong>
+            <button
+              type="button"
+              className="schedule-equipment-detail-trigger"
+              onClick={() => onOpenDetails(schedule.peralatan_id)}
+            >
+              {equipment?.nama_peralatan || `Peralatan #${schedule.peralatan_id}`}
+            </button>
             <span>
               Lab {equipment?.lab?.kode_labs || equipment?.lab?.nama_labs || "—"}
               {schedule.frekuensi_penggunaan

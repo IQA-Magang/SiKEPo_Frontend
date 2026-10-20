@@ -35,6 +35,7 @@ import {
 import ScheduleFormModal from "./components/ScheduleFormModal.jsx";
 import ScheduleRealizationModal from "./components/ScheduleRealizationModal.jsx";
 import ScheduleEquipmentTable from "./components/ScheduleEquipmentTable.jsx";
+import ScheduleEquipmentDetailPanel from "./components/ScheduleEquipmentDetailPanel.jsx";
 import ScheduleTable from "./components/ScheduleTable.jsx";
 import {
   getDaysUntilDue,
@@ -103,6 +104,7 @@ export default function JadwalPemeriksaanBerkala() {
   const [activeView, setActiveView] = useState("actions");
   const [realizationTarget, setRealizationTarget] = useState(null);
   const [realizationDate, setRealizationDate] = useState("");
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState(null);
 
   async function loadData() {
     setLoading(true);
@@ -142,6 +144,15 @@ export default function JadwalPemeriksaanBerkala() {
       }));
     },
     [equipment, rooms],
+  );
+  const selectedEquipment = selectedEquipmentId == null
+    ? null
+    : equipmentById.get(String(selectedEquipmentId)) || null;
+  const selectedEquipmentSchedules = useMemo(
+    () => schedules.filter((schedule) => (
+      String(schedule.peralatan_id) === String(selectedEquipmentId)
+    )),
+    [schedules, selectedEquipmentId],
   );
   const scheduledEquipmentIds = useMemo(
     () => new Set(schedules.map((item) => String(item.peralatan_id))),
@@ -344,6 +355,12 @@ export default function JadwalPemeriksaanBerkala() {
         onSubmit={saveRealization}
         saving={saving}
       />
+      <ScheduleEquipmentDetailPanel
+        equipment={selectedEquipment}
+        schedules={selectedEquipmentSchedules}
+        onClose={() => setSelectedEquipmentId(null)}
+        onRecordRealization={openRealization}
+      />
 
       <section className="scheduling-summary" aria-label="Ringkasan jadwal">
         {summaryCards.map((summary) => (
@@ -374,7 +391,7 @@ export default function JadwalPemeriksaanBerkala() {
             }}
           >
             <span className="scheduling-tab-number">1</span>
-            Daftar Tindakan
+            Daftar Peralatan
           </button>
           <button
             type="button"
@@ -528,12 +545,14 @@ export default function JadwalPemeriksaanBerkala() {
             equipmentById={equipmentById}
             pagination={schedulePagination}
             onRecordRealization={openRealization}
+            onOpenDetails={(id) => setSelectedEquipmentId(id)}
           />
         ) : (
           <ScheduleEquipmentTable
             groups={equipmentGroups}
             pagination={equipmentPagination}
             onRecordRealization={openRealization}
+            onOpenDetails={(id) => setSelectedEquipmentId(id)}
           />
         )}
       </section>
