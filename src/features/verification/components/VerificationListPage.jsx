@@ -7,6 +7,7 @@ import {
 } from "../../../shared/lib/verificationPdf.js";
 import { getEquipmentId } from "../../../shared/services/api.js";
 import { Button, Tabs } from "../../../shared/components/ui/index.js";
+import WorkflowGuide from "../../../shared/components/ui/WorkflowGuide.jsx";
 import { ACTIVITY_OPTIONS, getActivityLabel } from "../verificationData.js";
 import VerificationHistoryTable from "./VerificationHistoryTable.jsx";
 import PendingVerificationTable from "./PendingVerificationTable.jsx";
@@ -347,6 +348,38 @@ export default function VerificationListPage({
           <h1 className="page-title">Verifikasi Peralatan</h1>
         </div>
       </div>
+
+      <WorkflowGuide
+        title="Petunjuk Alur Verifikasi"
+        description="Ikuti tahapan berikut sampai verifikasi peralatan disetujui."
+        steps={[
+          {
+            title: "Penunjukan Pengelola",
+            description:
+              "Manager menetapkan staff sebagai Pengelola",
+          },
+          {
+            title: "Pilih Peralatan",
+            description:
+              "Pengelola memilih peralatan",
+          },
+          {
+            title: "Isi dan Ajukan",
+            description:
+              "Isi hasil pemeriksaan dan tanda tangan pengelola",
+          },
+          {
+            title: "Tinjauan Manager",
+            description:
+              "Manager menyetujui atau menolak pengajuan",
+          },
+          {
+            title: "Verifikasi Berhasil",
+            description:
+              "Peralatan telah diverifikasi",
+          },
+        ]}  
+      />
 
       {/* Tabs Alur Verifikasi */}
       <Tabs
