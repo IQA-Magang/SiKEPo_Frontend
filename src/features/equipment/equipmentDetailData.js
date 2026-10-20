@@ -13,14 +13,14 @@ export function parseVerificationNotes(rawNotes) {
 
 export function getVerificationCheckLabel(key) {
   const labels = {
-    identitas: 'Identitas Alat Ukur',
-    kelengkapan: 'Kelengkapan Aksesoris',
-    firmware: 'Firmware / Peranti Lunak',
-    kondisi_fisik: 'Kondisi Fisik / Visual',
-    segel: 'Keutuhan Segel Kalibrasi',
-    fungsi_awal: 'Pemeriksaan Fungsi Awal',
-    metrologi: 'Kesesuaian Spesifikasi Metrologi',
-    sertifikat: 'Validitas Sertifikat Kalibrasi',
+    identitas: 'Identitas alat (merek, tipe/model, nomor seri)',
+    kelengkapan: 'Kelengkapan aksesori dan manual',
+    firmware: 'Versi peranti lunak/firmware',
+    kondisi_fisik: 'kondisi fisik',
+    segel: 'Keutuhan segel',
+    fungsi_awal: 'Fungsi awal',
+    metrologi: 'Karakteristik metrologi',
+    sertifikat: 'Sertifikat kalibrasi',
   };
   return labels[key] || key.replaceAll('_', ' ');
 }
