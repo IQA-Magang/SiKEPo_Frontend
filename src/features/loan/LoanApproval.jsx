@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { getCurrentUser, logbookApi, peminjamanApi, peralatanApi, markNotificationsAsReadByRef } from '../../shared/services/api.js';
 import { useToast } from '../../app/providers/ToastContext.jsx';
+import { exportLoanF006Pdf, exportLoanF006Word } from '../../shared/lib/loanPdf.js';
 import LoanRequest from './LoanRequest.jsx';
 
 // ============================================================================
@@ -2234,7 +2235,7 @@ export default function LoanApproval({ onNavigate }) {
                                     fontWeight: 600,
                                   }}
                                 >
-                                  Eksternal (Luar TTH - F/006)
+                                  Eksternal (Luar TTH)
                                 </span>
                               ) : (
                                 <span
@@ -2560,6 +2561,29 @@ export default function LoanApproval({ onNavigate }) {
                               >
                                 <Eye size={13} /> Detail & Log
                               </button>
+
+                              {(loan.approval_manager_lab?.status === 'approved' ||
+                                ['DISETUJUI', 'MENUNGGU_SERAH_TERIMA', 'SIAP_DISERAHKAN', 'SEDANG_DIPINJAM', 'DIKEMBALIKAN'].includes(loan.status)) && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => exportLoanF006Pdf(loan)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    fontSize: '11px',
+                                    padding: '3px 7px',
+                                    color: '#1d4ed8',
+                                    borderColor: '#bfdbfe',
+                                    background: '#eff6ff',
+                                    fontWeight: 600,
+                                  }}
+                                  title="Cetak Surat Keterangan Peminjaman Peralatan (TLKM13/F/006 Versi 03)"
+                                >
+                                  <Printer size={13} /> F/006
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2630,6 +2654,28 @@ export default function LoanApproval({ onNavigate }) {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/* Tombol Cetak F/006 bila sudah disahkan Manager Lab atau masuk proses serah terima */}
+                {(selectedLoan.approval_manager_lab?.status === 'approved' ||
+                  ['DISETUJUI', 'MENUNGGU_SERAH_TERIMA', 'SIAP_DISERAHKAN', 'SEDANG_DIPINJAM', 'DIKEMBALIKAN'].includes(selectedLoan.status)) && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{
+                      fontSize: '12px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      fontWeight: 600,
+                      color: '#1e40af',
+                      borderColor: '#bfdbfe',
+                      background: '#eff6ff',
+                    }}
+                    onClick={() => exportLoanF006Pdf(selectedLoan)}
+                    title="Cetak Surat Keterangan Peminjaman Peralatan (TLKM13/F/006 Versi 03)"
+                  >
+                    <Printer size={14} /> Cetak F/006 (PDF)
+                  </button>
+                )}
                 {isReviewAction && (
                   <button
                     type="button"
@@ -4536,13 +4582,13 @@ export default function LoanApproval({ onNavigate }) {
                 </div>
               )}
 
-              {/* Jika Eksternal: Pratinjau Dokumen F/006 */}
-              {selectedLoan.is_eksternal && countTS === 0 && (
+              {/* Dokumen Resmi F/006 (Surat Keterangan Peminjaman Peralatan - Versi 03: Berlaku Internal & Eksternal) */}
+              {countTS === 0 && (
                 <div
                   style={{
-                    padding: '10px 14px',
+                    padding: '12px 14px',
                     background: '#eff6ff',
-                    border: '1px solid #93c5fd',
+                    border: '1.5px solid #93c5fd',
                     borderRadius: '8px',
                     marginBottom: 'var(--sp-4)',
                     fontSize: '12px',
@@ -4550,15 +4596,70 @@ export default function LoanApproval({ onNavigate }) {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 10,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <FileText size={18} />
-                    <span>
-                      <strong>Dokumen F/006 (Surat Keterangan Membawa Peralatan):</strong> Telah disahkan secara otomatis. Wajib dicetak dan dibawa untuk pemeriksaan di pos Petugas Pengamanan TTH.
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: '240px' }}>
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 6,
+                        background: '#dbeafe',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#1d4ed8',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <FileText size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, color: '#1e3a8a', fontSize: '12.5px' }}>
+                        Dokumen TLKM13/F/006 Versi 03 (Surat Keterangan Peminjaman Peralatan)
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#2563eb', marginTop: 2 }}>
+                        {selectedLoan.is_eksternal
+                          ? 'Peminjaman Eksternal: Wajib dicetak dan dibawa bersama alat untuk pemeriksaan pos Petugas Pengamanan TTH.'
+                          : 'Peminjaman Internal: Dokumen otorisasi peminjaman resmi siap dicetak / diunduh sebagai arsip kendali ISO 17025.'}
+                      </div>
+                    </div>
                   </div>
-                  <span className="badge badge-info" style={{ whiteSpace: 'nowrap' }}>Siap Cetak</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontWeight: 600,
+                        fontSize: '11.5px',
+                        padding: '6px 12px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                      }}
+                      onClick={() => exportLoanF006Pdf(selectedLoan, { checkoutSigPengelola, checkoutSigPeminjam })}
+                    >
+                      <Printer size={14} /> Cetak F/006 (PDF)
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-secondary"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        fontSize: '11.5px',
+                        padding: '6px 10px',
+                      }}
+                      title="Unduh format dokumen Word (.doc)"
+                      onClick={() => exportLoanF006Word(selectedLoan, { checkoutSigPengelola, checkoutSigPeminjam })}
+                    >
+                      <Download size={13} /> Word
+                    </button>
+                  </div>
                 </div>
               )}
 
