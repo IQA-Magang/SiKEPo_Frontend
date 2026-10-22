@@ -8,9 +8,6 @@ export default function ReviewVerificationTable({
   columns,
   search,
   onSearchChange,
-  labFilter,
-  onLabChange,
-  labs,
   activityFilter,
   onActivityChange,
   busy,
@@ -26,18 +23,6 @@ export default function ReviewVerificationTable({
             placeholder: "Nama peralatan atau nomor aset",
             value: search,
             onChange: (event) => onSearchChange(event.target.value),
-          },
-          {
-            type: "select",
-            id: "review-laboratory",
-            label: "Laboratorium",
-            placeholder: "Semua laboratorium",
-            value: labFilter,
-            onChange: (event) => onLabChange(event.target.value),
-            options: labs.map((lab) => ({
-              value: String(lab.id),
-              label: lab.nama_labs || lab.nama_lab || `Laboratorium ${lab.id}`,
-            })),
           },
           {
             type: "select",

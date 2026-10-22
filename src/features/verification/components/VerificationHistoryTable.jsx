@@ -8,9 +8,6 @@ export default function VerificationHistoryTable({
   columns,
   search,
   onSearchChange,
-  labFilter,
-  onLabChange,
-  labs,
   statusFilter,
   onStatusChange,
   activityFilter,
@@ -28,18 +25,6 @@ export default function VerificationHistoryTable({
             placeholder: "Nama peralatan atau nomor aset",
             value: search,
             onChange: (event) => onSearchChange(event.target.value),
-          },
-          {
-            type: "select",
-            id: "history-laboratory",
-            label: "Laboratorium",
-            placeholder: "Semua laboratorium",
-            value: labFilter,
-            onChange: (event) => onLabChange(event.target.value),
-            options: labs.map((lab) => ({
-              value: String(lab.id),
-              label: lab.nama_labs || lab.nama_lab || `Laboratorium ${lab.id}`,
-            })),
           },
           {
             type: "select",

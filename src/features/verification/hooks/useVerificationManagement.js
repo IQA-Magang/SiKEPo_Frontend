@@ -22,7 +22,6 @@ export default function useVerificationManagement({
 }) {
   const [items, setItems] = useState([]);
   const [pendingEquipment, setPendingEquipment] = useState([]);
-  const [labs, setLabs] = useState([]);
   const [equipmentInfo, setEquipmentInfo] = useState(null);
   const [loadingEquipment, setLoadingEquipment] = useState(Boolean(equipmentId));
 
@@ -42,7 +41,7 @@ export default function useVerificationManagement({
       if (roomsResult.status !== "fulfilled") {
         throw (
           roomsResult.reason ||
-          new Error("Gagal memuat data ruangan untuk filter laboratorium.")
+          new Error("Gagal memuat data ruangan untuk memeriksa lab pengguna.")
         );
       }
       if (isLabScopedUser && equipmentResult.status !== "fulfilled") {
@@ -56,23 +55,6 @@ export default function useVerificationManagement({
         roomsResult.status === "fulfilled" ? roomsResult.value?.data || [] : [];
       const roomsById = new Map(
         roomList.map((room) => [String(room.id), room]),
-      );
-      const labsById = new Map();
-      roomList.forEach((room) => {
-        const lab = room.labs || room.laboratorium;
-        const labId = room.labs_id ?? lab?.id;
-        if (labId != null) {
-          labsById.set(String(labId), {
-            ...(lab || {}),
-            id: lab?.id ?? labId,
-            nama_labs: lab?.nama_labs || lab?.nama_lab || `Laboratorium ${labId}`,
-          });
-        }
-      });
-      setLabs(
-        Array.from(labsById.values())
-          .filter((lab) => !isLabScopedUser || String(lab.id) === String(currentUserLabId))
-          .sort((first, second) => first.nama_labs.localeCompare(second.nama_labs, 'id-ID')),
       );
       const allEquipment =
         equipmentResult.status === "fulfilled"
@@ -272,6 +254,5 @@ export default function useVerificationManagement({
     equipmentInfo,
     loadingEquipment,
     loadList,
-    labs,
   };
 }

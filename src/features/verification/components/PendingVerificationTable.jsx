@@ -12,9 +12,6 @@ export default function PendingVerificationTable({
   categoryFilter,
   onCategoryChange,
   categories,
-  labFilter,
-  onLabChange,
-  labs,
   activityFilter,
   onActivityChange,
   busy,
@@ -42,18 +39,6 @@ export default function PendingVerificationTable({
             options: categories.map((category) => ({
               value: category,
               label: category,
-            })),
-          },
-          {
-            type: "select",
-            id: "pending-laboratory",
-            label: "Laboratorium",
-            placeholder: "Semua laboratorium",
-            value: labFilter,
-            onChange: (event) => onLabChange(event.target.value),
-            options: labs.map((lab) => ({
-              value: String(lab.id),
-              label: lab.nama_labs || lab.nama_lab || `Laboratorium ${lab.id}`,
             })),
           },
           {
