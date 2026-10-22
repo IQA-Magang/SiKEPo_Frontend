@@ -118,6 +118,7 @@ function buildVerificationHtml(data) {
 <head>
   <meta charset="UTF-8">
   <title>Verifikasi_${peralatan.nomor_aset || 'Alat'}_TLKM13-F-003</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     @page {
       size: A4 portrait;
@@ -131,7 +132,7 @@ function buildVerificationHtml(data) {
       print-color-adjust: exact !important;
     }
     body {
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: 'Roboto', -apple-system, 'Segoe UI', Arial, sans-serif;
       font-size: 11pt;
       line-height: 1.35;
       color: #111827;
@@ -157,14 +158,14 @@ function buildVerificationHtml(data) {
     .logo-red {
       color: #EE2E24;
       font-size: 16pt;
-      font-weight: 800;
+      font-weight: 700;
       letter-spacing: 0.5px;
     }
     .logo-sub {
       font-size: 8pt;
       color: #374151;
       text-transform: uppercase;
-      font-weight: 600;
+      font-weight: 500;
       margin-top: 2px;
     }
     .title-box {
@@ -212,7 +213,7 @@ function buildVerificationHtml(data) {
     .info-label {
       width: 28%;
       color: #4b5563;
-      font-weight: 600;
+      font-weight: 500;
     }
     .info-sep {
       width: 2%;
@@ -477,7 +478,7 @@ function buildVerificationHtml(data) {
         Status proses mengikuti data peralatan dan keputusan verifikasi yang tersimpan.
       </div>
     </div>
-    <div style="font-size: 9pt; font-weight: 600; color: #166534; text-align: right;">
+    <div style="font-size: 9pt; font-weight: 500; color: #166534; text-align: right;">
       Rencana Tindak Lanjut:<br>
       <span style="font-weight: normal; color: #1f2937;">${data.tindak_lanjut || 'Masuk layanan - label diperbarui'}</span>
     </div>

@@ -54,7 +54,7 @@
   gap: 8px;
   color: #35464e;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .guest-brand-mark {
@@ -87,7 +87,7 @@
   margin: 0 0 12px;
   color: #a32b22;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .guest-asset-intro h1 {
@@ -96,7 +96,7 @@
   color: #13242c;
   font-family: var(--font-display, var(--font-body, system-ui, sans-serif));
   font-size: 32px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.18;
   overflow-wrap: anywhere;
 }
@@ -175,7 +175,7 @@
 
 .guest-asset-number strong {
   color: #17252d;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: inherit;
   font-size: 16px;
   overflow-wrap: anywhere;
 }
@@ -246,7 +246,7 @@
 
 .guest-section-number {
   color: var(--guest-red);
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: inherit;
   font-size: 11px;
   font-weight: 700;
 }
@@ -255,7 +255,7 @@
   margin: 0;
   color: #1a2c34;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.35;
 }
 
@@ -275,7 +275,7 @@
   margin-bottom: 4px;
   color: var(--guest-muted);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
@@ -283,7 +283,7 @@
 .guest-data-value {
   color: #1c2d34;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -301,7 +301,7 @@
   margin: 0;
   color: #34484e;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }

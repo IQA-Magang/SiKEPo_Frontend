@@ -42,8 +42,9 @@
   --status-dihapuskan:     #94A3B8;
   --status-dihapuskan-bg:  #F1F5F9;
 
-  --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
-  --font-body:    'Inter', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-display: 'Roboto', -apple-system, 'Segoe UI', Arial, sans-serif;
+  --font-body:    'Roboto', -apple-system, 'Segoe UI', Arial, sans-serif;
+  --font-sans:    'Roboto', -apple-system, 'Segoe UI', Arial, sans-serif;
 
   --text-xs:   0.75rem;
   --text-sm:   0.875rem;
@@ -54,12 +55,11 @@
   --text-3xl:  1.875rem;
   --text-4xl:  2.25rem;
 
-  --fw-light:     300;
   --fw-regular:   400;
   --fw-medium:    500;
-  --fw-semibold:  600;
+  --fw-semibold:  500;
   --fw-bold:      700;
-  --fw-extrabold: 800;
+  --fw-extrabold: 700;
 
   --sp-1:  4px;
   --sp-2:  8px;
@@ -117,8 +117,9 @@ body {
 }
 
 img, video, svg { max-width: 100%; display: block; }
-button { cursor: pointer; border: none; background: none; font-family: inherit; }
-input, select, textarea { font-family: inherit; }
+svg text { font-family: inherit; }
+button, input, select, textarea { font-family: inherit; }
+table { font-variant-numeric: tabular-nums; }
 a { text-decoration: none; color: inherit; }
 ul, ol { list-style: none; }
 

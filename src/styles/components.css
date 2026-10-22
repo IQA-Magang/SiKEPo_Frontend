@@ -461,7 +461,7 @@
 .stat-value {
   font-family: var(--font-display, sans-serif);
   font-size: 30px;
-  font-weight: 800;
+  font-weight: 700;
   color: #111111;
   line-height: 1.1;
   display: block;
@@ -482,7 +482,7 @@
 
 .stat-sub {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: #6B7280;
 }
 
@@ -646,7 +646,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: #374151;
 }
 

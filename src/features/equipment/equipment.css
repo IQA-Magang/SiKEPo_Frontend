@@ -96,5 +96,5 @@
 }
 
 .equipment-info-row__value.is-mono {
-  font-family: monospace;
+  font-family: inherit;
 }

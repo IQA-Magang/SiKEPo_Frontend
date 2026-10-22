@@ -392,7 +392,7 @@
 
 .schedule-table-asset {
   color: var(--clr-dark-800);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: inherit;
   font-size: 11px !important;
   font-weight: var(--fw-medium);
 }
@@ -435,7 +435,7 @@
 
 .schedule-equipment-identity code {
   color: var(--clr-dark-900);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: inherit;
   font-size: 11px;
 }
 
@@ -510,7 +510,7 @@
 
 .schedule-detail-heading code {
   color: var(--clr-dark-600);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: inherit;
   font-size: var(--text-xs);
 }
 

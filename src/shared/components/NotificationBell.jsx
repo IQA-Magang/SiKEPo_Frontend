@@ -128,7 +128,7 @@ export default function NotificationBell({ onNavigate }) {
               background: '#FFFFFF',
               color: '#E30613',
               fontSize: '10px',
-              fontWeight: 800,
+              fontWeight: 700,
               padding: '1px 5px',
               borderRadius: '9999px',
               border: '2px solid #E30613',
@@ -198,7 +198,7 @@ export default function NotificationBell({ onNavigate }) {
                   border: 'none',
                   color: '#DC2626',
                   fontSize: '12px',
-                  fontWeight: 600,
+                  fontWeight: 500,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -321,7 +321,7 @@ export default function NotificationBell({ onNavigate }) {
                         <Clock size={11} /> {formatTime(n.created_at)}
                       </span>
                       {target && (
-                        <span style={{ color: '#DC2626', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        <span style={{ color: '#DC2626', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                           {target === '/verifikasi' ? 'Buka Verifikasi' : 'Buka Alat'} <ExternalLink size={10} />
                         </span>
                       )}
