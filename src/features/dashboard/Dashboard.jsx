@@ -364,9 +364,6 @@ function AdminDashboard({ onNavigate }) {
         eyebrow="Live Data"
         actions={(
           <>
-            <Button variant="secondary" size="sm" icon={<RefreshCw size={15} />} onClick={load} id="btn-refresh-dashboard">
-              Segarkan
-            </Button>
             <Button variant="primary" size="sm" icon={<Plus size={16} />} onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan">
               Tambah Peralatan
             </Button>

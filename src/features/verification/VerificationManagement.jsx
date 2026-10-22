@@ -63,6 +63,7 @@ export default function VerificationManagement({
     equipmentInfo,
     loadingEquipment,
     loadList,
+    labs,
   } = useVerificationManagement({
     equipmentId,
     isLabScopedUser,
@@ -364,6 +365,7 @@ export default function VerificationManagement({
       <VerificationListPage
         pendingEquipment={pendingEquipment}
         items={items}
+        labs={labs}
         role={role}
         staffIsPengelola={staffIsPengelola}
         canApprove={canApprove}
@@ -381,6 +383,7 @@ export default function VerificationManagement({
       />
       <VerificationDetailsModal
         selected={selected}
+        labs={labs}
         role={role}
         canApprove={canApprove}
         staffIsPengelola={staffIsPengelola}

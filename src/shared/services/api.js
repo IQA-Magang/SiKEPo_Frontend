@@ -221,6 +221,22 @@ export function getEquipmentCategoryId(peralatan) {
   return Number.isInteger(categoryId) && categoryId > 0 ? categoryId : null;
 }
 
+export function getEquipmentLabId(equipment, roomsById = new Map()) {
+  const room = equipment?.ruangan;
+  const roomId = equipment?.ruangan_id ?? equipment?.room_id ?? room?.id;
+  const resolvedRoom = roomsById.get(String(roomId)) || room;
+
+  return (
+    resolvedRoom?.labs_id ??
+    resolvedRoom?.labs?.id ??
+    equipment?.labs_id ??
+    equipment?.labs?.id ??
+    equipment?.laboratorium_id ??
+    equipment?.laboratorium?.id ??
+    null
+  );
+}
+
 export const STATIC_EQUIPMENT_CATEGORIES = [
   {
     id: 1,

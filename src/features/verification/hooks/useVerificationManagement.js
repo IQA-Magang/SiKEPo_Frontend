@@ -22,6 +22,7 @@ export default function useVerificationManagement({
 }) {
   const [items, setItems] = useState([]);
   const [pendingEquipment, setPendingEquipment] = useState([]);
+  const [labs, setLabs] = useState([]);
   const [equipmentInfo, setEquipmentInfo] = useState(null);
   const [loadingEquipment, setLoadingEquipment] = useState(Boolean(equipmentId));
 
@@ -36,12 +37,12 @@ export default function useVerificationManagement({
         await Promise.allSettled([
           verifikasiApi.getAll(),
           peralatanApi.getAll(),
-          isLabScopedUser ? ruanganApi.getAll() : Promise.resolve({ data: [] }),
+          ruanganApi.getAll(),
         ]);
-      if (isLabScopedUser && roomsResult.status !== "fulfilled") {
+      if (roomsResult.status !== "fulfilled") {
         throw (
           roomsResult.reason ||
-          new Error("Gagal memuat data ruangan untuk memeriksa lab pengguna.")
+          new Error("Gagal memuat data ruangan untuk filter laboratorium.")
         );
       }
       if (isLabScopedUser && equipmentResult.status !== "fulfilled") {
@@ -56,6 +57,23 @@ export default function useVerificationManagement({
       const roomsById = new Map(
         roomList.map((room) => [String(room.id), room]),
       );
+      const labsById = new Map();
+      roomList.forEach((room) => {
+        const lab = room.labs || room.laboratorium;
+        const labId = room.labs_id ?? lab?.id;
+        if (labId != null) {
+          labsById.set(String(labId), {
+            ...(lab || {}),
+            id: lab?.id ?? labId,
+            nama_labs: lab?.nama_labs || lab?.nama_lab || `Laboratorium ${labId}`,
+          });
+        }
+      });
+      setLabs(
+        Array.from(labsById.values())
+          .filter((lab) => !isLabScopedUser || String(lab.id) === String(currentUserLabId))
+          .sort((first, second) => first.nama_labs.localeCompare(second.nama_labs, 'id-ID')),
+      );
       const allEquipment =
         equipmentResult.status === "fulfilled"
           ? equipmentResult.value?.data || []
@@ -69,9 +87,29 @@ export default function useVerificationManagement({
 
       if (verificationResult.status === "fulfilled") {
         const allVerifications = verificationResult.value?.data || [];
+        const enrichedVerifications = allVerifications.map((item) => {
+          const listedEquipment = equipmentById.get(String(item.id_peralatan));
+          const equipment = listedEquipment
+            ? { ...listedEquipment, ...item.peralatan }
+            : item.peralatan;
+          if (!equipment) return item;
+
+          const room =
+            roomsById.get(String(equipment.ruangan_id ?? equipment.room_id ?? equipment.ruangan?.id ?? "")) ||
+            equipment.ruangan;
+          return {
+            ...item,
+            peralatan: {
+              ...equipment,
+              ruangan: room,
+              laboratorium:
+                equipment.laboratorium || room?.labs || room?.laboratorium,
+            },
+          };
+        });
         setItems(
           isLabScopedUser
-            ? allVerifications.filter((item) => {
+            ? enrichedVerifications.filter((item) => {
                 const itemEquipment =
                   item.peralatan ||
                   equipmentById.get(String(item.id_peralatan));
@@ -81,7 +119,7 @@ export default function useVerificationManagement({
                   currentUserLabId,
                 );
               })
-            : allVerifications,
+            : enrichedVerifications,
         );
       }
 
@@ -99,13 +137,13 @@ export default function useVerificationManagement({
         setPendingEquipment(
           visiblePending.map((item) => {
             const room =
-              item.ruangan ||
-              roomsById.get(String(item.ruangan_id ?? item.room_id ?? ""));
+              roomsById.get(String(item.ruangan_id ?? item.room_id ?? item.ruangan?.id ?? "")) ||
+              item.ruangan;
             return {
               ...item,
               ruangan: room,
               laboratorium:
-                item.laboratorium || room?.labs || item.laboratorium,
+                item.laboratorium || room?.labs || room?.laboratorium,
             };
           }),
         );
@@ -234,5 +272,6 @@ export default function useVerificationManagement({
     equipmentInfo,
     loadingEquipment,
     loadList,
+    labs,
   };
 }

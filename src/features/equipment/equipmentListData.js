@@ -1,4 +1,4 @@
-import { getEquipmentCategoryId } from '../../shared/services/api.js';
+import { getEquipmentCategoryId, getEquipmentLabId } from '../../shared/services/api.js';
 
 const LIFECYCLE_HEADERS = {
   pending: [
@@ -25,6 +25,8 @@ export function getEquipmentCategories(equipmentList) {
 export function filterEquipment(equipmentList, {
   search,
   categoryId,
+  labId,
+  roomsById,
   lifecycle,
 }) {
   const query = search.toLowerCase();
@@ -38,6 +40,9 @@ export function filterEquipment(equipmentList, {
     const equipmentCategoryId = getEquipmentCategoryId(equipment);
     const matchesCategory =
       !categoryId || String(equipmentCategoryId) === categoryId;
+    const equipmentLabId = getEquipmentLabId(equipment, roomsById);
+    const matchesLab =
+      !labId || String(equipmentLabId) === String(labId);
     const approved = equipment.status_verifikasi === 'Disetujui';
     const rejected = equipment.status_verifikasi === 'Ditolak';
     const pending = !approved && !rejected;
@@ -47,7 +52,7 @@ export function filterEquipment(equipmentList, {
         ? rejected
         : equipment.status_alat === 'Aktif' && approved;
 
-    return matchesSearch && matchesCategory && matchesLifecycle;
+    return matchesSearch && matchesCategory && matchesLab && matchesLifecycle;
   });
 }
 

@@ -1,5 +1,7 @@
 /* Shared verification criteria, labels, and helpers. */
 
+import { getEquipmentLabId } from "../../shared/services/api.js";
+
 export const CHECKS = [
   "identitas",
   "kelengkapan",
@@ -131,12 +133,7 @@ export function getEquipmentKeterangan(equipment) {
 
 export function isEquipmentInUserLab(equipment, roomsById, userLabId) {
   if (userLabId == null) return false;
-
-  const equipmentRoom = equipment?.ruangan;
-  const roomId =
-    equipment?.ruangan_id ?? equipment?.room_id ?? equipmentRoom?.id;
-  const room = roomsById.get(String(roomId)) || equipmentRoom;
-  const roomLabId = room?.labs_id ?? room?.labs?.id;
+  const roomLabId = getEquipmentLabId(equipment, roomsById);
 
   return roomLabId != null && String(roomLabId) === String(userLabId);
 }

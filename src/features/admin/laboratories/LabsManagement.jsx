@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, RefreshCw, Building2 } from 'lucide-react';
+import { Plus, Building2 } from 'lucide-react';
 import { labsApi, usersApi } from '../../../shared/services/api.js';
 import { ACCESS, ACTIONS, can } from '../../../shared/utils/permissions.js';
 import { useToast } from '../../../app/providers/ToastContext.jsx';
@@ -170,11 +170,6 @@ export default function LabsManagement() {
             onChange: (event) => setSearch(event.target.value),
           },
         ]}
-        actions={
-          <Button variant="secondary" size="sm" icon={<RefreshCw size={16} />} onClick={loadData} id="btn-refresh-lab" title="Segarkan data laboratorium">
-            Segarkan
-          </Button>
-        }
       />
 
       {loading ? (

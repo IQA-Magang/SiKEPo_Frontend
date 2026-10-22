@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DoorOpen, Plus, RefreshCw } from 'lucide-react';
+import { DoorOpen, Plus } from 'lucide-react';
 import { ruanganApi, labsApi, usersApi } from '../../../shared/services/api.js';
 import { ACCESS, ACTIONS, can } from '../../../shared/utils/permissions.js';
 import { useToast } from '../../../app/providers/ToastContext.jsx';
@@ -187,11 +187,6 @@ export default function RuanganManagement() {
             })),
           },
         ]}
-        actions={
-          <Button variant="secondary" size="sm" icon={<RefreshCw size={16} />} onClick={loadData} id="btn-refresh-ruangan" title="Segarkan data ruangan">
-            Segarkan
-          </Button>
-        }
       />
 
       {loading ? (

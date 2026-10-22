@@ -5,7 +5,7 @@ import {
   exportVerificationPdf,
   exportVerificationWord,
 } from "../../../shared/lib/verificationPdf.js";
-import { getEquipmentId } from "../../../shared/services/api.js";
+import { getEquipmentId, getEquipmentLabId } from "../../../shared/services/api.js";
 import { Button, Tabs } from "../../../shared/components/ui/index.js";
 import WorkflowGuide from "../../../shared/components/ui/WorkflowGuide.jsx";
 import { ACTIVITY_OPTIONS, getActivityLabel } from "../verificationData.js";
@@ -16,6 +16,7 @@ import ReviewVerificationTable from "./ReviewVerificationTable.jsx";
 export default function VerificationListPage({
   pendingEquipment,
   items,
+  labs,
   role,
   staffIsPengelola,
   canApprove,
@@ -28,6 +29,7 @@ export default function VerificationListPage({
   const [pendingSearch, setPendingSearch] = useState("");
   const [pendingCategoryFilter, setPendingCategoryFilter] = useState("");
   const [pendingActivityFilter, setPendingActivityFilter] = useState("");
+  const [labFilter, setLabFilter] = useState("");
   const [reviewSearch, setReviewSearch] = useState("");
   const [reviewActivityFilter, setReviewActivityFilter] = useState("");
   const [historySearch, setHistorySearch] = useState("");
@@ -51,7 +53,9 @@ export default function VerificationListPage({
       (!query || searchable.includes(query)) &&
       (!pendingCategoryFilter || category === pendingCategoryFilter) &&
       (!pendingActivityFilter ||
-        String(item.kode_aktivitas || "").toUpperCase() === pendingActivityFilter)
+        String(item.kode_aktivitas || "").toUpperCase() === pendingActivityFilter) &&
+      (!labFilter ||
+        String(getEquipmentLabId(item)) === String(labFilter))
     );
   });
   const reviewItems = items.filter((item) => item.status === "Diajukan");
@@ -66,6 +70,8 @@ export default function VerificationListPage({
       .toLocaleLowerCase("id-ID");
     return (
       (!query || searchable.includes(query)) &&
+      (!labFilter ||
+        String(getEquipmentLabId(item.peralatan)) === String(labFilter)) &&
       (!reviewActivityFilter ||
         String(item.kode_aktivitas || "").toUpperCase() === reviewActivityFilter)
     );
@@ -87,6 +93,8 @@ export default function VerificationListPage({
     const searchable = `${equipmentName} ${assetNumber}`.toLocaleLowerCase("id-ID");
     return (
       (!query || searchable.includes(query)) &&
+      (!labFilter ||
+        String(getEquipmentLabId(item.peralatan)) === String(labFilter)) &&
       (!historyStatusFilter || item.status === historyStatusFilter) &&
       (!historyActivityFilter ||
         String(item.kode_aktivitas || "").toUpperCase() === historyActivityFilter)
@@ -94,13 +102,13 @@ export default function VerificationListPage({
   });
   const pendingPagination = usePagination(
     pendingItems.length,
-    `${pendingSearch}\u0000${pendingCategoryFilter}\u0000${pendingActivityFilter}`,
+    `${pendingSearch}\u0000${pendingCategoryFilter}\u0000${pendingActivityFilter}\u0000${labFilter}`,
   );
   const reviewPagination = usePagination(
     filteredReviewItems.length,
-    `${reviewSearch}\u0000${reviewActivityFilter}`,
+    `${reviewSearch}\u0000${reviewActivityFilter}\u0000${labFilter}`,
   );
-  const historyPagination = usePagination(historyItems.length);
+  const historyPagination = usePagination(historyItems.length, labFilter);
   const pendingColumns = [
     {
       key: "number",
@@ -418,6 +426,9 @@ export default function VerificationListPage({
             categoryFilter={pendingCategoryFilter}
             onCategoryChange={setPendingCategoryFilter}
             categories={pendingCategories}
+            labFilter={labFilter}
+            onLabChange={setLabFilter}
+            labs={labs}
             activityFilter={pendingActivityFilter}
             onActivityChange={setPendingActivityFilter}
             busy={busy}
@@ -432,6 +443,9 @@ export default function VerificationListPage({
             columns={reviewColumns}
             search={reviewSearch}
             onSearchChange={setReviewSearch}
+            labFilter={labFilter}
+            onLabChange={setLabFilter}
+            labs={labs}
             activityFilter={reviewActivityFilter}
             onActivityChange={setReviewActivityFilter}
             busy={busy}
@@ -445,6 +459,9 @@ export default function VerificationListPage({
             columns={historyColumns}
             search={historySearch}
             onSearchChange={setHistorySearch}
+            labFilter={labFilter}
+            onLabChange={setLabFilter}
+            labs={labs}
             statusFilter={historyStatusFilter}
             onStatusChange={setHistoryStatusFilter}
             activityFilter={historyActivityFilter}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FolderKanban, Plus, RefreshCw } from 'lucide-react';
+import { FolderKanban, Plus } from 'lucide-react';
 import { kelompokAssetApi, labsApi, usersApi } from '../../../shared/services/api.js';
 import { ACCESS, ACTIONS, can } from '../../../shared/utils/permissions.js';
 import { useToast } from '../../../app/providers/ToastContext.jsx';
@@ -206,18 +206,6 @@ export default function AssetGroupManagement() {
             })),
           },
         ]}
-        actions={(
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={<RefreshCw size={16} />}
-            onClick={loadData}
-            id="btn-refresh-kelompok-aset"
-            title="Segarkan data kelompok aset"
-          >
-            Segarkan
-          </Button>
-        )}
       />
 
       {loading ? (

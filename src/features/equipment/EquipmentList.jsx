@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './equipment.css';
-import { Package, Plus, RefreshCw } from 'lucide-react';
-import { peralatanApi, ruanganApi } from '../../shared/services/api.js';
-import { ACCESS, ACTIONS, can } from '../../shared/utils/permissions.js';
+import { Package, Plus } from 'lucide-react';
+import { getCurrentUser, getEquipmentLabId, peralatanApi, ruanganApi } from '../../shared/services/api.js';
+import { ACCESS, ACTIONS, can, getUserRole } from '../../shared/utils/permissions.js';
 import { usePagination } from '../../shared/components/ui/Pagination.jsx';
 import TableFilters from '../../shared/components/ui/TableFilters.jsx';
 import { Button, PageHeader, LoadingState, EmptyState, ErrorState } from '../../shared/components/ui/index.js';
@@ -25,11 +25,16 @@ export default function EquipmentList({
   const canCreate = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD);
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const canRequestLoan = can(ACCESS.LOAN_REQUEST, ACTIONS.ADD);
+  const user = getCurrentUser();
+  const role = getUserRole(user);
+  const isLabScopedUser = role === 'staff' || role === 'manager';
+  const currentUserLabId = user?.labs_id ?? user?.labs?.id;
   const [list, setList]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [loadError, setLoadError] = useState('');
   const [search, setSearch]     = useState('');
   const [filterKat, setFilterKat] = useState('');
+  const [filterLab, setFilterLab] = useState('');
   const [lifecycleView, setLifecycleView] = useState(initialLifecycle);
   const [rooms, setRooms] = useState([]);
 
@@ -41,10 +46,14 @@ export default function EquipmentList({
     setLoading(true);
     setLoadError('');
     try {
+      if (isLabScopedUser && currentUserLabId == null) {
+        throw new Error('Akun pengguna belum terhubung dengan lab.');
+      }
       const [res, roomsRes] = await Promise.all([
         peralatanApi.getAll(),
         ruanganApi.getAll().catch((err) => {
           console.error('Gagal memuat lokasi peralatan:', err);
+          if (isLabScopedUser) throw err;
           return { data: [] };
         }),
       ]);
@@ -58,14 +67,37 @@ export default function EquipmentList({
     }
   }
 
-  // Filter
-  const filtered = filterEquipment(list, {
+  const roomsById = new Map(rooms.map((room) => [String(room.id), room]));
+  const visibleList = isLabScopedUser
+    ? list.filter((item) => {
+        const labId = getEquipmentLabId(item, roomsById);
+        return labId != null && String(labId) === String(currentUserLabId);
+      })
+    : list;
+  const labsById = new Map();
+  rooms.forEach((room) => {
+    const lab = room.labs || room.laboratorium;
+    const labId = room.labs_id ?? lab?.id;
+    if (labId != null) {
+      labsById.set(String(labId), {
+        ...(lab || {}),
+        id: lab?.id ?? labId,
+        nama_labs: lab?.nama_labs || lab?.nama_lab || `Laboratorium ${labId}`,
+      });
+    }
+  });
+  const labs = Array.from(labsById.values())
+    .filter((lab) => !isLabScopedUser || String(lab.id) === String(currentUserLabId))
+    .sort((first, second) => first.nama_labs.localeCompare(second.nama_labs, 'id-ID'));
+  const filtered = filterEquipment(visibleList, {
     search,
     categoryId: filterKat,
+    labId: filterLab,
+    roomsById,
     lifecycle: lifecycleView,
   });
-  const pagination = usePagination(filtered.length, `${search}\u0000${filterKat}\u0000${lifecycleView}`);
-  const categories = getEquipmentCategories(list);
+  const pagination = usePagination(filtered.length, `${search}\u0000${filterKat}\u0000${filterLab}\u0000${lifecycleView}`);
+  const categories = getEquipmentCategories(visibleList);
   const [title, description] = getEquipmentLifecycleHeader(lifecycleView);
 
   return (
@@ -103,12 +135,19 @@ export default function EquipmentList({
               label: category.nama_kategori,
             })),
           },
+          {
+            type: 'select',
+            id: 'select-filter-laboratorium-peralatan',
+            label: 'Laboratorium',
+            placeholder: 'Semua Laboratorium',
+            value: filterLab,
+            onChange: (event) => setFilterLab(event.target.value),
+            options: labs.map((lab) => ({
+              value: String(lab.id),
+              label: lab.nama_labs || lab.nama_lab || `Laboratorium ${lab.id}`,
+            })),
+          },
         ]}
-        actions={
-          <Button variant="secondary" size="sm" icon={<RefreshCw size={16} />} onClick={loadData} title="Refresh" id="btn-refresh-peralatan">
-            Segarkan
-          </Button>
-        }
       />
 
       {loading ? (

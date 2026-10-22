@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, RefreshCw } from 'lucide-react';
+import { Box } from 'lucide-react';
 import './CategoryManagement.css';
 import {
   getCurrentUser,
@@ -87,18 +87,6 @@ export default function CategoryManagement() {
         title="Klasifikasi Kategori Peralatan"
         subtitle="Standar klasifikasi, tata kelola metrologis, dan regulasi kepatuhan peralatan laboratorium uji"
         eyebrow="ISO/IEC 17025:2017"
-        actions={(
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={<RefreshCw size={16} />}
-            onClick={loadData}
-            id="btn-refresh-kategori"
-            title="Segarkan data unit peralatan"
-          >
-            Segarkan
-          </Button>
-        )}
       />
 
       {loading ? (
