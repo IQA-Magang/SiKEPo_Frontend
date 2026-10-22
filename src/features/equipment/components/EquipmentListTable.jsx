@@ -1,4 +1,4 @@
-import { Hand } from 'lucide-react';
+import { CheckCircle2, Hand } from 'lucide-react';
 import { getEquipmentId, STATUS_BADGE_CLASS } from '../../../shared/services/api.js';
 import {
   Badge,
@@ -12,6 +12,11 @@ export default function EquipmentListTable({
   pagination,
   canViewVerification,
   canRequestLoan,
+  loaningEquipmentId,
+  onMarkAsLoaned,
+  canReturnEquipment,
+  returningEquipmentId,
+  onReturnEquipment,
   onNavigate,
   returnPath,
 }) {
@@ -83,7 +88,9 @@ export default function EquipmentListTable({
         const description = rejected
           ? 'Perlu verifikasi ulang'
           : !approved
-            ? 'Menunggu verifikasi'
+            ? item.kode_aktivitas === 'A3' && item.status_verifikasi === 'Belum Diverifikasi'
+              ? 'Menunggu verifikasi'
+              : 'Menunggu verifikasi'
             : item.status_alat === 'Aktif'
               ? 'Masuk inventaris'
               : item.status_alat === 'Dalam Kalibrasi'
@@ -98,7 +105,6 @@ export default function EquipmentListTable({
           <Badge
             className={STATUS_BADGE_CLASS[rejected ? 'Rusak' : approved ? item.status_alat : 'Karantina'] || 'badge-gray'}
           >
-            <span className="badge-dot" />
             {description}
           </Badge>
         );
@@ -157,11 +163,24 @@ export default function EquipmentListTable({
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => onNavigate('/peminjaman')}
-                title="Pinjam peralatan"
+                disabled={loaningEquipmentId === itemId}
+                onClick={() => onMarkAsLoaned(item)}
+                title="Ubah status peralatan menjadi Dipinjam"
               >
                 <Hand size={14} />
-                Pinjam
+                {loaningEquipmentId === itemId ? 'Memproses...' : 'Pinjam'}
+              </Button>
+            )}
+            {canReturnEquipment && approved && item.status_alat === 'Dipinjam' && (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={returningEquipmentId === itemId}
+                onClick={() => onReturnEquipment(item)}
+                title="Catat pengembalian dan kirim untuk verifikasi A3"
+              >
+                <CheckCircle2 size={14} />
+                {returningEquipmentId === itemId ? 'Memproses...' : 'Selesai Dipinjam'}
               </Button>
             )}
           </div>

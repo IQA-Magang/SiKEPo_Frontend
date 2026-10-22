@@ -67,8 +67,22 @@ export default function useVerificationManagement({
         ]),
       );
 
+      const allVerifications =
+        verificationResult.status === "fulfilled"
+          ? verificationResult.value?.data || []
+          : [];
+      const latestVerificationByEquipmentId = new Map();
+      allVerifications.forEach((item) => {
+        const equipmentId = item.id_peralatan ?? getEquipmentId(item.peralatan);
+        if (equipmentId == null) return;
+
+        const key = String(equipmentId);
+        if (!latestVerificationByEquipmentId.has(key)) {
+          latestVerificationByEquipmentId.set(key, item);
+        }
+      });
+
       if (verificationResult.status === "fulfilled") {
-        const allVerifications = verificationResult.value?.data || [];
         const enrichedVerifications = allVerifications.map((item) => {
           const listedEquipment = equipmentById.get(String(item.id_peralatan));
           const equipment = listedEquipment
@@ -105,12 +119,35 @@ export default function useVerificationManagement({
         );
       }
 
+      const pendingFollowUpEquipmentIds = new Set(
+        [...latestVerificationByEquipmentId.entries()]
+          .filter(([, item]) => {
+            const activityCode = String(item.kode_aktivitas || "")
+              .trim()
+              .toUpperCase();
+            return (
+              ["Draft", "Diajukan"].includes(item.status) &&
+              activityCode !== "" &&
+              activityCode !== "A1" &&
+              !(activityCode === "A3" && item.status === "Draft")
+            );
+          })
+          .map(([equipmentId]) => equipmentId),
+      );
       if (equipmentResult.status === "fulfilled") {
-        const pending = allEquipment.filter(
-          (item) =>
+        const pending = allEquipment.filter((item) => {
+          const activityCode = String(item.kode_aktivitas || "")
+            .trim()
+            .toUpperCase();
+          return (
             item.status_verifikasi !== "Disetujui" &&
-            item.status_verifikasi !== "Diajukan",
-        );
+            item.status_verifikasi !== "Diajukan" &&
+            ((activityCode === "" || activityCode === "A1") ||
+              (activityCode === "A3" &&
+                item.status_verifikasi === "Belum Diverifikasi")) &&
+            !pendingFollowUpEquipmentIds.has(String(getEquipmentId(item)))
+          );
+        });
         const visiblePending = isLabScopedUser
           ? pending.filter((item) =>
               isEquipmentInUserLab(item, roomsById, currentUserLabId),

@@ -429,6 +429,10 @@ export const peralatanApi = {
     fetchWithAuth(`/api/peralatan/${encodeURIComponent(assetNumber)}`),
   create: (body) =>
     fetchWithAuth('/api/peralatan/', { method: 'POST', body: JSON.stringify(body) }),
+  markAsLoaned: (id) =>
+    fetchWithAuth(`/api/peralatan/${id}/loan-start`, { method: 'POST' }),
+  returnFromLoan: (id) =>
+    fetchWithAuth(`/api/peralatan/${id}/return`, { method: 'POST' }),
   uploadFoto: (id, file) => {
     const form = new FormData();
     form.append('foto', file);

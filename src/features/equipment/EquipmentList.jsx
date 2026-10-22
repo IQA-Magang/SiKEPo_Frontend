@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import './equipment.css';
 import { Package, Plus } from 'lucide-react';
-import { getCurrentUser, getEquipmentLabId, peralatanApi, ruanganApi } from '../../shared/services/api.js';
+import { getCurrentUser, getEquipmentId, getEquipmentLabId, peralatanApi, ruanganApi, verifikasiApi } from '../../shared/services/api.js';
 import { ACCESS, ACTIONS, can, getUserRole } from '../../shared/utils/permissions.js';
 import { usePagination } from '../../shared/components/ui/Pagination.jsx';
 import TableFilters from '../../shared/components/ui/TableFilters.jsx';
 import { Button, PageHeader, LoadingState, EmptyState, ErrorState } from '../../shared/components/ui/index.js';
+import ConfirmDialog from '../../shared/components/ui/ConfirmDialog.jsx';
 import EquipmentListTable from './components/EquipmentListTable.jsx';
+import { useToast } from '../../app/providers/ToastContext.jsx';
 import {
   filterEquipment,
   getEquipmentCategories,
   getEquipmentLifecycleHeader,
+  mergePendingVerificationActivity,
 } from './equipmentListData.js';
 
 
@@ -25,6 +28,8 @@ export default function EquipmentList({
   const canCreate = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD);
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const canRequestLoan = can(ACCESS.LOAN_REQUEST, ACTIONS.ADD);
+  const canReturnEquipment = can(ACCESS.RETURN_PROCESS, ACTIONS.EDIT);
+  const { success: toastSuccess, error: toastError } = useToast();
   const user = getCurrentUser();
   const role = getUserRole(user);
   const isLabScopedUser = role === 'staff' || role === 'manager';
@@ -37,6 +42,9 @@ export default function EquipmentList({
   const [filterLab, setFilterLab] = useState('');
   const [lifecycleView, setLifecycleView] = useState(initialLifecycle);
   const [rooms, setRooms] = useState([]);
+  const [equipmentToReturn, setEquipmentToReturn] = useState(null);
+  const [returningEquipmentId, setReturningEquipmentId] = useState(null);
+  const [loaningEquipmentId, setLoaningEquipmentId] = useState(null);
 
 
   useEffect(() => { loadData(); }, []);
@@ -49,21 +57,60 @@ export default function EquipmentList({
       if (isLabScopedUser && currentUserLabId == null) {
         throw new Error('Akun pengguna belum terhubung dengan lab.');
       }
-      const [res, roomsRes] = await Promise.all([
+      const [res, roomsRes, verificationsRes] = await Promise.all([
         peralatanApi.getAll(),
         ruanganApi.getAll().catch((err) => {
           console.error('Gagal memuat lokasi peralatan:', err);
           if (isLabScopedUser) throw err;
           return { data: [] };
         }),
+        verifikasiApi.getAll(),
       ]);
-      setList(res.data || []);
+      if (!Array.isArray(res?.data) || !Array.isArray(verificationsRes?.data)) {
+        throw new Error('Format data peralatan atau verifikasi tidak valid.');
+      }
+      setList(mergePendingVerificationActivity(res.data, verificationsRes.data));
       setRooms(roomsRes.data || []);
     } catch (err) {
       console.error('Gagal memuat peralatan:', err);
       setLoadError(err.message || 'Gagal memuat data peralatan.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function confirmReturnEquipment() {
+    if (!equipmentToReturn) return;
+
+    const equipmentId = getEquipmentId(equipmentToReturn);
+    setReturningEquipmentId(equipmentId);
+    try {
+      await peralatanApi.returnFromLoan(equipmentId);
+      setEquipmentToReturn(null);
+      toastSuccess('Peralatan dikembalikan dan masuk antrean verifikasi A3.');
+      await loadData();
+    } catch (err) {
+      console.error('Gagal mencatat pengembalian peralatan:', err);
+      toastError(err.message || 'Gagal mencatat pengembalian peralatan.');
+    } finally {
+      setReturningEquipmentId(null);
+    }
+  }
+
+  async function markEquipmentAsLoaned(equipment) {
+    const equipmentId = getEquipmentId(equipment);
+    if (equipmentId == null) return;
+
+    setLoaningEquipmentId(equipmentId);
+    try {
+      await peralatanApi.markAsLoaned(equipmentId);
+      toastSuccess('Status peralatan berubah menjadi Dipinjam.');
+      await loadData();
+    } catch (err) {
+      console.error('Gagal mengubah status peminjaman peralatan:', err);
+      toastError(err.message || 'Gagal mengubah status peralatan.');
+    } finally {
+      setLoaningEquipmentId(null);
     }
   }
 
@@ -157,7 +204,7 @@ export default function EquipmentList({
       ) : filtered.length === 0 ? (
         <EmptyState
           title="Tidak ada peralatan ditemukan"
-          description="Daftar ini hanya menampilkan peralatan berstatus aktif yang telah disetujui manager."
+          description="Daftar ini menampilkan peralatan aktif yang disetujui serta peralatan dengan verifikasi lanjutan yang sedang diproses."
           icon={<Package size={32} />}
           action={canCreate ? (
             <Button variant="primary" icon={<Plus size={16} />} onClick={() => onNavigate('/peralatan/tambah')}>
@@ -172,10 +219,28 @@ export default function EquipmentList({
           pagination={pagination}
           canViewVerification={canViewVerification}
           canRequestLoan={canRequestLoan}
+          loaningEquipmentId={loaningEquipmentId}
+          onMarkAsLoaned={markEquipmentAsLoaned}
+          canReturnEquipment={canReturnEquipment}
+          returningEquipmentId={returningEquipmentId}
+          onReturnEquipment={setEquipmentToReturn}
           onNavigate={onNavigate}
           returnPath={returnPath}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(equipmentToReturn)}
+        title="Konfirmasi Pengembalian"
+        message={`Tandai ${equipmentToReturn?.nama_peralatan || 'peralatan ini'} sudah selesai dipinjam? Status alat akan kembali Aktif dan masuk antrean verifikasi A3.`}
+        confirmText={returningEquipmentId ? 'Memproses...' : 'Ya, Sudah Kembali'}
+        cancelText="Batal"
+        variant="primary"
+        onConfirm={confirmReturnEquipment}
+        onCancel={() => {
+          if (returningEquipmentId == null) setEquipmentToReturn(null);
+        }}
+      />
 
     </div>
   );
