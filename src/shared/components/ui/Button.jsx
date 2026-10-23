@@ -5,6 +5,7 @@ const variantClassNames = {
   secondary: 'ui-button--secondary',
   outline: 'ui-button--outline',
   ghost: 'ui-button--ghost',
+  success: 'ui-button--success',
   danger: 'ui-button--danger',
   warning: 'ui-button--warning',
 };

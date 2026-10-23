@@ -39,6 +39,13 @@ export default function VerificationDetailsModal({
   savedSignature,
   setSelected,
 }) {
+  const picSigner =
+    selected?.pic_user ||
+    selected?.pic ||
+    selected?.peralatan?.pic_user ||
+    selected?.peralatan?.pic ||
+    selected?.peralatan?.ruangan?.pic_user;
+
   function officialNotes(item) {
     try {
       const data = JSON.parse(item.catatan || "{}");
@@ -89,13 +96,10 @@ export default function VerificationDetailsModal({
                   style={{ marginBottom: "var(--sp-3)" }}
                 >
                   <div>
-                    <strong>
-                      {role === "manager" ? "Kode Aktivitas:" : "Keterangan:"}
-                    </strong>
+                    <strong>Aktivitas:</strong>
                     <p style={{ margin: "2px 0 0" }}>
-                      {role === "manager"
-                        ? selected.kode_aktivitas || "-"
-                        : getActivityLabel(selected.kode_aktivitas)}
+                      {selected.nama_aktivitas ||
+                        getActivityLabel(selected.kode_aktivitas)}
                     </p>
                   </div>
                   <div>
@@ -137,20 +141,22 @@ export default function VerificationDetailsModal({
 
                 <div className="verification-review-signatures">
                   <SignatureDisplayCard
-                    title="Tanda Tangan Pengelola Penguji"
+                    title="Tanda Tangan Pengelola Peralatan"
                     roleLabel="Staff Pengelola Penguji"
                     signature={selected.pic_signature}
                     signerName={
-                      selected.pic_user?.nama_lengkap ||
-                      selected.pic?.nama_lengkap ||
-                      selected.pic?.nama ||
+                      picSigner?.nama_lengkap ||
+                      picSigner?.nama ||
+                      picSigner?.name ||
+                      picSigner?.username ||
+                      picSigner?.email ||
                       "-"
                     }
                     signerNip={
-                      selected.pic_user?.nip
-                        ? `NIP: ${selected.pic_user.nip}`
-                        : selected.pic_user?.username
-                          ? `@${selected.pic_user.username}`
+                      picSigner?.nip
+                        ? `NIP: ${picSigner.nip}`
+                        : picSigner?.username
+                          ? `@${picSigner.username}`
                           : null
                     }
                     signedAt={
@@ -188,7 +194,14 @@ export default function VerificationDetailsModal({
                   Hasil Aspek Pemeriksaan
                 </h4>
                 <DataTable
+                  className="verification-details-table"
                   columns={[
+                    {
+                      key: "number",
+                      header: "No.",
+                      headerStyle: { width: 56 },
+                      render: (_, index) => index + 1,
+                    },
                     {
                       key: "check",
                       header: "Hasil Pemeriksaan",

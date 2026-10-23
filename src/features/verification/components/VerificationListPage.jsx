@@ -127,15 +127,17 @@ export default function VerificationListPage({
     },
     {
       key: "name",
-      header: "Nama Peralatan",
+      header: "Peralatan",
       render: (item) => (
         <>
           <div style={{ fontWeight: "var(--fw-medium)", color: "var(--clr-dark-900)" }}>
-            {item.nama_peralatan}
+            {item.peralatan?.nama_peralatan || item.nama_peralatan || `Peralatan ID ${item.id_peralatan}`}
           </div>
-          {item.merek && (
+          {(item.peralatan?.merek || item.merek) && (
             <div style={{ fontSize: "var(--text-xs)", color: "var(--clr-dark-400)" }}>
-              {item.merek}{item.tipe_model ? ` — ${item.tipe_model}` : ""}
+              {item.peralatan?.merek || item.merek}
+              {(item.peralatan?.tipe_model || item.tipe_model) &&
+                ` — ${item.peralatan?.tipe_model || item.tipe_model}`}
             </div>
           )}
         </>
@@ -199,7 +201,7 @@ export default function VerificationListPage({
   const reviewColumns = [
     {
       key: "number",
-      header: "#",
+      header: "No.",
       headerStyle: { width: 40 },
       cellStyle: { color: "var(--clr-dark-400)", width: 40 },
       render: (_, index) => reviewPagination.startIndex + index + 1,
@@ -212,12 +214,21 @@ export default function VerificationListPage({
       ),
     },
     {
-      key: "equipment",
+      key: "name",
       header: "Peralatan",
       render: (item) => (
-        <div style={{ fontWeight: "var(--fw-medium)" }}>
-          {item.peralatan?.nama_peralatan || `Peralatan ID ${item.id_peralatan}`}
-        </div>
+        <>
+          <div style={{ fontWeight: "var(--fw-medium)", color: "var(--clr-dark-900)" }}>
+            {item.peralatan?.nama_peralatan || item.nama_peralatan || `Peralatan ID ${item.id_peralatan}`}
+          </div>
+          {(item.peralatan?.merek || item.merek) && (
+            <div style={{ fontSize: "var(--text-xs)", color: "var(--clr-dark-400)" }}>
+              {item.peralatan?.merek || item.merek}
+              {(item.peralatan?.tipe_model || item.tipe_model) &&
+                ` — ${item.peralatan?.tipe_model || item.tipe_model}`}
+            </div>
+          )}
+        </>
       ),
     },
     {
@@ -256,7 +267,7 @@ export default function VerificationListPage({
   const historyColumns = [
     {
       key: "number",
-      header: "No",
+      header: "No.",
       headerStyle: { width: 40 },
       cellStyle: { color: "var(--clr-dark-400)", width: 40 },
       render: (_, index) => historyPagination.startIndex + index + 1,
@@ -270,9 +281,18 @@ export default function VerificationListPage({
       key: "equipment",
       header: "Peralatan",
       render: (item) => (
-        <div style={{ fontWeight: "var(--fw-medium)" }}>
-          {item.peralatan?.nama_peralatan || `Peralatan ID ${item.id_peralatan}`}
-        </div>
+        <>
+          <div style={{ fontWeight: "var(--fw-medium)", color: "var(--clr-dark-900)" }}>
+            {item.peralatan?.nama_peralatan || item.nama_peralatan || `Peralatan ID ${item.id_peralatan}`}
+          </div>
+          {(item.peralatan?.merek || item.merek) && (
+            <div style={{ fontSize: "var(--text-xs)", color: "var(--clr-dark-400)" }}>
+              {item.peralatan?.merek || item.merek}
+              {(item.peralatan?.tipe_model || item.tipe_model) &&
+                ` — ${item.peralatan?.tipe_model || item.tipe_model}`}
+            </div>
+          )}
+        </>
       ),
     },
     {
@@ -299,7 +319,7 @@ export default function VerificationListPage({
             icon={<Eye size={14} />}
             onClick={() => onSelect(item)}
           >
-            Lihat
+            Detail
           </Button>
           {item.status === "Disetujui" && (canApprove || staffIsPengelola) && (
             <>
@@ -350,7 +370,7 @@ export default function VerificationListPage({
       </div>
 
       <WorkflowGuide
-        title="Petunjuk Alur Verifikasi"
+        title="Alur proses persetujuan verifikasi peralatan"
         description="Ikuti tahapan berikut sampai verifikasi peralatan disetujui."
         steps={[
           {

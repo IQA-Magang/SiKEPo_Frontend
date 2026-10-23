@@ -1,4 +1,4 @@
-# Warna di Website SiKEPos
+# Warna di Website SiKEPo
 
 Daftar ini menjelaskan warna yang terlihat di setiap halaman. Kode warna ditulis dalam format HEX, misalnya `#EE2E24`.
 

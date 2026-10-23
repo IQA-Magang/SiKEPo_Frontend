@@ -1211,6 +1211,18 @@
   color: var(--clr-dark-900);
 }
 
+.ui-button--success {
+  background: #DCFCE7;
+  color: #15803D;
+  border-color: rgba(21, 128, 61, 0.25);
+}
+
+.ui-button--success:hover {
+  background: #15803D;
+  border-color: #15803D;
+  color: #fff;
+}
+
 .ui-button--danger {
   background: var(--clr-error-100);
   color: var(--clr-error-500);
@@ -1656,7 +1668,7 @@
 .signature-field__canvas-frame {
   width: 100%;
   max-width: 520px;
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .signature-field__actions {
@@ -3511,6 +3523,18 @@ textarea:focus-visible {
 .verification-review-modal .data-table th,
 .verification-review-modal .data-table td {
   overflow-wrap: anywhere;
+}
+
+.verification-review-modal .verification-details-table tbody tr:nth-child(odd) {
+  background: #ffffff;
+}
+
+.verification-review-modal .verification-details-table tbody tr:nth-child(even) {
+  background: #f3f4f6;
+}
+
+.verification-review-modal .verification-details-table tbody tr:hover {
+  background: var(--clr-dark-50);
 }
 
 .verification-review-footer {

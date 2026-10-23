@@ -41,13 +41,13 @@ export default function VerificationDecisionForm({
 
       <div style={{ display: "flex", gap: 8, marginBottom: "var(--sp-4)" }}>
         <Button
-          variant={approvalMode === "approve" ? "primary" : "ghost"}
+          variant={approvalMode === "approve" ? "success" : "ghost"}
           size="sm"
           icon={<CheckCircle2 size={14} />}
           aria-pressed={approvalMode === "approve"}
           onClick={() => setApprovalMode("approve")}
         >
-          Setujui
+          Setuju
         </Button>
         <Button
           variant={approvalMode === "reject" ? "danger" : "ghost"}

@@ -3,7 +3,6 @@ export default function WorkflowGuide({ title, description, steps }) {
     <section className="workflow-guide" aria-label={title}>
       <div className="workflow-guide-heading">
         <h2>{title}</h2>
-        {description && <p>{description}</p>}
       </div>
       <ol className="workflow-guide-steps">
         {steps.map((step, index) => (

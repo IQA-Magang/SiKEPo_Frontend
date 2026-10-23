@@ -8,8 +8,6 @@ export default function SignatureField({
   required = true,
   savedSignature = "",
   onRestore,
-  onForgetSaved,
-  savedSignatureHint = "Tanda tangan tersimpan untuk penggunaan berikutnya.",
   inputHint = "Gunakan mouse, stylus, atau sentuhan layar",
 }) {
   const canvasId = useId();
@@ -118,7 +116,10 @@ export default function SignatureField({
   }
 
   return (
-    <div className="form-group" style={{ marginBottom: "var(--sp-3)" }}>
+    <div
+      className="form-group"
+      style={{ maxWidth: 520, marginBottom: "var(--sp-3)" }}
+    >
       <div
         style={{
           display: "flex",
@@ -230,39 +231,19 @@ export default function SignatureField({
         >
           <Eraser size={14} /> Hapus & Goreskan Ulang
         </button>
-        <div className="signature-field__saved-actions">
-          {!value && savedSignature && onRestore && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={onRestore}
-            >
-              Gunakan Tersimpan
-            </button>
-          )}
-          {savedSignature && onForgetSaved && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm text-error"
-              onClick={onForgetSaved}
-            >
-              Hapus Tersimpan
-            </button>
-          )}
-        </div>
-      </div>
-      <div
-        style={{ marginTop: 4, fontSize: "11px", color: "var(--clr-dark-400)" }}
-      >
-        {savedSignatureHint}
-      </div>
-      <div
+        <div
         style={{ display: "flex", justifyContent: "flex-end", marginTop: 2 }}
       >
         <span style={{ fontSize: "11px", color: "var(--clr-dark-400)" }}>
           {inputHint}
         </span>
       </div>
+      </div>
+      <div
+        style={{ marginTop: 4, fontSize: "11px", color: "var(--clr-dark-400)" }}
+      >
+      </div>
+      
     </div>
   );
 }
