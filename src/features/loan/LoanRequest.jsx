@@ -4,16 +4,8 @@ import {
   Building2,
   CheckCircle2,
   Globe,
-  BadgeCheck,
-  CalendarClock,
-  ClipboardCheck,
-  FileCheck,
-  FileText,
-  Hand,
-  MapPin,
   Package,
   Send,
-  User,
 } from 'lucide-react';
 import {
   getCurrentUser,
@@ -469,8 +461,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
       <form className="card card-padded" onSubmit={submitPermohonan}>
         {/* A. Identitas Peralatan — butir 8.1.a.1 */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Package size={18} style={{ color: 'var(--clr-primary-500)' }} />
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)' }}>
             A. Peralatan yang Dipinjam
           </h3>
           <div className="form-grid-2">
@@ -500,7 +491,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
 
             <div className="form-group">
               <label className="form-label">Nama Peralatan</label>
-              <input className="form-input" type="text" value={equipmentName} readOnly disabled style={{ color: '#94a3b8' }} />
+              <input className="form-input" type="text" value={equipmentName} readOnly disabled />
             </div>
 
             <div className="form-group">
@@ -511,7 +502,6 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 value={[selectedEquipment?.merek, selectedEquipment?.tipe_model].filter(Boolean).join(' — ') || '-'}
                 readOnly
                 disabled
-                style={{ color: '#94a3b8' }}
               />
             </div>
 
@@ -523,7 +513,6 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 value={selectedEquipment?.nomor_seri || '-'}
                 readOnly
                 disabled
-                style={{ color: '#94a3b8' }}
               />
             </div>
 
@@ -535,7 +524,6 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 value={selectedEquipment?.nomor_aset || '-'}
                 readOnly
                 disabled
-                style={{ color: '#94a3b8' }}
               />
             </div>
           </div>
@@ -543,8 +531,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
 
         {/* B. Peminjam & Atasan Peminjam — butir 3.c dan dokumen peminjaman-peralatan.md */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <User size={18} style={{ color: 'var(--clr-primary-500)' }} />
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)' }}>
             B. Data Peminjam &amp; Atasan Peminjam
           </h3>
           <div className="form-grid-2">
@@ -557,7 +544,6 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 value={form.nama_peminjam || currentUser?.name || '-'}
                 readOnly
                 disabled
-                style={{ color: '#94a3b8' }}
               />
               <span className="form-hint">Sesuai nama pada profil akun yang sedang login.</span>
             </div>
@@ -571,7 +557,6 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 value={form.nama_lab_asal || 'Laboratorium TTH'}
                 readOnly
                 disabled
-                style={{ color: '#94a3b8' }}
               />
               <span className="form-hint">Sesuai unit/laboratorium pada profil peminjam.</span>
             </div>
@@ -587,7 +572,6 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 value={form.atasan_peminjam || 'Otomatis disinkronkan dengan Manajer Lab'}
                 readOnly
                 disabled
-                style={{ color: '#94a3b8', background: '#f8fafc', cursor: 'not-allowed' }}
               />
               <span className="form-hint">
                 Otomatis disinkronkan dengan Manajer Laboratorium asal peminjam untuk validasi (Tahap 1 Swimlane).
@@ -615,8 +599,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
 
         {/* C. Tujuan Penggunaan — butir 8.1.a.2 */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ClipboardCheck size={18} style={{ color: 'var(--clr-primary-500)' }} />
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)' }}>
             C. Tujuan Penggunaan
           </h3>
           <div className="form-group">
@@ -649,8 +632,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
 
         {/* D. Lokasi Penggunaan — butir 8.1.a.3 */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <MapPin size={18} style={{ color: 'var(--clr-primary-500)' }} />
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)' }}>
             D. Lokasi Penggunaan
           </h3>
           <div className="form-group">
@@ -892,8 +874,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
 
         {/* E. Rencana Tanggal */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-2)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CalendarClock size={18} style={{ color: 'var(--clr-primary-500)' }} />
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-2)' }}>
             E. Rencana Tanggal Keluar dan Kembali
           </h3>
           <p className="page-subtitle" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--sp-3)' }}>
@@ -953,8 +934,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
 
         {/* F. Kelengkapan dan Aksesori — butir 8.1.c.2 */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FileText size={18} style={{ color: 'var(--clr-primary-500)' }} />
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)' }}>
             F. Kelengkapan dan Aksesori
           </h3>
           <div className="form-group">

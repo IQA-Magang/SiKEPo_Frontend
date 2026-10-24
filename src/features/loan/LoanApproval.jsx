@@ -248,7 +248,7 @@ const LAMPIRAN_A_BUTIR = [
   'Pemeriksaan fungsi khusus (bila perlu)',
 ];
 
-// Indeks butir Bagian B F/010 yang boleh bernilai Tidak Relevan (N/A) sesuai TLKM13/F/010:
+// Indeks butir Bagian B F/010 yang boleh bernilai Tidak Berlaku (TB / N/A) sesuai TLKM13/F/010:
 // Butir 6 (index 5): Pemeriksaan fungsi khusus (bila perlu)
 // Butir 7 (index 6): Pemeriksaan fungsi khusus (bila perlu)
 const BOLEH_NA_INDEXES = [5, 6];
@@ -548,7 +548,7 @@ const INITIAL_LOAN_DATA = [
       pic_petugas: 'Ahmad Fauzi, S.T.',
       peminjam_penerima: 'Rian Pratama',
       lampiran_a: Array.from({ length: 7 }, (_, idx) => ({
-        status: BOLEH_NA_INDEXES.includes(idx) ? 'N/A' : 'S',
+        status: BOLEH_NA_INDEXES.includes(idx) ? 'TB' : 'S',
         keterangan: '',
       })),
       ada_ts: false,
@@ -623,8 +623,8 @@ const INITIAL_LOAN_DATA = [
         { status: 'S', keterangan: '' },
         { status: 'S', keterangan: '' },
         { status: 'TS', keterangan: 'Saat swauji unit gagal boot, timbul pesan error korelasi sensor mikrofon.' },
-        { status: 'N/A', keterangan: '' },
-        { status: 'N/A', keterangan: '' },
+        { status: 'TB', keterangan: '' },
+        { status: 'TB', keterangan: '' },
       ],
       ada_ts: true,
       ttd_pengelola: 'data:image/png;base64,mockSign3',
@@ -698,8 +698,8 @@ const INITIAL_LOAN_DATA = [
         { status: 'S', keterangan: '' },
         { status: 'S', keterangan: 'Lengkap test leads + kabel daya' },
         { status: 'S', keterangan: '' },
-        { status: 'N/A', keterangan: '' },
-        { status: 'N/A', keterangan: '' },
+        { status: 'TB', keterangan: '' },
+        { status: 'TB', keterangan: '' },
       ],
       ada_ts: false,
       ttd_pengelola: 'data:image/png;base64,mockSign3',
@@ -723,8 +723,8 @@ const INITIAL_LOAN_DATA = [
         { nomor_butir: 3, butir: 'Kondisi fisik baik (casing, layar, tombol, konektor/port)', status_keluar: 'S', status: 'S', keterangan: '' },
         { nomor_butir: 4, butir: 'Kelengkapan sesuai daftar', status_keluar: 'S', status: 'S', keterangan: 'Lengkap' },
         { nomor_butir: 5, butir: 'Fungsi dasar normal (swauji berhasil)', status_keluar: 'S', status: 'S', keterangan: '' },
-        { nomor_butir: 6, butir: 'Pemeriksaan fungsi khusus (bila perlu)', status_keluar: 'N/A', status: 'N/A', keterangan: '' },
-        { nomor_butir: 7, butir: 'Pemeriksaan fungsi khusus (bila perlu)', status_keluar: 'N/A', status: 'N/A', keterangan: '' },
+        { nomor_butir: 6, butir: 'Pemeriksaan fungsi khusus (bila perlu)', status_keluar: 'TB', status: 'TB', keterangan: '' },
+        { nomor_butir: 7, butir: 'Pemeriksaan fungsi khusus (bila perlu)', status_keluar: 'TB', status: 'TB', keterangan: '' },
       ],
       ttd_pengelola: 'data:image/png;base64,mockSign3',
       ttd_peminjam: 'data:image/png;base64,mockSign1',
@@ -1241,14 +1241,14 @@ export default function LoanApproval({ onNavigate }) {
 
     if (loan.serah_terima_keluar?.lampiran_a && loan.serah_terima_keluar.lampiran_a.length > 0) {
       setCheckoutChecks(loan.serah_terima_keluar.lampiran_a.slice(0, 7).map((it, idx) => ({
-        status: it.status || 'S',
+        status: (it.status === 'N/A' || it.status === 'TB') ? 'TB' : (it.status || 'S'),
         keterangan: it.keterangan || (idx === 3 && kelengkapanList ? `Sesuai daftar: ${kelengkapanList}` : ''),
       })));
     } else {
-      // Default: 7 butir. Butir 1-5 = S, butir 6-7 = N/A. Butir 4 pre-fill kelengkapan bila ada
+      // Default: 7 butir. Butir 1-5 = S, butir 6-7 = TB. Butir 4 pre-fill kelengkapan bila ada
       setCheckoutChecks(
         Array.from({ length: 7 }, (_, idx) => ({
-          status: BOLEH_NA_INDEXES.includes(idx) ? 'N/A' : 'S',
+          status: BOLEH_NA_INDEXES.includes(idx) ? 'TB' : 'S',
           keterangan: idx === 3 && kelengkapanList ? `Sesuai daftar: ${kelengkapanList}` : '',
         }))
       );
@@ -1269,7 +1269,7 @@ export default function LoanApproval({ onNavigate }) {
             }
             if (detail.serah_terima_keluar.lampiran_a && detail.serah_terima_keluar.lampiran_a.length > 0) {
               setCheckoutChecks(detail.serah_terima_keluar.lampiran_a.slice(0, 7).map((it, idx) => ({
-                status: it.status || 'S',
+                status: (it.status === 'N/A' || it.status === 'TB') ? 'TB' : (it.status || 'S'),
                 keterangan: it.keterangan || (idx === 3 && detailKelengkapan ? `Sesuai daftar: ${detailKelengkapan}` : ''),
               })));
             }
@@ -1316,18 +1316,18 @@ export default function LoanApproval({ onNavigate }) {
 
     const kelengkapanList = loan.kebutuhan_kelengkapan || loan.kelengkapan || '';
     let initialChecks = Array.from({ length: 7 }, (_, idx) => ({
-      status: BOLEH_NA_INDEXES.includes(idx) ? 'N/A' : 'S',
+      status: BOLEH_NA_INDEXES.includes(idx) ? 'TB' : 'S',
       keterangan: idx === 3 && kelengkapanList ? `Sesuai daftar: ${kelengkapanList}` : '',
     }));
 
     if (loan.serah_terima_kembali?.lampiran_a && loan.serah_terima_kembali.lampiran_a.length > 0) {
       initialChecks = loan.serah_terima_kembali.lampiran_a.slice(0, 7).map((it) => ({
-        status: it.status || 'S',
+        status: (it.status === 'N/A' || it.status === 'TB') ? 'TB' : (it.status || 'S'),
         keterangan: it.keterangan || '',
       }));
     } else if (loan.serah_terima_keluar?.lampiran_a && loan.serah_terima_keluar.lampiran_a.length > 0) {
       initialChecks = loan.serah_terima_keluar.lampiran_a.slice(0, 7).map((it, idx) => ({
-        status: it.status === 'N/A' ? 'N/A' : 'S',
+        status: (it.status === 'N/A' || it.status === 'TB') ? 'TB' : 'S',
         keterangan: it.status === 'S' && BOLEH_NA_INDEXES.includes(idx) ? (it.keterangan || '') : (idx === 3 && kelengkapanList ? `Sesuai daftar: ${kelengkapanList}` : ''),
       }));
     }
@@ -1362,7 +1362,7 @@ export default function LoanApproval({ onNavigate }) {
             }
           } else if (detail.serah_terima_keluar?.lampiran_a && detail.serah_terima_keluar.lampiran_a.length > 0) {
             setReturnChecks(detail.serah_terima_keluar.lampiran_a.slice(0, 7).map((it, idx) => ({
-              status: it.status === 'N/A' ? 'N/A' : 'S',
+              status: (it.status === 'N/A' || it.status === 'TB') ? 'TB' : 'S',
               keterangan: it.status === 'S' && BOLEH_NA_INDEXES.includes(idx) ? (it.keterangan || '') : (idx === 3 && detailKelengkapan ? `Sesuai daftar: ${detailKelengkapan}` : ''),
             })));
           }
@@ -1679,16 +1679,16 @@ export default function LoanApproval({ onNavigate }) {
     if (!selectedLoan) return;
 
     if (checkoutStep === 'pengelola') {
-      // 1. Semua 7 butir wajib terisi statusnya (S, TS, atau N/A)
+      // 1. Semua 7 butir wajib terisi statusnya (S, TS, atau TB)
       if (checkoutChecks.length !== 7 || checkoutChecks.some((i) => !i.status)) {
         toastError('Semua 7 butir pemeriksaan lembar serah terima (F/010) wajib diisi statusnya.');
         return;
       }
 
-      // 2. Status N/A hanya boleh pada butir 6 dan 7 (fungsi khusus)
-      const naSalahButir = checkoutChecks.some((it, idx) => it.status === 'N/A' && !BOLEH_NA_INDEXES.includes(idx));
+      // 2. Status TB hanya boleh pada butir 6 dan 7 (fungsi khusus)
+      const naSalahButir = checkoutChecks.some((it, idx) => (it.status === 'N/A' || it.status === 'TB') && !BOLEH_NA_INDEXES.includes(idx));
       if (naSalahButir) {
-        toastError('Status Tidak Relevan (N/A) hanya diperbolehkan pada butir fungsi khusus nomor 6 dan 7.');
+        toastError('Status Tidak Berlaku (TB) hanya diperbolehkan pada butir fungsi khusus nomor 6 dan 7.');
         return;
       }
 
@@ -1711,11 +1711,17 @@ export default function LoanApproval({ onNavigate }) {
         return;
       }
 
+      // 5. Tanda tangan Pengelola Peralatan wajib jika tidak ada butir TS
+      if (!adaItemTS && (!checkoutSigPengelola?.trim() || checkoutSigPengelola === FALLBACK_EMPTY_PNG)) {
+        toastError('Tanda tangan Pengelola Peralatan wajib dibubuhkan.');
+        return;
+      }
+
       setIsSubmitting(true);
       try {
         const payload = {
           lampiran_a: checkoutChecks.map((it) => ({
-            status: it.status,
+            status: it.status === 'TB' ? 'N/A' : it.status,
             keterangan: it.keterangan ? it.keterangan.trim() : '',
           })),
           catatan: checkoutNote ? checkoutNote.trim() : '',
@@ -1785,14 +1791,14 @@ export default function LoanApproval({ onNavigate }) {
 
     // 1. Validasi 7 butir
     if (returnChecks.length !== 7 || returnChecks.some((i) => !i.status)) {
-      toastError('Semua 7 butir pemeriksaan pengembalian wajib diisi statusnya (S, TS, atau N/A).');
+      toastError('Semua 7 butir pemeriksaan pengembalian wajib diisi statusnya (S, TS, atau TB).');
       return;
     }
 
-    // 2. N/A hanya boleh di butir 6 dan 7
-    const naSalahButir = returnChecks.some((it, idx) => it.status === 'N/A' && !BOLEH_NA_INDEXES.includes(idx));
+    // 2. TB hanya boleh di butir 6 dan 7
+    const naSalahButir = returnChecks.some((it, idx) => (it.status === 'N/A' || it.status === 'TB') && !BOLEH_NA_INDEXES.includes(idx));
     if (naSalahButir) {
-      toastError('Status Tidak Relevan (N/A) hanya diperbolehkan pada butir fungsi khusus nomor 6 dan 7.');
+      toastError('Status Tidak Berlaku (TB) hanya diperbolehkan pada butir fungsi khusus nomor 6 dan 7.');
       return;
     }
 
@@ -1830,7 +1836,7 @@ export default function LoanApproval({ onNavigate }) {
     try {
       const payload = {
         lampiran_a: returnChecks.map((it) => ({
-          status: it.status,
+          status: it.status === 'TB' ? 'N/A' : it.status,
           keterangan: it.keterangan ? it.keterangan.trim() : '',
         })),
         ada_kejadian: Boolean(adaKejadian),
@@ -1891,14 +1897,14 @@ export default function LoanApproval({ onNavigate }) {
     );
   }
 
-  // Hitung berapa TS, N/A, dan S yang dipilih di form Keluar (F/010)
+  // Hitung berapa TS, TB, dan S yang dipilih di form Keluar (F/010)
   const countTS = checkoutChecks.filter((i) => i.status === 'TS').length;
-  const countNA = checkoutChecks.filter((i) => i.status === 'N/A').length;
+  const countNA = checkoutChecks.filter((i) => i.status === 'N/A' || i.status === 'TB').length;
   const countS = checkoutChecks.filter((i) => i.status === 'S').length;
 
-  // Hitung berapa TS, N/A, dan S yang dipilih di form Pengembalian (F/010)
+  // Hitung berapa TS, TB, dan S yang dipilih di form Pengembalian (F/010)
   const countReturnTS = returnChecks.filter((i) => i.status === 'TS').length;
-  const countReturnNA = returnChecks.filter((i) => i.status === 'N/A').length;
+  const countReturnNA = returnChecks.filter((i) => i.status === 'N/A' || i.status === 'TB').length;
   const countReturnS = returnChecks.filter((i) => i.status === 'S').length;
 
   return (
@@ -1982,23 +1988,23 @@ export default function LoanApproval({ onNavigate }) {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--radius-md, 6px)', border: '1px solid #e2e8f0', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
-                <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>1</span>
+                <span style={{ background: 'var(--clr-primary-500, #EE2E24)', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>1</span>
                 <div><strong>Pengajuan Peminjam:</strong> Peminjam mengisi form permohonan dengan jadwal yang diketahui atasannya. Sistem mencatat logbook dan mengirim notifikasi.</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--radius-md, 6px)', border: '1px solid #e2e8f0', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
-                <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>2</span>
+                <span style={{ background: 'var(--clr-primary-500, #EE2E24)', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>2</span>
                 <div><strong>Validasi Manajer Peminjam:</strong> Manajer peminjam memvalidasi urgensi dan jadwal kebutuhan pengujian.</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--radius-md, 6px)', border: '1px solid #e2e8f0', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
-                <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>3</span>
+                <span style={{ background: 'var(--clr-primary-500, #EE2E24)', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>3</span>
                 <div><strong>Pemeriksaan Pengelola (PIC):</strong> PIC alat memeriksa ketersediaan, kelayakan fungsi, dan operator, lalu meneruskan ke Manager Lab pemilik.</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--radius-md, 6px)', border: '1px solid #e2e8f0', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
-                <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>4</span>
+                <span style={{ background: 'var(--clr-primary-500, #EE2E24)', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>4</span>
                 <div><strong>Persetujuan Manager Lab Pemilik:</strong> Mgr. Lab mereview dan menyetujui peminjaman (butir 3.a &amp; 7.c).</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--radius-md, 6px)', border: '1px solid #e2e8f0', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
-                <span style={{ background: '#3b82f6', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>5</span>
+                <span style={{ background: 'var(--clr-primary-500, #EE2E24)', color: '#ffffff', borderRadius: '50%', width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold', flexShrink: 0 }}>5</span>
                 <div><strong>Serah Terima &amp; Checklist Lampiran A:</strong> PIC dan peminjam memeriksa identitas, fisik, kelengkapan, dan fungsi alat sebelum digunakan.</div>
               </div>
             </div>
@@ -2459,7 +2465,7 @@ export default function LoanApproval({ onNavigate }) {
                                     boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
                                   }}
                                 >
-                                  <ShieldCheck size={13} /> Review & TTD
+                                  <ShieldCheck size={13} /> Tinjau Peminjaman
                                 </button>
                               ) : loan.status === 'SEDANG_DIPINJAM' ? (
                                 <>
@@ -2583,7 +2589,7 @@ export default function LoanApproval({ onNavigate }) {
                                 }}
                                 title="Lihat detail lengkap peminjaman dan riwayat logbook"
                               >
-                                <Eye size={13} /> Detail & Log
+                                <Eye size={13} /> Detail
                               </button>
 
                               {(loan.approval_manager_lab?.status === 'approved' ||
@@ -2609,7 +2615,7 @@ export default function LoanApproval({ onNavigate }) {
                                     }}
                                     title="Cetak Surat Keterangan Peminjaman Peralatan (TLKM13/F/006 Versi 03)"
                                   >
-                                    <Printer size={13} /> F/006
+                                    <Printer size={13} /> PDF
                                   </button>
                                 )}
                             </div>
@@ -3435,7 +3441,7 @@ export default function LoanApproval({ onNavigate }) {
                         </span>
                       ) : (
                         <span style={{ color: '#16a34a', fontWeight: 600 }}>
-                          Memenuhi Syarat (Seluruh butir Sesuai/N/A). Peralatan diserahterimakan kepada peminjam.
+                          Memenuhi Syarat (Seluruh butir Sesuai/TB). Peralatan diserahterimakan kepada peminjam.
                         </span>
                       )}
                     </p>
@@ -3579,13 +3585,13 @@ export default function LoanApproval({ onNavigate }) {
                                 <td style={{ padding: '5px 8px', textAlign: 'center', borderRight: '1px solid #cbd5e1', color: '#64748b' }}>{it.nomor_butir || idx + 1}.</td>
                                 <td style={{ padding: '5px 8px', borderRight: '1px solid #cbd5e1' }}>{it.butir || LAMPIRAN_A_BUTIR[idx]}</td>
                                 <td style={{ padding: '5px 8px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>
-                                  <span style={{ fontWeight: 600, color: it.status_keluar === 'TS' ? '#dc2626' : it.status_keluar === 'N/A' ? '#64748b' : '#15803d' }}>
-                                    {it.status_keluar || '-'}
+                                  <span style={{ fontWeight: 600, color: it.status_keluar === 'TS' ? '#dc2626' : (it.status_keluar === 'N/A' || it.status_keluar === 'TB') ? '#64748b' : '#15803d' }}>
+                                    {(it.status_keluar === 'N/A' || it.status_keluar === 'TB') ? 'TB' : (it.status_keluar || '-')}
                                   </span>
                                 </td>
                                 <td style={{ padding: '5px 8px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>
-                                  <span style={{ fontWeight: 700, color: it.status === 'TS' ? '#dc2626' : it.status === 'N/A' ? '#64748b' : '#15803d' }}>
-                                    {it.status || '-'}
+                                  <span style={{ fontWeight: 700, color: it.status === 'TS' ? '#dc2626' : (it.status === 'N/A' || it.status === 'TB') ? '#64748b' : '#15803d' }}>
+                                    {(it.status === 'N/A' || it.status === 'TB') ? 'TB' : (it.status || '-')}
                                   </span>
                                 </td>
                                 <td style={{ padding: '5px 8px', color: '#475569' }}>{it.keterangan || '-'}</td>
@@ -3910,55 +3916,72 @@ export default function LoanApproval({ onNavigate }) {
 
                     {/* Pilihan Keputusan */}
                     <div className="form-group" style={{ marginBottom: 'var(--sp-3)' }}>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Keputusan <span className="required">*</span></label>
-                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                        <label
+                      <label className="form-label" style={{ fontWeight: 600 }}>
+                        Keputusan {activeReviewStage === 'manager_peminjam'
+                          ? 'Manager Peminjam'
+                          : activeReviewStage === 'pengelola'
+                            ? 'Pengelola Peralatan'
+                            : 'Manager Lab'}{' '}
+                        <span className="required">*</span>
+                      </label>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          id="btn-keputusan-setuju"
+                          onClick={() => {
+                            const isAllPassed = techCheckSchedule && techCheckSpec && techCheckOperator && (!selectedLoan.is_eksternal || techCheckLocation);
+                            if (activeReviewStage === 'pengelola' && !isAllPassed) {
+                              toastError('Semua butir kelayakan & ketersediaan wajib diceklis untuk menyetujui peminjaman.');
+                              setDecisionAction('tolak');
+                              return;
+                            }
+                            setDecisionAction('setuju');
+                          }}
+                          disabled={activeReviewStage === 'pengelola' && !(techCheckSchedule && techCheckSpec && techCheckOperator && (!selectedLoan.is_eksternal || techCheckLocation))}
                           style={{
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
-                            gap: 6,
+                            gap: 8,
+                            padding: '8px 16px',
+                            borderRadius: 'var(--radius-md, 8px)',
+                            fontSize: '13px',
+                            fontWeight: 600,
                             cursor: activeReviewStage === 'pengelola' && !(techCheckSchedule && techCheckSpec && techCheckOperator && (!selectedLoan.is_eksternal || techCheckLocation)) ? 'not-allowed' : 'pointer',
                             opacity: activeReviewStage === 'pengelola' && !(techCheckSchedule && techCheckSpec && techCheckOperator && (!selectedLoan.is_eksternal || techCheckLocation)) ? 0.5 : 1,
+                            transition: 'all 0.15s ease',
+                            border: decisionAction === 'setuju' ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
+                            background: decisionAction === 'setuju' ? '#f0fdf4' : '#ffffff',
+                            color: decisionAction === 'setuju' ? '#15803d' : '#475569',
+                            boxShadow: decisionAction === 'setuju' ? '0 1px 3px rgba(22, 163, 74, 0.15)' : 'none',
                           }}
                         >
-                          <input
-                            type="radio"
-                            name="decision"
-                            value="setuju"
-                            checked={decisionAction === 'setuju'}
-                            onChange={() => {
-                              const isAllPassed = techCheckSchedule && techCheckSpec && techCheckOperator && (!selectedLoan.is_eksternal || techCheckLocation);
-                              if (activeReviewStage === 'pengelola' && !isAllPassed) {
-                                toastError('Semua butir kelayakan & ketersediaan wajib diceklis untuk menyetujui peminjaman.');
-                                setDecisionAction('tolak');
-                                return;
-                              }
-                              setDecisionAction('setuju');
-                            }}
-                            disabled={activeReviewStage === 'pengelola' && !(techCheckSchedule && techCheckSpec && techCheckOperator && (!selectedLoan.is_eksternal || techCheckLocation))}
-                          />
-                          <span style={{ fontWeight: 600, color: '#16a34a' }}>
-                            {activeReviewStage === 'pengelola'
-                              ? '✓ Lolos Cek (Klik "Teruskan" ke Manager Lab)'
-                              : activeReviewStage === 'manager_lab'
-                                ? '✓ Setujui Permohonan (Sahkan Izin)'
-                                : '✓ Setujui Pengajuan'}
-                          </span>
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                          <input
-                            type="radio"
-                            name="decision"
-                            value="tolak"
-                            checked={decisionAction === 'tolak'}
-                            onChange={() => setDecisionAction('tolak')}
-                          />
-                          <span style={{ fontWeight: 600, color: '#dc2626' }}>
-                            {activeReviewStage === 'pengelola'
-                              ? '✕ Tidak Lolos (Tolak / Usulkan Alat Lain)'
-                              : '✕ Tolak Pengajuan'}
-                          </span>
-                        </label>
+                          <CheckCircle2 size={16} style={{ color: decisionAction === 'setuju' ? '#16a34a' : '#94a3b8' }} />
+                          <span>Setuju</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          id="btn-keputusan-tolak"
+                          onClick={() => setDecisionAction('tolak')}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '8px 16px',
+                            borderRadius: 'var(--radius-md, 8px)',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            border: decisionAction === 'tolak' ? '2px solid #dc2626' : '1.5px solid #cbd5e1',
+                            background: decisionAction === 'tolak' ? '#fef2f2' : '#ffffff',
+                            color: decisionAction === 'tolak' ? '#b91c1c' : '#475569',
+                            boxShadow: decisionAction === 'tolak' ? '0 1px 3px rgba(220, 38, 38, 0.15)' : 'none',
+                          }}
+                        >
+                          <XCircle size={16} style={{ color: decisionAction === 'tolak' ? '#dc2626' : '#94a3b8' }} />
+                          <span>Tolak</span>
+                        </button>
                       </div>
                     </div>
 
@@ -4285,12 +4308,12 @@ export default function LoanApproval({ onNavigate }) {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                   <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <ClipboardCheck size={16} style={{ color: '#16a34a' }} />
-                    Daftar Periksa Serah Terima Peralatan (Kolom Keluar)
+                    Pemeriksaan Serah Terima Peralatan
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ fontSize: '11px', color: '#64748b' }}>
                       {checkoutStep === 'pengelola'
-                        ? 'S = Sesuai | TS = Tidak Sesuai | N/A = Tidak Relevan (Khusus No. 6, 7)'
+                        ? 'S = Sesuai | TS = Tidak Sesuai | TB = Tidak Berlaku (Khusus No. 6, 7)'
                         : 'Status Terverifikasi Pengelola'}
                     </div>
                   </div>
@@ -4303,7 +4326,7 @@ export default function LoanApproval({ onNavigate }) {
                         <th style={{ padding: '8px 10px', width: 32, textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>No.</th>
                         <th style={{ padding: '8px 10px', borderRight: '1px solid #cbd5e1' }}>Butir Pemeriksaan</th>
                         <th style={{ padding: '8px 10px', width: checkoutStep === 'peminjam' ? 140 : 155, textAlign: 'center', borderRight: '1px solid #cbd5e1', whiteSpace: 'nowrap' }}>
-                          Keluar (S/TS/N/A)
+                          Keluar (S/TS/TB)
                         </th>
                         <th style={{ padding: '8px 10px' }}>Keterangan</th>
                       </tr>
@@ -4312,7 +4335,7 @@ export default function LoanApproval({ onNavigate }) {
                       {LAMPIRAN_A_BUTIR.map((butir, idx) => {
                         const item = checkoutChecks[idx] || { status: 'S', keterangan: '' };
                         const isTS = item.status === 'TS';
-                        const isNA = item.status === 'N/A';
+                        const isNA = item.status === 'N/A' || item.status === 'TB';
                         const isS = item.status === 'S';
                         const canNA = BOLEH_NA_INDEXES.includes(idx);
                         return (
@@ -4335,7 +4358,7 @@ export default function LoanApproval({ onNavigate }) {
                               )}
                               {canNA && (
                                 <span style={{ marginLeft: 6, fontSize: '10px', color: '#0284c7', background: '#e0f2fe', padding: '1px 5px', borderRadius: 3, border: '1px solid #bae6fd', fontWeight: 600 }}>
-                                  Bila perlu (Boleh N/A)
+                                  Bila perlu (Boleh TB)
                                 </span>
                               )}
                             </td>
@@ -4377,16 +4400,16 @@ export default function LoanApproval({ onNavigate }) {
                                       <input
                                         type="radio"
                                         name={`checkout_${idx}`}
-                                        value="N/A"
+                                        value="TB"
                                         checked={isNA}
                                         onChange={() => {
                                           const updated = [...checkoutChecks];
-                                          updated[idx] = { ...updated[idx], status: 'N/A' };
+                                          updated[idx] = { ...updated[idx], status: 'TB' };
                                           setCheckoutChecks(updated);
                                         }}
                                         style={{ accentColor: '#2563eb' }}
                                       />
-                                      N/A
+                                      TB
                                     </label>
                                   )}
                                 </div>
@@ -4406,7 +4429,7 @@ export default function LoanApproval({ onNavigate }) {
                                       border: '1px solid #cbd5e1',
                                     }}
                                   >
-                                    N/A (Tidak Relevan)
+                                    TB (Tidak Berlaku)
                                   </span>
                                 ) : isTS ? (
                                   <span
@@ -4558,7 +4581,7 @@ export default function LoanApproval({ onNavigate }) {
                 >
                   <CheckCircle2 size={20} style={{ color: '#16a34a', flexShrink: 0 }} />
                   <div style={{ fontSize: '12px' }}>
-                    <strong>Pemeriksaan Fisik Memenuhi Syarat:</strong> {countS} butir Sesuai (S){countNA > 0 ? `, ${countNA} butir Tidak Relevan (N/A)` : ''}. Kondisi peralatan layak dan memenuhi standar untuk diserahkan kepada peminjam.
+                    <strong>Pemeriksaan Fisik Memenuhi Syarat:</strong> {countS} butir Sesuai (S){countNA > 0 ? `, ${countNA} butir Tidak Berlaku (TB)` : ''}. Kondisi peralatan layak dan memenuhi standar untuk diserahkan kepada peminjam.
                   </div>
                 </div>
               )}
@@ -4686,9 +4709,9 @@ export default function LoanApproval({ onNavigate }) {
                       <DigitalSignaturePad
                         value={checkoutSigPengelola}
                         onChange={setCheckoutSigPengelola}
-                        label="Tanda Tangan Pengelola Peralatan (Opsional)"
-                        required={false}
-                        helperText="Opsional: Tanda tangan digital untuk mengesahkan inspeksi fisik Lampiran A"
+                        label="Tanda Tangan Pengelola Peralatan"
+                        required={true}
+                        helperText="Tanda tangan digital untuk mengesahkan inspeksi fisik Lampiran A"
                       />
                     </div>
                   )
@@ -4804,7 +4827,7 @@ export default function LoanApproval({ onNavigate }) {
                       }}
                     >
                       <AlertOctagon size={16} />
-                      Batalkan Peminjaman & Tandai Alat DO NOT USE
+                      Konfirmasi Serah Terima
                     </button>
                   ) : (
                     <button
@@ -4824,7 +4847,7 @@ export default function LoanApproval({ onNavigate }) {
                       }}
                     >
                       <ArrowRight size={16} />
-                      Sahkan Serah Terima Keluar & Teruskan ke Peminjam
+                      Konfirmasi Serah Terima
                     </button>
                   )
                 ) : (
@@ -4845,7 +4868,7 @@ export default function LoanApproval({ onNavigate }) {
                     }}
                   >
                     <CheckCircle2 size={16} />
-                    Konfirmasi Penerimaan Peralatan & Sahkan TTD
+                    Konfirmasi Serah Terima
                   </button>
                 )}
               </div>
@@ -4946,13 +4969,13 @@ export default function LoanApproval({ onNavigate }) {
                     Bandingkan kondisi saat kembali dengan kondisi saat keluar pada <strong>7 Butir Pemeriksaan</strong> (Bagian B).
                   </li>
                   <li>
-                    Opsi <strong>N/A (Tidak Relevan)</strong> hanya diperbolehkan pada pemeriksaan fungsi khusus (butir 6 & 7).
+                    Opsi <strong>TB (Tidak Berlaku)</strong> hanya diperbolehkan pada pemeriksaan fungsi khusus (butir 6 & 7).
                   </li>
                   <li>
                     Jika ada butir <strong>TS (Tidak Sesuai)</strong> atau terdapat <strong>Kejadian Abnormal (Bagian D)</strong>, sistem secara otomatis menandai peralatan sebagai <strong>DO NOT USE</strong>.
                   </li>
                   <li>
-                    Jika seluruh butir <strong>S (Sesuai) / N/A</strong> tanpa insiden, status peralatan dialihkan ke <strong>KARANTINA (IK/003)</strong> untuk verifikasi ulang sebelum siap digunakan kembali.
+                    Jika seluruh butir <strong>S (Sesuai) / TB</strong> tanpa insiden, status peralatan dialihkan ke <strong>KARANTINA (IK/003)</strong> untuk verifikasi ulang sebelum siap digunakan kembali.
                   </li>
                 </ul>
               </div>
@@ -5019,7 +5042,7 @@ export default function LoanApproval({ onNavigate }) {
                     )}
                     {countReturnNA > 0 && (
                       <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#075985', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
-                        {countReturnNA} N/A
+                        {countReturnNA} TB
                       </span>
                     )}
                   </div>
@@ -5046,12 +5069,12 @@ export default function LoanApproval({ onNavigate }) {
                         const canNA = BOLEH_NA_INDEXES.includes(idx);
                         const isS = item.status === 'S';
                         const isTS = item.status === 'TS';
-                        const isNA = item.status === 'N/A';
+                        const isNA = item.status === 'N/A' || item.status === 'TB';
 
                         // Ambil data serah terima keluar sebagai pembanding
                         const initialKeluar = selectedLoan.serah_terima_keluar || selectedLoan.serah_terima;
                         const initialItem = initialKeluar?.lampiran_a?.[idx];
-                        const initialStatus = initialItem?.status || (canNA ? 'N/A' : 'S');
+                        const initialStatus = initialItem?.status || (canNA ? 'TB' : 'S');
                         const initialKet = initialItem?.keterangan || '';
 
                         return (
@@ -5074,7 +5097,7 @@ export default function LoanApproval({ onNavigate }) {
                               )}
                               {canNA && (
                                 <span style={{ marginLeft: 6, fontSize: '10px', color: '#0284c7', background: '#e0f2fe', padding: '1px 5px', borderRadius: 3, border: '1px solid #bae6fd', fontWeight: 600 }}>
-                                  Bila perlu (Boleh N/A)
+                                  Bila perlu (Boleh TB)
                                 </span>
                               )}
                             </td>
@@ -5093,7 +5116,7 @@ export default function LoanApproval({ onNavigate }) {
                                 )}
                                 {(initialStatus === 'N/A' || initialStatus === 'TB') && (
                                   <span style={{ fontSize: '10.5px', background: '#e0f2fe', color: '#075985', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
-                                    N/A
+                                    TB
                                   </span>
                                 )}
                               </div>
@@ -5141,16 +5164,16 @@ export default function LoanApproval({ onNavigate }) {
                                     <input
                                       type="radio"
                                       name={`return_check_${idx}`}
-                                      value="N/A"
+                                      value="TB"
                                       checked={isNA}
                                       onChange={() => {
                                         const updated = [...returnChecks];
-                                        updated[idx] = { ...updated[idx], status: 'N/A' };
+                                        updated[idx] = { ...updated[idx], status: 'TB' };
                                         setReturnChecks(updated);
                                       }}
                                       style={{ accentColor: '#2563eb' }}
                                     />
-                                    N/A
+                                    TB
                                   </label>
                                 )}
                               </div>
@@ -5325,7 +5348,7 @@ export default function LoanApproval({ onNavigate }) {
                       STATUS AKHIR PERALATAN: KARANTINA (Perlu Verifikasi)
                     </div>
                     <div style={{ fontSize: '11.5px', color: '#14532d', lineHeight: 1.4 }}>
-                      Pemeriksaan kondisi kembali memenuhi standar ({countReturnS} Sesuai{countReturnNA > 0 ? `, ${countReturnNA} N/A` : ''}) dan tidak ada insiden abnormal.
+                      Pemeriksaan kondisi kembali memenuhi standar ({countReturnS} Sesuai{countReturnNA > 0 ? `, ${countReturnNA} Tidak Berlaku (TB)` : ''}) dan tidak ada insiden abnormal.
                       Peralatan dialihkan ke status <strong>KARANTINA</strong> untuk diverifikasi ulang oleh Pengelola Lab sebelum dapat dipinjam kembali.
                     </div>
                   </div>
@@ -5458,9 +5481,7 @@ export default function LoanApproval({ onNavigate }) {
                   {countReturnTS > 0 || adaKejadian ? <AlertOctagon size={16} /> : <CheckCircle2 size={16} />}
                   {isSubmitting
                     ? 'Menyimpan...'
-                    : (countReturnTS > 0 || adaKejadian)
-                      ? 'Sahkan Pengembalian (Tandai DO NOT USE)'
-                      : 'Sahkan Pengembalian & Masukkan Karantina'}
+                    : 'Konfirmasi Pengembalian'}
                 </button>
               </div>
             </form>
@@ -5632,7 +5653,7 @@ export default function LoanApproval({ onNavigate }) {
                     </>
                   ) : (
                     <>
-                      <Send size={15} /> Konfirmasi Persetujuan
+                      <Send size={15} /> Ajukan Perpanjangan
                     </>
                   )}
                 </button>
@@ -5763,36 +5784,59 @@ export default function LoanApproval({ onNavigate }) {
                   </div>
                 </div>
 
-                {/* Radio Pilihan Keputusan */}
+                {/* Pilihan Keputusan */}
                 <div className="form-group" style={{ marginBottom: 'var(--sp-3)' }}>
-                  <label className="form-label">
-                    Keputusan <span className="required">*</span>
+                  <label className="form-label" style={{ fontWeight: 600 }}>
+                    Keputusan Manager Lab <span className="required">*</span>
                   </label>
-                  <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'center' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="decision_choice"
-                        value="setuju"
-                        checked={extensionDecisionAction === 'setuju'}
-                        onChange={() => setExtensionDecisionAction('setuju')}
-                      />
-                      <span style={{ fontWeight: 600, color: '#16a34a' }}>
-                        ✓ Setujui Pengajuan
-                      </span>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="decision_choice"
-                        value="tolak"
-                        checked={extensionDecisionAction === 'tolak'}
-                        onChange={() => setExtensionDecisionAction('tolak')}
-                      />
-                      <span style={{ fontWeight: 600, color: '#dc2626' }}>
-                        ✕ Tolak Pengajuan
-                      </span>
-                    </label>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      id="btn-perpanjangan-setuju"
+                      onClick={() => setExtensionDecisionAction('setuju')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 16px',
+                        borderRadius: 'var(--radius-md, 8px)',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        border: extensionDecisionAction === 'setuju' ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
+                        background: extensionDecisionAction === 'setuju' ? '#f0fdf4' : '#ffffff',
+                        color: extensionDecisionAction === 'setuju' ? '#15803d' : '#475569',
+                        boxShadow: extensionDecisionAction === 'setuju' ? '0 1px 3px rgba(22, 163, 74, 0.15)' : 'none',
+                      }}
+                    >
+                      <CheckCircle2 size={16} style={{ color: extensionDecisionAction === 'setuju' ? '#16a34a' : '#94a3b8' }} />
+                      <span>Setuju</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      id="btn-perpanjangan-tolak"
+                      onClick={() => setExtensionDecisionAction('tolak')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 16px',
+                        borderRadius: 'var(--radius-md, 8px)',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        border: extensionDecisionAction === 'tolak' ? '2px solid #dc2626' : '1.5px solid #cbd5e1',
+                        background: extensionDecisionAction === 'tolak' ? '#fef2f2' : '#ffffff',
+                        color: extensionDecisionAction === 'tolak' ? '#b91c1c' : '#475569',
+                        boxShadow: extensionDecisionAction === 'tolak' ? '0 1px 3px rgba(220, 38, 38, 0.15)' : 'none',
+                      }}
+                    >
+                      <XCircle size={16} style={{ color: extensionDecisionAction === 'tolak' ? '#dc2626' : '#94a3b8' }} />
+                      <span>Tolak</span>
+                    </button>
                   </div>
                 </div>
 
@@ -5865,7 +5909,7 @@ export default function LoanApproval({ onNavigate }) {
                       </>
                     ) : (
                       <>
-                        <XCircle size={15} /> Kirim Penolakan
+                        <XCircle size={15} /> Konfirmasi Penolakan
                       </>
                     )}
                   </button>
