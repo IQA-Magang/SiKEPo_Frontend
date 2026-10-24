@@ -348,10 +348,6 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             </p>
           </div>
         </div>
-
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(backPath)}>
-          ← Kembali
-        </button>
       </div>
 
       {/* Informasi Peralatan */}
@@ -1003,6 +999,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             className="btn btn-secondary"
             onClick={() => navigate(backPath)}
             disabled={isSubmitting}
+            style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 600 }}
           >
             Batal
           </button>
@@ -1011,10 +1008,17 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             className={`btn ${jadwalBentrok ? 'btn-secondary' : 'btn-primary'}`}
             disabled={isSubmitting || listLoading || detailLoading || jadwalBentrok}
             id="btn-ajukan-peminjaman"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 20px',
+              fontSize: '13px',
+              fontWeight: 600,
+            }}
             title={jadwalBentrok ? 'Tidak dapat mengajukan — jadwal bertumpuk dengan peminjaman lain' : ''}
           >
-            <Send size={16} />
+            <Send size={15} />
             {isSubmitting ? 'Mengirim Pengajuan...' : 'Ajukan Peminjaman'}
           </button>
         </div>
