@@ -1305,7 +1305,7 @@ export default function LoanApproval({ onNavigate }) {
         const parsed = JSON.parse(savedKejadian);
         if (parsed.adaKejadian !== undefined) setAdaKejadian(Boolean(parsed.adaKejadian));
         if (parsed.uraianKejadian) setUraianKejadian(parsed.uraianKejadian);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     // Tandai notifikasi tiket ini sebagai terbaca dan kurangi angka lonceng seketika
@@ -2328,8 +2328,8 @@ export default function LoanApproval({ onNavigate }) {
                                   borderRadius: 3,
                                   background:
                                     loan.status === 'DIKEMBALIKAN' ||
-                                    loan.approval_manager_peminjam?.status === 'approved' ||
-                                    loan.approval_manager_peminjam?.status === 'skipped'
+                                      loan.approval_manager_peminjam?.status === 'approved' ||
+                                      loan.approval_manager_peminjam?.status === 'skipped'
                                       ? '#16a34a'
                                       : loan.approval_manager_peminjam?.status === 'rejected'
                                         ? '#dc2626'
@@ -2352,7 +2352,7 @@ export default function LoanApproval({ onNavigate }) {
                                   borderRadius: 3,
                                   background:
                                     loan.status === 'DIKEMBALIKAN' ||
-                                    loan.approval_pengelola?.status === 'approved'
+                                      loan.approval_pengelola?.status === 'approved'
                                       ? '#16a34a'
                                       : loan.approval_pengelola?.status === 'rejected'
                                         ? '#dc2626'
@@ -2375,7 +2375,7 @@ export default function LoanApproval({ onNavigate }) {
                                   borderRadius: 3,
                                   background:
                                     loan.status === 'DIKEMBALIKAN' ||
-                                    loan.approval_manager_lab?.status === 'approved'
+                                      loan.approval_manager_lab?.status === 'approved'
                                       ? '#16a34a'
                                       : loan.approval_manager_lab?.status === 'rejected'
                                         ? '#dc2626'
@@ -2409,7 +2409,7 @@ export default function LoanApproval({ onNavigate }) {
 
                           {/* 7. Tombol Aksi Berdasarkan Wewenang Role */}
                           <td style={{ padding: '12px 16px', verticalAlign: 'top', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch', width: '100%', maxWidth: '145px', margin: '0 auto' }}>
                               {isReadyForHandover ? (
                                 <button
                                   type="button"
@@ -2418,9 +2418,12 @@ export default function LoanApproval({ onNavigate }) {
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
+                                    justifyContent: 'center',
                                     gap: 5,
-                                    fontSize: '11px',
+                                    fontSize: '12px',
                                     padding: '5px 10px',
+                                    height: '28px',
+                                    boxSizing: 'border-box',
                                     background: pendingAction?.step === 'peminjam' ? '#16a34a' : '#ea580c',
                                     borderColor: pendingAction?.step === 'peminjam' ? '#15803d' : '#c2410c',
                                     color: '#ffffff',
@@ -2446,13 +2449,17 @@ export default function LoanApproval({ onNavigate }) {
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: 4,
+                                    justifyContent: 'center',
+                                    gap: 5,
                                     fontSize: '12px',
-                                    padding: '4px 10px',
+                                    padding: '5px 10px',
+                                    height: '28px',
+                                    boxSizing: 'border-box',
+                                    fontWeight: 600,
                                     boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
                                   }}
                                 >
-                                  <ShieldCheck size={14} /> Review & TTD
+                                  <ShieldCheck size={13} /> Review & TTD
                                 </button>
                               ) : loan.status === 'SEDANG_DIPINJAM' ? (
                                 <>
@@ -2466,9 +2473,12 @@ export default function LoanApproval({ onNavigate }) {
                                         style={{
                                           display: 'inline-flex',
                                           alignItems: 'center',
+                                          justifyContent: 'center',
                                           gap: 5,
-                                          fontSize: '11px',
+                                          fontSize: '12px',
                                           padding: '5px 10px',
+                                          height: '28px',
+                                          boxSizing: 'border-box',
                                           background: '#ea580c',
                                           borderColor: '#c2410c',
                                           color: '#ffffff',
@@ -2485,9 +2495,12 @@ export default function LoanApproval({ onNavigate }) {
                                         style={{
                                           display: 'inline-flex',
                                           alignItems: 'center',
+                                          justifyContent: 'center',
                                           gap: 4,
                                           fontSize: '11px',
                                           padding: '4px 8px',
+                                          height: '28px',
+                                          boxSizing: 'border-box',
                                           cursor: 'default',
                                         }}
                                         title="Permohonan perpanjangan sedang menunggu pengesahan Manager Lab"
@@ -2505,9 +2518,12 @@ export default function LoanApproval({ onNavigate }) {
                                         style={{
                                           display: 'inline-flex',
                                           alignItems: 'center',
+                                          justifyContent: 'center',
                                           gap: 5,
-                                          fontSize: '11px',
+                                          fontSize: '12px',
                                           padding: '5px 10px',
+                                          height: '28px',
+                                          boxSizing: 'border-box',
                                           background: '#f59e0b',
                                           borderColor: '#d97706',
                                           color: '#ffffff',
@@ -2529,9 +2545,12 @@ export default function LoanApproval({ onNavigate }) {
                                       style={{
                                         display: 'inline-flex',
                                         alignItems: 'center',
+                                        justifyContent: 'center',
                                         gap: 5,
-                                        fontSize: '11px',
+                                        fontSize: '12px',
                                         padding: '5px 10px',
+                                        height: '28px',
+                                        boxSizing: 'border-box',
                                         background: '#0284c7',
                                         borderColor: '#0369a1',
                                         color: '#ffffff',
@@ -2553,37 +2572,46 @@ export default function LoanApproval({ onNavigate }) {
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: 4,
-                                  fontSize: '11px',
-                                  padding: '3px 8px',
+                                  justifyContent: 'center',
+                                  gap: 5,
+                                  fontSize: '12px',
+                                  padding: '5px 10px',
+                                  height: '28px',
+                                  boxSizing: 'border-box',
+                                  fontWeight: 600,
                                   boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
                                 }}
+                                title="Lihat detail lengkap peminjaman dan riwayat logbook"
                               >
                                 <Eye size={13} /> Detail & Log
                               </button>
 
                               {(loan.approval_manager_lab?.status === 'approved' ||
                                 ['DISETUJUI', 'MENUNGGU_SERAH_TERIMA', 'SIAP_DISERAHKAN', 'SEDANG_DIPINJAM', 'DIKEMBALIKAN'].includes(loan.status)) && (
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary btn-sm"
-                                  onClick={() => exportLoanF006Pdf(loan)}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 3,
-                                    fontSize: '11px',
-                                    padding: '3px 7px',
-                                    color: '#1d4ed8',
-                                    borderColor: '#bfdbfe',
-                                    background: '#eff6ff',
-                                    fontWeight: 600,
-                                  }}
-                                  title="Cetak Surat Keterangan Peminjaman Peralatan (TLKM13/F/006 Versi 03)"
-                                >
-                                  <Printer size={13} /> F/006
-                                </button>
-                              )}
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => exportLoanF006Pdf(loan)}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: 5,
+                                      fontSize: '12px',
+                                      padding: '5px 10px',
+                                      height: '28px',
+                                      boxSizing: 'border-box',
+                                      color: '#1d4ed8',
+                                      borderColor: '#bfdbfe',
+                                      background: '#eff6ff',
+                                      fontWeight: 600,
+                                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+                                    }}
+                                    title="Cetak Surat Keterangan Peminjaman Peralatan (TLKM13/F/006 Versi 03)"
+                                  >
+                                    <Printer size={13} /> F/006
+                                  </button>
+                                )}
                             </div>
                           </td>
                         </tr>
@@ -2633,814 +2661,635 @@ export default function LoanApproval({ onNavigate }) {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-            {/* Modal Header */}
-            <div
-              style={{
-                padding: 'var(--sp-4) var(--sp-6)',
-                borderBottom: '1px solid #e2e8f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: '#f8fafc',
-              }}
-            >
-              <div>
-                <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'bold', margin: 0, color: '#0f172a' }}>
-                  Lembar Persetujuan Peminjaman Peralatan
-                </h2>
-                <p style={{ margin: 0, fontSize: '12px', color: '#64748b', marginTop: 3 }}>
-                  Formulir Otorisasi & Riwayat Persetujuan Peminjaman
-                </p>
-              </div>
+              {/* Modal Header */}
+              <div
+                style={{
+                  padding: 'var(--sp-4) var(--sp-6)',
+                  borderBottom: '1px solid #e2e8f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: '#f8fafc',
+                }}
+              >
+                <div>
+                  <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'bold', margin: 0, color: '#0f172a' }}>
+                    Lembar Persetujuan Peminjaman Peralatan
+                  </h2>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', marginTop: 3 }}>
+                    Formulir Otorisasi & Riwayat Persetujuan Peminjaman
+                  </p>
+                </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {/* Tombol Cetak F/006 bila sudah disahkan Manager Lab atau masuk proses serah terima */}
-                {(selectedLoan.approval_manager_lab?.status === 'approved' ||
-                  ['DISETUJUI', 'MENUNGGU_SERAH_TERIMA', 'SIAP_DISERAHKAN', 'SEDANG_DIPINJAM', 'DIKEMBALIKAN'].includes(selectedLoan.status)) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {/* Tombol Cetak F/006 bila sudah disahkan Manager Lab atau masuk proses serah terima */}
+                  {(selectedLoan.approval_manager_lab?.status === 'approved' ||
+                    ['DISETUJUI', 'MENUNGGU_SERAH_TERIMA', 'SIAP_DISERAHKAN', 'SEDANG_DIPINJAM', 'DIKEMBALIKAN'].includes(selectedLoan.status)) && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{
+                          fontSize: '12px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          fontWeight: 600,
+                          color: '#1e40af',
+                          borderColor: '#bfdbfe',
+                          background: '#eff6ff',
+                          padding: '5px 12px',
+                          height: '32px',
+                        }}
+                        onClick={() => exportLoanF006Pdf(selectedLoan)}
+                        title="Cetak Surat Keterangan Peminjaman Peralatan (TLKM13/F/006 Versi 03)"
+                      >
+                        <Printer size={14} /> Cetak F/006 (PDF)
+                      </button>
+                    )}
                   <button
                     type="button"
-                    className="btn btn-secondary btn-sm"
-                    style={{
-                      fontSize: '12px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      fontWeight: 600,
-                      color: '#1e40af',
-                      borderColor: '#bfdbfe',
-                      background: '#eff6ff',
-                    }}
-                    onClick={() => exportLoanF006Pdf(selectedLoan)}
-                    title="Cetak Surat Keterangan Peminjaman Peralatan (TLKM13/F/006 Versi 03)"
+                    className="btn btn-ghost btn-icon"
+                    onClick={() => setSelectedLoan(null)}
+                    aria-label="Tutup"
                   >
-                    <Printer size={14} /> Cetak F/006 (PDF)
+                    <X size={18} />
                   </button>
-                )}
-                {isReviewAction && (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    style={{
-                      background: 'var(--clr-primary-500, #ee2e24)',
-                      borderColor: 'var(--clr-primary-500, #ee2e24)',
-                      fontSize: '12px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      fontWeight: 600,
-                    }}
-                    onClick={() => decisionFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                  >
-                    <FileCheck size={14} /> Ke Form Keputusan ↓
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-icon"
-                  onClick={() => setSelectedLoan(null)}
-                  aria-label="Tutup"
-                >
-                  <X size={20} />
-                </button>
+                </div>
               </div>
-            </div>
 
-            {/* Modal Body */}
-            <div style={{ padding: 'var(--sp-6)' }}>
-                  {/* Banner Informasi / Aksi Perpanjangan Peminjaman */}
-                  {selectedLoan.status === 'SEDANG_DIPINJAM' && (() => {
-                    const waitingPj = selectedLoan.perpanjangan?.find((p) => p.status === 'menunggu');
-                    const { isPeminjam, isManagerLab, isAdmin } = getLoanUserRelationship(selectedLoan);
+              {/* Modal Body */}
+              <div style={{ padding: 'var(--sp-6)' }}>
+                {/* Banner Informasi / Aksi Perpanjangan Peminjaman */}
+                {selectedLoan.status === 'SEDANG_DIPINJAM' && (() => {
+                  const waitingPj = selectedLoan.perpanjangan?.find((p) => p.status === 'menunggu');
+                  const { isPeminjam, isManagerLab, isAdmin } = getLoanUserRelationship(selectedLoan);
 
-                    if (waitingPj) {
-                      return (
-                        <div
-                          style={{
-                            padding: '12px 16px',
-                            background: '#fffbeb',
-                            border: '1.5px solid #fef3c7',
-                            borderRadius: 'var(--radius-md, 8px)',
-                            marginBottom: 'var(--sp-4)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            flexWrap: 'wrap',
-                            gap: 10,
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <Clock size={24} style={{ color: '#d97706', flexShrink: 0 }} />
-                            <div>
-                              <div style={{ fontWeight: 700, color: '#92400e', fontSize: '13px' }}>
-                                Permohonan Perpanjangan Waktu Sedang Diproses
-                              </div>
-                              <div style={{ color: '#78350f', fontSize: '11px', marginTop: 2 }}>
-                                Permintaan kembali hingga <strong>{waitingPj.tanggal_kembali_baru}</strong> diajukan pada {waitingPj.diajukan_pada ? String(waitingPj.diajukan_pada).slice(0, 10) : '-'}. Menunggu pengesahan Manager Lab.
-                              </div>
+                  if (waitingPj) {
+                    return (
+                      <div
+                        style={{
+                          padding: '12px 16px',
+                          background: '#fffbeb',
+                          border: '1.5px solid #fef3c7',
+                          borderRadius: 'var(--radius-md, 8px)',
+                          marginBottom: 'var(--sp-4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: 10,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <Clock size={24} style={{ color: '#d97706', flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontWeight: 700, color: '#92400e', fontSize: '13px' }}>
+                              Permohonan Perpanjangan Waktu Sedang Diproses
+                            </div>
+                            <div style={{ color: '#78350f', fontSize: '11px', marginTop: 2 }}>
+                              Permintaan kembali hingga <strong>{waitingPj.tanggal_kembali_baru}</strong> diajukan pada {waitingPj.diajukan_pada ? String(waitingPj.diajukan_pada).slice(0, 10) : '-'}. Menunggu pengesahan Manager Lab.
                             </div>
                           </div>
-                          {(isManagerLab || isAdmin) && (
-                            <button
-                              type="button"
-                              className="btn btn-sm"
-                              onClick={() => handleOpenExtensionReview(selectedLoan)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                background: '#ea580c',
-                                borderColor: '#c2410c',
-                                color: '#ffffff',
-                                fontWeight: 700,
-                                fontSize: '12px',
-                                padding: '6px 12px',
-                              }}
-                            >
-                              <ShieldCheck size={15} /> Review & Putuskan Perpanjangan
-                            </button>
-                          )}
                         </div>
-                      );
-                    }
-
-                    if (selectedLoan.dapat_diperpanjang && (isPeminjam || isAdmin)) {
-                      return (
-                        <div
-                          style={{
-                            padding: '12px 16px',
-                            background: '#fefce8',
-                            border: '1.5px solid #fef08a',
-                            borderRadius: 'var(--radius-md, 8px)',
-                            marginBottom: 'var(--sp-4)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            flexWrap: 'wrap',
-                            gap: 10,
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <CalendarClock size={24} style={{ color: '#ca8a04', flexShrink: 0 }} />
-                            <div>
-                              <div style={{ fontWeight: 700, color: '#854d0e', fontSize: '13px' }}>
-                                Peralatan Sedang Aktif Digunakan
-                              </div>
-                              <div style={{ color: '#713f12', fontSize: '11px', marginTop: 2 }}>
-                                Butuh waktu lebih lama untuk pengujian? Anda dapat mengajukan permohonan perpanjangan waktu pengembalian.
-                              </div>
-                            </div>
-                          </div>
+                        {(isManagerLab || isAdmin) && (
                           <button
                             type="button"
                             className="btn btn-sm"
-                            onClick={() => handleOpenExtensionRequest(selectedLoan)}
+                            onClick={() => handleOpenExtensionReview(selectedLoan)}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: 6,
-                              background: '#eab308',
-                              borderColor: '#ca8a04',
+                              background: '#ea580c',
+                              borderColor: '#c2410c',
                               color: '#ffffff',
-                              fontWeight: 700,
+                              fontWeight: 600,
                               fontSize: '12px',
-                              padding: '6px 12px',
+                              padding: '6px 14px',
                             }}
                           >
-                            <CalendarClock size={15} /> Ajukan Perpanjangan Waktu
+                            <ShieldCheck size={14} /> Review & Putuskan Perpanjangan
                           </button>
-                        </div>
-                      );
-                    }
-
-                    return null;
-                  })()}
-
-                  {/* Rincian Peralatan & Pengajuan */}
-                  <div
-                    className="card"
-                    style={{
-                      padding: 'var(--sp-4)',
-                  marginBottom: 'var(--sp-5)',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                }}
-              >
-                <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: 12, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Package size={16} style={{ color: 'var(--clr-primary-500)' }} />
-                  Informasi Peralatan & Rencana Peminjaman
-                </h3>
-                <div className="form-grid-2" style={{ fontSize: '13px', rowGap: 8 }}>
-                  <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Nama Peralatan:</span>
-                    <strong>{selectedLoan.peralatan.nama_peralatan}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Nomor Aset / Seri:</span>
-                    <strong>{selectedLoan.peralatan.nomor_aset}</strong> ({selectedLoan.peralatan.nomor_seri})
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Pemilik Peralatan:</span>
-                    {selectedLoan.peralatan.lab_pemilik}
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Peminjam & Unit Asal:</span>
-                    <strong>{selectedLoan.peminjam.nama}</strong> ({selectedLoan.peminjam.lab_asal})
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Tujuan Penggunaan:</span>
-                    <strong>{selectedLoan.tujuan_penggunaan || '-'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>No. SPK:</span>
-                    <strong>{selectedLoan.nomor_spk || '-'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Lokasi Penggunaan:</span>
-                    {selectedLoan.lokasi_penggunaan}
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Lingkup Peminjaman:</span>
-                    <span className={`badge ${selectedLoan.is_eksternal ? 'badge-error' : 'badge-gray'}`} style={{ fontSize: '11px' }}>
-                      {selectedLoan.is_eksternal ? 'Eksternal' : 'Internal'}
-                    </span>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Rencana Tanggal Peminjaman dan Pengembalian:</span>
-                    <strong>{selectedLoan.rencana_tanggal_keluar}</strong> s.d <strong>{selectedLoan.rencana_tanggal_kembali}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Jatuh Tempo Kalibrasi:</span>
-                    <strong>{selectedLoan.peralatan?.tgl_jatuh_tempo || '-'}</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* 1. Lembar Otorisasi Persetujuan 3 Tingkat */}
-              <div
-                style={{
-                  border: '1.5px solid #cbd5e1',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  overflow: 'hidden',
-                  background: '#ffffff',
-                }}
-              >
-                <div
-                  style={{
-                    padding: '8px 12px',
-                    background: '#f8fafc',
-                    borderBottom: '1px solid #e2e8f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <Award size={16} style={{ color: 'var(--clr-primary-500)' }} />
-                  <strong style={{ fontSize: '13px', color: '#0f172a' }}>
-                    Lembar Otorisasi Persetujuan 3 Tingkat
-                  </strong>
-                </div>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    borderBottom: '1px solid #e2e8f0',
-                    background: '#f1f5f9',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div style={{ padding: '6px 8px', borderRight: '1px solid #e2e8f0' }}>
-                    1. Menyetujui:<br />
-                    <span style={{ fontWeight: 'normal', color: '#64748b', fontSize: '10px' }}>MANAGER PEMINJAM</span>
-                  </div>
-                  <div style={{ padding: '6px 8px', borderRight: '1px solid #e2e8f0' }}>
-                    2. Diperiksa Teknis:<br />
-                    <span style={{ fontWeight: 'normal', color: '#64748b', fontSize: '10px' }}>PENGELOLA PERALATAN</span>
-                  </div>
-                  <div style={{ padding: '6px 8px' }}>
-                    3. Disahkan:<br />
-                    <span style={{ fontWeight: 'normal', color: '#64748b', fontSize: '10px' }}>MANAGER LAB PEMILIK</span>
-                  </div>
-                </div>
-
-                {/* Konten Box Tanda Tangan */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    minHeight: 110,
-                    fontSize: '11px',
-                  }}
-                >
-                  {/* TTD 1: Manager Peminjam */}
-                  <div style={{ padding: 8, borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{selectedLoan.approval_manager_peminjam?.nama || 'Manajer Peminjam'}</div>
-                      <div style={{ color: '#64748b', fontSize: '10px' }}>NIP: {selectedLoan.approval_manager_peminjam?.nip || '-'}</div>
-                    </div>
-                    <div style={{ margin: '4px 0', textAlign: 'center', minHeight: 55, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {selectedLoan.approval_manager_peminjam?.status === 'skipped' ? (
-                        <div style={{ borderBottom: '1px dashed #0284c7', paddingBottom: 2, display: 'inline-block' }}>
-                          <span style={{ color: '#0284c7', fontWeight: 'bold', fontSize: '10.5px' }}>[ DILEWATI ]</span>
-                          <div style={{ fontSize: '9px', color: '#64748b' }}>Manajer Sama</div>
-                        </div>
-                      ) : selectedLoan.approval_manager_peminjam?.status === 'approved' || selectedLoan.approval_manager_peminjam?.ttd ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                          {selectedLoan.approval_manager_peminjam?.ttd ? (
-                            <img
-                              src={selectedLoan.approval_manager_peminjam.ttd}
-                              alt="TTD Manager Peminjam"
-                              style={{ maxHeight: 50, maxWidth: '100%', objectFit: 'contain' }}
-                            />
-                          ) : (
-                            <div style={{ borderBottom: '1px dashed #16a34a', paddingBottom: 2, display: 'inline-block' }}>
-                              <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '11px' }}>[ VALIDASI DISETUJUI ]</span>
-                            </div>
-                          )}
-                          <div style={{ fontSize: '9px', color: '#64748b', marginTop: 2 }}>
-                            {selectedLoan.approval_manager_peminjam?.tanggal ? String(selectedLoan.approval_manager_peminjam.tanggal).slice(0, 10) : ''}
-                          </div>
-                        </div>
-                      ) : selectedLoan.approval_manager_peminjam?.status === 'rejected' ? (
-                        <div style={{ borderBottom: '1px dashed #dc2626', paddingBottom: 2, display: 'inline-block' }}>
-                          <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '11px' }}>[ DITOLAK ]</span>
-                          <div style={{ fontSize: '9px', color: '#64748b' }}>
-                            {selectedLoan.approval_manager_peminjam?.tanggal ? String(selectedLoan.approval_manager_peminjam.tanggal).slice(0, 10) : ''}
-                          </div>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '10.5px' }}>Belum Validasi</span>
-                      )}
-                    </div>
-                    <div style={{ color: '#475569', fontSize: '10px' }}>
-                      {selectedLoan.approval_manager_peminjam?.catatan ? `"${selectedLoan.approval_manager_peminjam.catatan}"` : '-'}
-                    </div>
-                  </div>
-
-                  {/* TTD 2: Pengelola Peralatan */}
-                  <div style={{ padding: 8, borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{selectedLoan.approval_pengelola?.nama || 'Pengelola Lab'}</div>
-                      <div style={{ color: '#64748b', fontSize: '10px' }}>NIP: {selectedLoan.approval_pengelola?.nip || '-'}</div>
-                    </div>
-                    <div style={{ margin: '4px 0', textAlign: 'center', minHeight: 55, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {selectedLoan.approval_pengelola?.status === 'approved' || selectedLoan.approval_pengelola?.ttd ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                          {selectedLoan.approval_pengelola?.ttd ? (
-                            <img
-                              src={selectedLoan.approval_pengelola.ttd}
-                              alt="TTD Pengelola"
-                              style={{ maxHeight: 50, maxWidth: '100%', objectFit: 'contain' }}
-                            />
-                          ) : (
-                            <div style={{ borderBottom: '1px dashed #16a34a', paddingBottom: 2, display: 'inline-block' }}>
-                              <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '11px' }}>[ LOLOS VERIFIKASI ]</span>
-                            </div>
-                          )}
-                          <div style={{ fontSize: '9px', color: '#64748b', marginTop: 2 }}>
-                            {selectedLoan.approval_pengelola?.tanggal ? String(selectedLoan.approval_pengelola.tanggal).slice(0, 10) : ''}
-                          </div>
-                        </div>
-                      ) : selectedLoan.approval_pengelola?.status === 'rejected' ? (
-                        <div style={{ borderBottom: '1px dashed #dc2626', paddingBottom: 2, display: 'inline-block' }}>
-                          <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '11px' }}>[ DITOLAK ]</span>
-                          <div style={{ fontSize: '9px', color: '#64748b' }}>
-                            {selectedLoan.approval_pengelola?.tanggal ? String(selectedLoan.approval_pengelola.tanggal).slice(0, 10) : ''}
-                          </div>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '10.5px' }}>Belum Diperiksa</span>
-                      )}
-
-                      {selectedLoan.approval_pengelola?.alat_alternatif && (
-                        <div style={{ marginTop: 4, padding: '2px 6px', background: '#fef3c7', borderRadius: 4, fontSize: '10px', color: '#92400e', textAlign: 'left' }}>
-                          Saran Pengganti: <strong>{selectedLoan.approval_pengelola.alat_alternatif.nama_peralatan}</strong>
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ color: '#475569', fontSize: '10px' }}>
-                      {selectedLoan.approval_pengelola?.catatan ? `"${selectedLoan.approval_pengelola.catatan}"` : '-'}
-                    </div>
-                  </div>
-
-                  {/* TTD 3: Manager Lab */}
-                  <div style={{ padding: 8, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{selectedLoan.approval_manager_lab?.nama || 'Manager Lab'}</div>
-                      <div style={{ color: '#64748b', fontSize: '10px' }}>NIP: {selectedLoan.approval_manager_lab?.nip || '-'}</div>
-                    </div>
-                    <div style={{ margin: '4px 0', textAlign: 'center', minHeight: 55, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {selectedLoan.approval_manager_lab?.status === 'approved' || selectedLoan.approval_manager_lab?.ttd ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                          {selectedLoan.approval_manager_lab?.ttd ? (
-                            <img
-                              src={selectedLoan.approval_manager_lab.ttd}
-                              alt="TTD Manager Lab"
-                              style={{ maxHeight: 50, maxWidth: '100%', objectFit: 'contain' }}
-                            />
-                          ) : (
-                            <div style={{ borderBottom: '1px dashed #16a34a', paddingBottom: 2, display: 'inline-block' }}>
-                              <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '11px' }}>[ DISAHKAN ]</span>
-                            </div>
-                          )}
-                          <div style={{ fontSize: '9px', color: '#64748b', marginTop: 2 }}>
-                            {selectedLoan.approval_manager_lab?.tanggal ? String(selectedLoan.approval_manager_lab.tanggal).slice(0, 10) : ''}
-                          </div>
-                        </div>
-                      ) : selectedLoan.approval_manager_lab?.status === 'rejected' ? (
-                        <div style={{ borderBottom: '1px dashed #dc2626', paddingBottom: 2, display: 'inline-block' }}>
-                          <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '11px' }}>[ DITOLAK ]</span>
-                          <div style={{ fontSize: '9px', color: '#64748b' }}>
-                            {selectedLoan.approval_manager_lab?.tanggal ? String(selectedLoan.approval_manager_lab.tanggal).slice(0, 10) : ''}
-                          </div>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '10.5px' }}>Belum Disahkan</span>
-                      )}
-                    </div>
-                    <div style={{ color: '#475569', fontSize: '10px' }}>
-                      {selectedLoan.approval_manager_lab?.catatan ? `"${selectedLoan.approval_manager_lab.catatan}"` : '-'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 2. HASIL VERIFIKASI KELAYAKAN & KETERSEDIAAN ALAT (PENGELOLA) */}
-              {(!isReviewAction || activeReviewStage !== 'pengelola') && (() => {
-                const isCurrentlyReviewingByPengelola = modalMode === 'review' && activeReviewStage === 'pengelola';
-                const pengelolaStatus = selectedLoan.approval_pengelola?.status;
-
-                // Status butir 1: Status & Jadwal Kalibrasi
-                const item1Checked = isCurrentlyReviewingByPengelola
-                  ? techCheckSchedule
-                  : pengelolaStatus === 'approved'
-                    ? true
-                    : pengelolaStatus === 'rejected'
-                      ? (selectedLoan.approval_pengelola?.cek_jadwal_kalibrasi ?? false)
-                      : null;
-
-                // Status butir 2: Kesesuaian Spesifikasi
-                const item2Checked = isCurrentlyReviewingByPengelola
-                  ? techCheckSpec
-                  : pengelolaStatus === 'approved'
-                    ? true
-                    : pengelolaStatus === 'rejected'
-                      ? (selectedLoan.approval_pengelola?.cek_spesifikasi ?? false)
-                      : null;
-
-                // Status butir 3: Kewenangan Operator
-                const item3Checked = isCurrentlyReviewingByPengelola
-                  ? techCheckOperator
-                  : pengelolaStatus === 'approved'
-                    ? true
-                    : pengelolaStatus === 'rejected'
-                      ? (selectedLoan.approval_pengelola?.cek_operator ?? false)
-                      : null;
-
-                // Status butir 4: Kesiapan Lokasi Eksternal
-                const item4Checked = isCurrentlyReviewingByPengelola
-                  ? techCheckLocation
-                  : pengelolaStatus === 'approved'
-                    ? true
-                    : pengelolaStatus === 'rejected'
-                      ? (selectedLoan.approval_pengelola?.cek_lokasi ?? false)
-                      : null;
-
-                const isAllPassed = item1Checked && item2Checked && item3Checked && (!selectedLoan.is_eksternal || item4Checked);
-                const hasFailedItem = item1Checked === false || item2Checked === false || item3Checked === false || (selectedLoan.is_eksternal && item4Checked === false);
-
-                return (
-                  <div
-                    className="card"
-                    style={{
-                      padding: 'var(--sp-4)',
-                      background: '#ffffff',
-                      border: hasFailedItem ? '1.5px solid #fecaca' : isAllPassed ? '1.5px solid #bbf7d0' : '1px solid #cbd5e1',
-                      borderRadius: 'var(--radius-md, 8px)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
-                      <div>
-                        <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <ShieldCheck size={16} style={{ color: hasFailedItem ? '#dc2626' : isAllPassed ? '#16a34a' : '#2563eb' }} />
-                          Verifikasi Kelayakan & Ketersediaan Peralatan (Pengelola)
-                        </h3>
-                        <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 1 }}>
-                          Jika ada 1 butir tidak terpenuhi / tidak diceklis, status otomatis <strong>Ditolak</strong>.
-                        </div>
-                      </div>
-                      <span
-                        className={`badge ${hasFailedItem || pengelolaStatus === 'rejected'
-                          ? 'badge-error'
-                          : isAllPassed || pengelolaStatus === 'approved'
-                            ? 'badge-success'
-                            : 'badge-gray'
-                          }`}
-                        style={{ fontSize: '10.5px' }}
-                      >
-                        {isCurrentlyReviewingByPengelola
-                          ? (hasFailedItem
-                            ? '✕ Ditolak Otomatis (Ada Butir Tidak Diceklis)'
-                            : '✓ Semua Butir Diceklis (Lolos Verifikasi)')
-                          : pengelolaStatus === 'approved'
-                            ? '✓ Lolos Verifikasi Kelayakan'
-                            : pengelolaStatus === 'rejected'
-                              ? '✕ Ditolak Pengelola (Tidak Memenuhi Syarat)'
-                              : 'Menunggu Pemeriksaan Pengelola'}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 6, fontSize: '11.5px' }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 6,
-                        padding: '6px 8px',
-                        background: item1Checked === true ? '#f0fdf4' : item1Checked === false ? '#fef2f2' : '#f8fafc',
-                        borderRadius: 6,
-                        border: `1px solid ${item1Checked === true ? '#bbf7d0' : item1Checked === false ? '#fecaca' : '#e2e8f0'}`,
-                      }}>
-                        {item1Checked === true ? (
-                          <CheckCircle2 size={14} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
-                        ) : item1Checked === false ? (
-                          <XCircle size={14} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
-                        ) : (
-                          <Clock size={14} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
                         )}
-                        <div>
-                          <strong>1. Status & Jadwal Kalibrasi</strong>
-                          <div style={{ fontSize: '10.5px', color: '#64748b' }}>
-                            Jatuh tempo: {selectedLoan.peralatan?.tgl_jatuh_tempo || '-'} (Alat layak pakai)
-                          </div>
-                          <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item1Checked === true ? '#16a34a' : item1Checked === false ? '#dc2626' : '#64748b' }}>
-                            {item1Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item1Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
-                          </div>
-                        </div>
                       </div>
+                    );
+                  }
 
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 6,
-                        padding: '6px 8px',
-                        background: item2Checked === true ? '#f0fdf4' : item2Checked === false ? '#fef2f2' : '#f8fafc',
-                        borderRadius: 6,
-                        border: `1px solid ${item2Checked === true ? '#bbf7d0' : item2Checked === false ? '#fecaca' : '#e2e8f0'}`,
-                      }}>
-                        {item2Checked === true ? (
-                          <CheckCircle2 size={14} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
-                        ) : item2Checked === false ? (
-                          <XCircle size={14} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
-                        ) : (
-                          <Clock size={14} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
-                        )}
-                        <div>
-                          <strong>2. Kesesuaian Spesifikasi</strong>
-                          <div style={{ fontSize: '10.5px', color: '#64748b' }}>
-                            Rentang & toleransi alat sesuai pengujian
-                          </div>
-                          <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item2Checked === true ? '#16a34a' : item2Checked === false ? '#dc2626' : '#64748b' }}>
-                            {item2Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item2Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 6,
-                        padding: '6px 8px',
-                        background: item3Checked === true ? '#f0fdf4' : item3Checked === false ? '#fef2f2' : '#f8fafc',
-                        borderRadius: 6,
-                        border: `1px solid ${item3Checked === true ? '#bbf7d0' : item3Checked === false ? '#fecaca' : '#e2e8f0'}`,
-                      }}>
-                        {item3Checked === true ? (
-                          <CheckCircle2 size={14} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
-                        ) : item3Checked === false ? (
-                          <XCircle size={14} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
-                        ) : (
-                          <Clock size={14} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
-                        )}
-                        <div>
-                          <strong>3. Kewenangan Operator</strong>
-                          <div style={{ fontSize: '10.5px', color: '#64748b' }}>
-                            Operator: {selectedLoan.peminjam?.operator || selectedLoan.peminjam?.nama || '-'}
-                          </div>
-                          <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item3Checked === true ? '#16a34a' : item3Checked === false ? '#dc2626' : '#64748b' }}>
-                            {item3Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item3Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
-                          </div>
-                        </div>
-                      </div>
-
-                      {selectedLoan.is_eksternal && (
-                        <div style={{
+                  if (selectedLoan.dapat_diperpanjang && (isPeminjam || isAdmin)) {
+                    return (
+                      <div
+                        style={{
+                          padding: '12px 16px',
+                          background: '#fefce8',
+                          border: '1.5px solid #fef08a',
+                          borderRadius: 'var(--radius-md, 8px)',
+                          marginBottom: 'var(--sp-4)',
                           display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: 6,
-                          padding: '6px 8px',
-                          background: item4Checked === true ? '#f0fdf4' : item4Checked === false ? '#fef2f2' : '#f8fafc',
-                          borderRadius: 6,
-                          border: `1px solid ${item4Checked === true ? '#bbf7d0' : item4Checked === false ? '#fecaca' : '#e2e8f0'}`,
-                        }}>
-                          {item4Checked === true ? (
-                            <CheckCircle2 size={14} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
-                          ) : item4Checked === false ? (
-                            <XCircle size={14} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
-                          ) : (
-                            <Clock size={14} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
-                          )}
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: 10,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <CalendarClock size={24} style={{ color: '#ca8a04', flexShrink: 0 }} />
                           <div>
-                            <strong>4. Kesiapan Lokasi Eksternal</strong>
-                            <div style={{ fontSize: '10.5px', color: '#64748b' }}>
-                              Lokasi: {selectedLoan.lokasi_penggunaan}
+                            <div style={{ fontWeight: 700, color: '#854d0e', fontSize: '13px' }}>
+                              Peralatan Sedang Aktif Digunakan
                             </div>
-                            <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item4Checked === true ? '#16a34a' : item4Checked === false ? '#dc2626' : '#64748b' }}>
-                              {item4Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item4Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
+                            <div style={{ color: '#713f12', fontSize: '11px', marginTop: 2 }}>
+                              Butuh waktu lebih lama untuk pengujian? Anda dapat mengajukan permohonan perpanjangan waktu pengembalian.
                             </div>
                           </div>
                         </div>
-                      )}
-                    </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => handleOpenExtensionRequest(selectedLoan)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            background: '#eab308',
+                            borderColor: '#ca8a04',
+                            color: '#ffffff',
+                            fontWeight: 600,
+                            fontSize: '12px',
+                            padding: '6px 14px',
+                          }}
+                        >
+                          <CalendarClock size={14} /> Ajukan Perpanjangan Waktu
+                        </button>
+                      </div>
+                    );
+                  }
 
-                    {/* Catatan hasil verifikasi jika ada penolakan */}
-                    {(hasFailedItem || pengelolaStatus === 'rejected') && (
-                      <div style={{ marginTop: 8, padding: '6px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, fontSize: '11px', color: '#991b1b' }}>
-                        <strong>Catatan Pengelola:</strong> {isCurrentlyReviewingByPengelola ? (decisionNote || 'Terdapat butir verifikasi yang tidak diceklis, keputusan otomatis Ditolak.') : (selectedLoan.approval_pengelola?.catatan || 'Permohonan ditolak pada verifikasi kelayakan & ketersediaan oleh pengelola.')}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+                  return null;
+                })()}
 
-              {/* JIKA STATUS SUDAH DISAHKAN MANAGER LAB & SIAP SERAH TERIMA */}
-              {(selectedLoan.status === 'MENUNGGU_SERAH_TERIMA' || selectedLoan.status === 'DISETUJUI') && (
-                <div
-                  className="alert alert-warning"
-                  style={{
-                    padding: 'var(--sp-4)',
-                    marginBottom: 'var(--sp-5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 12,
-                    background: '#fff7ed',
-                    border: '1.5px solid #fed7aa',
-                    borderRadius: 'var(--radius-md, 8px)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Package size={24} style={{ color: '#ea580c', flexShrink: 0 }} />
-                    <div>
-                      <div style={{ fontWeight: 'bold', color: '#9a3412', fontSize: '13px' }}>
-                        Persetujuan Manager Lab Telah Terbit!
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#c2410c' }}>
-                        {getPendingActionForUser(selectedLoan)?.canHandover
-                          ? 'Alur kini diarahkan kepada Anda untuk melakukan pemeriksaan fisik bersama dan pengisian Lampiran A.'
-                          : 'Persetujuan izin telah disahkan. Menunggu Pengelola Peralatan dan Peminjam melaksanakan serah terima fisik (Lampiran A).'}
-                      </div>
-                    </div>
-                  </div>
-                  {getPendingActionForUser(selectedLoan)?.canHandover && (
-                    <button
-                      type="button"
-                      className="btn btn-warning"
-                      onClick={() => handleOpenCheckout(selectedLoan)}
-                      style={{ background: '#ea580c', borderColor: '#c2410c', color: '#ffffff', fontWeight: 600 }}
-                    >
-                      Mulai Serah Terima Fisik (Lampiran A)
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* JIKA STATUS SUDAH DIPERIKSA PENGELOLA & MENUNGGU KONFIRMASI PEMINJAM */}
-              {selectedLoan.status === 'SIAP_DISERAHKAN' && (
-                <div
-                  className="alert alert-info"
-                  style={{
-                    padding: 'var(--sp-4)',
-                    marginBottom: 'var(--sp-5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 12,
-                    background: '#f0f9ff',
-                    border: '1.5px solid #bae6fd',
-                    borderRadius: 'var(--radius-md, 8px)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <CheckCircle2 size={24} style={{ color: '#0284c7', flexShrink: 0 }} />
-                    <div>
-                      <div style={{ fontWeight: 'bold', color: '#0369a1', fontSize: '13px' }}>
-                        Checklist Lampiran A Telah Diisi Pengelola!
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#0284c7' }}>
-                        {getPendingActionForUser(selectedLoan)?.canHandover
-                          ? 'Pengelola telah memeriksa dan menandatangani checklist Lampiran A. Silakan konfirmasi penerimaan dan bubuhkan tanda tangan Anda.'
-                          : 'Pemeriksaan fisik telah selesai dilakukan oleh Pengelola. Menunggu Peminjam melakukan konfirmasi dan tanda tangan digital.'}
-                      </div>
-                    </div>
-                  </div>
-                  {getPendingActionForUser(selectedLoan)?.canHandover && (
-                    <button
-                      type="button"
-                      className="btn btn-success"
-                      onClick={() => handleOpenCheckout(selectedLoan)}
-                      style={{ background: '#16a34a', borderColor: '#15803d', color: '#ffffff', fontWeight: 600 }}
-                    >
-                      Konfirmasi Terima & TTD
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* JIKA SUDAH DISERAHKAN (F/010 KELUAR) */}
-              {selectedLoan.serah_terima_keluar && (
+                {/* Rincian Peralatan & Pengajuan */}
                 <div
                   className="card"
                   style={{
                     padding: 'var(--sp-4)',
                     marginBottom: 'var(--sp-5)',
-                    background: selectedLoan.serah_terima_keluar.ada_ts ? '#fef2f2' : '#f0fdf4',
-                    border: selectedLoan.serah_terima_keluar.ada_ts ? '1.5px solid #fecaca' : '1.5px solid #bbf7d0',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
-                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: selectedLoan.serah_terima_keluar.ada_ts ? '#991b1b' : '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <ClipboardCheck size={16} />
-                      Rekaman Serah Terima Fisik Keluar (Kolom Keluar)
-                    </h4>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>
-                      Pemeriksaan: {selectedLoan.serah_terima_keluar.tanggal ? String(selectedLoan.serah_terima_keluar.tanggal).slice(0, 10) : '-'}
-                      {selectedLoan.serah_terima_keluar.tanggal_diterima && (
-                        <> | Diterima: {String(selectedLoan.serah_terima_keluar.tanggal_diterima).slice(0, 10)}</>
-                      )}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, fontSize: '12px', marginBottom: 8 }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: 12, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Package size={16} style={{ color: 'var(--clr-primary-500)' }} />
+                    Informasi Peralatan & Rencana Peminjaman
+                  </h3>
+                  <div className="form-grid-2" style={{ fontSize: '13px', rowGap: 8 }}>
                     <div>
-                      <span style={{ color: '#64748b', fontSize: '11px' }}>PIC Pengelola (Pemeriksa): </span>
-                      <strong>{selectedLoan.serah_terima_keluar.pic_petugas || selectedLoan.approval_pengelola?.nama || '-'}</strong>
+                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Nama Peralatan:</span>
+                      <strong>{selectedLoan.peralatan.nama_peralatan}</strong>
                     </div>
                     <div>
-                      <span style={{ color: '#64748b', fontSize: '11px' }}>Peminjam (Penerima): </span>
-                      <strong>{selectedLoan.serah_terima_keluar.peminjam_penerima || selectedLoan.peminjam?.nama || '-'}</strong>
+                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Nomor Aset / Seri:</span>
+                      <strong>{selectedLoan.peralatan.nomor_aset}</strong> ({selectedLoan.peralatan.nomor_seri})
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Pemilik Peralatan:</span>
+                      {selectedLoan.peralatan.lab_pemilik}
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Peminjam & Unit Asal:</span>
+                      <strong>{selectedLoan.peminjam.nama}</strong> ({selectedLoan.peminjam.lab_asal})
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Tujuan Penggunaan:</span>
+                      <strong>{selectedLoan.tujuan_penggunaan || '-'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>No. SPK:</span>
+                      <strong>{selectedLoan.nomor_spk || '-'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Lokasi Penggunaan:</span>
+                      {selectedLoan.lokasi_penggunaan}
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Lingkup Peminjaman:</span>
+                      <span className={`badge ${selectedLoan.is_eksternal ? 'badge-error' : 'badge-gray'}`} style={{ fontSize: '11px' }}>
+                        {selectedLoan.is_eksternal ? 'Eksternal' : 'Internal'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Rencana Tanggal Peminjaman dan Pengembalian:</span>
+                      <strong>{selectedLoan.rencana_tanggal_keluar}</strong> s.d <strong>{selectedLoan.rencana_tanggal_kembali}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Jatuh Tempo Kalibrasi:</span>
+                      <strong>{selectedLoan.peralatan?.tgl_jatuh_tempo || '-'}</strong>
                     </div>
                   </div>
-
-                  <p style={{ margin: 0, fontSize: '12px', color: '#334155' }}>
-                    <strong>Hasil:</strong>{' '}
-                    {selectedLoan.serah_terima_keluar.ada_ts ? (
-                      <span style={{ color: '#dc2626', fontWeight: 600 }}>
-                        Dibatalkan karena terdapat butir Tidak Sesuai (TS). Status alat dialihkan menjadi DO NOT USE.
-                      </span>
-                    ) : (
-                      <span style={{ color: '#16a34a', fontWeight: 600 }}>
-                        Memenuhi Syarat (Seluruh butir Sesuai/N/A). Peralatan diserahterimakan kepada peminjam.
-                      </span>
-                    )}
-                  </p>
-
-                  {selectedLoan.serah_terima_keluar.catatan && (
-                    <div style={{ marginTop: 6, fontSize: '12px', color: '#475569' }}>
-                      <strong>Catatan:</strong> "{selectedLoan.serah_terima_keluar.catatan}"
-                    </div>
-                  )}
-
-                  {/* Tanda Tangan Pengelola & Peminjam */}
-                  {(selectedLoan.serah_terima_keluar.ttd_pengelola || selectedLoan.serah_terima_keluar.ttd_peminjam) && (
-                    <div style={{ display: 'flex', gap: 16, marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)', flexWrap: 'wrap' }}>
-                      {selectedLoan.serah_terima_keluar.ttd_pengelola && (
-                        <div style={{ textAlign: 'center', background: '#ffffff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1' }}>
-                          <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginBottom: 4 }}>TTD Pengelola (Keluar)</div>
-                          <img src={selectedLoan.serah_terima_keluar.ttd_pengelola} alt="TTD Pengelola" style={{ maxHeight: 45, maxWidth: 120, objectFit: 'contain' }} />
-                        </div>
-                      )}
-                      {selectedLoan.serah_terima_keluar.ttd_peminjam && (
-                        <div style={{ textAlign: 'center', background: '#ffffff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1' }}>
-                          <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginBottom: 4 }}>TTD Peminjam (Keluar)</div>
-                          <img src={selectedLoan.serah_terima_keluar.ttd_peminjam} alt="TTD Peminjam" style={{ maxHeight: 45, maxWidth: 120, objectFit: 'contain' }} />
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
-              )}
 
-              {/* JIKA STATUS SEDANG DIPINJAM -> TOMBOL AKSI PENGEMBALIAN */}
-              {selectedLoan.status === 'SEDANG_DIPINJAM' && (() => {
-                const modalRel = getLoanUserRelationship(selectedLoan);
-                if (!modalRel.isPengelola && !modalRel.isAdmin) return null;
-
-                return (
+                {/* 1. Lembar Otorisasi Persetujuan 3 Tingkat */}
+                <div
+                  style={{
+                    border: '1.5px solid #cbd5e1',
+                    borderRadius: 'var(--radius-md, 8px)',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                  }}
+                >
                   <div
+                    style={{
+                      padding: '8px 12px',
+                      background: '#f8fafc',
+                      borderBottom: '1px solid #e2e8f0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Award size={16} style={{ color: 'var(--clr-primary-500)' }} />
+                    <strong style={{ fontSize: '13px', color: '#0f172a' }}>
+                      Lembar Otorisasi Persetujuan 3 Tingkat
+                    </strong>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      borderBottom: '1px solid #e2e8f0',
+                      background: '#f1f5f9',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ padding: '6px 8px', borderRight: '1px solid #e2e8f0' }}>
+                      1. Menyetujui:<br />
+                      <span style={{ fontWeight: 'normal', color: '#64748b', fontSize: '10px' }}>MANAGER PEMINJAM</span>
+                    </div>
+                    <div style={{ padding: '6px 8px', borderRight: '1px solid #e2e8f0' }}>
+                      2. Diperiksa Teknis:<br />
+                      <span style={{ fontWeight: 'normal', color: '#64748b', fontSize: '10px' }}>PENGELOLA PERALATAN</span>
+                    </div>
+                    <div style={{ padding: '6px 8px' }}>
+                      3. Disahkan:<br />
+                      <span style={{ fontWeight: 'normal', color: '#64748b', fontSize: '10px' }}>MANAGER LAB PEMILIK</span>
+                    </div>
+                  </div>
+
+                  {/* Konten Box Tanda Tangan */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      minHeight: 110,
+                      fontSize: '11px',
+                    }}
+                  >
+                    {/* TTD 1: Manager Peminjam */}
+                    <div style={{ padding: 8, borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{selectedLoan.approval_manager_peminjam?.nama || 'Manajer Peminjam'}</div>
+                        <div style={{ color: '#64748b', fontSize: '10px' }}>NIP: {selectedLoan.approval_manager_peminjam?.nip || '-'}</div>
+                      </div>
+                      <div style={{ margin: '4px 0', textAlign: 'center', minHeight: 55, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {selectedLoan.approval_manager_peminjam?.status === 'skipped' ? (
+                          <div style={{ borderBottom: '1px dashed #0284c7', paddingBottom: 2, display: 'inline-block' }}>
+                            <span style={{ color: '#0284c7', fontWeight: 'bold', fontSize: '10.5px' }}>[ DILEWATI ]</span>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>Manajer Sama</div>
+                          </div>
+                        ) : selectedLoan.approval_manager_peminjam?.status === 'approved' || selectedLoan.approval_manager_peminjam?.ttd ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            {selectedLoan.approval_manager_peminjam?.ttd ? (
+                              <img
+                                src={selectedLoan.approval_manager_peminjam.ttd}
+                                alt="TTD Manager Peminjam"
+                                style={{ maxHeight: 50, maxWidth: '100%', objectFit: 'contain' }}
+                              />
+                            ) : (
+                              <div style={{ borderBottom: '1px dashed #16a34a', paddingBottom: 2, display: 'inline-block' }}>
+                                <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '11px' }}>[ VALIDASI DISETUJUI ]</span>
+                              </div>
+                            )}
+                            <div style={{ fontSize: '9px', color: '#64748b', marginTop: 2 }}>
+                              {selectedLoan.approval_manager_peminjam?.tanggal ? String(selectedLoan.approval_manager_peminjam.tanggal).slice(0, 10) : ''}
+                            </div>
+                          </div>
+                        ) : selectedLoan.approval_manager_peminjam?.status === 'rejected' ? (
+                          <div style={{ borderBottom: '1px dashed #dc2626', paddingBottom: 2, display: 'inline-block' }}>
+                            <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '11px' }}>[ DITOLAK ]</span>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>
+                              {selectedLoan.approval_manager_peminjam?.tanggal ? String(selectedLoan.approval_manager_peminjam.tanggal).slice(0, 10) : ''}
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '10.5px' }}>Belum Validasi</span>
+                        )}
+                      </div>
+                      <div style={{ color: '#475569', fontSize: '10px' }}>
+                        {selectedLoan.approval_manager_peminjam?.catatan ? `"${selectedLoan.approval_manager_peminjam.catatan}"` : '-'}
+                      </div>
+                    </div>
+
+                    {/* TTD 2: Pengelola Peralatan */}
+                    <div style={{ padding: 8, borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{selectedLoan.approval_pengelola?.nama || 'Pengelola Lab'}</div>
+                        <div style={{ color: '#64748b', fontSize: '10px' }}>NIP: {selectedLoan.approval_pengelola?.nip || '-'}</div>
+                      </div>
+                      <div style={{ margin: '4px 0', textAlign: 'center', minHeight: 55, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {selectedLoan.approval_pengelola?.status === 'approved' || selectedLoan.approval_pengelola?.ttd ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            {selectedLoan.approval_pengelola?.ttd ? (
+                              <img
+                                src={selectedLoan.approval_pengelola.ttd}
+                                alt="TTD Pengelola"
+                                style={{ maxHeight: 50, maxWidth: '100%', objectFit: 'contain' }}
+                              />
+                            ) : (
+                              <div style={{ borderBottom: '1px dashed #16a34a', paddingBottom: 2, display: 'inline-block' }}>
+                                <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '11px' }}>[ LOLOS VERIFIKASI ]</span>
+                              </div>
+                            )}
+                            <div style={{ fontSize: '9px', color: '#64748b', marginTop: 2 }}>
+                              {selectedLoan.approval_pengelola?.tanggal ? String(selectedLoan.approval_pengelola.tanggal).slice(0, 10) : ''}
+                            </div>
+                          </div>
+                        ) : selectedLoan.approval_pengelola?.status === 'rejected' ? (
+                          <div style={{ borderBottom: '1px dashed #dc2626', paddingBottom: 2, display: 'inline-block' }}>
+                            <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '11px' }}>[ DITOLAK ]</span>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>
+                              {selectedLoan.approval_pengelola?.tanggal ? String(selectedLoan.approval_pengelola.tanggal).slice(0, 10) : ''}
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '10.5px' }}>Belum Diperiksa</span>
+                        )}
+
+                        {selectedLoan.approval_pengelola?.alat_alternatif && (
+                          <div style={{ marginTop: 4, padding: '2px 6px', background: '#fef3c7', borderRadius: 4, fontSize: '10px', color: '#92400e', textAlign: 'left' }}>
+                            Saran Pengganti: <strong>{selectedLoan.approval_pengelola.alat_alternatif.nama_peralatan}</strong>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ color: '#475569', fontSize: '10px' }}>
+                        {selectedLoan.approval_pengelola?.catatan ? `"${selectedLoan.approval_pengelola.catatan}"` : '-'}
+                      </div>
+                    </div>
+
+                    {/* TTD 3: Manager Lab */}
+                    <div style={{ padding: 8, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{selectedLoan.approval_manager_lab?.nama || 'Manager Lab'}</div>
+                        <div style={{ color: '#64748b', fontSize: '10px' }}>NIP: {selectedLoan.approval_manager_lab?.nip || '-'}</div>
+                      </div>
+                      <div style={{ margin: '4px 0', textAlign: 'center', minHeight: 55, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {selectedLoan.approval_manager_lab?.status === 'approved' || selectedLoan.approval_manager_lab?.ttd ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            {selectedLoan.approval_manager_lab?.ttd ? (
+                              <img
+                                src={selectedLoan.approval_manager_lab.ttd}
+                                alt="TTD Manager Lab"
+                                style={{ maxHeight: 50, maxWidth: '100%', objectFit: 'contain' }}
+                              />
+                            ) : (
+                              <div style={{ borderBottom: '1px dashed #16a34a', paddingBottom: 2, display: 'inline-block' }}>
+                                <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '11px' }}>[ DISAHKAN ]</span>
+                              </div>
+                            )}
+                            <div style={{ fontSize: '9px', color: '#64748b', marginTop: 2 }}>
+                              {selectedLoan.approval_manager_lab?.tanggal ? String(selectedLoan.approval_manager_lab.tanggal).slice(0, 10) : ''}
+                            </div>
+                          </div>
+                        ) : selectedLoan.approval_manager_lab?.status === 'rejected' ? (
+                          <div style={{ borderBottom: '1px dashed #dc2626', paddingBottom: 2, display: 'inline-block' }}>
+                            <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '11px' }}>[ DITOLAK ]</span>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>
+                              {selectedLoan.approval_manager_lab?.tanggal ? String(selectedLoan.approval_manager_lab.tanggal).slice(0, 10) : ''}
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '10.5px' }}>Belum Disahkan</span>
+                        )}
+                      </div>
+                      <div style={{ color: '#475569', fontSize: '10px' }}>
+                        {selectedLoan.approval_manager_lab?.catatan ? `"${selectedLoan.approval_manager_lab.catatan}"` : '-'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. HASIL VERIFIKASI KELAYAKAN & KETERSEDIAAN ALAT (PENGELOLA) */}
+                {(!isReviewAction || activeReviewStage !== 'pengelola') && (() => {
+                  const isCurrentlyReviewingByPengelola = modalMode === 'review' && activeReviewStage === 'pengelola';
+                  const pengelolaStatus = selectedLoan.approval_pengelola?.status;
+
+                  // Status butir 1: Status & Jadwal Kalibrasi
+                  const item1Checked = isCurrentlyReviewingByPengelola
+                    ? techCheckSchedule
+                    : pengelolaStatus === 'approved'
+                      ? true
+                      : pengelolaStatus === 'rejected'
+                        ? (selectedLoan.approval_pengelola?.cek_jadwal_kalibrasi ?? false)
+                        : null;
+
+                  // Status butir 2: Kesesuaian Spesifikasi
+                  const item2Checked = isCurrentlyReviewingByPengelola
+                    ? techCheckSpec
+                    : pengelolaStatus === 'approved'
+                      ? true
+                      : pengelolaStatus === 'rejected'
+                        ? (selectedLoan.approval_pengelola?.cek_spesifikasi ?? false)
+                        : null;
+
+                  // Status butir 3: Kewenangan Operator
+                  const item3Checked = isCurrentlyReviewingByPengelola
+                    ? techCheckOperator
+                    : pengelolaStatus === 'approved'
+                      ? true
+                      : pengelolaStatus === 'rejected'
+                        ? (selectedLoan.approval_pengelola?.cek_operator ?? false)
+                        : null;
+
+                  // Status butir 4: Kesiapan Lokasi Eksternal
+                  const item4Checked = isCurrentlyReviewingByPengelola
+                    ? techCheckLocation
+                    : pengelolaStatus === 'approved'
+                      ? true
+                      : pengelolaStatus === 'rejected'
+                        ? (selectedLoan.approval_pengelola?.cek_lokasi ?? false)
+                        : null;
+
+                  const isAllPassed = item1Checked && item2Checked && item3Checked && (!selectedLoan.is_eksternal || item4Checked);
+                  const hasFailedItem = item1Checked === false || item2Checked === false || item3Checked === false || (selectedLoan.is_eksternal && item4Checked === false);
+
+                  return (
+                    <div
+                      className="card"
+                      style={{
+                        padding: 'var(--sp-4)',
+                        background: '#ffffff',
+                        border: hasFailedItem ? '1.5px solid #fecaca' : isAllPassed ? '1.5px solid #bbf7d0' : '1px solid #cbd5e1',
+                        borderRadius: 'var(--radius-md, 8px)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                        <div>
+                          <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <ShieldCheck size={16} style={{ color: hasFailedItem ? '#dc2626' : isAllPassed ? '#16a34a' : '#2563eb' }} />
+                            Verifikasi Kelayakan & Ketersediaan Peralatan (Pengelola)
+                          </h3>
+                          <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: 1 }}>
+                            Jika ada 1 butir tidak terpenuhi / tidak diceklis, status otomatis <strong>Ditolak</strong>.
+                          </div>
+                        </div>
+                        <span
+                          className={`badge ${hasFailedItem || pengelolaStatus === 'rejected'
+                            ? 'badge-error'
+                            : isAllPassed || pengelolaStatus === 'approved'
+                              ? 'badge-success'
+                              : 'badge-gray'
+                            }`}
+                          style={{ fontSize: '10.5px' }}
+                        >
+                          {isCurrentlyReviewingByPengelola
+                            ? (hasFailedItem
+                              ? '✕ Ditolak Otomatis (Ada Butir Tidak Diceklis)'
+                              : '✓ Semua Butir Diceklis (Lolos Verifikasi)')
+                            : pengelolaStatus === 'approved'
+                              ? '✓ Lolos Verifikasi Kelayakan'
+                              : pengelolaStatus === 'rejected'
+                                ? '✕ Ditolak Pengelola (Tidak Memenuhi Syarat)'
+                                : 'Menunggu Pemeriksaan Pengelola'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 6, fontSize: '11.5px' }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 6,
+                          padding: '6px 8px',
+                          background: item1Checked === true ? '#f0fdf4' : item1Checked === false ? '#fef2f2' : '#f8fafc',
+                          borderRadius: 6,
+                          border: `1px solid ${item1Checked === true ? '#bbf7d0' : item1Checked === false ? '#fecaca' : '#e2e8f0'}`,
+                        }}>
+                          {item1Checked === true ? (
+                            <CheckCircle2 size={14} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
+                          ) : item1Checked === false ? (
+                            <XCircle size={14} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
+                          ) : (
+                            <Clock size={14} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
+                          )}
+                          <div>
+                            <strong>1. Status & Jadwal Kalibrasi</strong>
+                            <div style={{ fontSize: '10.5px', color: '#64748b' }}>
+                              Jatuh tempo: {selectedLoan.peralatan?.tgl_jatuh_tempo || '-'} (Alat layak pakai)
+                            </div>
+                            <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item1Checked === true ? '#16a34a' : item1Checked === false ? '#dc2626' : '#64748b' }}>
+                              {item1Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item1Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 6,
+                          padding: '6px 8px',
+                          background: item2Checked === true ? '#f0fdf4' : item2Checked === false ? '#fef2f2' : '#f8fafc',
+                          borderRadius: 6,
+                          border: `1px solid ${item2Checked === true ? '#bbf7d0' : item2Checked === false ? '#fecaca' : '#e2e8f0'}`,
+                        }}>
+                          {item2Checked === true ? (
+                            <CheckCircle2 size={14} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
+                          ) : item2Checked === false ? (
+                            <XCircle size={14} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
+                          ) : (
+                            <Clock size={14} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
+                          )}
+                          <div>
+                            <strong>2. Kesesuaian Spesifikasi</strong>
+                            <div style={{ fontSize: '10.5px', color: '#64748b' }}>
+                              Rentang & toleransi alat sesuai pengujian
+                            </div>
+                            <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item2Checked === true ? '#16a34a' : item2Checked === false ? '#dc2626' : '#64748b' }}>
+                              {item2Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item2Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 6,
+                          padding: '6px 8px',
+                          background: item3Checked === true ? '#f0fdf4' : item3Checked === false ? '#fef2f2' : '#f8fafc',
+                          borderRadius: 6,
+                          border: `1px solid ${item3Checked === true ? '#bbf7d0' : item3Checked === false ? '#fecaca' : '#e2e8f0'}`,
+                        }}>
+                          {item3Checked === true ? (
+                            <CheckCircle2 size={14} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
+                          ) : item3Checked === false ? (
+                            <XCircle size={14} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
+                          ) : (
+                            <Clock size={14} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
+                          )}
+                          <div>
+                            <strong>3. Kewenangan Operator</strong>
+                            <div style={{ fontSize: '10.5px', color: '#64748b' }}>
+                              Operator: {selectedLoan.peminjam?.operator || selectedLoan.peminjam?.nama || '-'}
+                            </div>
+                            <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item3Checked === true ? '#16a34a' : item3Checked === false ? '#dc2626' : '#64748b' }}>
+                              {item3Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item3Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {selectedLoan.is_eksternal && (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 6,
+                            padding: '6px 8px',
+                            background: item4Checked === true ? '#f0fdf4' : item4Checked === false ? '#fef2f2' : '#f8fafc',
+                            borderRadius: 6,
+                            border: `1px solid ${item4Checked === true ? '#bbf7d0' : item4Checked === false ? '#fecaca' : '#e2e8f0'}`,
+                          }}>
+                            {item4Checked === true ? (
+                              <CheckCircle2 size={14} style={{ color: '#16a34a', flexShrink: 0, marginTop: 1 }} />
+                            ) : item4Checked === false ? (
+                              <XCircle size={14} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
+                            ) : (
+                              <Clock size={14} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
+                            )}
+                            <div>
+                              <strong>4. Kesiapan Lokasi Eksternal</strong>
+                              <div style={{ fontSize: '10.5px', color: '#64748b' }}>
+                                Lokasi: {selectedLoan.lokasi_penggunaan}
+                              </div>
+                              <div style={{ fontSize: '10px', fontWeight: 600, marginTop: 2, color: item4Checked === true ? '#16a34a' : item4Checked === false ? '#dc2626' : '#64748b' }}>
+                                {item4Checked === true ? '✓ Diceklis (Memenuhi Syarat)' : item4Checked === false ? '✕ Tidak Diceklis (Gagal)' : '⏳ Belum Diperiksa'}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Catatan hasil verifikasi jika ada penolakan */}
+                      {(hasFailedItem || pengelolaStatus === 'rejected') && (
+                        <div style={{ marginTop: 8, padding: '6px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, fontSize: '11px', color: '#991b1b' }}>
+                          <strong>Catatan Pengelola:</strong> {isCurrentlyReviewingByPengelola ? (decisionNote || 'Terdapat butir verifikasi yang tidak diceklis, keputusan otomatis Ditolak.') : (selectedLoan.approval_pengelola?.catatan || 'Permohonan ditolak pada verifikasi kelayakan & ketersediaan oleh pengelola.')}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* JIKA STATUS SUDAH DISAHKAN MANAGER LAB & SIAP SERAH TERIMA */}
+                {(selectedLoan.status === 'MENUNGGU_SERAH_TERIMA' || selectedLoan.status === 'DISETUJUI') && (
+                  <div
+                    className="alert alert-warning"
                     style={{
                       padding: 'var(--sp-4)',
                       marginBottom: 'var(--sp-5)',
@@ -3449,318 +3298,500 @@ export default function LoanApproval({ onNavigate }) {
                       justifyContent: 'space-between',
                       flexWrap: 'wrap',
                       gap: 12,
-                      background: '#f0fdf4',
-                      border: '1.5px solid #bbf7d0',
+                      background: '#fff7ed',
+                      border: '1.5px solid #fed7aa',
                       borderRadius: 'var(--radius-md, 8px)',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <ClipboardCheck size={24} style={{ color: '#16a34a', flexShrink: 0 }} />
+                      <Package size={24} style={{ color: '#ea580c', flexShrink: 0 }} />
                       <div>
-                        <div style={{ fontWeight: 'bold', color: '#166534', fontSize: '13px' }}>
-                          Pemeriksaan Serah Terima Kembali
+                        <div style={{ fontWeight: 'bold', color: '#9a3412', fontSize: '13px' }}>
+                          Persetujuan Manager Lab Telah Terbit!
                         </div>
-                        <div style={{ fontSize: '12px', color: '#15803d' }}>
-                          Peralatan diserahkan kembali oleh peminjam. Lakukan pemeriksaan 7 butir fisik & fungsi bersama peminjam dan bubuhkan tanda tangan bersama.
+                        <div style={{ fontSize: '12px', color: '#c2410c' }}>
+                          {getPendingActionForUser(selectedLoan)?.canHandover
+                            ? 'Alur kini diarahkan kepada Anda untuk melakukan pemeriksaan fisik bersama dan pengisian Lampiran A.'
+                            : 'Persetujuan izin telah disahkan. Menunggu Pengelola Peralatan dan Peminjam melaksanakan serah terima fisik (Lampiran A).'}
                         </div>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => handleOpenReturn(selectedLoan)}
+                    {getPendingActionForUser(selectedLoan)?.canHandover && (
+                      <button
+                        type="button"
+                        className="btn btn-warning btn-sm"
+                        onClick={() => handleOpenCheckout(selectedLoan)}
+                        style={{
+                          background: '#ea580c',
+                          borderColor: '#c2410c',
+                          color: '#ffffff',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          padding: '6px 14px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        <Package size={14} /> Mulai Serah Terima Fisik (Lampiran A)
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* JIKA STATUS SUDAH DIPERIKSA PENGELOLA & MENUNGGU KONFIRMASI PEMINJAM */}
+                {selectedLoan.status === 'SIAP_DISERAHKAN' && (
+                  <div
+                    className="alert alert-info"
+                    style={{
+                      padding: 'var(--sp-4)',
+                      marginBottom: 'var(--sp-5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 12,
+                      background: '#f0f9ff',
+                      border: '1.5px solid #bae6fd',
+                      borderRadius: 'var(--radius-md, 8px)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <CheckCircle2 size={24} style={{ color: '#0284c7', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 'bold', color: '#0369a1', fontSize: '13px' }}>
+                          Checklist Lampiran A Telah Diisi Pengelola!
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#0284c7' }}>
+                          {getPendingActionForUser(selectedLoan)?.canHandover
+                            ? 'Pengelola telah memeriksa dan menandatangani checklist Lampiran A. Silakan konfirmasi penerimaan dan bubuhkan tanda tangan Anda.'
+                            : 'Pemeriksaan fisik telah selesai dilakukan oleh Pengelola. Menunggu Peminjam melakukan konfirmasi dan tanda tangan digital.'}
+                        </div>
+                      </div>
+                    </div>
+                    {getPendingActionForUser(selectedLoan)?.canHandover && (
+                      <button
+                        type="button"
+                        className="btn btn-success btn-sm"
+                        onClick={() => handleOpenCheckout(selectedLoan)}
+                        style={{
+                          background: '#16a34a',
+                          borderColor: '#15803d',
+                          color: '#ffffff',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          padding: '6px 14px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        <CheckCircle2 size={14} /> Konfirmasi Terima & TTD
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* JIKA SUDAH DISERAHKAN (F/010 KELUAR) */}
+                {selectedLoan.serah_terima_keluar && (
+                  <div
+                    className="card"
+                    style={{
+                      padding: 'var(--sp-4)',
+                      marginBottom: 'var(--sp-5)',
+                      background: selectedLoan.serah_terima_keluar.ada_ts ? '#fef2f2' : '#f0fdf4',
+                      border: selectedLoan.serah_terima_keluar.ada_ts ? '1.5px solid #fecaca' : '1.5px solid #bbf7d0',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                      <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: selectedLoan.serah_terima_keluar.ada_ts ? '#991b1b' : '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <ClipboardCheck size={16} />
+                        Rekaman Serah Terima Fisik Keluar (Kolom Keluar)
+                      </h4>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>
+                        Pemeriksaan: {selectedLoan.serah_terima_keluar.tanggal ? String(selectedLoan.serah_terima_keluar.tanggal).slice(0, 10) : '-'}
+                        {selectedLoan.serah_terima_keluar.tanggal_diterima && (
+                          <> | Diterima: {String(selectedLoan.serah_terima_keluar.tanggal_diterima).slice(0, 10)}</>
+                        )}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, fontSize: '12px', marginBottom: 8 }}>
+                      <div>
+                        <span style={{ color: '#64748b', fontSize: '11px' }}>PIC Pengelola (Pemeriksa): </span>
+                        <strong>{selectedLoan.serah_terima_keluar.pic_petugas || selectedLoan.approval_pengelola?.nama || '-'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', fontSize: '11px' }}>Peminjam (Penerima): </span>
+                        <strong>{selectedLoan.serah_terima_keluar.peminjam_penerima || selectedLoan.peminjam?.nama || '-'}</strong>
+                      </div>
+                    </div>
+
+                    <p style={{ margin: 0, fontSize: '12px', color: '#334155' }}>
+                      <strong>Hasil:</strong>{' '}
+                      {selectedLoan.serah_terima_keluar.ada_ts ? (
+                        <span style={{ color: '#dc2626', fontWeight: 600 }}>
+                          Dibatalkan karena terdapat butir Tidak Sesuai (TS). Status alat dialihkan menjadi DO NOT USE.
+                        </span>
+                      ) : (
+                        <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                          Memenuhi Syarat (Seluruh butir Sesuai/N/A). Peralatan diserahterimakan kepada peminjam.
+                        </span>
+                      )}
+                    </p>
+
+                    {selectedLoan.serah_terima_keluar.catatan && (
+                      <div style={{ marginTop: 6, fontSize: '12px', color: '#475569' }}>
+                        <strong>Catatan:</strong> "{selectedLoan.serah_terima_keluar.catatan}"
+                      </div>
+                    )}
+
+                    {/* Tanda Tangan Pengelola & Peminjam */}
+                    {(selectedLoan.serah_terima_keluar.ttd_pengelola || selectedLoan.serah_terima_keluar.ttd_peminjam) && (
+                      <div style={{ display: 'flex', gap: 16, marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)', flexWrap: 'wrap' }}>
+                        {selectedLoan.serah_terima_keluar.ttd_pengelola && (
+                          <div style={{ textAlign: 'center', background: '#ffffff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1' }}>
+                            <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginBottom: 4 }}>TTD Pengelola (Keluar)</div>
+                            <img src={selectedLoan.serah_terima_keluar.ttd_pengelola} alt="TTD Pengelola" style={{ maxHeight: 45, maxWidth: 120, objectFit: 'contain' }} />
+                          </div>
+                        )}
+                        {selectedLoan.serah_terima_keluar.ttd_peminjam && (
+                          <div style={{ textAlign: 'center', background: '#ffffff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1' }}>
+                            <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginBottom: 4 }}>TTD Peminjam (Keluar)</div>
+                            <img src={selectedLoan.serah_terima_keluar.ttd_peminjam} alt="TTD Peminjam" style={{ maxHeight: 45, maxWidth: 120, objectFit: 'contain' }} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* JIKA STATUS SEDANG DIPINJAM -> TOMBOL AKSI PENGEMBALIAN */}
+                {selectedLoan.status === 'SEDANG_DIPINJAM' && (() => {
+                  const modalRel = getLoanUserRelationship(selectedLoan);
+                  if (!modalRel.isPengelola && !modalRel.isAdmin) return null;
+
+                  return (
+                    <div
                       style={{
-                        background: '#16a34a',
-                        borderColor: '#15803d',
-                        color: '#ffffff',
-                        fontWeight: 600,
-                        display: 'inline-flex',
+                        padding: 'var(--sp-4)',
+                        marginBottom: 'var(--sp-5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: 12,
+                        background: '#f0fdf4',
+                        border: '1.5px solid #bbf7d0',
+                        borderRadius: 'var(--radius-md, 8px)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <ClipboardCheck size={24} style={{ color: '#16a34a', flexShrink: 0 }} />
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: '#166534', fontSize: '13px' }}>
+                            Pemeriksaan Serah Terima Kembali
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#15803d' }}>
+                            Peralatan diserahkan kembali oleh peminjam. Lakukan pemeriksaan 7 butir fisik & fungsi bersama peminjam dan bubuhkan tanda tangan bersama.
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handleOpenReturn(selectedLoan)}
+                        style={{
+                          background: '#16a34a',
+                          borderColor: '#15803d',
+                          color: '#ffffff',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          padding: '6px 14px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        <ClipboardCheck size={14} /> Buka Lembar Serah Terima Kembali
+                      </button>
+                    </div>
+                  );
+                })()}
+
+                {/* JIKA ADA REKAMAN PENGEMBALIAN */}
+                {selectedLoan.serah_terima_kembali && (
+                  <div
+                    className="card"
+                    style={{
+                      padding: 'var(--sp-4)',
+                      marginBottom: 'var(--sp-5)',
+                      background: selectedLoan.serah_terima_kembali.tindak_lanjut === 'DO_NOT_USE' || selectedLoan.serah_terima_kembali.ada_ts || selectedLoan.serah_terima_kembali.ada_kejadian ? '#fef2f2' : '#f0fdf4',
+                      border: selectedLoan.serah_terima_kembali.tindak_lanjut === 'DO_NOT_USE' || selectedLoan.serah_terima_kembali.ada_ts || selectedLoan.serah_terima_kembali.ada_kejadian ? '1.5px solid #fecaca' : '1.5px solid #bbf7d0',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                      <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: selectedLoan.serah_terima_kembali.tindak_lanjut === 'DO_NOT_USE' ? '#991b1b' : '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <ClipboardCheck size={16} />
+                        Rekaman Pengembalian Peralatan (Kolom Kembali & Bagian D)
+                      </h4>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>
+                        Tanggal Kembali: {selectedLoan.serah_terima_kembali.tanggal ? String(selectedLoan.serah_terima_kembali.tanggal).slice(0, 10) : '-'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, fontSize: '12px', marginBottom: 10 }}>
+                      <div>
+                        <span style={{ color: '#64748b', fontSize: '11px' }}>PIC Pengelola (Penerima): </span>
+                        <strong>{selectedLoan.serah_terima_kembali.pic_penerima || selectedLoan.approval_pengelola?.nama || '-'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', fontSize: '11px' }}>Peminjam (Penyerah): </span>
+                        <strong>{selectedLoan.serah_terima_kembali.peminjam_penyerah || selectedLoan.peminjam?.nama || '-'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', fontSize: '11px' }}>Tindak Lanjut Sistem: </span>
+                        <span
+                          className={`badge ${selectedLoan.serah_terima_kembali.tindak_lanjut === 'DO_NOT_USE' ? 'badge-error' : 'badge-info'}`}
+                          style={{ fontSize: '11px', fontWeight: 700 }}
+                        >
+                          {selectedLoan.serah_terima_kembali.tindak_lanjut === 'DO_NOT_USE' ? 'DO NOT USE (Isolasi Alat)' : 'KARANTINA (Verifikasi IK/003)'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Bagian B: Tabel Perbandingan Keluar vs Kembali */}
+                    {Array.isArray(selectedLoan.serah_terima_kembali.lampiran_a) && selectedLoan.serah_terima_kembali.lampiran_a.length > 0 && (
+                      <div style={{ overflowX: 'auto', border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 10, background: '#ffffff' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
+                          <thead>
+                            <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
+                              <th style={{ padding: '6px 8px', width: 28, textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>No.</th>
+                              <th style={{ padding: '6px 8px', borderRight: '1px solid #cbd5e1' }}>Butir Pemeriksaan</th>
+                              <th style={{ padding: '6px 8px', width: 90, textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>Kondisi Keluar</th>
+                              <th style={{ padding: '6px 8px', width: 95, textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>Kondisi Kembali</th>
+                              <th style={{ padding: '6px 8px' }}>Keterangan Pengembalian</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedLoan.serah_terima_kembali.lampiran_a.map((it, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '5px 8px', textAlign: 'center', borderRight: '1px solid #cbd5e1', color: '#64748b' }}>{it.nomor_butir || idx + 1}.</td>
+                                <td style={{ padding: '5px 8px', borderRight: '1px solid #cbd5e1' }}>{it.butir || LAMPIRAN_A_BUTIR[idx]}</td>
+                                <td style={{ padding: '5px 8px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>
+                                  <span style={{ fontWeight: 600, color: it.status_keluar === 'TS' ? '#dc2626' : it.status_keluar === 'N/A' ? '#64748b' : '#15803d' }}>
+                                    {it.status_keluar || '-'}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '5px 8px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>
+                                  <span style={{ fontWeight: 700, color: it.status === 'TS' ? '#dc2626' : it.status === 'N/A' ? '#64748b' : '#15803d' }}>
+                                    {it.status || '-'}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '5px 8px', color: '#475569' }}>{it.keterangan || '-'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Bagian D: Rekaman Kejadian */}
+                    <div style={{ padding: '8px 12px', background: '#ffffff', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: '12px', marginBottom: 8 }}>
+                      <div style={{ fontWeight: 600, color: '#0f172a' }}>Bagian D — Kejadian Selama Peminjaman:</div>
+                      <div style={{ marginTop: 2, color: selectedLoan.serah_terima_kembali.ada_kejadian ? '#dc2626' : '#15803d' }}>
+                        {selectedLoan.serah_terima_kembali.ada_kejadian ? (
+                          <>
+                            <strong>Ada Kejadian Abnormal:</strong> "{selectedLoan.serah_terima_kembali.uraian_kejadian}"
+                          </>
+                        ) : (
+                          <span>Tidak ada kejadian abnormal selama peminjaman.</span>
+                        )}
+                      </div>
+                      {selectedLoan.serah_terima_kembali.alasan_tindak_lanjut && (
+                        <div style={{ marginTop: 4, fontSize: '11px', color: '#64748b' }}>
+                          <strong>Catatan Tindak Lanjut:</strong> {selectedLoan.serah_terima_kembali.alasan_tindak_lanjut}
+                        </div>
+                      )}
+                    </div>
+
+                    {selectedLoan.serah_terima_kembali.catatan && (
+                      <div style={{ fontSize: '12px', color: '#475569', marginBottom: 8 }}>
+                        <strong>Catatan Pengelola:</strong> "{selectedLoan.serah_terima_kembali.catatan}"
+                      </div>
+                    )}
+
+                    {/* Tanda Tangan Kembali */}
+                    {(selectedLoan.serah_terima_kembali.ttd_pengelola || selectedLoan.serah_terima_kembali.ttd_peminjam) && (
+                      <div style={{ display: 'flex', gap: 16, marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(0,0,0,0.06)', flexWrap: 'wrap' }}>
+                        {selectedLoan.serah_terima_kembali.ttd_pengelola && (
+                          <div style={{ textAlign: 'center', background: '#ffffff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1' }}>
+                            <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginBottom: 4 }}>TTD Pengelola (Penerima)</div>
+                            <img src={selectedLoan.serah_terima_kembali.ttd_pengelola} alt="TTD Pengelola" style={{ maxHeight: 45, maxWidth: 120, objectFit: 'contain' }} />
+                          </div>
+                        )}
+                        {selectedLoan.serah_terima_kembali.ttd_peminjam && (
+                          <div style={{ textAlign: 'center', background: '#ffffff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1' }}>
+                            <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginBottom: 4 }}>TTD Peminjam (Penyerah)</div>
+                            <img src={selectedLoan.serah_terima_kembali.ttd_peminjam} alt="TTD Peminjam" style={{ maxHeight: 45, maxWidth: 120, objectFit: 'contain' }} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Riwayat Perpanjangan Peminjaman */}
+                {Array.isArray(selectedLoan.perpanjangan) && selectedLoan.perpanjangan.length > 0 && (
+                  <div
+                    style={{
+                      border: '1.5px solid #fed7aa',
+                      borderRadius: 'var(--radius-md, 8px)',
+                      overflow: 'hidden',
+                      background: '#ffffff',
+                      marginTop: 'var(--sp-4)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        background: '#fff7ed',
+                        borderBottom: '1px solid #fed7aa',
+                        display: 'flex',
                         alignItems: 'center',
                         gap: 6,
                       }}
                     >
-                      <ClipboardCheck size={15} /> Buka Lembar Serah Terima Kembali
-                    </button>
-                  </div>
-                );
-              })()}
-
-              {/* JIKA ADA REKAMAN PENGEMBALIAN */}
-              {selectedLoan.serah_terima_kembali && (
-                <div
-                  className="card"
-                  style={{
-                    padding: 'var(--sp-4)',
-                    marginBottom: 'var(--sp-5)',
-                    background: selectedLoan.serah_terima_kembali.tindak_lanjut === 'DO_NOT_USE' || selectedLoan.serah_terima_kembali.ada_ts || selectedLoan.serah_terima_kembali.ada_kejadian ? '#fef2f2' : '#f0fdf4',
-                    border: selectedLoan.serah_terima_kembali.tindak_lanjut === 'DO_NOT_USE' || selectedLoan.serah_terima_kembali.ada_ts || selectedLoan.serah_terima_kembali.ada_kejadian ? '1.5px solid #fecaca' : '1.5px solid #bbf7d0',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
-                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: selectedLoan.serah_terima_kembali.tindak_lanjut === 'DO_NOT_USE' ? '#991b1b' : '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <ClipboardCheck size={16} />
-                      Rekaman Pengembalian Peralatan (Kolom Kembali & Bagian D)
-                    </h4>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>
-                      Tanggal Kembali: {selectedLoan.serah_terima_kembali.tanggal ? String(selectedLoan.serah_terima_kembali.tanggal).slice(0, 10) : '-'}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, fontSize: '12px', marginBottom: 10 }}>
-                    <div>
-                      <span style={{ color: '#64748b', fontSize: '11px' }}>PIC Pengelola (Penerima): </span>
-                      <strong>{selectedLoan.serah_terima_kembali.pic_penerima || selectedLoan.approval_pengelola?.nama || '-'}</strong>
+                      <CalendarClock size={16} style={{ color: '#ea580c' }} />
+                      <strong style={{ fontSize: '13px', color: '#9a3412' }}>
+                        Riwayat Permohonan Perpanjangan Waktu Peminjaman
+                      </strong>
                     </div>
-                    <div>
-                      <span style={{ color: '#64748b', fontSize: '11px' }}>Peminjam (Penyerah): </span>
-                      <strong>{selectedLoan.serah_terima_kembali.peminjam_penyerah || selectedLoan.peminjam?.nama || '-'}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#64748b', fontSize: '11px' }}>Tindak Lanjut Sistem: </span>
-                      <span
-                        className={`badge ${selectedLoan.serah_terima_kembali.tindak_lanjut === 'DO_NOT_USE' ? 'badge-error' : 'badge-info'}`}
-                        style={{ fontSize: '11px', fontWeight: 700 }}
-                      >
-                        {selectedLoan.serah_terima_kembali.tindak_lanjut === 'DO_NOT_USE' ? 'DO NOT USE (Isolasi Alat)' : 'KARANTINA (Verifikasi IK/003)'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Bagian B: Tabel Perbandingan Keluar vs Kembali */}
-                  {Array.isArray(selectedLoan.serah_terima_kembali.lampiran_a) && selectedLoan.serah_terima_kembali.lampiran_a.length > 0 && (
-                    <div style={{ overflowX: 'auto', border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 10, background: '#ffffff' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                         <thead>
-                          <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
-                            <th style={{ padding: '6px 8px', width: 28, textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>No.</th>
-                            <th style={{ padding: '6px 8px', borderRight: '1px solid #cbd5e1' }}>Butir Pemeriksaan</th>
-                            <th style={{ padding: '6px 8px', width: 90, textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>Kondisi Keluar</th>
-                            <th style={{ padding: '6px 8px', width: 95, textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>Kondisi Kembali</th>
-                            <th style={{ padding: '6px 8px' }}>Keterangan Pengembalian</th>
+                          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
+                            <th style={{ padding: '8px 10px', textAlign: 'center', width: 40 }}>Ke-</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left' }}>Tgl Pengajuan</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left' }}>Perubahan Tanggal Kembali</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left' }}>Alasan Permohonan</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Status</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left' }}>Keputusan Manager Lab</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedLoan.serah_terima_kembali.lampiran_a.map((it, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '5px 8px', textAlign: 'center', borderRight: '1px solid #cbd5e1', color: '#64748b' }}>{it.nomor_butir || idx + 1}.</td>
-                              <td style={{ padding: '5px 8px', borderRight: '1px solid #cbd5e1' }}>{it.butir || LAMPIRAN_A_BUTIR[idx]}</td>
-                              <td style={{ padding: '5px 8px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>
-                                <span style={{ fontWeight: 600, color: it.status_keluar === 'TS' ? '#dc2626' : it.status_keluar === 'N/A' ? '#64748b' : '#15803d' }}>
-                                  {it.status_keluar || '-'}
-                                </span>
-                              </td>
-                              <td style={{ padding: '5px 8px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>
-                                <span style={{ fontWeight: 700, color: it.status === 'TS' ? '#dc2626' : it.status === 'N/A' ? '#64748b' : '#15803d' }}>
-                                  {it.status || '-'}
-                                </span>
-                              </td>
-                              <td style={{ padding: '5px 8px', color: '#475569' }}>{it.keterangan || '-'}</td>
-                            </tr>
-                          ))}
+                          {selectedLoan.perpanjangan.map((item, idx) => {
+                            const statusBg =
+                              item.status === 'disetujui' ? '#dcfce7' : item.status === 'ditolak' ? '#fee2e2' : '#fef3c7';
+                            const statusColor =
+                              item.status === 'disetujui' ? '#15803d' : item.status === 'ditolak' ? '#b91c1c' : '#b45309';
+                            const statusLabel =
+                              item.status === 'disetujui'
+                                ? 'Disetujui'
+                                : item.status === 'ditolak'
+                                  ? 'Ditolak'
+                                  : 'Menunggu Verifikasi';
+
+                            return (
+                              <tr key={item.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600 }}>{idx + 1}</td>
+                                <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
+                                  {item.diajukan_pada ? String(item.diajukan_pada).slice(0, 10) : '-'}
+                                </td>
+                                <td style={{ padding: '8px 10px' }}>
+                                  <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>
+                                    {item.tanggal_kembali_lama}
+                                  </span>{' '}
+                                  ➔ <strong style={{ color: '#059669' }}>{item.tanggal_kembali_baru}</strong>
+                                </td>
+                                <td style={{ padding: '8px 10px', fontStyle: 'italic', color: '#334155' }}>
+                                  "{item.alasan}"
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                  <span
+                                    className="badge"
+                                    style={{
+                                      background: statusBg,
+                                      color: statusColor,
+                                      fontSize: '10px',
+                                      padding: '2px 8px',
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {statusLabel}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '8px 10px', fontSize: '11px' }}>
+                                  {item.status === 'menunggu' ? (
+                                    <span style={{ color: '#b45309', fontStyle: 'italic' }}>
+                                      Menunggu telaah Manager Lab
+                                    </span>
+                                  ) : (
+                                    <div>
+                                      <div style={{ color: '#1e293b' }}>
+                                        {item.catatan ? item.catatan : '-'}
+                                      </div>
+                                      <div style={{ color: '#64748b', fontSize: '10px', marginTop: 2 }}>
+                                        Oleh: {item.manager_lab?.nama || 'Manager Lab'} •{' '}
+                                        {item.diputuskan_pada ? String(item.diputuskan_pada).slice(0, 10) : ''}
+                                      </div>
+                                      {item.ttd_manager_lab && (
+                                        <div style={{ marginTop: 4 }}>
+                                          <img
+                                            src={item.ttd_manager_lab}
+                                            alt="TTD Manager Lab"
+                                            style={{ maxHeight: 35, maxWidth: 100, objectFit: 'contain' }}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
-                  )}
-
-                  {/* Bagian D: Rekaman Kejadian */}
-                  <div style={{ padding: '8px 12px', background: '#ffffff', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: '12px', marginBottom: 8 }}>
-                    <div style={{ fontWeight: 600, color: '#0f172a' }}>Bagian D — Kejadian Selama Peminjaman:</div>
-                    <div style={{ marginTop: 2, color: selectedLoan.serah_terima_kembali.ada_kejadian ? '#dc2626' : '#15803d' }}>
-                      {selectedLoan.serah_terima_kembali.ada_kejadian ? (
-                        <>
-                          <strong>Ada Kejadian Abnormal:</strong> "{selectedLoan.serah_terima_kembali.uraian_kejadian}"
-                        </>
-                      ) : (
-                        <span>Tidak ada kejadian abnormal selama peminjaman.</span>
-                      )}
-                    </div>
-                    {selectedLoan.serah_terima_kembali.alasan_tindak_lanjut && (
-                      <div style={{ marginTop: 4, fontSize: '11px', color: '#64748b' }}>
-                        <strong>Catatan Tindak Lanjut:</strong> {selectedLoan.serah_terima_kembali.alasan_tindak_lanjut}
-                      </div>
-                    )}
                   </div>
+                )}
 
-                  {selectedLoan.serah_terima_kembali.catatan && (
-                    <div style={{ fontSize: '12px', color: '#475569', marginBottom: 8 }}>
-                      <strong>Catatan Pengelola:</strong> "{selectedLoan.serah_terima_kembali.catatan}"
-                    </div>
-                  )}
-
-                  {/* Tanda Tangan Kembali */}
-                  {(selectedLoan.serah_terima_kembali.ttd_pengelola || selectedLoan.serah_terima_kembali.ttd_peminjam) && (
-                    <div style={{ display: 'flex', gap: 16, marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(0,0,0,0.06)', flexWrap: 'wrap' }}>
-                      {selectedLoan.serah_terima_kembali.ttd_pengelola && (
-                        <div style={{ textAlign: 'center', background: '#ffffff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1' }}>
-                          <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginBottom: 4 }}>TTD Pengelola (Penerima)</div>
-                          <img src={selectedLoan.serah_terima_kembali.ttd_pengelola} alt="TTD Pengelola" style={{ maxHeight: 45, maxWidth: 120, objectFit: 'contain' }} />
-                        </div>
-                      )}
-                      {selectedLoan.serah_terima_kembali.ttd_peminjam && (
-                        <div style={{ textAlign: 'center', background: '#ffffff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1' }}>
-                          <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginBottom: 4 }}>TTD Peminjam (Penyerah)</div>
-                          <img src={selectedLoan.serah_terima_kembali.ttd_peminjam} alt="TTD Peminjam" style={{ maxHeight: 45, maxWidth: 120, objectFit: 'contain' }} />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Riwayat Perpanjangan Peminjaman */}
-              {Array.isArray(selectedLoan.perpanjangan) && selectedLoan.perpanjangan.length > 0 && (
-                <div
-                  style={{
-                    border: '1.5px solid #fed7aa',
-                    borderRadius: 'var(--radius-md, 8px)',
-                    overflow: 'hidden',
-                    background: '#ffffff',
-                    marginTop: 'var(--sp-4)',
-                  }}
-                >
-                  <div
+                {/* ================================================================ */}
+                {/* FORM AKSI APPROVAL AKTIF (OTOMATIS BERDASARKAN WEWENANG AKUN)    */}
+                {/* ================================================================ */}
+                {isReviewAction && (
+                  <form
+                    ref={decisionFormRef}
+                    id="form-keputusan-approval"
+                    onSubmit={handleSubmitDecision}
                     style={{
-                      padding: '8px 12px',
-                      background: '#fff7ed',
-                      borderBottom: '1px solid #fed7aa',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
+                      border: '2px solid var(--clr-primary-500, #ee2e24)',
+                      borderRadius: 'var(--radius-lg, 12px)',
+                      padding: 'var(--sp-5)',
+                      background: '#fffdfd',
+                      boxShadow: '0 4px 12px rgba(238, 46, 36, 0.08)',
+                      marginTop: 'var(--sp-5)',
                     }}
                   >
-                    <CalendarClock size={16} style={{ color: '#ea580c' }} />
-                    <strong style={{ fontSize: '13px', color: '#9a3412' }}>
-                      Riwayat Permohonan Perpanjangan Waktu Peminjaman
-                    </strong>
-                  </div>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
-                          <th style={{ padding: '8px 10px', textAlign: 'center', width: 40 }}>Ke-</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'left' }}>Tgl Pengajuan</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'left' }}>Perubahan Tanggal Kembali</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'left' }}>Alasan Permohonan</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Status</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'left' }}>Keputusan Manager Lab</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedLoan.perpanjangan.map((item, idx) => {
-                          const statusBg =
-                            item.status === 'disetujui' ? '#dcfce7' : item.status === 'ditolak' ? '#fee2e2' : '#fef3c7';
-                          const statusColor =
-                            item.status === 'disetujui' ? '#15803d' : item.status === 'ditolak' ? '#b91c1c' : '#b45309';
-                          const statusLabel =
-                            item.status === 'disetujui'
-                              ? 'Disetujui'
-                              : item.status === 'ditolak'
-                                ? 'Ditolak'
-                                : 'Menunggu Verifikasi';
-
-                          return (
-                            <tr key={item.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600 }}>{idx + 1}</td>
-                              <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
-                                {item.diajukan_pada ? String(item.diajukan_pada).slice(0, 10) : '-'}
-                              </td>
-                              <td style={{ padding: '8px 10px' }}>
-                                <span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>
-                                  {item.tanggal_kembali_lama}
-                                </span>{' '}
-                                ➔ <strong style={{ color: '#059669' }}>{item.tanggal_kembali_baru}</strong>
-                              </td>
-                              <td style={{ padding: '8px 10px', fontStyle: 'italic', color: '#334155' }}>
-                                "{item.alasan}"
-                              </td>
-                              <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                                <span
-                                  className="badge"
-                                  style={{
-                                    background: statusBg,
-                                    color: statusColor,
-                                    fontSize: '10px',
-                                    padding: '2px 8px',
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  {statusLabel}
-                                </span>
-                              </td>
-                              <td style={{ padding: '8px 10px', fontSize: '11px' }}>
-                                {item.status === 'menunggu' ? (
-                                  <span style={{ color: '#b45309', fontStyle: 'italic' }}>
-                                    Menunggu telaah Manager Lab
-                                  </span>
-                                ) : (
-                                  <div>
-                                    <div style={{ color: '#1e293b' }}>
-                                      {item.catatan ? item.catatan : '-'}
-                                    </div>
-                                    <div style={{ color: '#64748b', fontSize: '10px', marginTop: 2 }}>
-                                      Oleh: {item.manager_lab?.nama || 'Manager Lab'} •{' '}
-                                      {item.diputuskan_pada ? String(item.diputuskan_pada).slice(0, 10) : ''}
-                                    </div>
-                                    {item.ttd_manager_lab && (
-                                      <div style={{ marginTop: 4 }}>
-                                        <img
-                                          src={item.ttd_manager_lab}
-                                          alt="TTD Manager Lab"
-                                          style={{ maxHeight: 35, maxWidth: 100, objectFit: 'contain' }}
-                                        />
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* ================================================================ */}
-              {/* FORM AKSI APPROVAL AKTIF (OTOMATIS BERDASARKAN WEWENANG AKUN)    */}
-              {/* ================================================================ */}
-              {isReviewAction && (
-                <form
-                  ref={decisionFormRef}
-                  id="form-keputusan-approval"
-                  onSubmit={handleSubmitDecision}
-                  style={{
-                    border: '2px solid var(--clr-primary-500, #ee2e24)',
-                    borderRadius: 'var(--radius-lg, 12px)',
-                    padding: 'var(--sp-5)',
-                    background: '#fffdfd',
-                    boxShadow: '0 4px 12px rgba(238, 46, 36, 0.08)',
-                    marginTop: 'var(--sp-5)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <FileCheck size={18} style={{ color: '#991b1b' }} />
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#991b1b' }}>
-                        Tindakan Keputusan: {' '}
-                        {activeReviewStage === 'manager_peminjam' && 'Manager Peminjam (Tahap 1: Validasi Urgensi)'}
-                        {activeReviewStage === 'pengelola' && 'Pengelola Peralatan (Tahap 2: Review Teknis & Ketersediaan)'}
-                        {activeReviewStage === 'manager_lab' && 'Manager Lab Pemilik (Tahap 3: Pengesahan Final)'}
-                      </h4>
-                      <span className="badge badge-error" style={{ fontSize: '11px' }}>
-                        Wewenang Anda
-                      </span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FileCheck size={18} style={{ color: '#991b1b' }} />
+                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#991b1b' }}>
+                          Tindakan Keputusan: {' '}
+                          {activeReviewStage === 'manager_peminjam' && 'Manager Peminjam (Tahap 1: Validasi Urgensi)'}
+                          {activeReviewStage === 'pengelola' && 'Pengelola Peralatan (Tahap 2: Review Teknis & Ketersediaan)'}
+                          {activeReviewStage === 'manager_lab' && 'Manager Lab Pemilik (Tahap 3: Pengesahan Final)'}
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ fontSize: '11px', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        onClick={() => modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                      >
+                        ↑ Lihat Rincian Lembar
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      style={{ fontSize: '11px', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                      onClick={() => modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-                    >
-                      ↑ Lihat Rincian Lembar
-                    </button>
-                  </div>
 
                     {/* KHUSUS TAHAP 2 PENGELOLA PERALATAN: CHECKLIST VERIFIKASI TEKNIS (BUKAN LAMPIRAN A!) */}
                     {activeReviewStage === 'pengelola' && (() => {
@@ -3993,8 +4024,13 @@ export default function LoanApproval({ onNavigate }) {
                     )}
 
                     {/* Tombol Eksekusi Modal */}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 'var(--sp-4)' }}>
-                      <button type="button" className="btn btn-secondary" onClick={() => setSelectedLoan(null)}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 'var(--sp-4)' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => setSelectedLoan(null)}
+                        style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 600 }}
+                      >
                         Batal
                       </button>
                       <button
@@ -4005,41 +4041,49 @@ export default function LoanApproval({ onNavigate }) {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 6,
+                          padding: '8px 20px',
+                          fontSize: '13px',
+                          fontWeight: 600,
                           ...(decisionAction !== 'setuju' ? { color: '#dc2626', borderColor: '#fca5a5' } : {}),
                         }}
                       >
-                        {decisionAction === 'setuju' ? <Send size={15} /> : <XCircle size={15} />}
-                        {decisionAction === 'setuju'
-                          ? activeReviewStage === 'pengelola'
-                            ? 'Teruskan ke Manager Lab'
-                            : 'Simpan Persetujuan & TTD'
-                          : 'Konfirmasi Penolakan'}
+                        {decisionAction === 'setuju' ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+                        {isSubmitting
+                          ? 'Memproses...'
+                          : decisionAction === 'setuju'
+                            ? 'Konfirmasi Persetujuan'
+                            : 'Konfirmasi Penolakan'}
                       </button>
                     </div>
                   </form>
                 )}
-            </div>
+              </div>
 
-            {/* Modal Footer */}
-            <div
-              style={{
-                padding: 'var(--sp-3) var(--sp-6)',
-                borderTop: '1px solid #e2e8f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: '#f8fafc',
-              }}
-            >
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                SiKEPo — Sistem Informasi Kelayakan Peralatan
-              </span>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSelectedLoan(null)}>
-                Tutup
-              </button>
+              {/* Modal Footer */}
+              <div
+                style={{
+                  padding: 'var(--sp-3) var(--sp-6)',
+                  borderTop: '1px solid #e2e8f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: '#f8fafc',
+                }}
+              >
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  SiKEPo — Sistem Informasi Kelayakan Peralatan
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSelectedLoan(null)}
+                  style={{ padding: '6px 16px', fontSize: '12px', fontWeight: 600 }}
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
-        </div>
         );
       })()}
 
@@ -4104,67 +4148,14 @@ export default function LoanApproval({ onNavigate }) {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {checkoutStep === 'pengelola' && (
-                  <>
-                    <button
-                      type="button"
-                      className="btn btn-warning btn-sm"
-                      style={{
-                        background: '#ea580c',
-                        borderColor: '#ea580c',
-                        color: '#ffffff',
-                        fontSize: '12px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 5,
-                        fontWeight: 600,
-                      }}
-                      onClick={() => checkoutPengelolaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                    >
-                      <ClipboardCheck size={14} /> Ke Form Checklist ↓
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      style={{
-                        fontSize: '12px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 5,
-                        fontWeight: 600,
-                      }}
-                      onClick={() => checkoutBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                    >
-                      Ke Catatan & Sahkan ↓
-                    </button>
-                  </>
-                )}
-                {checkoutStep === 'peminjam' && (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    style={{
-                      background: '#0284c7',
-                      borderColor: '#0284c7',
-                      fontSize: '12px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      fontWeight: 600,
-                    }}
-                    onClick={() => checkoutSigRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                  >
-                    Ke Kolom TTD ↓
-                  </button>
-                )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button
                   type="button"
                   className="btn btn-ghost btn-icon"
                   onClick={() => setSelectedLoan(null)}
                   aria-label="Tutup"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
@@ -4241,55 +4232,55 @@ export default function LoanApproval({ onNavigate }) {
 
             {/* Modal Body */}
             <form onSubmit={handleSubmitCheckout} style={{ padding: 'var(--sp-6)' }}>
-                  {/* Petunjuk Pengemasan Sesuai Butir 8.4 IK */}
-                  <div
-                    style={{
-                      padding: '10px 14px',
-                      background: '#f8fafc',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '8px',
-                      marginBottom: 'var(--sp-4)',
-                      fontSize: '12px',
-                      color: '#334155',
-                    }}
-                  >
-                    <strong style={{ color: '#0f172a' }}>Ketentuan Pengemasan & Kelengkapan (Butir 8.4 IK):</strong>
-                    <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
-                      <li>Gunakan wadah/koper bawaan pabrikan atau wadah berperedam guncangan.</li>
-                      <li>Pasang tutup pelindung pada konektor/port (termasuk antarmuka optik).</li>
-                      <li>Kabel dan aksesori diikat rapi dan tidak menekan bagian peralatan yang peka.</li>
-                      <li>Beri penanda "mudah pecah" jika peralatan sensitif getaran.</li>
-                    </ul>
-                  </div>
+              {/* Petunjuk Pengemasan Sesuai Butir 8.4 IK */}
+              <div
+                style={{
+                  padding: '10px 14px',
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  marginBottom: 'var(--sp-4)',
+                  fontSize: '12px',
+                  color: '#334155',
+                }}
+              >
+                <strong style={{ color: '#0f172a' }}>Ketentuan Pengemasan & Kelengkapan (Butir 8.4 IK):</strong>
+                <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
+                  <li>Gunakan wadah/koper bawaan pabrikan atau wadah berperedam guncangan.</li>
+                  <li>Pasang tutup pelindung pada konektor/port (termasuk antarmuka optik).</li>
+                  <li>Kabel dan aksesori diikat rapi dan tidak menekan bagian peralatan yang peka.</li>
+                  <li>Beri penanda "mudah pecah" jika peralatan sensitif getaran.</li>
+                </ul>
+              </div>
 
-                  {/* Rincian Singkat Alat */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
-                      gap: 12,
-                      padding: '10px 14px',
-                      background: '#f1f5f9',
-                      borderRadius: '8px',
-                      marginBottom: 'var(--sp-4)',
-                      fontSize: '12px',
-                    }}
-                  >
-                    <div>
-                      <span style={{ color: '#64748b', display: 'block', fontSize: '11px' }}>Peralatan:</span>
-                      <strong>{selectedLoan.peralatan.nama_peralatan}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#64748b', display: 'block', fontSize: '11px' }}>No. Aset / Seri:</span>
-                      <strong>{selectedLoan.peralatan.nomor_aset}</strong> ({selectedLoan.peralatan.nomor_seri})
-                    </div>
-                    <div>
-                      <span style={{ color: '#64748b', display: 'block', fontSize: '11px' }}>Peminjam / Penerima:</span>
-                      <strong>{selectedLoan.peminjam.nama}</strong> ({selectedLoan.peminjam.lab_asal})
-                    </div>
-                  </div>
+              {/* Rincian Singkat Alat */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 12,
+                  padding: '10px 14px',
+                  background: '#f1f5f9',
+                  borderRadius: '8px',
+                  marginBottom: 'var(--sp-4)',
+                  fontSize: '12px',
+                }}
+              >
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '11px' }}>Peralatan:</span>
+                  <strong>{selectedLoan.peralatan.nama_peralatan}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '11px' }}>No. Aset / Seri:</span>
+                  <strong>{selectedLoan.peralatan.nomor_aset}</strong> ({selectedLoan.peralatan.nomor_seri})
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '11px' }}>Peminjam / Penerima:</span>
+                  <strong>{selectedLoan.peminjam.nama}</strong> ({selectedLoan.peminjam.lab_asal})
+                </div>
+              </div>
 
-                  {/* TABEL BAGIAN B TLKM13/F/010 (7 BUTIR PEMERIKSAAN RESMI) */}
+              {/* TABEL BAGIAN B TLKM13/F/010 (7 BUTIR PEMERIKSAAN RESMI) */}
               <div ref={checkoutPengelolaRef} style={{ marginBottom: 'var(--sp-4)', scrollMarginTop: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                   <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -4302,16 +4293,6 @@ export default function LoanApproval({ onNavigate }) {
                         ? 'S = Sesuai | TS = Tidak Sesuai | N/A = Tidak Relevan (Khusus No. 6, 7)'
                         : 'Status Terverifikasi Pengelola'}
                     </div>
-                    {checkoutStep === 'pengelola' && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        style={{ fontSize: '11px', color: '#ea580c', fontWeight: 600, padding: '2px 6px' }}
-                        onClick={() => checkoutBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                      >
-                        Langsung ke Catatan & Sahkan ↓
-                      </button>
-                    )}
                   </div>
                 </div>
 
@@ -4627,7 +4608,7 @@ export default function LoanApproval({ onNavigate }) {
                       </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <button
                       type="button"
                       className="btn btn-sm btn-primary"
@@ -4636,8 +4617,9 @@ export default function LoanApproval({ onNavigate }) {
                         alignItems: 'center',
                         gap: 6,
                         fontWeight: 600,
-                        fontSize: '11.5px',
+                        fontSize: '12px',
                         padding: '6px 12px',
+                        height: '32px',
                         boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                       }}
                       onClick={() => exportLoanF006Pdf(selectedLoan, { checkoutSigPengelola, checkoutSigPeminjam })}
@@ -4651,8 +4633,10 @@ export default function LoanApproval({ onNavigate }) {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 5,
-                        fontSize: '11.5px',
-                        padding: '6px 10px',
+                        fontWeight: 600,
+                        fontSize: '12px',
+                        padding: '6px 12px',
+                        height: '32px',
                       }}
                       title="Unduh format dokumen Word (.doc)"
                       onClick={() => exportLoanF006Word(selectedLoan, { checkoutSigPengelola, checkoutSigPeminjam })}
@@ -4695,92 +4679,92 @@ export default function LoanApproval({ onNavigate }) {
                   </div>
                 )}
 
-              {/* Area Tanda Tangan Digital */}
-              {checkoutStep === 'pengelola' ? (
-                countTS === 0 && (
-                  <div style={{ marginBottom: 'var(--sp-4)' }}>
-                    <DigitalSignaturePad
-                      value={checkoutSigPengelola}
-                      onChange={setCheckoutSigPengelola}
-                      label="Tanda Tangan Pengelola Peralatan (Opsional)"
-                      required={false}
-                      helperText="Opsional: Tanda tangan digital untuk mengesahkan inspeksi fisik Lampiran A"
-                    />
-                  </div>
-                )
-              ) : (
-                /* Langkah 4B (Peminjam): Tampilkan Status TTD Pengelola + Signature Pad Peminjam */
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: 'var(--sp-4)',
-                    marginBottom: 'var(--sp-4)',
-                  }}
-                >
-                  {/* Kolom 1: Status Pengesahan Pengelola */}
+                {/* Area Tanda Tangan Digital */}
+                {checkoutStep === 'pengelola' ? (
+                  countTS === 0 && (
+                    <div style={{ marginBottom: 'var(--sp-4)' }}>
+                      <DigitalSignaturePad
+                        value={checkoutSigPengelola}
+                        onChange={setCheckoutSigPengelola}
+                        label="Tanda Tangan Pengelola Peralatan (Opsional)"
+                        required={false}
+                        helperText="Opsional: Tanda tangan digital untuk mengesahkan inspeksi fisik Lampiran A"
+                      />
+                    </div>
+                  )
+                ) : (
+                  /* Langkah 4B (Peminjam): Tampilkan Status TTD Pengelola + Signature Pad Peminjam */
                   <div
                     style={{
-                      padding: '12px',
-                      background: '#f0fdf4',
-                      border: '1.5px solid #86efac',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 'var(--sp-4)',
+                      marginBottom: 'var(--sp-4)',
                     }}
                   >
-                    <div>
-                      <div style={{ fontSize: '11px', fontWeight: 600, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        1. TTD Pengelola Peralatan (Disahkan)
-                      </div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
-                        {selectedLoan.serah_terima_keluar?.pic_petugas || selectedLoan.approval_pengelola?.nama || 'Pengelola Lab'}
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#475569', marginTop: 2 }}>
-                        Status: Telah memeriksa & menandatangani Lampiran A
-                      </div>
-                    </div>
-
+                    {/* Kolom 1: Status Pengesahan Pengelola */}
                     <div
                       style={{
-                        marginTop: 10,
-                        minHeight: 65,
+                        padding: '12px',
+                        background: '#f0fdf4',
+                        border: '1.5px solid #86efac',
+                        borderRadius: '8px',
                         display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: '#ffffff',
-                        borderRadius: 6,
-                        border: '1px dashed #86efac',
-                        padding: 6,
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
                       }}
                     >
-                      {checkoutSigPengelola || selectedLoan.serah_terima_keluar?.ttd_pengelola ? (
-                        <img
-                          src={checkoutSigPengelola || selectedLoan.serah_terima_keluar?.ttd_pengelola}
-                          alt="TTD Pengelola"
-                          style={{ maxHeight: 55, maxWidth: '100%', objectFit: 'contain' }}
-                        />
-                      ) : (
-                        <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          <CheckCircle2 size={14} /> Terverifikasi Secara Digital
-                        </span>
-                      )}
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          1. TTD Pengelola Peralatan (Disahkan)
+                        </div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
+                          {selectedLoan.serah_terima_keluar?.pic_petugas || selectedLoan.approval_pengelola?.nama || 'Pengelola Lab'}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#475569', marginTop: 2 }}>
+                          Status: Telah memeriksa & menandatangani Lampiran A
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: 10,
+                          minHeight: 65,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#ffffff',
+                          borderRadius: 6,
+                          border: '1px dashed #86efac',
+                          padding: 6,
+                        }}
+                      >
+                        {checkoutSigPengelola || selectedLoan.serah_terima_keluar?.ttd_pengelola ? (
+                          <img
+                            src={checkoutSigPengelola || selectedLoan.serah_terima_keluar?.ttd_pengelola}
+                            alt="TTD Pengelola"
+                            style={{ maxHeight: 55, maxWidth: '100%', objectFit: 'contain' }}
+                          />
+                        ) : (
+                          <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <CheckCircle2 size={14} /> Terverifikasi Secara Digital
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Kolom 2: Tanda Tangan Peminjam (Penerima) */}
+                    <div ref={checkoutSigRef}>
+                      <DigitalSignaturePad
+                        value={checkoutSigPeminjam}
+                        onChange={setCheckoutSigPeminjam}
+                        label="2. Tanda Tangan Peminjam (Penerima Peralatan - Wajib)"
+                        required={true}
+                        helperText="Wajib: Tanda tangan digital untuk mengonfirmasi penerimaan fisik peralatan"
+                      />
                     </div>
                   </div>
-
-                  {/* Kolom 2: Tanda Tangan Peminjam (Penerima) */}
-                  <div ref={checkoutSigRef}>
-                    <DigitalSignaturePad
-                      value={checkoutSigPeminjam}
-                      onChange={setCheckoutSigPeminjam}
-                      label="2. Tanda Tangan Peminjam (Penerima Peralatan - Wajib)"
-                      required={true}
-                      helperText="Wajib: Tanda tangan digital untuk mengonfirmasi penerimaan fisik peralatan"
-                    />
-                  </div>
-                </div>
-              )}
+                )}
               </div>
 
               {/* Tombol Eksekusi Serah Terima */}
@@ -4788,12 +4772,17 @@ export default function LoanApproval({ onNavigate }) {
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
-                  style={{ fontSize: '11px', color: '#64748b', marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  style={{ fontSize: '12px', color: '#64748b', marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                   onClick={() => checkoutModalRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
                 >
                   ↑ Kembali ke Atas
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={() => setSelectedLoan(null)}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSelectedLoan(null)}
+                  style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 600 }}
+                >
                   Batal
                 </button>
 
@@ -4807,9 +4796,11 @@ export default function LoanApproval({ onNavigate }) {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         color: '#dc2626',
                         borderColor: '#fca5a5',
+                        padding: '8px 20px',
+                        fontSize: '13px',
                       }}
                     >
                       <AlertOctagon size={16} />
@@ -4824,10 +4815,12 @@ export default function LoanApproval({ onNavigate }) {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         background: '#ea580c',
                         borderColor: '#c2410c',
                         color: '#ffffff',
+                        padding: '8px 20px',
+                        fontSize: '13px',
                       }}
                     >
                       <ArrowRight size={16} />
@@ -4843,10 +4836,12 @@ export default function LoanApproval({ onNavigate }) {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 6,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       background: '#16a34a',
                       borderColor: '#15803d',
                       color: '#ffffff',
+                      padding: '8px 20px',
+                      fontSize: '13px',
                     }}
                   >
                     <CheckCircle2 size={16} />
@@ -4918,12 +4913,11 @@ export default function LoanApproval({ onNavigate }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
+                  className="btn btn-ghost btn-icon"
                   onClick={() => setSelectedLoan(null)}
-                  style={{ padding: '4px 8px', borderRadius: '50%' }}
                   aria-label="Tutup"
                 >
-                  <X size={16} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
@@ -4951,526 +4945,528 @@ export default function LoanApproval({ onNavigate }) {
                   <li>
                     Bandingkan kondisi saat kembali dengan kondisi saat keluar pada <strong>7 Butir Pemeriksaan</strong> (Bagian B).
                   </li>
-                    <li>
-                      Opsi <strong>N/A (Tidak Relevan)</strong> hanya diperbolehkan pada pemeriksaan fungsi khusus (butir 6 & 7).
-                    </li>
-                    <li>
-                      Jika ada butir <strong>TS (Tidak Sesuai)</strong> atau terdapat <strong>Kejadian Abnormal (Bagian D)</strong>, sistem secara otomatis menandai peralatan sebagai <strong>DO NOT USE</strong>.
-                    </li>
-                    <li>
-                      Jika seluruh butir <strong>S (Sesuai) / N/A</strong> tanpa insiden, status peralatan dialihkan ke <strong>KARANTINA (IK/003)</strong> untuk verifikasi ulang sebelum siap digunakan kembali.
-                    </li>
-                  </ul>
-                </div>
+                  <li>
+                    Opsi <strong>N/A (Tidak Relevan)</strong> hanya diperbolehkan pada pemeriksaan fungsi khusus (butir 6 & 7).
+                  </li>
+                  <li>
+                    Jika ada butir <strong>TS (Tidak Sesuai)</strong> atau terdapat <strong>Kejadian Abnormal (Bagian D)</strong>, sistem secara otomatis menandai peralatan sebagai <strong>DO NOT USE</strong>.
+                  </li>
+                  <li>
+                    Jika seluruh butir <strong>S (Sesuai) / N/A</strong> tanpa insiden, status peralatan dialihkan ke <strong>KARANTINA (IK/003)</strong> untuk verifikasi ulang sebelum siap digunakan kembali.
+                  </li>
+                </ul>
+              </div>
 
-                {/* Bagian A: Data Identitas Peminjaman */}
+              {/* Bagian A: Data Identitas Peminjaman */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 8,
+                  padding: '12px 14px',
+                  marginBottom: 'var(--sp-4)',
+                }}
+              >
+                <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: 8 }}>
+                  Bagian A: Identitas Peralatan & Peminjaman
+                </div>
                 <div
                   style={{
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 8,
-                    padding: '12px 14px',
-                    marginBottom: 'var(--sp-4)',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: 12,
+                    fontSize: '12px',
                   }}
                 >
-                  <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: 8 }}>
-                    Bagian A: Identitas Peralatan & Peminjaman
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Kode Peminjaman</span>
+                    <strong style={{ color: '#0f172a' }}>{selectedLoan.kode || selectedLoan.id}</strong>
                   </div>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                      gap: 12,
-                      fontSize: '12px',
-                    }}
-                  >
-                    <div>
-                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Kode Peminjaman</span>
-                      <strong style={{ color: '#0f172a' }}>{selectedLoan.kode || selectedLoan.id}</strong>
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Peminjam</span>
+                    <strong style={{ color: '#0f172a' }}>{selectedLoan.peminjam?.name || selectedLoan.peminjam_nama || '-'}</strong>
+                    <div style={{ fontSize: '11px', color: '#64748b' }}>{selectedLoan.tujuan_divisi || 'SSA'}</div>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Peralatan Laboratorium</span>
+                    <strong style={{ color: '#0f172a' }}>{selectedLoan.peralatan?.nama_alat || selectedLoan.nama_alat}</strong>
+                    <div style={{ fontSize: '11px', color: '#64748b' }}>
+                      SN: {selectedLoan.peralatan?.nomor_seri || selectedLoan.nomor_seri || '-'} | Aset: {selectedLoan.peralatan?.nomor_aset || selectedLoan.nomor_aset || '-'}
                     </div>
-                    <div>
-                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Peminjam</span>
-                      <strong style={{ color: '#0f172a' }}>{selectedLoan.peminjam?.name || selectedLoan.peminjam_nama || '-'}</strong>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>{selectedLoan.tujuan_divisi || 'SSA'}</div>
-                    </div>
-                    <div>
-                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Peralatan Laboratorium</span>
-                      <strong style={{ color: '#0f172a' }}>{selectedLoan.peralatan?.nama_alat || selectedLoan.nama_alat}</strong>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>
-                        SN: {selectedLoan.peralatan?.nomor_seri || selectedLoan.nomor_seri || '-'} | Aset: {selectedLoan.peralatan?.nomor_aset || selectedLoan.nomor_aset || '-'}
-                      </div>
-                    </div>
-                    <div>
-                      <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Rencana vs Realisasi Kembali</span>
-                      <strong style={{ color: '#0f172a' }}>{selectedLoan.tgl_rencana_kembali || '-'}</strong>
-                      <div style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>Dikembalikan: Hari Ini</div>
-                    </div>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Rencana vs Realisasi Kembali</span>
+                    <strong style={{ color: '#0f172a' }}>{selectedLoan.tgl_rencana_kembali || '-'}</strong>
+                    <div style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>Dikembalikan: Hari Ini</div>
                   </div>
                 </div>
+              </div>
 
-                {/* Bagian B: Pemeriksaan Fisik & Fungsi (Tabel Komparasi Keluar vs Kembali) */}
-                <div ref={returnFormRef} style={{ marginBottom: 'var(--sp-4)', scrollMarginTop: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0f172a' }}>
-                      Bagian B: Pemeriksaan Kondisi Peralatan (7 Butir Pemeriksaan)
-                    </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <span style={{ fontSize: '11px', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
-                        {countReturnS} Sesuai (S)
+              {/* Bagian B: Pemeriksaan Fisik & Fungsi (Tabel Komparasi Keluar vs Kembali) */}
+              <div ref={returnFormRef} style={{ marginBottom: 'var(--sp-4)', scrollMarginTop: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0f172a' }}>
+                    Bagian B: Pemeriksaan Kondisi Peralatan (7 Butir Pemeriksaan)
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span style={{ fontSize: '11px', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
+                      {countReturnS} Sesuai (S)
+                    </span>
+                    {countReturnTS > 0 && (
+                      <span style={{ fontSize: '11px', background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
+                        {countReturnTS} Tidak Sesuai (TS)
                       </span>
-                      {countReturnTS > 0 && (
-                        <span style={{ fontSize: '11px', background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
-                          {countReturnTS} Tidak Sesuai (TS)
-                        </span>
-                      )}
-                      {countReturnNA > 0 && (
-                        <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#075985', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
-                          {countReturnNA} N/A
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={{ overflowX: 'auto', border: '1px solid #cbd5e1', borderRadius: 8 }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
-                      <thead>
-                        <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1', color: '#334155' }}>
-                          <th style={{ padding: '8px 6px', textAlign: 'center', width: '36px', borderRight: '1px solid #cbd5e1' }}>No</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'left', minWidth: '220px', borderRight: '1px solid #cbd5e1' }}>Butir Pemeriksaan</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'left', width: '170px', borderRight: '1px solid #cbd5e1', background: '#fff7ed' }}>
-                            <span style={{ color: '#c2410c', fontWeight: 800 }}>Kondisi Saat Keluar</span>
-                          </th>
-                          <th style={{ padding: '8px 8px', textAlign: 'center', width: '145px', borderRight: '1px solid #cbd5e1', background: '#f0fdf4' }}>
-                            <span style={{ color: '#166534', fontWeight: 800 }}>Kondisi Kembali</span>
-                          </th>
-                          <th style={{ padding: '8px 10px', textAlign: 'left', minWidth: '180px' }}>Keterangan / Temuan Saat Kembali</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {LAMPIRAN_A_BUTIR.map((butir, idx) => {
-                          const item = returnChecks[idx] || { status: 'S', keterangan: '' };
-                          const canNA = BOLEH_NA_INDEXES.includes(idx);
-                          const isS = item.status === 'S';
-                          const isTS = item.status === 'TS';
-                          const isNA = item.status === 'N/A';
-
-                          // Ambil data serah terima keluar sebagai pembanding
-                          const initialKeluar = selectedLoan.serah_terima_keluar || selectedLoan.serah_terima;
-                          const initialItem = initialKeluar?.lampiran_a?.[idx];
-                          const initialStatus = initialItem?.status || (canNA ? 'N/A' : 'S');
-                          const initialKet = initialItem?.keterangan || '';
-
-                          return (
-                            <tr
-                              key={idx}
-                              style={{
-                                borderBottom: '1px solid #e2e8f0',
-                                background: isTS ? '#fff1f2' : idx % 2 === 0 ? '#ffffff' : '#f8fafc',
-                              }}
-                            >
-                              <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: '#64748b', borderRight: '1px solid #cbd5e1' }}>
-                                {idx + 1}
-                              </td>
-                              <td style={{ padding: '7px 10px', color: '#0f172a', borderRight: '1px solid #cbd5e1', lineHeight: 1.35 }}>
-                                {butir}
-                                {idx === 3 && (selectedLoan.kebutuhan_kelengkapan || selectedLoan.kelengkapan) && (
-                                  <div style={{ marginTop: 3, fontSize: '10px', color: '#0369a1', background: '#e0f2fe', padding: '2px 6px', borderRadius: 4, display: 'inline-block' }}>
-                                    Daftar: <strong>{selectedLoan.kebutuhan_kelengkapan || selectedLoan.kelengkapan}</strong>
-                                  </div>
-                                )}
-                                {canNA && (
-                                  <span style={{ marginLeft: 6, fontSize: '10px', color: '#0284c7', background: '#e0f2fe', padding: '1px 5px', borderRadius: 3, border: '1px solid #bae6fd', fontWeight: 600 }}>
-                                    Bila perlu (Boleh N/A)
-                                  </span>
-                                )}
-                              </td>
-                              {/* Kolom Pembanding: Kondisi Saat Keluar */}
-                              <td style={{ padding: '7px 10px', borderRight: '1px solid #cbd5e1', background: '#fffbeb' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                                  {initialStatus === 'S' && (
-                                    <span style={{ fontSize: '10.5px', background: '#dcfce7', color: '#166534', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
-                                      S (Sesuai)
-                                    </span>
-                                  )}
-                                  {initialStatus === 'TS' && (
-                                    <span style={{ fontSize: '10.5px', background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
-                                      TS (Tidak Sesuai)
-                                    </span>
-                                  )}
-                                  {(initialStatus === 'N/A' || initialStatus === 'TB') && (
-                                    <span style={{ fontSize: '10.5px', background: '#e0f2fe', color: '#075985', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
-                                      N/A
-                                    </span>
-                                  )}
-                                </div>
-                                {initialKet && (
-                                  <div style={{ fontSize: '10.5px', color: '#78350f', fontStyle: 'italic', wordBreak: 'break-word' }}>
-                                    &ldquo;{initialKet}&rdquo;
-                                  </div>
-                                )}
-                              </td>
-                              {/* Kolom Input: Kondisi Saat Kembali */}
-                              <td style={{ padding: '7px 8px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>
-                                <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
-                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontWeight: isS ? 700 : 400, color: isS ? '#16a34a' : '#64748b', fontSize: '11px' }}>
-                                    <input
-                                      type="radio"
-                                      name={`return_check_${idx}`}
-                                      value="S"
-                                      checked={isS}
-                                      onChange={() => {
-                                        const updated = [...returnChecks];
-                                        updated[idx] = { ...updated[idx], status: 'S' };
-                                        setReturnChecks(updated);
-                                      }}
-                                      style={{ accentColor: '#16a34a' }}
-                                    />
-                                    S
-                                  </label>
-                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontWeight: isTS ? 700 : 400, color: isTS ? '#dc2626' : '#64748b', fontSize: '11px' }}>
-                                    <input
-                                      type="radio"
-                                      name={`return_check_${idx}`}
-                                      value="TS"
-                                      checked={isTS}
-                                      onChange={() => {
-                                        const updated = [...returnChecks];
-                                        updated[idx] = { ...updated[idx], status: 'TS' };
-                                        setReturnChecks(updated);
-                                      }}
-                                      style={{ accentColor: '#dc2626' }}
-                                    />
-                                    TS
-                                  </label>
-                                  {canNA && (
-                                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontWeight: isNA ? 700 : 400, color: isNA ? '#2563eb' : '#64748b', fontSize: '11px' }}>
-                                      <input
-                                        type="radio"
-                                        name={`return_check_${idx}`}
-                                        value="N/A"
-                                        checked={isNA}
-                                        onChange={() => {
-                                          const updated = [...returnChecks];
-                                          updated[idx] = { ...updated[idx], status: 'N/A' };
-                                          setReturnChecks(updated);
-                                        }}
-                                        style={{ accentColor: '#2563eb' }}
-                                      />
-                                      N/A
-                                    </label>
-                                  )}
-                                </div>
-                                {isTS && (
-                                  <div style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: 700, marginTop: 2 }}>
-                                    ⚠️ Alat Rusak / TS
-                                  </div>
-                                )}
-                              </td>
-                              {/* Kolom Keterangan */}
-                              <td style={{ padding: '7px 10px' }}>
-                                <input
-                                  type="text"
-                                  value={item.keterangan || ''}
-                                  onChange={(e) => {
-                                    const updated = [...returnChecks];
-                                    updated[idx] = { ...updated[idx], keterangan: e.target.value };
-                                    setReturnChecks(updated);
-                                  }}
-                                  placeholder={
-                                    isTS
-                                      ? 'Wajib jelaskan ketidaksesuaian/kerusakan...'
-                                      : canNA && isS
-                                        ? 'Wajib tuliskan jenis pengujian fungsi khusus...'
-                                        : isNA
-                                          ? 'Catatan tidak relevan (opsional)...'
-                                          : 'Catatan kondisi kembali (opsional)...'
-                                  }
-                                  required={isTS || (canNA && isS)}
-                                  style={{
-                                    width: '100%',
-                                    border: isTS ? '1.5px solid #f87171' : canNA && isS && !item.keterangan ? '1.5px solid #fbbf24' : isNA ? '1px solid #93c5fd' : '1px solid #cbd5e1',
-                                    borderRadius: 4,
-                                    padding: '4px 8px',
-                                    fontSize: '11px',
-                                    background: isTS ? '#fff1f2' : canNA && isS && !item.keterangan ? '#fffbeb' : isNA ? '#f0f9ff' : '#ffffff',
-                                    outline: 'none',
-                                  }}
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* ============================================================ */}
-                {/* BAGIAN D: KEJADIAN SELAMA PEMINJAMAN & TINDAK LANJUT         */}
-                {/* ============================================================ */}
-                <div
-                  style={{
-                    background: adaKejadian ? '#fff1f2' : '#f8fafc',
-                    border: adaKejadian ? '1.5px solid #fecdd3' : '1px solid #e2e8f0',
-                    borderRadius: 8,
-                    padding: '12px 14px',
-                    marginBottom: 'var(--sp-4)',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: adaKejadian ? '#9f1239' : '#0f172a' }}>
-                      Bagian D: Kejadian Selama Peminjaman & Tindak Lanjut
-                    </div>
-                    {adaKejadian && (
-                      <span style={{ fontSize: '10.5px', background: '#dc2626', color: '#ffffff', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
-                        ⚠️ Status Peralatan Dialihkan: DO NOT USE
+                    )}
+                    {countReturnNA > 0 && (
+                      <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#075985', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
+                        {countReturnNA} N/A
                       </span>
                     )}
                   </div>
+                </div>
 
-                  <div style={{ display: 'flex', gap: 16, marginBottom: adaKejadian ? 10 : 0 }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '12px', fontWeight: !adaKejadian ? 700 : 400, color: !adaKejadian ? '#166534' : '#475569' }}>
-                      <input
-                        type="radio"
-                        name="ada_kejadian_radio"
-                        checked={!adaKejadian}
-                        onChange={() => {
-                          setAdaKejadian(false);
-                          setUraianKejadian('');
-                        }}
-                        style={{ accentColor: '#16a34a' }}
-                      />
-                      Tidak Ada Kejadian (Penggunaan Normal)
-                    </label>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '12px', fontWeight: adaKejadian ? 700 : 400, color: adaKejadian ? '#b91c1c' : '#475569' }}>
-                      <input
-                        type="radio"
-                        name="ada_kejadian_radio"
-                        checked={adaKejadian}
-                        onChange={() => setAdaKejadian(true)}
-                        style={{ accentColor: '#dc2626' }}
-                      />
-                      Ada Kejadian / Kerusakan / Malfungsi Selama Peminjaman
-                    </label>
+                <div style={{ overflowX: 'auto', border: '1px solid #cbd5e1', borderRadius: 8 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1', color: '#334155' }}>
+                        <th style={{ padding: '8px 6px', textAlign: 'center', width: '36px', borderRight: '1px solid #cbd5e1' }}>No</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', minWidth: '220px', borderRight: '1px solid #cbd5e1' }}>Butir Pemeriksaan</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', width: '170px', borderRight: '1px solid #cbd5e1', background: '#fff7ed' }}>
+                          <span style={{ color: '#c2410c', fontWeight: 800 }}>Kondisi Saat Keluar</span>
+                        </th>
+                        <th style={{ padding: '8px 8px', textAlign: 'center', width: '145px', borderRight: '1px solid #cbd5e1', background: '#f0fdf4' }}>
+                          <span style={{ color: '#166534', fontWeight: 800 }}>Kondisi Kembali</span>
+                        </th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', minWidth: '180px' }}>Keterangan / Temuan Saat Kembali</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {LAMPIRAN_A_BUTIR.map((butir, idx) => {
+                        const item = returnChecks[idx] || { status: 'S', keterangan: '' };
+                        const canNA = BOLEH_NA_INDEXES.includes(idx);
+                        const isS = item.status === 'S';
+                        const isTS = item.status === 'TS';
+                        const isNA = item.status === 'N/A';
+
+                        // Ambil data serah terima keluar sebagai pembanding
+                        const initialKeluar = selectedLoan.serah_terima_keluar || selectedLoan.serah_terima;
+                        const initialItem = initialKeluar?.lampiran_a?.[idx];
+                        const initialStatus = initialItem?.status || (canNA ? 'N/A' : 'S');
+                        const initialKet = initialItem?.keterangan || '';
+
+                        return (
+                          <tr
+                            key={idx}
+                            style={{
+                              borderBottom: '1px solid #e2e8f0',
+                              background: isTS ? '#fff1f2' : idx % 2 === 0 ? '#ffffff' : '#f8fafc',
+                            }}
+                          >
+                            <td style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 700, color: '#64748b', borderRight: '1px solid #cbd5e1' }}>
+                              {idx + 1}
+                            </td>
+                            <td style={{ padding: '7px 10px', color: '#0f172a', borderRight: '1px solid #cbd5e1', lineHeight: 1.35 }}>
+                              {butir}
+                              {idx === 3 && (selectedLoan.kebutuhan_kelengkapan || selectedLoan.kelengkapan) && (
+                                <div style={{ marginTop: 3, fontSize: '10px', color: '#0369a1', background: '#e0f2fe', padding: '2px 6px', borderRadius: 4, display: 'inline-block' }}>
+                                  Daftar: <strong>{selectedLoan.kebutuhan_kelengkapan || selectedLoan.kelengkapan}</strong>
+                                </div>
+                              )}
+                              {canNA && (
+                                <span style={{ marginLeft: 6, fontSize: '10px', color: '#0284c7', background: '#e0f2fe', padding: '1px 5px', borderRadius: 3, border: '1px solid #bae6fd', fontWeight: 600 }}>
+                                  Bila perlu (Boleh N/A)
+                                </span>
+                              )}
+                            </td>
+                            {/* Kolom Pembanding: Kondisi Saat Keluar */}
+                            <td style={{ padding: '7px 10px', borderRight: '1px solid #cbd5e1', background: '#fffbeb' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                                {initialStatus === 'S' && (
+                                  <span style={{ fontSize: '10.5px', background: '#dcfce7', color: '#166534', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                                    S (Sesuai)
+                                  </span>
+                                )}
+                                {initialStatus === 'TS' && (
+                                  <span style={{ fontSize: '10.5px', background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                                    TS (Tidak Sesuai)
+                                  </span>
+                                )}
+                                {(initialStatus === 'N/A' || initialStatus === 'TB') && (
+                                  <span style={{ fontSize: '10.5px', background: '#e0f2fe', color: '#075985', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                                    N/A
+                                  </span>
+                                )}
+                              </div>
+                              {initialKet && (
+                                <div style={{ fontSize: '10.5px', color: '#78350f', fontStyle: 'italic', wordBreak: 'break-word' }}>
+                                  &ldquo;{initialKet}&rdquo;
+                                </div>
+                              )}
+                            </td>
+                            {/* Kolom Input: Kondisi Saat Kembali */}
+                            <td style={{ padding: '7px 8px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>
+                              <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontWeight: isS ? 700 : 400, color: isS ? '#16a34a' : '#64748b', fontSize: '11px' }}>
+                                  <input
+                                    type="radio"
+                                    name={`return_check_${idx}`}
+                                    value="S"
+                                    checked={isS}
+                                    onChange={() => {
+                                      const updated = [...returnChecks];
+                                      updated[idx] = { ...updated[idx], status: 'S' };
+                                      setReturnChecks(updated);
+                                    }}
+                                    style={{ accentColor: '#16a34a' }}
+                                  />
+                                  S
+                                </label>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontWeight: isTS ? 700 : 400, color: isTS ? '#dc2626' : '#64748b', fontSize: '11px' }}>
+                                  <input
+                                    type="radio"
+                                    name={`return_check_${idx}`}
+                                    value="TS"
+                                    checked={isTS}
+                                    onChange={() => {
+                                      const updated = [...returnChecks];
+                                      updated[idx] = { ...updated[idx], status: 'TS' };
+                                      setReturnChecks(updated);
+                                    }}
+                                    style={{ accentColor: '#dc2626' }}
+                                  />
+                                  TS
+                                </label>
+                                {canNA && (
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontWeight: isNA ? 700 : 400, color: isNA ? '#2563eb' : '#64748b', fontSize: '11px' }}>
+                                    <input
+                                      type="radio"
+                                      name={`return_check_${idx}`}
+                                      value="N/A"
+                                      checked={isNA}
+                                      onChange={() => {
+                                        const updated = [...returnChecks];
+                                        updated[idx] = { ...updated[idx], status: 'N/A' };
+                                        setReturnChecks(updated);
+                                      }}
+                                      style={{ accentColor: '#2563eb' }}
+                                    />
+                                    N/A
+                                  </label>
+                                )}
+                              </div>
+                              {isTS && (
+                                <div style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: 700, marginTop: 2 }}>
+                                  ⚠️ Alat Rusak / TS
+                                </div>
+                              )}
+                            </td>
+                            {/* Kolom Keterangan */}
+                            <td style={{ padding: '7px 10px' }}>
+                              <input
+                                type="text"
+                                value={item.keterangan || ''}
+                                onChange={(e) => {
+                                  const updated = [...returnChecks];
+                                  updated[idx] = { ...updated[idx], keterangan: e.target.value };
+                                  setReturnChecks(updated);
+                                }}
+                                placeholder={
+                                  isTS
+                                    ? 'Wajib jelaskan ketidaksesuaian/kerusakan...'
+                                    : canNA && isS
+                                      ? 'Wajib tuliskan jenis pengujian fungsi khusus...'
+                                      : isNA
+                                        ? 'Catatan tidak relevan (opsional)...'
+                                        : 'Catatan kondisi kembali (opsional)...'
+                                }
+                                required={isTS || (canNA && isS)}
+                                style={{
+                                  width: '100%',
+                                  border: isTS ? '1.5px solid #f87171' : canNA && isS && !item.keterangan ? '1.5px solid #fbbf24' : isNA ? '1px solid #93c5fd' : '1px solid #cbd5e1',
+                                  borderRadius: 4,
+                                  padding: '4px 8px',
+                                  fontSize: '11px',
+                                  background: isTS ? '#fff1f2' : canNA && isS && !item.keterangan ? '#fffbeb' : isNA ? '#f0f9ff' : '#ffffff',
+                                  outline: 'none',
+                                }}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ============================================================ */}
+              {/* BAGIAN D: KEJADIAN SELAMA PEMINJAMAN & TINDAK LANJUT         */}
+              {/* ============================================================ */}
+              <div
+                style={{
+                  background: adaKejadian ? '#fff1f2' : '#f8fafc',
+                  border: adaKejadian ? '1.5px solid #fecdd3' : '1px solid #e2e8f0',
+                  borderRadius: 8,
+                  padding: '12px 14px',
+                  marginBottom: 'var(--sp-4)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: adaKejadian ? '#9f1239' : '#0f172a' }}>
+                    Bagian D: Kejadian Selama Peminjaman & Tindak Lanjut
                   </div>
-
                   {adaKejadian && (
-                    <div style={{ marginTop: 8 }}>
-                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: '#9f1239', marginBottom: 4 }}>
-                        Uraian Kejadian / Kronologi Kerusakan / Gejala Abnormal <span style={{ color: '#dc2626' }}>* (Wajib Diisi)</span>
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={uraianKejadian}
-                        onChange={(e) => setUraianKejadian(e.target.value)}
-                        placeholder="Jelaskan secara rinci waktu kejadian, gejala abnormal, kesalahan operasi, jatuh, konsleting, atau kendala fisik/fungsi yang terjadi selama peminjaman..."
-                        required={adaKejadian}
-                        style={{
-                          width: '100%',
-                          border: '1.5px solid #fda4af',
-                          borderRadius: 6,
-                          padding: '6px 10px',
-                          fontSize: '11.5px',
-                          background: '#ffffff',
-                          outline: 'none',
-                          color: '#0f172a',
-                          resize: 'vertical',
-                        }}
-                      />
-                      <div style={{ fontSize: '11px', color: '#be123c', marginTop: 4 }}>
-                        * Laporan kejadian ini akan tercatat dalam logbook alat dan Penanggung Jawab Laboratorium akan melakukan penanganan lebih lanjut.
-                      </div>
-                    </div>
+                    <span style={{ fontSize: '10.5px', background: '#dc2626', color: '#ffffff', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
+                      ⚠️ Status Peralatan Dialihkan: DO NOT USE
+                    </span>
                   )}
                 </div>
 
-                {/* Indikator Reaktif Tindak Lanjut Status Peralatan */}
-                {countReturnTS > 0 || adaKejadian ? (
-                  <div
-                    style={{
-                      background: '#fef2f2',
-                      border: '1.5px solid #f87171',
-                      borderRadius: 8,
-                      padding: '12px 14px',
-                      marginBottom: 'var(--sp-4)',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                    }}
-                  >
-                    <AlertOctagon size={24} style={{ color: '#dc2626', flexShrink: 0, marginTop: 2 }} />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#991b1b', marginBottom: 2 }}>
-                        STATUS AKHIR PERALATAN: DO NOT USE
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: '#7f1d1d', lineHeight: 1.4 }}>
-                        Ditemukan <strong>{countReturnTS} butir tidak sesuai (TS)</strong>
-                        {countReturnTS > 0 && adaKejadian ? ' dan ' : ''}
-                        {adaKejadian ? <strong>adanya laporan kejadian abnormal pada Bagian D</strong> : ''}.
-                        Setelah pengesahan, sistem akan otomatis menetapkan label status alat ke <strong>DO NOT USE</strong> dan membekukannya dari peredaran peminjaman untuk diinvestigasi.
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      background: '#f0fdf4',
-                      border: '1.5px solid #86efac',
-                      borderRadius: 8,
-                      padding: '12px 14px',
-                      marginBottom: 'var(--sp-4)',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                    }}
-                  >
-                    <CheckCircle2 size={24} style={{ color: '#16a34a', flexShrink: 0, marginTop: 2 }} />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#166534', marginBottom: 2 }}>
-                        STATUS AKHIR PERALATAN: KARANTINA (Perlu Verifikasi)
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: '#14532d', lineHeight: 1.4 }}>
-                        Pemeriksaan kondisi kembali memenuhi standar ({countReturnS} Sesuai{countReturnNA > 0 ? `, ${countReturnNA} N/A` : ''}) dan tidak ada insiden abnormal.
-                        Peralatan dialihkan ke status <strong>KARANTINA</strong> untuk diverifikasi ulang oleh Pengelola Lab sebelum dapat dipinjam kembali.
-                      </div>
+                <div style={{ display: 'flex', gap: 16, marginBottom: adaKejadian ? 10 : 0 }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '12px', fontWeight: !adaKejadian ? 700 : 400, color: !adaKejadian ? '#166534' : '#475569' }}>
+                    <input
+                      type="radio"
+                      name="ada_kejadian_radio"
+                      checked={!adaKejadian}
+                      onChange={() => {
+                        setAdaKejadian(false);
+                        setUraianKejadian('');
+                      }}
+                      style={{ accentColor: '#16a34a' }}
+                    />
+                    Tidak Ada Kejadian (Penggunaan Normal)
+                  </label>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '12px', fontWeight: adaKejadian ? 700 : 400, color: adaKejadian ? '#b91c1c' : '#475569' }}>
+                    <input
+                      type="radio"
+                      name="ada_kejadian_radio"
+                      checked={adaKejadian}
+                      onChange={() => setAdaKejadian(true)}
+                      style={{ accentColor: '#dc2626' }}
+                    />
+                    Ada Kejadian / Kerusakan / Malfungsi Selama Peminjaman
+                  </label>
+                </div>
+
+                {adaKejadian && (
+                  <div style={{ marginTop: 8 }}>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: '#9f1239', marginBottom: 4 }}>
+                      Uraian Kejadian / Kronologi Kerusakan / Gejala Abnormal <span style={{ color: '#dc2626' }}>* (Wajib Diisi)</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={uraianKejadian}
+                      onChange={(e) => setUraianKejadian(e.target.value)}
+                      placeholder="Jelaskan secara rinci waktu kejadian, gejala abnormal, kesalahan operasi, jatuh, konsleting, atau kendala fisik/fungsi yang terjadi selama peminjaman..."
+                      required={adaKejadian}
+                      style={{
+                        width: '100%',
+                        border: '1.5px solid #fda4af',
+                        borderRadius: 6,
+                        padding: '6px 10px',
+                        fontSize: '11.5px',
+                        background: '#ffffff',
+                        outline: 'none',
+                        color: '#0f172a',
+                        resize: 'vertical',
+                      }}
+                    />
+                    <div style={{ fontSize: '11px', color: '#be123c', marginTop: 4 }}>
+                      * Laporan kejadian ini akan tercatat dalam logbook alat dan Penanggung Jawab Laboratorium akan melakukan penanganan lebih lanjut.
                     </div>
                   </div>
                 )}
+              </div>
 
-                {/* Catatan Pengembalian Pengelola */}
-                <div style={{ marginBottom: 'var(--sp-4)' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: 4 }}>
-                    Catatan Tambahan Pengembalian Pengelola Lab (Opsional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={returnCatatan}
-                    onChange={(e) => setReturnCatatan(e.target.value)}
-                    placeholder="Catatan tambahan mengenai kelengkapan, kebersihan, atau informasi lain saat pengembalian..."
-                    style={{
-                      width: '100%',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: 6,
-                      padding: '6px 10px',
-                      fontSize: '11.5px',
-                      background: '#ffffff',
-                      outline: 'none',
-                      resize: 'vertical',
-                    }}
-                  />
-                </div>
-
-                {/* ============================================================ */}
-                {/* BAGIAN C: PENGESAHAN & TANDA TANGAN SERAH TERIMA KEMBALI      */}
-                {/* ============================================================ */}
+              {/* Indikator Reaktif Tindak Lanjut Status Peralatan */}
+              {countReturnTS > 0 || adaKejadian ? (
                 <div
-                  ref={returnBottomRef}
                   style={{
-                    background: '#f8fafc',
-                    border: '1px solid #cbd5e1',
+                    background: '#fef2f2',
+                    border: '1.5px solid #f87171',
                     borderRadius: 8,
-                    padding: '14px',
+                    padding: '12px 14px',
                     marginBottom: 'var(--sp-4)',
-                    scrollMarginTop: '16px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 12,
                   }}
                 >
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0f172a' }}>
-                      Bagian C: Pengesahan & Tanda Tangan Serah Terima Kembali
+                  <AlertOctagon size={24} style={{ color: '#dc2626', flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#991b1b', marginBottom: 2 }}>
+                      STATUS AKHIR PERALATAN: DO NOT USE
                     </div>
-                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>
-                      Kedua belah pihak (Peminjam dan Pengelola Lab) membubuhkan tanda tangan digital untuk serah terima kembali peralatan.
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                      gap: 16,
-                    }}
-                  >
-                    {/* Kolom 1: Tanda Tangan Peminjam (Yang Mengembalikan) */}
-                    <div>
-                      <DigitalSignaturePad
-                        label={`1. Tanda Tangan Peminjam (${selectedLoan.peminjam?.name || selectedLoan.peminjam_nama || 'Peminjam'}) *`}
-                        helperText="Personel yang menyerahkan kembali peralatan ke laboratorium"
-                        value={returnSigPeminjam}
-                        onChange={setReturnSigPeminjam}
-                        required={true}
-                      />
-                    </div>
-
-                    {/* Kolom 2: Tanda Tangan Pengelola Lab (Penerima Kembali) */}
-                    <div>
-                      <DigitalSignaturePad
-                        label={`2. Tanda Tangan Pengelola Lab (${selectedLoan.pengelola?.name || selectedLoan.pengelola_nama || 'Pengelola Lab'}) *`}
-                        helperText="Petugas yang memeriksa & menerima peralatan kembali"
-                        value={returnSigPengelola}
-                        onChange={setReturnSigPengelola}
-                        required={true}
-                      />
+                    <div style={{ fontSize: '11.5px', color: '#7f1d1d', lineHeight: 1.4 }}>
+                      Ditemukan <strong>{countReturnTS} butir tidak sesuai (TS)</strong>
+                      {countReturnTS > 0 && adaKejadian ? ' dan ' : ''}
+                      {adaKejadian ? <strong>adanya laporan kejadian abnormal pada Bagian D</strong> : ''}.
+                      Setelah pengesahan, sistem akan otomatis menetapkan label status alat ke <strong>DO NOT USE</strong> dan membekukannya dari peredaran peminjaman untuk diinvestigasi.
                     </div>
                   </div>
                 </div>
-
-                {/* Tombol Aksi */}
+              ) : (
                 <div
                   style={{
+                    background: '#f0fdf4',
+                    border: '1.5px solid #86efac',
+                    borderRadius: 8,
+                    padding: '12px 14px',
+                    marginBottom: 'var(--sp-4)',
                     display: 'flex',
-                    justifyContent: 'flex-end',
-                    alignItems: 'center',
-                    gap: 10,
-                    borderTop: '1px solid #e2e8f0',
-                    paddingTop: 'var(--sp-4)',
+                    alignItems: 'flex-start',
+                    gap: 12,
                   }}
                 >
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    style={{ fontSize: '11px', color: '#64748b', marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                    onClick={() => returnModalRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-                  >
-                    ↑ Kembali ke Atas
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={isSubmitting}
-                    onClick={() => setSelectedLoan(null)}
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn"
-                    disabled={isSubmitting}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontWeight: 700,
-                      background: (countReturnTS > 0 || adaKejadian) ? '#dc2626' : '#16a34a',
-                      borderColor: (countReturnTS > 0 || adaKejadian) ? '#b91c1c' : '#15803d',
-                      color: '#ffffff',
-                      padding: '8px 18px',
-                      borderRadius: 6,
-                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {countReturnTS > 0 || adaKejadian ? <AlertOctagon size={16} /> : <CheckCircle2 size={16} />}
-                    {isSubmitting
-                      ? 'Menyimpan...'
-                      : (countReturnTS > 0 || adaKejadian)
-                        ? 'Sahkan Pengembalian (Tandai DO NOT USE)'
-                        : 'Sahkan Pengembalian & Masukkan Karantina'}
-                  </button>
+                  <CheckCircle2 size={24} style={{ color: '#16a34a', flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#166534', marginBottom: 2 }}>
+                      STATUS AKHIR PERALATAN: KARANTINA (Perlu Verifikasi)
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: '#14532d', lineHeight: 1.4 }}>
+                      Pemeriksaan kondisi kembali memenuhi standar ({countReturnS} Sesuai{countReturnNA > 0 ? `, ${countReturnNA} N/A` : ''}) dan tidak ada insiden abnormal.
+                      Peralatan dialihkan ke status <strong>KARANTINA</strong> untuk diverifikasi ulang oleh Pengelola Lab sebelum dapat dipinjam kembali.
+                    </div>
+                  </div>
                 </div>
-              </form>
-            </div>
+              )}
+
+              {/* Catatan Pengembalian Pengelola */}
+              <div style={{ marginBottom: 'var(--sp-4)' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                  Catatan Tambahan Pengembalian Pengelola Lab (Opsional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={returnCatatan}
+                  onChange={(e) => setReturnCatatan(e.target.value)}
+                  placeholder="Catatan tambahan mengenai kelengkapan, kebersihan, atau informasi lain saat pengembalian..."
+                  style={{
+                    width: '100%',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 6,
+                    padding: '6px 10px',
+                    fontSize: '11.5px',
+                    background: '#ffffff',
+                    outline: 'none',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              {/* ============================================================ */}
+              {/* BAGIAN C: PENGESAHAN & TANDA TANGAN SERAH TERIMA KEMBALI      */}
+              {/* ============================================================ */}
+              <div
+                ref={returnBottomRef}
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 8,
+                  padding: '14px',
+                  marginBottom: 'var(--sp-4)',
+                  scrollMarginTop: '16px',
+                }}
+              >
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0f172a' }}>
+                    Bagian C: Pengesahan & Tanda Tangan Serah Terima Kembali
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>
+                    Kedua belah pihak (Peminjam dan Pengelola Lab) membubuhkan tanda tangan digital untuk serah terima kembali peralatan.
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: 16,
+                  }}
+                >
+                  {/* Kolom 1: Tanda Tangan Peminjam (Yang Mengembalikan) */}
+                  <div>
+                    <DigitalSignaturePad
+                      label={`1. Tanda Tangan Peminjam (${selectedLoan.peminjam?.name || selectedLoan.peminjam_nama || 'Peminjam'}) *`}
+                      helperText="Personel yang menyerahkan kembali peralatan ke laboratorium"
+                      value={returnSigPeminjam}
+                      onChange={setReturnSigPeminjam}
+                      required={true}
+                    />
+                  </div>
+
+                  {/* Kolom 2: Tanda Tangan Pengelola Lab (Penerima Kembali) */}
+                  <div>
+                    <DigitalSignaturePad
+                      label={`2. Tanda Tangan Pengelola Lab (${selectedLoan.pengelola?.name || selectedLoan.pengelola_nama || 'Pengelola Lab'}) *`}
+                      helperText="Petugas yang memeriksa & menerima peralatan kembali"
+                      value={returnSigPengelola}
+                      onChange={setReturnSigPengelola}
+                      required={true}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tombol Aksi */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: 10,
+                  borderTop: '1px solid #e2e8f0',
+                  paddingTop: 'var(--sp-4)',
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: '12px', color: '#64748b', marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  onClick={() => returnModalRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                >
+                  ↑ Kembali ke Atas
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={isSubmitting}
+                  onClick={() => setSelectedLoan(null)}
+                  style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 600 }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="btn"
+                  disabled={isSubmitting}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontWeight: 600,
+                    background: (countReturnTS > 0 || adaKejadian) ? '#dc2626' : '#16a34a',
+                    borderColor: (countReturnTS > 0 || adaKejadian) ? '#b91c1c' : '#15803d',
+                    color: '#ffffff',
+                    padding: '8px 20px',
+                    fontSize: '13px',
+                    borderRadius: 'var(--radius-lg, 8px)',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {countReturnTS > 0 || adaKejadian ? <AlertOctagon size={16} /> : <CheckCircle2 size={16} />}
+                  {isSubmitting
+                    ? 'Menyimpan...'
+                    : (countReturnTS > 0 || adaKejadian)
+                      ? 'Sahkan Pengembalian (Tandai DO NOT USE)'
+                      : 'Sahkan Pengembalian & Masukkan Karantina'}
+                </button>
+              </div>
+            </form>
           </div>
-        )}
+        </div>
+      )}
 
       {/* ==================================================================== */}
       {/* 8. MODAL 8: AJUKAN PERPANJANGAN PEMINJAMAN (OLEH PEMINJAM)            */}
@@ -5529,10 +5525,10 @@ export default function LoanApproval({ onNavigate }) {
               </div>
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="btn btn-ghost btn-icon"
                 onClick={() => setSelectedLoan(null)}
                 disabled={isExtensionSubmitting}
-                style={{ padding: 4 }}
+                aria-label="Tutup"
               >
                 <X size={18} />
               </button>
@@ -5611,6 +5607,7 @@ export default function LoanApproval({ onNavigate }) {
                   className="btn btn-secondary"
                   onClick={() => setSelectedLoan(null)}
                   disabled={isExtensionSubmitting}
+                  style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 600 }}
                 >
                   Batal
                 </button>
@@ -5622,7 +5619,9 @@ export default function LoanApproval({ onNavigate }) {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
-                    fontWeight: 700,
+                    padding: '8px 20px',
+                    fontSize: '13px',
+                    fontWeight: 600,
                     background: '#ea580c',
                     borderColor: '#c2410c',
                   }}
@@ -5633,7 +5632,7 @@ export default function LoanApproval({ onNavigate }) {
                     </>
                   ) : (
                     <>
-                      <Send size={15} /> Ajukan ke Manager Lab
+                      <Send size={15} /> Konfirmasi Persetujuan
                     </>
                   )}
                 </button>
@@ -5703,10 +5702,10 @@ export default function LoanApproval({ onNavigate }) {
                 </div>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-ghost btn-icon"
                   onClick={() => setSelectedLoan(null)}
                   disabled={isExtensionDecisionSubmitting}
-                  style={{ padding: 4 }}
+                  aria-label="Tutup"
                 >
                   <X size={18} />
                 </button>
@@ -5836,6 +5835,7 @@ export default function LoanApproval({ onNavigate }) {
                     className="btn btn-secondary"
                     onClick={() => setSelectedLoan(null)}
                     disabled={isExtensionDecisionSubmitting}
+                    style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 600 }}
                   >
                     Batal
                   </button>
@@ -5847,7 +5847,9 @@ export default function LoanApproval({ onNavigate }) {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 6,
-                      fontWeight: 700,
+                      padding: '8px 20px',
+                      fontSize: '13px',
+                      fontWeight: 600,
                       background: extensionDecisionAction === 'setuju' ? '#16a34a' : '#dc2626',
                       borderColor: extensionDecisionAction === 'setuju' ? '#15803d' : '#b91c1c',
                       color: '#ffffff',
@@ -5859,7 +5861,7 @@ export default function LoanApproval({ onNavigate }) {
                       </>
                     ) : extensionDecisionAction === 'setuju' ? (
                       <>
-                        <CheckCircle2 size={15} /> Sahkan & Bubuhkan TTD
+                        <CheckCircle2 size={15} /> Konfirmasi Persetujuan
                       </>
                     ) : (
                       <>
