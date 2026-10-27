@@ -290,30 +290,30 @@ const LAMPIRAN_A_BUTIR = [
 // Indeks butir yang diisi otomatis dengan daftar kelengkapan peminjaman
 const IDX_KELENGKAPAN = 1;
 
-// Backend tetap meminta 7 butir F/010. Butir 6 & 7 (fungsi khusus, boleh TB / N/A)
-// tidak ditampilkan dan selalu dikirim bernilai TB.
-const BOLEH_NA_INDEXES = [5, 6];
+// Backend menerima tepat 5 butir A3 dengan nilai S atau TS
+const JUMLAH_BUTIR = LAMPIRAN_A_BUTIR.length;
 
-// Susun 7 butir untuk backend: 5 butir dari form, butir 6 & 7 dipaksa TB
 function lengkapiButirBackend(checks) {
-  return Array.from({ length: 7 }, (_, idx) =>
-    BOLEH_NA_INDEXES.includes(idx)
-      ? { status: 'TB', keterangan: '' }
-      : checks[idx] || { status: 'S', keterangan: '' }
-  );
+  return checks.slice(0, JUMLAH_BUTIR);
 }
 
-// Backend hanya menyimpan uraian_kejadian, jadi tanggal & lokasi kejadian (Bagian D)
-// digabung ke awal teks uraian dan diurai kembali saat ditampilkan.
-function susunUraianKejadian({ tanggal, lokasi, uraian }) {
-  return `Tanggal kejadian: ${tanggal}\nLokasi kejadian: ${lokasi || '-'}\nUraian: ${uraian}`;
-}
-
+// Data pengembalian lama menggabungkan tanggal & lokasi kejadian ke uraian_kejadian.
+// Dipakai sebagai fallback bila tanggal_kejadian / lokasi_kejadian belum ada.
 function uraikanKejadian(teks = '') {
   const cocok = String(teks).match(/^Tanggal kejadian: (.*)\nLokasi kejadian: (.*)\nUraian: ([\s\S]*)$/);
   return cocok
     ? { tanggal: cocok[1], lokasi: cocok[2], uraian: cocok[3] }
     : { tanggal: '', lokasi: '', uraian: String(teks) };
+}
+
+// Ambil tanggal, lokasi, dan uraian kejadian dari serah_terima_kembali
+function bacaKejadian(stb = {}) {
+  const lama = uraikanKejadian(stb.uraian_kejadian || '');
+  return {
+    tanggal: stb.tanggal_kejadian ? String(stb.tanggal_kejadian).slice(0, 10) : lama.tanggal,
+    lokasi: stb.lokasi_kejadian || lama.lokasi,
+    uraian: lama.uraian,
+  };
 }
 
 function formatTanggalKejadian(tanggal) {
@@ -616,8 +616,8 @@ const INITIAL_LOAN_DATA = [
       tanggal: '2026-10-02 08:45',
       pic_petugas: 'Ahmad Fauzi, S.T.',
       peminjam_penerima: 'Rian Pratama',
-      lampiran_a: Array.from({ length: 7 }, (_, idx) => ({
-        status: BOLEH_NA_INDEXES.includes(idx) ? 'TB' : 'S',
+      lampiran_a: Array.from({ length: JUMLAH_BUTIR }, () => ({
+        status: 'S',
         keterangan: '',
       })),
       ada_ts: false,
@@ -937,7 +937,7 @@ export default function LoanApproval({ onNavigate }) {
 
   // Form State untuk Serah Terima Fisik Keluar (Tahap 4: F/010)
   const [checkoutChecks, setCheckoutChecks] = useState(
-    Array.from({ length: 7 }, () => ({ status: 'S', keterangan: '' }))
+    Array.from({ length: JUMLAH_BUTIR }, () => ({ status: 'S', keterangan: '' }))
   );
   const [checkoutNote, setCheckoutNote] = useState('');
   const [checkoutSigPengelola, setCheckoutSigPengelola] = useState('');
@@ -947,11 +947,12 @@ export default function LoanApproval({ onNavigate }) {
 
   // Form State untuk Pengembalian (Kolom Kembali & Bagian D F/010)
   const [returnChecks, setReturnChecks] = useState(
-    Array.from({ length: 7 }, () => ({ status: 'S', keterangan: '' }))
+    Array.from({ length: JUMLAH_BUTIR }, () => ({ status: 'S', keterangan: '' }))
   );
   const [adaKejadian, setAdaKejadian] = useState(false);
   const [uraianKejadian, setUraianKejadian] = useState('');
   const [tanggalKejadian, setTanggalKejadian] = useState('');
+  const [lokasiKejadian, setLokasiKejadian] = useState('');
   const [returnCatatan, setReturnCatatan] = useState('');
   const [returnSigPengelola, setReturnSigPengelola] = useState('');
   const [returnSigPeminjam, setReturnSigPeminjam] = useState('');
@@ -1355,15 +1356,15 @@ export default function LoanApproval({ onNavigate }) {
     const kelengkapanList = loan.kebutuhan_kelengkapan || loan.kelengkapan || '';
 
     if (loan.serah_terima_keluar?.lampiran_a && loan.serah_terima_keluar.lampiran_a.length > 0) {
-      setCheckoutChecks(loan.serah_terima_keluar.lampiran_a.slice(0, 7).map((it, idx) => ({
-        status: (it.status === 'N/A' || it.status === 'TB') ? 'TB' : (it.status || 'S'),
+      setCheckoutChecks(loan.serah_terima_keluar.lampiran_a.slice(0, JUMLAH_BUTIR).map((it, idx) => ({
+        status: it.status || 'S',
         keterangan: it.keterangan || (idx === IDX_KELENGKAPAN && kelengkapanList ? `Sesuai daftar: ${kelengkapanList}` : ''),
       })));
     } else {
-      // Default: 7 butir. Butir 1-5 = S, butir 6-7 = TB. Butir 4 pre-fill kelengkapan bila ada
+      // Default: semua butir S. Butir kelengkapan pre-fill daftar kelengkapan bila ada
       setCheckoutChecks(
-        Array.from({ length: 7 }, (_, idx) => ({
-          status: BOLEH_NA_INDEXES.includes(idx) ? 'TB' : 'S',
+        Array.from({ length: JUMLAH_BUTIR }, (_, idx) => ({
+          status: 'S',
           keterangan: idx === IDX_KELENGKAPAN && kelengkapanList ? `Sesuai daftar: ${kelengkapanList}` : '',
         }))
       );
@@ -1383,8 +1384,8 @@ export default function LoanApproval({ onNavigate }) {
               setCheckoutSigPengelola(detail.serah_terima_keluar.ttd_pengelola);
             }
             if (detail.serah_terima_keluar.lampiran_a && detail.serah_terima_keluar.lampiran_a.length > 0) {
-              setCheckoutChecks(detail.serah_terima_keluar.lampiran_a.slice(0, 7).map((it, idx) => ({
-                status: (it.status === 'N/A' || it.status === 'TB') ? 'TB' : (it.status || 'S'),
+              setCheckoutChecks(detail.serah_terima_keluar.lampiran_a.slice(0, JUMLAH_BUTIR).map((it, idx) => ({
+                status: it.status || 'S',
                 keterangan: it.keterangan || (idx === IDX_KELENGKAPAN && detailKelengkapan ? `Sesuai daftar: ${detailKelengkapan}` : ''),
               })));
             }
@@ -1403,6 +1404,7 @@ export default function LoanApproval({ onNavigate }) {
     setAdaKejadian(false);
     setUraianKejadian('');
     setTanggalKejadian('');
+    setLokasiKejadian(loan.lokasi_penggunaan || '');
     setReturnCatatan('');
     setReturnSigPengelola(userSavedSig || '');
     setReturnSigPeminjam('');
@@ -1416,6 +1418,7 @@ export default function LoanApproval({ onNavigate }) {
         if (parsed.adaKejadian !== undefined) setAdaKejadian(Boolean(parsed.adaKejadian));
         if (parsed.uraianKejadian) setUraianKejadian(parsed.uraianKejadian);
         if (parsed.tanggalKejadian) setTanggalKejadian(parsed.tanggalKejadian);
+        if (parsed.lokasiKejadian) setLokasiKejadian(parsed.lokasiKejadian);
       } catch (_) { }
     }
 
@@ -1426,20 +1429,20 @@ export default function LoanApproval({ onNavigate }) {
     }
 
     const kelengkapanList = loan.kebutuhan_kelengkapan || loan.kelengkapan || '';
-    let initialChecks = Array.from({ length: 7 }, (_, idx) => ({
-      status: BOLEH_NA_INDEXES.includes(idx) ? 'TB' : 'S',
+    let initialChecks = Array.from({ length: JUMLAH_BUTIR }, (_, idx) => ({
+      status: 'S',
       keterangan: idx === IDX_KELENGKAPAN && kelengkapanList ? `Sesuai daftar: ${kelengkapanList}` : '',
     }));
 
     if (loan.serah_terima_kembali?.lampiran_a && loan.serah_terima_kembali.lampiran_a.length > 0) {
-      initialChecks = loan.serah_terima_kembali.lampiran_a.slice(0, 7).map((it) => ({
-        status: (it.status === 'N/A' || it.status === 'TB') ? 'TB' : (it.status || 'S'),
+      initialChecks = loan.serah_terima_kembali.lampiran_a.slice(0, JUMLAH_BUTIR).map((it) => ({
+        status: it.status || 'S',
         keterangan: it.keterangan || '',
       }));
     } else if (loan.serah_terima_keluar?.lampiran_a && loan.serah_terima_keluar.lampiran_a.length > 0) {
-      initialChecks = loan.serah_terima_keluar.lampiran_a.slice(0, 7).map((it, idx) => ({
-        status: (it.status === 'N/A' || it.status === 'TB') ? 'TB' : 'S',
-        keterangan: it.status === 'S' && BOLEH_NA_INDEXES.includes(idx) ? (it.keterangan || '') : (idx === IDX_KELENGKAPAN && kelengkapanList ? `Sesuai daftar: ${kelengkapanList}` : ''),
+      initialChecks = loan.serah_terima_keluar.lampiran_a.slice(0, JUMLAH_BUTIR).map((it, idx) => ({
+        status: 'S',
+        keterangan: idx === IDX_KELENGKAPAN && kelengkapanList ? `Sesuai daftar: ${kelengkapanList}` : '',
       }));
     }
     setReturnChecks(initialChecks);
@@ -1447,10 +1450,11 @@ export default function LoanApproval({ onNavigate }) {
     if (loan.serah_terima_kembali) {
       const stb = loan.serah_terima_kembali;
       if (stb.ada_kejadian !== undefined) setAdaKejadian(Boolean(stb.ada_kejadian));
-      if (stb.uraian_kejadian) {
-        const kejadian = uraikanKejadian(stb.uraian_kejadian);
+      if (stb.uraian_kejadian || stb.tanggal_kejadian) {
+        const kejadian = bacaKejadian(stb);
         setUraianKejadian(kejadian.uraian);
         setTanggalKejadian(kejadian.tanggal);
+        setLokasiKejadian(kejadian.lokasi);
       }
       if (stb.catatan) setReturnCatatan(stb.catatan);
       if (stb.ttd_pengelola) setReturnSigPengelola(stb.ttd_pengelola);
@@ -1466,23 +1470,24 @@ export default function LoanApproval({ onNavigate }) {
           if (detail.serah_terima_kembali) {
             const stb = detail.serah_terima_kembali;
             if (stb.ada_kejadian !== undefined) setAdaKejadian(Boolean(stb.ada_kejadian));
-            if (stb.uraian_kejadian) {
-              const kejadian = uraikanKejadian(stb.uraian_kejadian);
+            if (stb.uraian_kejadian || stb.tanggal_kejadian) {
+              const kejadian = bacaKejadian(stb);
               setUraianKejadian(kejadian.uraian);
               setTanggalKejadian(kejadian.tanggal);
+              setLokasiKejadian(kejadian.lokasi);
             }
             if (stb.catatan) setReturnCatatan(stb.catatan);
             if (stb.ttd_pengelola) setReturnSigPengelola(stb.ttd_pengelola);
             if (stb.lampiran_a && stb.lampiran_a.length > 0) {
-              setReturnChecks(stb.lampiran_a.slice(0, 7).map((it) => ({
+              setReturnChecks(stb.lampiran_a.slice(0, JUMLAH_BUTIR).map((it) => ({
                 status: it.status || 'S',
                 keterangan: it.keterangan || '',
               })));
             }
           } else if (detail.serah_terima_keluar?.lampiran_a && detail.serah_terima_keluar.lampiran_a.length > 0) {
-            setReturnChecks(detail.serah_terima_keluar.lampiran_a.slice(0, 7).map((it, idx) => ({
-              status: (it.status === 'N/A' || it.status === 'TB') ? 'TB' : 'S',
-              keterangan: it.status === 'S' && BOLEH_NA_INDEXES.includes(idx) ? (it.keterangan || '') : (idx === IDX_KELENGKAPAN && detailKelengkapan ? `Sesuai daftar: ${detailKelengkapan}` : ''),
+            setReturnChecks(detail.serah_terima_keluar.lampiran_a.slice(0, JUMLAH_BUTIR).map((it, idx) => ({
+              status: 'S',
+              keterangan: idx === IDX_KELENGKAPAN && detailKelengkapan ? `Sesuai daftar: ${detailKelengkapan}` : '',
             })));
           }
         }
@@ -1794,21 +1799,14 @@ export default function LoanApproval({ onNavigate }) {
     if (!selectedLoan) return;
 
     if (checkoutStep === 'pengelola') {
-      // 1. Semua 7 butir wajib terisi statusnya (S, TS, atau TB)
+      // 1. Semua 5 butir wajib terisi statusnya (S atau TS)
       const butirKirim = lengkapiButirBackend(checkoutChecks);
-      if (butirKirim.length !== 7 || butirKirim.some((i) => !i.status)) {
+      if (butirKirim.length !== JUMLAH_BUTIR || butirKirim.some((i) => !i.status)) {
         toastError('Semua 5 butir pemeriksaan lembar serah terima (F/010) wajib diisi statusnya.');
         return;
       }
 
-      // 2. Status TB hanya boleh pada butir 6 dan 7 (fungsi khusus)
-      const naSalahButir = butirKirim.some((it, idx) => (it.status === 'N/A' || it.status === 'TB') && !BOLEH_NA_INDEXES.includes(idx));
-      if (naSalahButir) {
-        toastError('Status Tidak Berlaku (TB) hanya diperbolehkan pada butir fungsi khusus nomor 6 dan 7.');
-        return;
-      }
-
-      // 3. Butir TS wajib diisi penjelasannya pada kolom keterangan
+      // 2. Butir TS wajib diisi penjelasannya pada kolom keterangan
       const adaItemTS = butirKirim.some((i) => i.status === 'TS');
       if (adaItemTS) {
         const itemTSKosong = butirKirim.some((i) => i.status === 'TS' && !i.keterangan?.trim());
@@ -1818,16 +1816,7 @@ export default function LoanApproval({ onNavigate }) {
         }
       }
 
-      // 4. Butir fungsi khusus No 6 & 7 bernilai S wajib menuliskan jenis pemeriksaan
-      const butirSKhususKosong = butirKirim.some(
-        (i, idx) => BOLEH_NA_INDEXES.includes(idx) && i.status === 'S' && !i.keterangan?.trim()
-      );
-      if (butirSKhususKosong) {
-        toastError('Butir fungsi khusus (No. 6 dan 7) yang bernilai Sesuai (S) wajib menuliskan jenis pemeriksaan pada keterangan.');
-        return;
-      }
-
-      // 5. Tanda tangan Pengelola Peralatan wajib jika tidak ada butir TS
+      // 3. Tanda tangan Pengelola Peralatan wajib jika tidak ada butir TS
       if (!adaItemTS && (!checkoutSigPengelola?.trim() || checkoutSigPengelola === FALLBACK_EMPTY_PNG)) {
         toastError('Tanda tangan Pengelola Peralatan wajib dibubuhkan.');
         return;
@@ -1837,7 +1826,7 @@ export default function LoanApproval({ onNavigate }) {
       try {
         const payload = {
           lampiran_a: butirKirim.map((it) => ({
-            status: it.status === 'TB' ? 'N/A' : it.status,
+            status: it.status,
             keterangan: it.keterangan ? it.keterangan.trim() : '',
           })),
           catatan: checkoutNote ? checkoutNote.trim() : '',
@@ -1905,35 +1894,21 @@ export default function LoanApproval({ onNavigate }) {
     e.preventDefault();
     if (!selectedLoan) return;
 
-    // 1. Validasi 7 butir
+    // 1. Validasi 5 butir
     const butirKirim = lengkapiButirBackend(returnChecks);
-    if (butirKirim.length !== 7 || butirKirim.some((i) => !i.status)) {
+    if (butirKirim.length !== JUMLAH_BUTIR || butirKirim.some((i) => !i.status)) {
       toastError('Semua 5 butir pemeriksaan pengembalian wajib diisi statusnya (S atau TS).');
       return;
     }
 
-    // 2. TB hanya boleh di butir 6 dan 7
-    const naSalahButir = butirKirim.some((it, idx) => (it.status === 'N/A' || it.status === 'TB') && !BOLEH_NA_INDEXES.includes(idx));
-    if (naSalahButir) {
-      toastError('Status Tidak Berlaku (TB) hanya diperbolehkan pada butir fungsi khusus nomor 6 dan 7.');
-      return;
-    }
-
-    // 3. Butir TS wajib diisi penjelasannya
+    // 2. Butir TS wajib diisi penjelasannya
     const itemTSKosong = butirKirim.some((i) => i.status === 'TS' && !i.keterangan?.trim());
     if (itemTSKosong) {
       toastError('Semua butir Tidak Sesuai (TS) wajib diisi penjelasannya pada kolom keterangan.');
       return;
     }
 
-    // 4. Butir fungsi khusus S wajib diisi penjelasannya
-    const naWajibKet = butirKirim.some((i, idx) => BOLEH_NA_INDEXES.includes(idx) && i.status === 'S' && !i.keterangan?.trim());
-    if (naWajibKet) {
-      toastError('Butir fungsi khusus (No. 6 dan 7) yang dinyatakan Sesuai (S) wajib menuliskan jenis pemeriksaan yang dilakukan pada kolom keterangan.');
-      return;
-    }
-
-    // 5. Validasi Bagian D: Jika Ada Kejadian, uraian kejadian wajib diisi
+    // 3. Validasi Bagian D: Jika Ada Kejadian, tanggal dan uraian kejadian wajib diisi
     if (adaKejadian && !tanggalKejadian) {
       toastError('Tanggal kejadian wajib diisi pada Bagian D.');
       return;
@@ -1943,7 +1918,7 @@ export default function LoanApproval({ onNavigate }) {
       return;
     }
 
-    // 6. Validasi Tanda Tangan: TTD Peminjam & TTD Pengelola
+    // 4. Validasi Tanda Tangan: TTD Peminjam & TTD Pengelola
     if (!returnSigPeminjam?.trim() || returnSigPeminjam === FALLBACK_EMPTY_PNG) {
       toastError('Tanda tangan Peminjam (yang menyerahkan kembali) wajib dibubuhkan.');
       return;
@@ -1957,17 +1932,13 @@ export default function LoanApproval({ onNavigate }) {
     try {
       const payload = {
         lampiran_a: butirKirim.map((it) => ({
-          status: it.status === 'TB' ? 'N/A' : it.status,
+          status: it.status,
           keterangan: it.keterangan ? it.keterangan.trim() : '',
         })),
         ada_kejadian: Boolean(adaKejadian),
-        uraian_kejadian: adaKejadian
-          ? susunUraianKejadian({
-              tanggal: tanggalKejadian,
-              lokasi: selectedLoan.lokasi_penggunaan,
-              uraian: uraianKejadian.trim(),
-            })
-          : '',
+        uraian_kejadian: adaKejadian ? uraianKejadian.trim() : '',
+        tanggal_kejadian: adaKejadian ? tanggalKejadian : '',
+        lokasi_kejadian: adaKejadian ? (lokasiKejadian.trim() || selectedLoan.lokasi_penggunaan || '') : '',
         catatan: returnCatatan ? returnCatatan.trim() : '',
         ttd_pengelola: returnSigPengelola.trim(),
         ttd_peminjam: returnSigPeminjam.trim(),
@@ -2011,7 +1982,7 @@ export default function LoanApproval({ onNavigate }) {
     if (adaKejadian) {
       localStorage.setItem(
         `sikepo_return_kejadian_${selectedLoan.id}`,
-        JSON.stringify({ adaKejadian: true, uraianKejadian: uraianKejadian.trim(), tanggalKejadian })
+        JSON.stringify({ adaKejadian: true, uraianKejadian: uraianKejadian.trim(), tanggalKejadian, lokasiKejadian })
       );
     } else {
       localStorage.removeItem(`sikepo_return_kejadian_${selectedLoan.id}`);
@@ -3634,7 +3605,7 @@ export default function LoanApproval({ onNavigate }) {
                         {selectedLoan.serah_terima_kembali.ada_kejadian ? (
                           <>
                             {(() => {
-                              const kejadian = uraikanKejadian(selectedLoan.serah_terima_kembali.uraian_kejadian);
+                              const kejadian = bacaKejadian(selectedLoan.serah_terima_kembali);
                               return (
                                 <>
                                   <strong>Ada Kejadian Abnormal:</strong> "{kejadian.uraian}"
@@ -4524,14 +4495,12 @@ export default function LoanApproval({ onNavigate }) {
                       {LAMPIRAN_A_BUTIR.map((butir, idx) => {
                         const item = checkoutChecks[idx] || { status: 'S', keterangan: '' };
                         const isTS = item.status === 'TS';
-                        const isNA = item.status === 'N/A' || item.status === 'TB';
                         const isS = item.status === 'S';
-                        const canNA = BOLEH_NA_INDEXES.includes(idx);
                         return (
                           <tr
                             key={idx}
                             style={{
-                              background: isTS ? '#fef2f2' : isNA ? '#f8fafc' : idx % 2 === 0 ? '#ffffff' : '#f8fafc',
+                              background: isTS ? '#fef2f2' : idx % 2 === 0 ? '#ffffff' : '#f8fafc',
                               borderBottom: '1px solid #e2e8f0',
                             }}
                           >
@@ -4544,11 +4513,6 @@ export default function LoanApproval({ onNavigate }) {
                                 <div style={{ marginTop: 3, fontSize: '10.5px', color: '#0369a1', background: '#e0f2fe', padding: '2px 6px', borderRadius: 4, display: 'inline-block' }}>
                                   Daftar Kelengkapan: <strong>{selectedLoan.kebutuhan_kelengkapan || selectedLoan.kelengkapan}</strong>
                                 </div>
-                              )}
-                              {canNA && (
-                                <span style={{ marginLeft: 6, fontSize: '10px', color: '#0284c7', background: '#e0f2fe', padding: '1px 5px', borderRadius: 3, border: '1px solid #bae6fd', fontWeight: 600 }}>
-                                  Bila perlu (Boleh TB)
-                                </span>
                               )}
                             </td>
                             <td style={{ padding: '6px 10px', textAlign: 'center', borderRight: '1px solid #cbd5e1' }}>
@@ -4584,43 +4548,9 @@ export default function LoanApproval({ onNavigate }) {
                                     />
                                     TS
                                   </label>
-                                  {canNA && (
-                                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontWeight: isNA ? 700 : 400, color: isNA ? '#2563eb' : '#64748b', fontSize: '11px' }}>
-                                      <input
-                                        type="radio"
-                                        name={`checkout_${idx}`}
-                                        value="TB"
-                                        checked={isNA}
-                                        onChange={() => {
-                                          const updated = [...checkoutChecks];
-                                          updated[idx] = { ...updated[idx], status: 'TB' };
-                                          setCheckoutChecks(updated);
-                                        }}
-                                        style={{ accentColor: '#2563eb' }}
-                                      />
-                                      TB
-                                    </label>
-                                  )}
                                 </div>
                               ) : (
-                                isNA ? (
-                                  <span
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: 4,
-                                      padding: '2px 8px',
-                                      borderRadius: 4,
-                                      fontSize: '11px',
-                                      fontWeight: 600,
-                                      background: '#f1f5f9',
-                                      color: '#475569',
-                                      border: '1px solid #cbd5e1',
-                                    }}
-                                  >
-                                    TB (Tidak Berlaku)
-                                  </span>
-                                ) : isTS ? (
+                                isTS ? (
                                   <span
                                     style={{
                                       display: 'inline-flex',
@@ -4667,23 +4597,15 @@ export default function LoanApproval({ onNavigate }) {
                                     updated[idx] = { ...updated[idx], keterangan: e.target.value };
                                     setCheckoutChecks(updated);
                                   }}
-                                  placeholder={
-                                    isTS
-                                      ? 'Wajib jelaskan ketidaksesuaian...'
-                                      : canNA && isS
-                                        ? 'Wajib tuliskan jenis pemeriksaan fungsi khusus...'
-                                        : isNA
-                                          ? 'Catatan tidak relevan (opsional)...'
-                                          : 'Catatan opsional...'
-                                  }
-                                  required={isTS || (canNA && isS)}
+                                  placeholder={isTS ? 'Wajib jelaskan ketidaksesuaian...' : 'Catatan opsional...'}
+                                  required={isTS}
                                   style={{
                                     width: '100%',
-                                    border: isTS ? '1.5px solid #f87171' : canNA && isS && !item.keterangan ? '1.5px solid #fbbf24' : isNA ? '1px solid #93c5fd' : '1px solid #cbd5e1',
+                                    border: isTS ? '1.5px solid #f87171' : '1px solid #cbd5e1',
                                     borderRadius: 4,
                                     padding: '4px 8px',
                                     fontSize: '11px',
-                                    background: isTS ? '#fff1f2' : canNA && isS && !item.keterangan ? '#fffbeb' : isNA ? '#f0f9ff' : '#ffffff',
+                                    background: isTS ? '#fff1f2' : '#ffffff',
                                     outline: 'none',
                                   }}
                                 />
@@ -5228,15 +5150,13 @@ export default function LoanApproval({ onNavigate }) {
                     <tbody>
                       {LAMPIRAN_A_BUTIR.map((butir, idx) => {
                         const item = returnChecks[idx] || { status: 'S', keterangan: '' };
-                        const canNA = BOLEH_NA_INDEXES.includes(idx);
                         const isS = item.status === 'S';
                         const isTS = item.status === 'TS';
-                        const isNA = item.status === 'N/A' || item.status === 'TB';
 
                         // Ambil data serah terima keluar sebagai pembanding
                         const initialKeluar = selectedLoan.serah_terima_keluar || selectedLoan.serah_terima;
                         const initialItem = initialKeluar?.lampiran_a?.[idx];
-                        const initialStatus = initialItem?.status || (canNA ? 'TB' : 'S');
+                        const initialStatus = initialItem?.status || 'S';
                         const initialKet = initialItem?.keterangan || '';
 
                         return (
@@ -5256,11 +5176,6 @@ export default function LoanApproval({ onNavigate }) {
                                 <div style={{ marginTop: 3, fontSize: '10px', color: '#0369a1', background: '#e0f2fe', padding: '2px 6px', borderRadius: 4, display: 'inline-block' }}>
                                   Daftar: <strong>{selectedLoan.kebutuhan_kelengkapan || selectedLoan.kelengkapan}</strong>
                                 </div>
-                              )}
-                              {canNA && (
-                                <span style={{ marginLeft: 6, fontSize: '10px', color: '#0284c7', background: '#e0f2fe', padding: '1px 5px', borderRadius: 3, border: '1px solid #bae6fd', fontWeight: 600 }}>
-                                  Bila perlu (Boleh TB)
-                                </span>
                               )}
                             </td>
                             {/* Kolom Pembanding: Kondisi Saat Keluar */}
@@ -5321,23 +5236,6 @@ export default function LoanApproval({ onNavigate }) {
                                   />
                                   TS
                                 </label>
-                                {canNA && (
-                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontWeight: isNA ? 700 : 400, color: isNA ? '#2563eb' : '#64748b', fontSize: '11px' }}>
-                                    <input
-                                      type="radio"
-                                      name={`return_check_${idx}`}
-                                      value="TB"
-                                      checked={isNA}
-                                      onChange={() => {
-                                        const updated = [...returnChecks];
-                                        updated[idx] = { ...updated[idx], status: 'TB' };
-                                        setReturnChecks(updated);
-                                      }}
-                                      style={{ accentColor: '#2563eb' }}
-                                    />
-                                    TB
-                                  </label>
-                                )}
                               </div>
                               {isTS && (
                                 <div style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: 700, marginTop: 2 }}>
@@ -5355,23 +5253,15 @@ export default function LoanApproval({ onNavigate }) {
                                   updated[idx] = { ...updated[idx], keterangan: e.target.value };
                                   setReturnChecks(updated);
                                 }}
-                                placeholder={
-                                  isTS
-                                    ? 'Wajib jelaskan ketidaksesuaian/kerusakan...'
-                                    : canNA && isS
-                                      ? 'Wajib tuliskan jenis pengujian fungsi khusus...'
-                                      : isNA
-                                        ? 'Catatan tidak relevan (opsional)...'
-                                        : 'Catatan kondisi kembali (opsional)...'
-                                }
-                                required={isTS || (canNA && isS)}
+                                placeholder={isTS ? 'Wajib jelaskan ketidaksesuaian/kerusakan...' : 'Catatan kondisi kembali (opsional)...'}
+                                required={isTS}
                                 style={{
                                   width: '100%',
-                                  border: isTS ? '1.5px solid #f87171' : canNA && isS && !item.keterangan ? '1.5px solid #fbbf24' : isNA ? '1px solid #93c5fd' : '1px solid #cbd5e1',
+                                  border: isTS ? '1.5px solid #f87171' : '1px solid #cbd5e1',
                                   borderRadius: 4,
                                   padding: '4px 8px',
                                   fontSize: '11px',
-                                  background: isTS ? '#fff1f2' : canNA && isS && !item.keterangan ? '#fffbeb' : isNA ? '#f0f9ff' : '#ffffff',
+                                  background: isTS ? '#fff1f2' : '#ffffff',
                                   outline: 'none',
                                 }}
                               />
@@ -5418,6 +5308,7 @@ export default function LoanApproval({ onNavigate }) {
                         setAdaKejadian(false);
                         setUraianKejadian('');
                         setTanggalKejadian('');
+                        setLokasiKejadian(selectedLoan?.lokasi_penggunaan || '');
                       }}
                       style={{ accentColor: '#16a34a' }}
                     />
@@ -5446,6 +5337,7 @@ export default function LoanApproval({ onNavigate }) {
                           type="date"
                           value={tanggalKejadian}
                           onChange={(e) => setTanggalKejadian(e.target.value)}
+                          min={selectedLoan?.tanggal_keluar_aktual ? String(selectedLoan.tanggal_keluar_aktual).slice(0, 10) : undefined}
                           max={new Date().toLocaleDateString('en-CA')}
                           required={adaKejadian}
                           style={{
@@ -5467,19 +5359,19 @@ export default function LoanApproval({ onNavigate }) {
                         </label>
                         <input
                           type="text"
-                          value={selectedLoan?.lokasi_penggunaan || '-'}
-                          readOnly
-                          title="Diambil dari lokasi penggunaan pada pengajuan peminjaman"
+                          value={lokasiKejadian}
+                          onChange={(e) => setLokasiKejadian(e.target.value)}
+                          placeholder={selectedLoan?.lokasi_penggunaan || 'Lokasi kejadian'}
+                          title="Terisi awal dari lokasi penggunaan pada pengajuan peminjaman, boleh diubah"
                           style={{
                             width: '100%',
-                            border: '1px solid #cbd5e1',
+                            border: '1.5px solid #fda4af',
                             borderRadius: 6,
                             padding: '6px 10px',
                             fontSize: '11.5px',
-                            background: '#f1f5f9',
+                            background: '#ffffff',
                             outline: 'none',
-                            color: '#64748b',
-                            cursor: 'not-allowed',
+                            color: '#0f172a',
                             boxSizing: 'border-box',
                           }}
                         />
