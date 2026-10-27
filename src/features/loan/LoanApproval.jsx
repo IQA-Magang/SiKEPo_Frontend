@@ -31,7 +31,7 @@ import {
   Save,
   FileSignature,
 } from 'lucide-react';
-import { getCurrentUser, logbookApi, peminjamanApi, peralatanApi, akunApi, labsApi, markNotificationsAsReadByRef } from '../../shared/services/api.js';
+import { getCurrentUser, logbookApi, peminjamanApi, peralatanApi, akunApi, markNotificationsAsReadByRef } from '../../shared/services/api.js';
 import { useToast } from '../../app/providers/ToastContext.jsx';
 import { exportLoanF006Pdf, exportLoanF006Word } from '../../shared/lib/loanPdf.js';
 
@@ -900,7 +900,6 @@ export default function LoanApproval({ onNavigate }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [alternativeEquipmentId, setAlternativeEquipmentId] = useState('');
   const [equipmentList, setEquipmentList] = useState([]);
-  const [labsList, setLabsList] = useState([]);
   const [userSavedSig, setUserSavedSig] = useState('');
 
   // Muat tanda tangan akun dan master lab
@@ -909,11 +908,6 @@ export default function LoanApproval({ onNavigate }) {
     akunApi.getTtd().then((res) => {
       if (!cancelled && res?.data?.ttd) {
         setUserSavedSig(res.data.ttd);
-      }
-    }).catch(() => { });
-    labsApi.getAll().then((res) => {
-      if (!cancelled && Array.isArray(res?.data)) {
-        setLabsList(res.data);
       }
     }).catch(() => { });
     return () => { cancelled = true; };
@@ -954,9 +948,6 @@ export default function LoanApproval({ onNavigate }) {
   const [tanggalKejadian, setTanggalKejadian] = useState('');
   const [lokasiKejadian, setLokasiKejadian] = useState('');
   const [returnCatatan, setReturnCatatan] = useState('');
-  const [returnSigPengelola, setReturnSigPengelola] = useState('');
-  const [returnSigPeminjam, setReturnSigPeminjam] = useState('');
-  const [showDirectPeminjamSigPad, setShowDirectPeminjamSigPad] = useState(false);
 
   // Form State untuk Perpanjangan Peminjaman (Peminjam)
   const [extensionNewDate, setExtensionNewDate] = useState('');
@@ -1035,11 +1026,7 @@ export default function LoanApproval({ onNavigate }) {
     const isStaffPengelola = currentUserRole === 'staff' && (currentUser?.pengelola === true || currentUser?.pengelola === 1 || currentUser?.pengelola === '1');
     const isNotBorrower = currentUserId > 0 && loan.peminjam?.user_id !== currentUserId && loan.peminjam_id !== currentUserId;
 
-    const loanLabPemilik = (loan.peralatan?.lab_pemilik || '').toLowerCase().trim();
-    const userLab = labsList.find((l) => Number(l.id) === Number(currentUserLabId) || Number(l.labs_id) === Number(currentUserLabId));
-    const userLabName = (userLab?.nama_laboratorium || userLab?.nama_labs || '').toLowerCase().trim();
-    const isLabMatching = (loan.lab_pemilik_id && currentUserLabId && Number(loan.lab_pemilik_id) === Number(currentUserLabId)) ||
-      (userLabName && loanLabPemilik ? (userLabName === loanLabPemilik || userLabName.includes(loanLabPemilik) || loanLabPemilik.includes(userLabName)) : true);
+    const isLabMatching = currentUserLabId > 0 && Number(loan.lab_pemilik_id) === currentUserLabId;
 
     const pengelolaAssignedId = Number(loan.approval_pengelola?.user_id ?? loan.pengelola_id ?? 0);
     const isPengelola = currentUserId > 0 && (
@@ -1406,9 +1393,6 @@ export default function LoanApproval({ onNavigate }) {
     setTanggalKejadian('');
     setLokasiKejadian(loan.lokasi_penggunaan || '');
     setReturnCatatan('');
-    setReturnSigPengelola(userSavedSig || '');
-    setReturnSigPeminjam('');
-    setShowDirectPeminjamSigPad(false);
 
     // Muat data kejadian dari akun peminjam jika ada
     const savedKejadian = localStorage.getItem(`sikepo_return_kejadian_${loan.id}`);
@@ -1457,7 +1441,6 @@ export default function LoanApproval({ onNavigate }) {
         setLokasiKejadian(kejadian.lokasi);
       }
       if (stb.catatan) setReturnCatatan(stb.catatan);
-      if (stb.ttd_pengelola) setReturnSigPengelola(stb.ttd_pengelola);
     }
 
     if (!isNaN(Number(loan.id))) {
@@ -1477,7 +1460,6 @@ export default function LoanApproval({ onNavigate }) {
               setLokasiKejadian(kejadian.lokasi);
             }
             if (stb.catatan) setReturnCatatan(stb.catatan);
-            if (stb.ttd_pengelola) setReturnSigPengelola(stb.ttd_pengelola);
             if (stb.lampiran_a && stb.lampiran_a.length > 0) {
               setReturnChecks(stb.lampiran_a.slice(0, JUMLAH_BUTIR).map((it) => ({
                 status: it.status || 'S',
@@ -1889,7 +1871,7 @@ export default function LoanApproval({ onNavigate }) {
     }
   }
 
-  // Pengesahan Pengembalian Peralatan: Pemeriksaan fisik & fungsi + Tanda tangan Peminjam & Pengelola
+  // Pengesahan Pengembalian Peralatan oleh Pengelola: pemeriksaan fisik & fungsi + Bagian D, tanpa tanda tangan
   async function handleSubmitReturn(e) {
     e.preventDefault();
     if (!selectedLoan) return;
@@ -1918,16 +1900,6 @@ export default function LoanApproval({ onNavigate }) {
       return;
     }
 
-    // 4. Validasi Tanda Tangan: TTD Peminjam & TTD Pengelola
-    if (!returnSigPeminjam?.trim() || returnSigPeminjam === FALLBACK_EMPTY_PNG) {
-      toastError('Tanda tangan Peminjam (yang menyerahkan kembali) wajib dibubuhkan.');
-      return;
-    }
-    if (!returnSigPengelola?.trim() || returnSigPengelola === FALLBACK_EMPTY_PNG) {
-      toastError('Tanda tangan Pengelola Lab (pemeriksa pengembalian) wajib dibubuhkan.');
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const payload = {
@@ -1940,8 +1912,6 @@ export default function LoanApproval({ onNavigate }) {
         tanggal_kejadian: adaKejadian ? tanggalKejadian : '',
         lokasi_kejadian: adaKejadian ? (lokasiKejadian.trim() || selectedLoan.lokasi_penggunaan || '') : '',
         catatan: returnCatatan ? returnCatatan.trim() : '',
-        ttd_pengelola: returnSigPengelola.trim(),
-        ttd_peminjam: returnSigPeminjam.trim(),
       };
 
       const res = await peminjamanApi.pengembalian(selectedLoan.id, payload);
@@ -1949,8 +1919,6 @@ export default function LoanApproval({ onNavigate }) {
         throw new Error(res.message || 'Gagal mencatat pemeriksaan pengembalian');
       }
 
-      // Bersihkan penyimpanan sementara tanda tangan peminjam
-      localStorage.removeItem(`sikepo_return_peminjam_sig_${selectedLoan.id}`);
       localStorage.removeItem(`sikepo_return_kejadian_${selectedLoan.id}`);
 
       markNotificationsAsReadByRef({ ticketCode: selectedLoan.kode });
@@ -1965,34 +1933,6 @@ export default function LoanApproval({ onNavigate }) {
     } finally {
       setIsSubmitting(false);
     }
-  }
-
-  // Peminjam menyimpan tanda tangan pengembalian di akun peminjam
-  function handleSavePeminjamReturn(e) {
-    if (e) e.preventDefault();
-    if (!selectedLoan) return;
-
-    if (!returnSigPeminjam?.trim() || returnSigPeminjam === FALLBACK_EMPTY_PNG) {
-      toastError('Tanda tangan digital Anda wajib dibubuhkan sebelum menyimpan.');
-      return;
-    }
-
-    // Simpan tanda tangan peminjam ke localStorage
-    localStorage.setItem(`sikepo_return_peminjam_sig_${selectedLoan.id}`, returnSigPeminjam.trim());
-    if (adaKejadian) {
-      localStorage.setItem(
-        `sikepo_return_kejadian_${selectedLoan.id}`,
-        JSON.stringify({ adaKejadian: true, uraianKejadian: uraianKejadian.trim(), tanggalKejadian, lokasiKejadian })
-      );
-    } else {
-      localStorage.removeItem(`sikepo_return_kejadian_${selectedLoan.id}`);
-    }
-
-    markNotificationsAsReadByRef({ ticketCode: selectedLoan.kode });
-    setSelectedLoan(null);
-    success(
-      `Tanda tangan pengembalian Anda untuk tiket ${selectedLoan.kode || selectedLoan.id} berhasil disimpan! Pengelola Lab akan memverifikasi fisik peralatan dan mengesahkan penerimaan.`
-    );
   }
 
   // Hitung berapa TS, TB, dan S yang dipilih di form Keluar (F/010)
@@ -3051,11 +2991,7 @@ export default function LoanApproval({ onNavigate }) {
                 {(!isReviewAction || activeReviewStage !== 'pengelola') && (() => {
                   const { isPengelola, isManagerLab, isAdmin } = getLoanUserRelationship(selectedLoan);
                   const isStaffPengelola = currentUserRole === 'staff' && (currentUser?.pengelola === true || currentUser?.pengelola === 1 || currentUser?.pengelola === '1');
-                  const loanLabPemilik = (selectedLoan.peralatan?.lab_pemilik || '').toLowerCase().trim();
-                  const userLab = labsList.find((l) => Number(l.id) === Number(currentUserLabId) || Number(l.labs_id) === Number(currentUserLabId));
-                  const userLabName = (userLab?.nama_laboratorium || userLab?.nama_labs || '').toLowerCase().trim();
-                  const isLabMatching = (selectedLoan.lab_pemilik_id && currentUserLabId && Number(selectedLoan.lab_pemilik_id) === Number(currentUserLabId)) ||
-                    (userLabName && loanLabPemilik ? (userLabName === loanLabPemilik || userLabName.includes(loanLabPemilik) || loanLabPemilik.includes(userLabName)) : true);
+                  const isLabMatching = currentUserLabId > 0 && Number(selectedLoan.lab_pemilik_id) === currentUserLabId;
 
                   const canViewVerifikasi = isAdmin || isPengelola || (isStaffPengelola && isLabMatching) || isManagerLab || (currentUserRole === 'manager' && isLabMatching);
                   if (!canViewVerifikasi) return null;
@@ -4679,35 +4615,13 @@ export default function LoanApproval({ onNavigate }) {
               ) : (
                 <div
                   style={{
-                    padding: '10px 14px',
+                    padding: '12px 14px',
                     background: '#f0fdf4',
                     border: '1.5px solid #86efac',
                     borderRadius: '8px',
                     marginBottom: 'var(--sp-4)',
-                    color: '#166534',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                  }}
-                >
-                  <CheckCircle2 size={20} style={{ color: '#16a34a', flexShrink: 0 }} />
-                  <div style={{ fontSize: '12px' }}>
-                    <strong>Pemeriksaan Fisik Memenuhi Syarat:</strong> {countS} butir Sesuai (S){countNA > 0 ? `, ${countNA} butir Tidak Berlaku (TB)` : ''}. Kondisi peralatan layak dan memenuhi standar untuk diserahkan kepada peminjam.
-                  </div>
-                </div>
-              )}
-
-              {/* Dokumen Resmi F/006 (Surat Keterangan Peminjaman Peralatan - Versi 03: Berlaku Internal & Eksternal) */}
-              {countTS === 0 && (
-                <div
-                  style={{
-                    padding: '12px 14px',
-                    background: '#eff6ff',
-                    border: '1.5px solid #93c5fd',
-                    borderRadius: '8px',
-                    marginBottom: 'var(--sp-4)',
                     fontSize: '12px',
-                    color: '#1e40af',
+                    color: '#166534',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -4716,29 +4630,15 @@ export default function LoanApproval({ onNavigate }) {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: '240px' }}>
-                    <div
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 6,
-                        background: '#dbeafe',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#1d4ed8',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <FileText size={18} />
-                    </div>
+                    <CheckCircle2 size={20} style={{ color: '#16a34a', flexShrink: 0 }} />
                     <div>
-                      <div style={{ fontWeight: 700, color: '#1e3a8a', fontSize: '12.5px' }}>
-                        Dokumen TLKM13/F/006 Versi 03 (Surat Keterangan Peminjaman Peralatan)
+                      <div>
+                        <strong>Pemeriksaan Fisik Memenuhi Syarat:</strong> {countS} butir Sesuai (S). Kondisi peralatan layak dan memenuhi standar untuk diserahkan kepada peminjam.
                       </div>
-                      <div style={{ fontSize: '11px', color: '#2563eb', marginTop: 2 }}>
+                      <div style={{ fontSize: '11px', color: '#15803d', marginTop: 2 }}>
                         {selectedLoan.is_eksternal
                           ? 'Peminjaman Eksternal: Wajib dicetak dan dibawa bersama alat untuk pemeriksaan pos Petugas Pengamanan TTH.'
-                          : 'Peminjaman Internal: Dokumen otorisasi peminjaman resmi siap dicetak / diunduh sebagai arsip kendali ISO 17025.'}
+                          : 'Peminjaman Internal: Siap dicetak atau diunduh sebagai arsip.'}
                       </div>
                     </div>
                   </div>
@@ -4758,7 +4658,7 @@ export default function LoanApproval({ onNavigate }) {
                       }}
                       onClick={() => exportLoanF006Pdf(selectedLoan, { checkoutSigPengelola, checkoutSigPeminjam })}
                     >
-                      <Printer size={14} /> Cetak F/006 (PDF)
+                      <Printer size={14} /> Cetak PDF
                     </button>
                     <button
                       type="button"
@@ -5293,7 +5193,7 @@ export default function LoanApproval({ onNavigate }) {
                   </div>
                   {adaKejadian && (
                     <span style={{ fontSize: '10.5px', background: '#dc2626', color: '#ffffff', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
-                      ⚠️ Status Peralatan Dialihkan: DO NOT USE
+                      ⚠️ Peralatan Masuk Verifikasi
                     </span>
                   )}
                 </div>
@@ -5406,7 +5306,7 @@ export default function LoanApproval({ onNavigate }) {
               </div>
 
               {/* Indikator Reaktif Tindak Lanjut Status Peralatan */}
-              {countReturnTS > 0 || adaKejadian ? (
+              {adaKejadian ? (
                 <div
                   style={{
                     background: '#fef2f2',
@@ -5422,13 +5322,10 @@ export default function LoanApproval({ onNavigate }) {
                   <AlertOctagon size={24} style={{ color: '#dc2626', flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 800, color: '#991b1b', marginBottom: 2 }}>
-                      STATUS AKHIR PERALATAN: DO NOT USE
+                      STATUS AKHIR PERALATAN: KARANTINA (Perlu Verifikasi)
                     </div>
                     <div style={{ fontSize: '11.5px', color: '#7f1d1d', lineHeight: 1.4 }}>
-                      Ditemukan <strong>{countReturnTS} butir tidak sesuai (TS)</strong>
-                      {countReturnTS > 0 && adaKejadian ? ' dan ' : ''}
-                      {adaKejadian ? <strong>adanya laporan kejadian abnormal pada Bagian D</strong> : ''}.
-                      Setelah pengesahan, sistem akan otomatis menetapkan label status alat ke <strong>DO NOT USE</strong> dan membekukannya dari peredaran peminjaman untuk diinvestigasi.
+                      Terdapat <strong>laporan kejadian pada Bagian D</strong>. Setelah dikonfirmasi, peralatan langsung masuk antrean <strong>Verifikasi Peralatan</strong> sebelum dapat dipinjam kembali.
                     </div>
                   </div>
                 </div>
@@ -5448,18 +5345,18 @@ export default function LoanApproval({ onNavigate }) {
                   <CheckCircle2 size={24} style={{ color: '#16a34a', flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 800, color: '#166534', marginBottom: 2 }}>
-                      STATUS AKHIR PERALATAN: KARANTINA (Perlu Verifikasi)
+                      STATUS AKHIR PERALATAN: AKTIF (Kembali ke Daftar Peralatan)
                     </div>
                     <div style={{ fontSize: '11.5px', color: '#14532d', lineHeight: 1.4 }}>
-                      Pemeriksaan kondisi kembali memenuhi standar ({countReturnS} Sesuai{countReturnNA > 0 ? `, ${countReturnNA} Tidak Berlaku (TB)` : ''}) dan tidak ada insiden abnormal.
-                      Peralatan dialihkan ke status <strong>KARANTINA</strong> untuk diverifikasi ulang oleh Pengelola Lab sebelum dapat dipinjam kembali.
+                      Tidak ada kejadian selama peminjaman ({countReturnS} Sesuai{countReturnTS > 0 ? `, ${countReturnTS} Tidak Sesuai dicatat sebagai temuan` : ''}). Setelah dikonfirmasi, peralatan langsung kembali ke daftar peralatan tanpa verifikasi.
+                      Bila peralatan kembali setelah jatuh tempo pemeriksaan, sistem tetap mengarahkannya ke verifikasi.
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Catatan Pengembalian Pengelola */}
-              <div style={{ marginBottom: 'var(--sp-4)' }}>
+              <div ref={returnBottomRef} style={{ marginBottom: 'var(--sp-4)', scrollMarginTop: '16px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: 4 }}>
                   Catatan Tambahan Pengembalian Pengelola Lab (Opsional)
                 </label>
@@ -5479,63 +5376,6 @@ export default function LoanApproval({ onNavigate }) {
                     resize: 'vertical',
                   }}
                 />
-              </div>
-
-              {/* ============================================================ */}
-              {/* BAGIAN C: PENGESAHAN & TANDA TANGAN SERAH TERIMA KEMBALI      */}
-              {/* ============================================================ */}
-              <div
-                ref={returnBottomRef}
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: 8,
-                  padding: '14px',
-                  marginBottom: 'var(--sp-4)',
-                  scrollMarginTop: '16px',
-                }}
-              >
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0f172a' }}>
-                    Bagian C: Pengesahan & Tanda Tangan Serah Terima Kembali
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: 2 }}>
-                    Kedua belah pihak (Peminjam dan Pengelola Lab) membubuhkan tanda tangan digital untuk serah terima kembali peralatan.
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                    gap: 16,
-                  }}
-                >
-                  {/* Kolom 1: Tanda Tangan Peminjam (Yang Mengembalikan) */}
-                  <div>
-                    <DigitalSignaturePad
-                      label={`1. Tanda Tangan Peminjam (${selectedLoan.peminjam?.name || selectedLoan.peminjam_nama || 'Peminjam'}) *`}
-                      helperText="Personel yang menyerahkan kembali peralatan ke laboratorium"
-                      value={returnSigPeminjam}
-                      onChange={setReturnSigPeminjam}
-                      required={true}
-                    />
-                  </div>
-
-                  {/* Kolom 2: Tanda Tangan Pengelola Lab (Penerima Kembali) */}
-                  <div>
-                    <DigitalSignaturePad
-                      label={`2. Tanda Tangan Pengelola Lab (${selectedLoan.pengelola?.name || selectedLoan.pengelola_nama || selectedLoan.approval_pengelola?.nama || 'Pengelola Lab'}) *`}
-                      helperText="Petugas yang memeriksa & menerima peralatan kembali"
-                      value={returnSigPengelola}
-                      onChange={setReturnSigPengelola}
-                      required={true}
-                      savedSignature={userSavedSig}
-                      onRestore={() => setReturnSigPengelola(userSavedSig)}
-                      onForgetSaved={handleForgetSavedSig}
-                    />
-                  </div>
-                </div>
               </div>
 
               {/* Tombol Aksi */}
@@ -5575,8 +5415,8 @@ export default function LoanApproval({ onNavigate }) {
                     alignItems: 'center',
                     gap: 6,
                     fontWeight: 600,
-                    background: (countReturnTS > 0 || adaKejadian) ? '#dc2626' : '#16a34a',
-                    borderColor: (countReturnTS > 0 || adaKejadian) ? '#b91c1c' : '#15803d',
+                    background: adaKejadian ? '#dc2626' : '#16a34a',
+                    borderColor: adaKejadian ? '#b91c1c' : '#15803d',
                     color: '#ffffff',
                     padding: '8px 20px',
                     fontSize: '13px',
@@ -5584,7 +5424,7 @@ export default function LoanApproval({ onNavigate }) {
                     cursor: isSubmitting ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {countReturnTS > 0 || adaKejadian ? <AlertOctagon size={16} /> : <CheckCircle2 size={16} />}
+                  {adaKejadian ? <AlertOctagon size={16} /> : <CheckCircle2 size={16} />}
                   {isSubmitting
                     ? 'Menyimpan...'
                     : 'Konfirmasi Pengembalian'}
