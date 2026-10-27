@@ -137,7 +137,7 @@ export function buildLoanF006Html(loan, options = {}) {
 
   // Bagian C: 4 Penandatangan dengan resolver tanda tangan valid
   // 1. Peminjam
-  const ttdPeminjam = getCleanSignature(checkoutSigPeminjam || serahKeluar.ttd_peminjam || null, '1');
+  const ttdPeminjam = getCleanSignature(checkoutSigPeminjam || serahKeluar.ttd_peminjam || loan.peminjam?.ttd || peminjam.ttd || null, '1');
   const tglTtdPeminjam = formatTanggalIndo(serahKeluar.tanggal_diterima || serahKeluar.tanggal || rawTanggal);
 
   // 2. Mengetahui, Mgr. Lab Peminjam
@@ -622,6 +622,7 @@ export async function exportLoanF006Pdf(loanInput, options = {}) {
     loan &&
     loan.id &&
     !isNaN(Number(loan.id)) &&
+    !loan.peminjam?.ttd &&
     !loan.approval_manager_lab?.ttd &&
     !loan.approval_manager_peminjam?.ttd &&
     !loan.serah_terima_keluar?.ttd_pengelola
@@ -670,6 +671,7 @@ export async function exportLoanF006Word(loanInput, options = {}) {
     loan &&
     loan.id &&
     !isNaN(Number(loan.id)) &&
+    !loan.peminjam?.ttd &&
     !loan.approval_manager_lab?.ttd &&
     !loan.approval_manager_peminjam?.ttd &&
     !loan.serah_terima_keluar?.ttd_pengelola

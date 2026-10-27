@@ -23,7 +23,7 @@ export default function SignatureField({
     const ratio = Math.max(window.devicePixelRatio || 1, 2);
     const rect = canvas.getBoundingClientRect();
     const width = rect.width || 600;
-    const height = 140;
+    const height = 130;
 
     canvas.width = Math.floor(width * ratio);
     canvas.height = Math.floor(height * ratio);
@@ -42,7 +42,7 @@ export default function SignatureField({
     const ratio = Math.max(window.devicePixelRatio || 1, 2);
     const rect = canvas.getBoundingClientRect();
     const width = rect.width || 600;
-    const height = 140;
+    const height = 130;
     const ctx = canvas.getContext("2d");
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -55,7 +55,26 @@ export default function SignatureField({
     img.onload = () => {
       ctx.save();
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      ctx.drawImage(img, 0, 0, width, height);
+
+      // Hitung scaling proporsional (contain) agar tanda tangan tidak gepeng / ter-stretch
+      const imgAspect = img.width / img.height;
+      const canvasAspect = width / height;
+
+      let drawW, drawH, drawX, drawY;
+
+      if (imgAspect > canvasAspect) {
+        drawW = width;
+        drawH = width / imgAspect;
+        drawX = 0;
+        drawY = (height - drawH) / 2;
+      } else {
+        drawH = height;
+        drawW = height * imgAspect;
+        drawX = (width - drawW) / 2;
+        drawY = 0;
+      }
+
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
       ctx.restore();
     };
     img.src = value;
@@ -78,7 +97,7 @@ export default function SignatureField({
     e.preventDefault();
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
+    } catch { }
     drawingRef.current = true;
     const { x, y } = getPoint(e);
     const ctx = canvasRef.current.getContext("2d");
@@ -100,7 +119,7 @@ export default function SignatureField({
     drawingRef.current = false;
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
+    } catch { }
     if (canvasRef.current) {
       onChange(canvasRef.current.toDataURL("image/png"));
     }
@@ -118,7 +137,7 @@ export default function SignatureField({
   }
 
   return (
-    <div className="form-group" style={{ marginBottom: "var(--sp-3)" }}>
+    <div className="form-group signature-field-group" style={{ marginBottom: "var(--sp-3)", maxWidth: 560 }}>
       <div
         style={{
           display: "flex",
@@ -143,12 +162,14 @@ export default function SignatureField({
         </label>
         {value ? (
           <span
-            className="badge badge-aktif"
+            className="badge badge-success"
             style={{
               fontSize: "11px",
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
+              background: "#dcfce7",
+              color: "#15803d",
             }}
           >
             <CheckCircle2 size={12} /> Tanda tangan tercatat
@@ -163,6 +184,7 @@ export default function SignatureField({
       <div
         className="signature-field__canvas-frame"
         style={{
+          width: "100%",
           position: "relative",
           borderRadius: "var(--radius-lg, 10px)",
           border: "1.5px dashed var(--clr-dark-300, #cbd5e1)",
@@ -177,7 +199,7 @@ export default function SignatureField({
             position: "absolute",
             left: 20,
             right: 20,
-            bottom: 32,
+            bottom: 28,
             borderBottom: "1px dashed #cbd5e1",
             pointerEvents: "none",
             display: "flex",
@@ -209,7 +231,7 @@ export default function SignatureField({
           onPointerCancel={handlePointerUp}
           style={{
             width: "100%",
-            height: 110,
+            height: 130,
             display: "block",
             cursor: "crosshair",
             touchAction: "none",
@@ -222,20 +244,30 @@ export default function SignatureField({
 
       <div
         className="signature-field__actions"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: 6,
+          flexWrap: "wrap",
+          gap: 6,
+        }}
       >
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm text-error"
-          onClick={clear}
-        >
-          <Eraser size={14} /> Hapus & Goreskan Ulang
-        </button>
-        <div className="signature-field__saved-actions">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm text-error"
+            onClick={clear}
+            style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", fontSize: "12px" }}
+          >
+            <Eraser size={14} /> Hapus & Goreskan Ulang
+          </button>
           {!value && savedSignature && onRestore && (
             <button
               type="button"
               className="btn btn-ghost btn-sm"
               onClick={onRestore}
+              style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", fontSize: "12px", color: "#0284c7" }}
             >
               Gunakan Tersimpan
             </button>
@@ -245,24 +277,26 @@ export default function SignatureField({
               type="button"
               className="btn btn-ghost btn-sm text-error"
               onClick={onForgetSaved}
+              style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", fontSize: "12px" }}
             >
               Hapus Tersimpan
             </button>
           )}
         </div>
+        {inputHint && (
+          <span style={{ fontSize: "11px", color: "var(--clr-dark-400, #94a3b8)" }}>
+            {inputHint}
+          </span>
+        )}
       </div>
-      <div
-        style={{ marginTop: 4, fontSize: "11px", color: "var(--clr-dark-400)" }}
-      >
-        {savedSignatureHint}
-      </div>
-      <div
-        style={{ display: "flex", justifyContent: "flex-end", marginTop: 2 }}
-      >
-        <span style={{ fontSize: "11px", color: "var(--clr-dark-400)" }}>
-          {inputHint}
-        </span>
-      </div>
+
+      {savedSignatureHint && (
+        <div
+          style={{ marginTop: 4, fontSize: "11px", color: "var(--clr-dark-400)" }}
+        >
+          {savedSignatureHint}
+        </div>
+      )}
     </div>
   );
 }

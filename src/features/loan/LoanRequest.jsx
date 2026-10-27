@@ -13,10 +13,12 @@ import {
   labsApi,
   ruanganApi,
   peminjamanApi,
+  akunApi,
   getEquipmentId,
   formatPhotoUrl,
   STATUS_BADGE_CLASS,
 } from '../../shared/services/api.js';
+import SignatureField from '../../shared/components/ui/SignatureField.jsx';
 import { useToast } from '../../app/providers/ToastContext.jsx';
 import { useNavigate } from '../../app/router/Router.jsx';
 
@@ -83,6 +85,64 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
   // dipilih tidak bertumpuk dengan peminjaman orang lain.
   const [schedules, setSchedules] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [applicantSignature, setApplicantSignature] = useState('');
+  const [userSavedSig, setUserSavedSig] = useState('');
+  const [targetLabId, setTargetLabId] = useState('');
+  const [targetRoomId, setTargetRoomId] = useState('');
+
+  // Dropdown keperluan penggunaan sesuai formulir standar TLKM13/F/006
+  const [tujuanOpsi, setTujuanOpsi] = useState(() => {
+    const t = form.tujuan_penggunaan?.trim() || '';
+    if (!t) return '';
+    if (t === 'Pengujian' || t === 'Uji lokasi' || t === 'Pengecekan antara') return t;
+    return 'Lainnya';
+  });
+  const [tujuanLainnya, setTujuanLainnya] = useState(() => {
+    const t = form.tujuan_penggunaan?.trim() || '';
+    if (t.startsWith('Lainnya:')) return t.replace(/^Lainnya:\s*/, '');
+    if (!['Pengujian', 'Uji lokasi', 'Pengecekan antara'].includes(t)) return t;
+    return '';
+  });
+
+  const handleTujuanOpsiChange = (e) => {
+    const val = e.target.value;
+    setTujuanOpsi(val);
+    if (val === 'Lainnya') {
+      const desc = tujuanLainnya.trim();
+      setForm((prev) => ({
+        ...prev,
+        tujuan_penggunaan: desc ? `Lainnya: ${desc}` : '',
+      }));
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        tujuan_penggunaan: val,
+      }));
+    }
+  };
+
+  const handleTujuanLainnyaChange = (e) => {
+    const text = e.target.value;
+    setTujuanLainnya(text);
+    setForm((prev) => ({
+      ...prev,
+      tujuan_penggunaan: text.trim() ? `Lainnya: ${text.trim()}` : '',
+    }));
+  };
+
+  // Muat tanda tangan tersimpan akun untuk pra-isi kanvas pemohon
+  useEffect(() => {
+    let cancelled = false;
+    akunApi.getTtd()
+      .then((res) => {
+        if (!cancelled && res?.data?.ttd) {
+          setUserSavedSig(res.data.ttd);
+          setApplicantSignature(res.data.ttd);
+        }
+      })
+      .catch(() => { });
+    return () => { cancelled = true; };
+  }, []);
 
   // Sync selectedId when equipmentId prop changes
   useEffect(() => {
@@ -137,6 +197,22 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
     loadOptions();
     return () => { cancelled = true; };
   }, [error]);
+
+  // Sinkronisasi targetLabId dan targetRoomId bila lokasi_penggunaan sudah terisi
+  useEffect(() => {
+    if (!form.is_eksternal && form.lokasi_penggunaan && rooms.length > 0 && !targetRoomId) {
+      const matchedRoom = rooms.find((r) => {
+        const val1 = `${r.nama_ruangan} (${r.kode_ruangan}) — Lt. ${r.lantai_ruangan ?? r.lantai ?? 1}`;
+        const val2 = [r.kode_ruangan, r.nama_ruangan].filter(Boolean).join(' - ');
+        return form.lokasi_penggunaan === val1 || form.lokasi_penggunaan === val2 || (r.kode_ruangan && form.lokasi_penggunaan.includes(r.kode_ruangan));
+      });
+      if (matchedRoom) {
+        setTargetRoomId(String(matchedRoom.id));
+        const labId = matchedRoom.labs_id || matchedRoom.labs?.id || matchedRoom.lab_id;
+        if (labId) setTargetLabId(String(labId));
+      }
+    }
+  }, [form.is_eksternal, form.lokasi_penggunaan, rooms, targetRoomId]);
 
   // Butir 7.a: hanya peralatan yang berstatus layak pakai dan telah disetujui verifikasinya
   // yang dapat dipinjam. Alat berstatus Dipinjam tetap boleh diajukan, asal tanggalnya
@@ -232,6 +308,34 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
       is_eksternal: isExternal,
       di_luar_tth: isExternal,
     }));
+    setTargetLabId('');
+    setTargetRoomId('');
+  }
+
+  function handleTargetLabChange(e) {
+    const labId = e.target.value;
+    setTargetLabId(labId);
+    setTargetRoomId('');
+    setForm((prev) => ({ ...prev, lokasi_penggunaan: '' }));
+  }
+
+  function handleTargetRoomChange(e) {
+    const roomId = e.target.value;
+    setTargetRoomId(roomId);
+    const room = rooms.find((r) => String(r.id) === String(roomId));
+    if (room) {
+      const roomFormatted = `${room.nama_ruangan} (${room.kode_ruangan}) — Lt. ${room.lantai_ruangan ?? room.lantai ?? 1}`;
+      setForm((prev) => ({
+        ...prev,
+        lokasi_penggunaan: roomFormatted,
+      }));
+      if (!targetLabId) {
+        const labId = room.labs_id || room.labs?.id || room.lab_id;
+        if (labId) setTargetLabId(String(labId));
+      }
+    } else {
+      setForm((prev) => ({ ...prev, lokasi_penggunaan: '' }));
+    }
   }
 
   // Tanggal minimum memakai tanggal lokal (WIB), bukan UTC, agar tidak menggeser satu hari.
@@ -242,17 +346,24 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
   // Butir 7.d: rencana tanggal kembali tidak boleh melampaui jatuh tempo pemeriksaan berikutnya.
   const returnBeyondDueDate = Boolean(
     nextInspection && form.rencana_tanggal_kembali
-      && new Date(`${form.rencana_tanggal_kembali}T00:00:00`) > nextInspection
+    && new Date(`${form.rencana_tanggal_kembali}T00:00:00`) > nextInspection
   );
 
   function validate() {
     if (!selectedId) return 'Peralatan yang akan dipinjam wajib dipilih.';
     if (!form.nama_peminjam.trim()) return 'Nama peminjam wajib diisi.';
-    if (!form.tujuan_penggunaan.trim()) return 'Tujuan penggunaan wajib diisi.';
+    if (!tujuanOpsi) return 'Keperluan / tujuan penggunaan wajib dipilih.';
+    if (tujuanOpsi === 'Lainnya' && !tujuanLainnya.trim()) {
+      return 'Keterangan keperluan lainnya wajib diisi.';
+    }
     if (!form.lokasi_penggunaan.trim()) {
-      return form.is_eksternal
-        ? 'Lokasi tujuan eksternal wajib diisi.'
-        : 'Ruangan tujuan internal wajib dipilih.';
+      if (form.is_eksternal) {
+        return 'Lokasi tujuan eksternal wajib diisi.';
+      }
+      if (!targetLabId) {
+        return 'Laboratorium tujuan wajib dipilih.';
+      }
+      return 'Lokasi / ruangan fisik tujuan wajib dipilih.';
     }
     if (!form.rencana_tanggal_keluar) return 'Rencana tanggal keluar wajib diisi.';
     if (!form.rencana_tanggal_kembali) return 'Rencana tanggal kembali wajib diisi.';
@@ -267,6 +378,12 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
         ? `Alat sedang dipinjam orang lain pada rentang tanggal tersebut (${formatTgl(conflictingSchedule.rencana_tanggal_keluar)} s.d. ${formatTgl(conflictingSchedule.rencana_tanggal_kembali)}). Silakan pilih tanggal lain.`
         : JADWAL_BENTROK_MESSAGE;
     }
+    if (!form.kebutuhan_kelengkapan?.trim()) {
+      return 'Kelengkapan dan aksesori wajib diisi.';
+    }
+    if (!applicantSignature?.trim()) {
+      return 'Tanda tangan peminjam wajib dibubuhkan.';
+    }
     return '';
   }
 
@@ -280,10 +397,14 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
 
     setIsSubmitting(true);
     try {
+      const finalTujuan = tujuanOpsi === 'Lainnya'
+        ? (tujuanLainnya.trim() ? `Lainnya: ${tujuanLainnya.trim()}` : 'Lainnya')
+        : tujuanOpsi;
+
       const payload = {
         peralatan_id: Number(selectedId),
         nama_operator: form.nama_operator?.trim() || '',
-        tujuan_penggunaan: form.tujuan_penggunaan?.trim() || '',
+        tujuan_penggunaan: finalTujuan,
         nomor_spk: form.nomor_spk?.trim() || '',
         lokasi_penggunaan: form.lokasi_penggunaan?.trim() || '',
         is_eksternal: Boolean(form.is_eksternal || form.di_luar_tth),
@@ -292,6 +413,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
         kebutuhan_kelengkapan: form.kebutuhan_kelengkapan?.trim() || '',
         kebutuhan_aksesori: '',
         catatan: form.catatan?.trim() || '',
+        ttd: applicantSignature.trim(),
       };
 
       const res = await peminjamanApi.create(payload);
@@ -597,33 +719,57 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
           </div>
         </div>
 
-        {/* C. Tujuan Penggunaan — butir 8.1.a.2 */}
+        {/* C. Keperluan / Tujuan Penggunaan — butir 8.1.a.2 & formulir TLKM13/F/006 */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
           <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)' }}>
-            C. Tujuan Penggunaan
+            C. Keperluan / Tujuan Penggunaan
           </h3>
           <div className="form-group">
-            <label className="form-label" htmlFor="input-tujuan">Tujuan Penggunaan <span className="required">*</span></label>
-            <textarea
-              id="input-tujuan"
-              className="form-textarea"
-              rows={3}
-              placeholder="Uraikan kegiatan pengujian / proyek yang akan menggunakan peralatan tersebut..."
-              value={form.tujuan_penggunaan}
-              onChange={(e) => setForm({ ...form, tujuan_penggunaan: e.target.value })}
+            <label className="form-label" htmlFor="select-tujuan-penggunaan">
+              Keperluan Penggunaan <span className="required">*</span>
+            </label>
+            <select
+              id="select-tujuan-penggunaan"
+              className="form-select"
+              value={tujuanOpsi}
+              onChange={handleTujuanOpsiChange}
               required
-            />
+            >
+              <option value="">-- Pilih Keperluan Penggunaan --</option>
+              <option value="Pengujian">Pengujian</option>
+              <option value="Uji lokasi">Uji lokasi</option>
+              <option value="Pengecekan antara">Pengecekan antara</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
           </div>
+
+          {/* Input manual bila memilih Lainnya */}
+          {tujuanOpsi === 'Lainnya' && (
+            <div className="form-group" style={{ marginTop: 'var(--sp-3)' }}>
+              <label className="form-label" htmlFor="input-tujuan-lainnya">
+                Keterangan Keperluan Lainnya <span className="required">*</span>
+              </label>
+              <input
+                id="input-tujuan-lainnya"
+                type="text"
+                className="form-input"
+                placeholder="Tuliskan keperluan penggunaan lainnya..."
+                value={tujuanLainnya}
+                onChange={handleTujuanLainnyaChange}
+                required
+              />
+            </div>
+          )}
 
           <div className="form-group" style={{ marginTop: 'var(--sp-3)' }}>
             <label className="form-label" htmlFor="input-nomor-spk">
-              Nomor SPK / Surat Perintah Kerja <span className="form-hint" style={{ display: 'inline' }}>(Opsional)</span>
+              Dasar Pelaksanaan <span className="form-hint" style={{ display: 'inline' }}>(Opsional)</span>
             </label>
             <input
               id="input-nomor-spk"
               className="form-input"
               type="text"
-              placeholder="Contoh: 12345"
+              placeholder="Contoh: No. SPK (12345)"
               value={form.nomor_spk}
               onChange={(e) => setForm({ ...form, nomor_spk: e.target.value })}
             />
@@ -842,44 +988,65 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               </span>
             </div>
           ) : (
-            <div className="form-group" style={{ marginTop: 'var(--sp-3)' }}>
-              <label className="form-label" htmlFor="select-ruangan-tujuan">Ruangan Tujuan Internal <span className="required">*</span></label>
-              <select
-                id="select-ruangan-tujuan"
-                className="form-select"
-                value={form.lokasi_penggunaan}
-                onChange={(e) => setForm({ ...form, lokasi_penggunaan: e.target.value })}
-                required
-              >
-                <option value="">-- Pilih Ruangan Tujuan --</option>
-                {labs.map((lab) => {
-                  const labRooms = rooms.filter((room) => String(room.labs_id || room.labs?.id) === String(lab.id));
-                  if (labRooms.length === 0) return null;
-                  return (
-                    <optgroup key={lab.id} label={`${lab.kode_labs || lab.nama_labs} — ${lab.nama_labs}`}>
-                      {labRooms.map((room) => {
-                        const locationValue = [room.kode_ruangan, room.nama_ruangan].filter(Boolean).join(' - ');
-                        return <option key={room.id} value={locationValue}>{locationValue}</option>;
-                      })}
-                    </optgroup>
-                  );
-                })}
-              </select>
-              <span className="form-hint">
-                Daftar ruangan diambil dari master Ruangan. Lokasi asal peralatan tidak berubah selama peminjaman.
-              </span>
+            <div style={{ marginTop: 'var(--sp-3)' }}>
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="select-lab">
+                    Laboratorium <span className="required">*</span>
+                  </label>
+                  <select
+                    id="select-lab"
+                    className="form-select"
+                    value={targetLabId}
+                    onChange={handleTargetLabChange}
+                    required
+                  >
+                    <option value="">– Pilih Laboratorium –</option>
+                    {labs.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.nama_labs} ({l.kode_labs})
+                      </option>
+                    ))}
+                  </select>
+                  <span className="form-hint">
+                    Pilih laboratorium pemilik atau pengguna utama peralatan.
+                  </span>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="select-ruangan">
+                    Lokasi <span className="required">*</span>
+                  </label>
+                  <select
+                    id="select-ruangan"
+                    className="form-select"
+                    value={targetRoomId}
+                    onChange={handleTargetRoomChange}
+                    required
+                  >
+                    <option value="">– Pilih Lokasi –</option>
+                    {rooms
+                      .filter((r) => !targetLabId || String(r.labs_id || r.labs?.id || r.lab_id) === String(targetLabId))
+                      .map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.nama_ruangan} ({r.kode_ruangan}) — Lt. {r.lantai_ruangan ?? r.lantai ?? 1}
+                        </option>
+                      ))}
+                  </select>
+                  <span className="form-hint">
+                    Pilih ruangan fisik tempat alat disimpan; pilihan mengikuti laboratorium di atas.
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
         {/* E. Rencana Tanggal */}
         <div style={{ marginBottom: 'var(--sp-6)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-2)' }}>
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)' }}>
             E. Rencana Tanggal Keluar dan Kembali
           </h3>
-          <p className="page-subtitle" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--sp-3)' }}>
-            Rencana tanggal harus sudah diketahui oleh atasan Peminjam sebelum permohonan diajukan.
-          </p>
           <div className="form-grid-2">
             <div className="form-group">
               <label className="form-label" htmlFor="input-tanggal-keluar">Rencana Tanggal Keluar <span className="required">*</span></label>
@@ -938,11 +1105,12 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             F. Kelengkapan dan Aksesori
           </h3>
           <div className="form-group">
-            <label className="form-label" htmlFor="input-kelengkapan">Kelengkapan dan Aksesori yang Dibutuhkan</label>
             <textarea
               id="input-kelengkapan"
+              aria-label="Kelengkapan dan Aksesori yang Dibutuhkan"
               className="form-textarea"
               rows={3}
+              required
               placeholder="Contoh: modul pengujian, probe, kabel optik, bracket, adaptor daya AC/DC, baterai cadangan..."
               value={form.kebutuhan_kelengkapan}
               onChange={(e) => setForm({ ...form, kebutuhan_kelengkapan: e.target.value })}
@@ -960,6 +1128,28 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               onChange={(e) => setForm({ ...form, catatan: e.target.value })}
             />
           </div>
+        </div>
+
+        {/* G. Tanda Tangan Pemohon */}
+        <div style={{ marginBottom: 'var(--sp-6)' }}>
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', marginBottom: 'var(--sp-3)' }}>
+            G. Tanda Tangan Pemohon
+          </h3>
+          <SignatureField
+            label="Tanda Tangan Pemohon / Peminjam"
+            value={applicantSignature}
+            onChange={setApplicantSignature}
+            required={true}
+            savedSignature={userSavedSig}
+            onRestore={() => setApplicantSignature(userSavedSig)}
+            onForgetSaved={() => {
+              akunApi.deleteTtd().catch(() => { });
+              setUserSavedSig('');
+              setApplicantSignature('');
+            }}
+            savedSignatureHint="Tanda tangan tersimpan di akun Anda dan otomatis digunakan untuk pengajuan peminjaman."
+            inputHint="Goreskan tanda tangan digital pemohon"
+          />
         </div>
 
         {/* Tombol Aksi */}

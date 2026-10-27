@@ -992,7 +992,7 @@ function StaffDashboard({ onNavigate, user }) {
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              const ticketCode = l?.kode || (typeof l?.id === 'number' ? `PJM-2026-${String(l.id).padStart(4, '0')}` : String(l?.id || ''));
+                              const ticketCode = l?.kode || (typeof l?.id === 'number' ? `PJM-2026-${String(l.id).padStart(3, '0')}` : String(l?.id || ''));
                               if (ticketCode) markNotificationsAsReadByRef({ ticketCode });
                               onNavigate('/peminjaman');
                             }}
@@ -1006,7 +1006,7 @@ function StaffDashboard({ onNavigate, user }) {
                             style={{ padding: '4px 10px', fontSize: '12px' }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              const ticketCode = l?.kode || (typeof l?.id === 'number' ? `PJM-2026-${String(l.id).padStart(4, '0')}` : String(l?.id || ''));
+                              const ticketCode = l?.kode || (typeof l?.id === 'number' ? `PJM-2026-${String(l.id).padStart(3, '0')}` : String(l?.id || ''));
                               if (ticketCode) markNotificationsAsReadByRef({ ticketCode });
                               onNavigate('/peminjaman');
                             }}

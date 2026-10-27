@@ -607,6 +607,20 @@ export const peminjamanApi = {
     fetchWithAuth(`/api/peminjaman/${id}/perpanjangan/${perpanjanganId}/keputusan`, { method: 'PUT', body: JSON.stringify(body) }),
 };
 
+// =============================================================
+// AKUN & TANDA TANGAN — /api/akun
+// GET    /api/akun/ttd → { status: 'success', data: { user_id, nama, ttd, updated_at } }
+// PUT    /api/akun/ttd → { status: 'success', message: '...', data: { user_id, ttd, updated_at } }
+// DELETE /api/akun/ttd → { status: 'success', message: '...' }
+// =============================================================
+export const akunApi = {
+  getTtd: () => fetchWithAuth('/api/akun/ttd'),
+  saveTtd: (ttd) =>
+    fetchWithAuth('/api/akun/ttd', { method: 'PUT', body: JSON.stringify({ ttd }) }),
+  deleteTtd: () =>
+    fetchWithAuth('/api/akun/ttd', { method: 'DELETE' }),
+};
+
 
 export const STATUS_ALAT_OPTIONS = [
   'Karantina', 'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Rusak'

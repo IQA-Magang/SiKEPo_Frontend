@@ -1,3 +1,220 @@
+# Warna di Website SiKEPo
+
+Daftar ini menjelaskan warna yang terlihat di setiap halaman. Kode warna ditulis dalam format HEX, misalnya `#EE2E24`.
+
+## Warna yang dipakai di halaman setelah login
+
+Halaman dashboard, peralatan, verifikasi, jadwal, admin, dan pengaturan memakai tampilan dasar yang sama.
+
+- Bagian atas website (header) — merah gradasi — `#E30613` ke `#B8000A`
+- Latar halaman — abu-abu muda — `#F4F5F8`
+- Menu samping, kartu, dan tabel — putih — `#FFFFFF`
+- Tombol utama dan menu yang dipilih — merah — `#C92B21` atau `#EE2E24`
+- Tombol utama saat ditekan/aktif — merah tua — `#991B1B`
+- Teks utama — biru tua kehitaman — `#0F172A`, `#111111`, atau `#1E293B`
+- Teks penjelas — abu-abu — `#475569`, `#64748B`, atau `#6B7280`
+- Garis tabel dan kotak — abu-abu muda — `#E2E8F0` atau `#E5E7EB`
+- Latar bagian yang tidak aktif — abu-abu sangat muda — `#F1F5F9`, `#F3F4F6`, atau `#F9FAFB`
+- Tombol header dan pencarian — putih transparan di atas latar merah
+
+## Halaman publik dan login
+
+### Halaman depan (`/`)
+
+- Latar halaman — gradasi putih kebiruan — `#F8FAFC` ke `#EDF3FF`
+- Judul dan teks utama — biru tua — `#0F172A`
+- Teks penjelas — abu-abu kebiruan — `#475569`
+- Tombol utama dan bagian judul beraksen — gradasi merah — `#EE2E24` ke `#C81E1E`
+- Tombol kedua — putih — `#FFFFFF`
+- Tombol QR — putih dengan tulisan merah tua — `#991B1B`
+- Penanda berhasil — hijau — `#22C55E` atau `#16A34A`
+- Penanda error — merah — `#EF4444` atau `#FCA5A5`
+
+### Halaman masuk (`/login`)
+
+- Latar halaman — abu-abu sangat muda — `#F8F8F8`
+- Kotak login dan kolom isian — putih — `#FFFFFF`
+- Tombol dan garis kolom isian — merah — `#E30613`
+- Kolom isian saat dipilih — merah tua — `#B8000A`
+- Kolom isian yang salah dan pesan error — merah — `#DC2626`
+- Latar kolom isian yang salah — merah muda — `#FEF2F2`
+- Teks utama — hampir hitam — `#111111` atau `#111827`
+- Teks tambahan — abu-abu — `#374151`, `#4B5563`, atau `#6B7280`
+- Garis pemisah — abu-abu muda — `#E5E7EB`
+
+### Halaman informasi alat untuk tamu (`/guest/peralatan/:nomor_aset`)
+
+Halaman ini memakai warna hijau keabu-abuan yang berbeda dari halaman setelah login.
+
+- Latar halaman — hijau keabu-abuan sangat muda — `#F2F6F4`
+- Kartu dan tombol — putih — `#FFFFFF`
+- Judul — biru kehijauan gelap — `#13242C` atau `#17252D`
+- Teks tambahan — abu-abu kehijauan — `#61716F`, `#64737A`, atau `#647672`
+- Garis dan pembatas — hijau keabu-abuan muda — `#D7E0DD`, `#DCE5E2`, atau `#E3EAE7`
+- Tombol/aksen utama — merah — `#CF3428`
+- Label kecil — merah tua — `#A32B22`
+- Penanda dan aksen hijau — `#1D6849`, `#278253`, atau `#287452`
+- Latar hijau sangat muda — `#C8E2D4`, `#D9E3DE`, `#E7EEEB`, `#EAF0ED`, atau `#EAF6EF`
+- Warna dekorasi merah tambahan — `#BD3026` atau `#D65A4F`
+
+## Halaman utama setelah login
+
+Semua halaman di bagian ini menggunakan warna dasar setelah login yang dijelaskan di atas. Warna status digunakan pada label, ikon, dan pemberitahuan.
+
+### Dashboard (`/dashboard`)
+
+- Kartu ringkasan — putih — `#FFFFFF`
+- Angka atau tanda berhasil — hijau — `#22C55E`
+- Angka atau tanda peringatan — oranye — `#F59E0B`
+- Angka atau tanda error — merah — `#EF4444`
+- Angka atau tanda informasi — biru — `#3B82F6`
+
+### Daftar, tambah, dan detail peralatan
+
+Halaman: `/peralatan`, `/peralatan/tambah`, `/peralatan/detail/:id`, dan `/peralatan/qr/:id`.
+
+- Formulir, kartu informasi, dan tabel — putih — `#FFFFFF`
+- Nama dan informasi utama — biru tua — `#0F172A` atau `#1E293B`
+- Informasi tambahan — abu-abu — `#64748B` atau `#94A3B8`
+- Nomor aset — latar abu-abu muda — `#F1F5F9`
+- Garis tabel dan form — abu-abu muda — `#E2E8F0` atau `#E5E7EB`
+
+### Daftar alat menunggu verifikasi dan dalam peninjauan
+
+Halaman: `/peralatan/menunggu-verifikasi` dan `/peralatan/dalam-peninjauan`.
+
+- Tabel dan kartu — putih — `#FFFFFF`
+- Status menunggu atau peringatan — oranye — `#F59E0B` atau `#D97706`
+- Latar status peringatan — kuning muda — `#FEF3C7` atau `#FFFBEB`
+- Status peninjauan — biru — `#3B82F6` atau `#1D4ED8`
+- Latar status peninjauan — biru muda — `#DBEAFE` atau `#EFF6FF`
+- Teks dan garis — memakai warna dasar setelah login
+
+### Peminjaman, Serah Terima, & Pengembalian Peralatan (`/peminjaman`)
+
+Halaman ini mencakup formulir pengajuan peminjaman, daftar persetujuan bertingkat, pemeriksaan fisik serah terima keluar, pengembalian, dan perpanjangan.
+
+#### 1. Formulir Pengajuan Peminjaman
+- Latar halaman dan teks — memakai warna dasar setelah login
+- Kartu informasi peralatan terpilih — latar abu-abu kebiruan `#F8FAFC` dengan garis batas aksen merah `#EE2E24`
+- Pilihan kategori peminjaman (Internal / Eksternal):
+  - Kartu aktif — garis merah `#EE2E24`, latar merah sangat muda `#FEF2F2`, teks merah tua `#991B1B`
+  - Kartu tidak aktif — latar putih `#FFFFFF`, garis abu-abu `#E2E8F0`, teks `#0F172A`
+- Peringatan bentrok jadwal & jatuh tempo — latar merah muda `#FEF2F2`, garis `#FECACA`, teks merah tua `#991B1B`
+- Field tanda tangan digital pemohon — bingkai putus-putus `#CBD5E1`, latar putih, badge hijau `#15803D` dengan latar `#DCFCE7`
+- Tombol simpan/ajukan — gradasi merah `#C92B21` ke `#991B1B` (`btn-primary`)
+
+#### 2. Status Tiket & Alur Persetujuan
+Setiap tahapan peminjaman memiliki identitas warna untuk memudahkan pembedaan wewenang peninjau:
+- Tahap 1: Menunggu Atasan Peminjam — oranye — teks `#D97706`, latar `#FEF3C7`
+- Tahap 2: Menunggu Review Pengelola — biru — teks `#0284C7`, latar `#E0F2FE`
+- Tahap 3: Menunggu Manager Lab Pemilik — ungu — teks `#7C3AED`, latar `#F3E8FF` *(warna pembeda khusus pengesahan tingkat pimpinan)*
+- Tahap 4A: Disetujui / Pemeriksaan Pengelola — oranye tua — teks `#EA580C`, latar `#FFF7ED`
+- Tahap 4B: Siap Diserahkan / TTD Peminjam — biru — teks `#0284C7`, latar `#E0F2FE`
+- Sedang Dipinjam — hijau — teks `#16A34A`, latar `#DCFCE7` *(menandakan serah terima fisik telah sah dan alat aktif digunakan)*
+- Dikembalikan — hijau zamrud — teks `#059669`, latar `#D1FAE5` *(siklus peminjaman telah tuntas)*
+- Ditolak / Dibatalkan (Ada TS - DO NOT USE) — merah — teks `#DC2626` atau `#B91C1C`, latar `#FEE2E2`
+
+#### 3. Modal Serah Terima Fisik (Lampiran A), Pengembalian, & Perpanjangan
+- Modal Serah Terima Fisik Keluar:
+  - Header Tahap 4A (Pengelola) — oranye muda — latar `#FFF7ED`, garis `#FDBA74`, teks `#9A3412`
+  - Header Tahap 4B (Peminjam) — biru muda — latar `#F0F9FF`, garis `#7DD3FC`, teks `#0369A1`
+  - Butir checklist fisik — Sesuai (Hijau `#16A34A`), Tidak Sesuai (Merah `#DC2626`), Tidak Berlaku (Abu-abu `#64748B`)
+- Modal Pengembalian Peralatan:
+  - Header modal — hijau muda — latar `#ECFDF5`, garis `#A7F3D0`, teks `#064E3B`
+  - Label tindak lanjut sistem pasca kembali:
+    - AKTIF (Siap Dipinjam) — hijau — `#15803D`, latar `#DCFCE7`
+    - DO NOT USE (Isolasi Alat) — merah — `#991B1B`, latar `#FEE2E2`
+    - KARANTINA (Verifikasi IK/003) — kuning/oranye — `#92400E`, latar `#FEF3C7`
+- Modal Tinjau Perpanjangan:
+  - Header modal — oranye muda — latar `#FFF7ED`, garis `#FED7AA`, teks `#9A3412`
+  - Tombol keputusan — Setuju (Hijau `#16A34A`), Tolak (Merah `#DC2626`)
+
+### Verifikasi alat
+
+Halaman: `/verifikasi` dan `/verifikasi/:id`.
+
+- Kartu, formulir, dan tabel — putih — `#FFFFFF`
+- Tanda lulus atau tindak lanjut selesai — hijau — `#15803D`
+- Latar tanda berhasil — hijau muda — `#F0FDF4` atau `#DCFCE7`
+- Tanda menunggu — oranye — `#B45309`
+- Tanda gagal atau perlu perbaikan — merah — `#B91C1C` atau `#EF4444`
+- Latar tanda merah — merah muda — `#FFF1F2`, `#FECDD3`, atau `#FEE2E2`
+- Informasi atau tautan — biru — `#3B82F6` atau `#4F46E5`
+- Latar informasi — biru muda — `#E0E7FF` atau `#DBEAFE`
+- Teks tambahan dan garis — abu-abu — `#64748B` atau `#E2E8F0`
+
+### Jadwal pemeriksaan berkala (`/penjadwalan`)
+
+- Kartu, tabel, dan formulir — putih — `#FFFFFF`
+- Jadwal aman atau selesai — hijau — `#15803D`
+- Latar jadwal aman — hijau muda — `#ECFDF3`
+- Jadwal terlambat atau perlu tindakan — merah — `#DC2626` atau `#B91C1C`
+- Latar jadwal terlambat — merah muda — `#FEE2E2` atau `#FEF2F2`
+- Jadwal yang akan datang — oranye — `#92400E` atau `#C2410C`
+- Latar jadwal yang akan datang — kuning/oranye muda — `#FEF3C7`, `#FEF9C3`, atau `#FFEDD5`
+- Informasi pemeriksaan — biru — `#0369A1` atau `#1D4ED8`
+- Latar informasi — biru muda — `#DBEAFE` atau `#E0F2FE`
+- Garis dan teks tambahan — abu-abu — `#D1D5DB`, `#9CA3AF`, `#4B5563`, atau `#374151`
+- Penanda grafik — merah `#DC2626` dan biru `#1D4ED8`
+
+### Pengelolaan pengguna, laboratorium, ruangan, dan kelompok aset
+
+Halaman: `/admin/users`, `/admin/labs`, `/admin/ruangan`, dan `/admin/kelompok-aset`.
+
+- Formulir, tabel, dan kartu — putih — `#FFFFFF`
+- Tombol utama — merah — `#EE2E24` atau `#C92B21`
+- Teks utama — biru tua — `#0F172A`
+- Teks tambahan — abu-abu — `#475569` atau `#6B7280`
+- Latar kolom dan bagian nonaktif — abu-abu muda — `#F3F4F6` atau `#F9FAFB`
+- Garis tabel dan formulir — abu-abu muda — `#E2E8F0` atau `#E5E7EB`
+- Label berhasil, peringatan, error, dan informasi — memakai warna status yang dijelaskan di bagian Dashboard
+
+### Pengelolaan kategori (`/admin/kategori`)
+
+Setiap kategori alat memiliki warna pembeda:
+
+- Alat utama — merah — teks `#EE2E24`, latar `#FEF2F2`, garis `#FCA5A5`
+- Alat pendukung — biru — teks `#2563EB`, latar `#EFF6FF`, garis `#BFDBFE`
+- Standar acuan — hijau — teks `#059669`, latar `#ECFDF5`, garis `#A7F3D0`
+- Material operasional — oranye — teks `#D97706`, latar `#FFFBEB`, garis `#FDE68A`
+- Kartu yang tidak dipilih — putih — `#FFFFFF`
+- Teks dan garis kartu — biru tua/abu-abu — `#1E293B`, `#475569`, atau `#CBD5E1`
+
+### Pengaturan (`/settings`)
+
+- Latar halaman, kartu, dan formulir — memakai warna dasar setelah login
+- Tombol atau bagian pengaturan yang beraksen — merah — `#E30613` atau `#B8000A`
+- Pesan status — memakai warna berhasil, peringatan, error, atau informasi yang dijelaskan di bagian Dashboard
+
+## Halaman kesalahan
+
+### Akses ditolak (`/unauthorized`)
+
+- Ikon peringatan — oranye — `#D97706`
+- Latar ikon peringatan — kuning muda — `#FEF3C7`
+- Label peringatan — menggunakan warna oranye dan kuning
+- Kartu, teks, serta tombol — memakai warna dasar setelah login
+
+### Halaman tidak ditemukan (alamat lain)
+
+- Ikon bantuan — merah — `#E30613`
+- Latar ikon — merah muda — `#FEF2F2`
+- Label error — merah — `#EF4444` atau `#DC2626`
+- Kartu, teks, serta tombol — memakai warna dasar setelah login
+
+## Arti warna status
+
+- Hijau — berhasil, aktif, aman, sedang dipinjam (tiket aktif), atau selesai — `#22C55E`, `#15803D`, `#16A34A`, latar `#DCFCE7`
+- Oranye — peringatan, menunggu persetujuan/serah terima, atau perlu verifikasi — `#F59E0B`, `#D97706`, `#EA580C`, latar `#FEF3C7`, `#FFF7ED`
+- Merah — error, rusak, terlambat, ditolak, atau DO NOT USE — `#EF4444`, `#DC2626`, `#B91C1C`, latar `#FEE2E2`
+- Biru — informasi, kalibrasi, atau menunggu konfirmasi penerimaan — `#3B82F6`, `#1D4ED8`, `#0284C7`, latar `#DBEAFE`, `#E0F2FE`
+- Ungu — wewenang khusus pengesahan Manager Lab pemilik alat — `#7C3AED`, latar `#F3E8FF`
+- Abu-abu — nonaktif, tidak berlaku (TB), atau draft — `#94A3B8`, `#64748B`, latar `#F1F5F9`
+
+Warna dengan transparansi dipakai untuk bayangan, lapisan penutup, dan efek saat tombol dipilih. Tampilan akhirnya bisa tampak lebih muda atau lebih gelap karena warna di belakangnya.
+
+
 # Panduan & Dokumentasi Sistem SiKEPo
 ## Sistem Informasi Manajemen Inventaris & Kelaikan Peralatan Laboratorium
 ### Telkom Test House (TTH)
