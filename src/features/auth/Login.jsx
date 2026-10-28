@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, HelpCircle, Mail, Phone, KeyRound } from 'lucide-react';
+import { Eye, EyeOff, HelpCircle, X, Mail, Phone, KeyRound } from 'lucide-react';
 import WaveBackground from '../../shared/components/WaveBackground.jsx';
 import LogoSiKEPo from '../../shared/components/LogoSiKEPo.jsx';
 import TelkomTestHouseLogo from '../../shared/components/TelkomTestHouseLogo.jsx';
 import Captcha from '../../shared/components/Captcha.jsx';
 import { authApi, getToken } from '../../shared/services/api.js';
 import { useToast } from '../../app/providers/ToastContext.jsx';
-import { Button, FormField, Modal } from '../../shared/components/ui/index.js';
 
 export default function Login({ onNavigate }) {
   const [emailOrNip, setEmailOrNip] = useState('');
@@ -22,7 +21,7 @@ export default function Login({ onNavigate }) {
 
   useEffect(() => {
     if (getToken()) {
-      onNavigate('/dashboard');
+      onNavigate('/dashboard', { replace: true });
     }
   }, [onNavigate]);
 
@@ -73,7 +72,7 @@ export default function Login({ onNavigate }) {
 
       setIsLoading(false);
       toast.success('Berhasil masuk ke SiKEPo!', 3000);
-      onNavigate('/dashboard');
+      onNavigate('/dashboard', { replace: true });
     } catch (err) {
       setIsLoading(false);
       const msg = err.message || 'Gagal login. Periksa email, password, dan reCAPTCHA.';
@@ -108,13 +107,10 @@ export default function Login({ onNavigate }) {
                   </div>
                 )}
 
-                <FormField
-                  label="Email Terdaftar"
-                  htmlFor="emailOrNip"
-                  required
-                  error={errors.email}
-                  className="form-group"
-                >
+                <div className="form-group">
+                  <label htmlFor="emailOrNip" className="input-label">
+                    Email Terdaftar <span className="required">*</span>
+                  </label>
                   <div className="input-wrapper">
                     <input
                       id="emailOrNip"
@@ -132,15 +128,13 @@ export default function Login({ onNavigate }) {
                       aria-invalid={Boolean(errors.email)}
                     />
                   </div>
-                </FormField>
+                  {errors.email && <span className="error-text" role="alert">{errors.email}</span>}
+                </div>
 
-                <FormField
-                  label="Password"
-                  htmlFor="password"
-                  required
-                  error={errors.password}
-                  className="form-group"
-                >
+                <div className="form-group">
+                  <label htmlFor="password" className="input-label">
+                    Password <span className="required">*</span>
+                  </label>
                   <div className="input-wrapper">
                     <input
                       id="password"
@@ -167,7 +161,8 @@ export default function Login({ onNavigate }) {
                       {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                     </button>
                   </div>
-                </FormField>
+                  {errors.password && <span className="error-text" role="alert">{errors.password}</span>}
+                </div>
 
                 {/* Google reCAPTCHA v2 Checkbox */}
                 <Captcha
@@ -183,7 +178,7 @@ export default function Login({ onNavigate }) {
                   disabled={isLoading}
                 />
 
-                <Button type="submit" className="btn-masuk" disabled={isLoading} id="btn-login-submit">
+                <button type="submit" className="btn-masuk" disabled={isLoading} id="btn-login-submit">
                   {isLoading ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <span className="spinner-mini" /> Memproses...
@@ -191,7 +186,7 @@ export default function Login({ onNavigate }) {
                   ) : (
                     'Masuk'
                   )}
-                </Button>
+                </button>
 
                 {/* Accessible Replacement for alert() */}
                 <div className="form-links">
@@ -260,10 +255,8 @@ export default function Login({ onNavigate }) {
                     <span className="test-creds-text">
                       Akun Standar: <strong>admin@sikepo.local</strong>
                     </span>
-                    <Button
+                    <button
                       type="button"
-                      variant="secondary"
-                      size="sm"
                       className="btn-test-creds"
                       onClick={() => {
                         setEmailOrNip('admin@sikepo.local');
@@ -273,7 +266,7 @@ export default function Login({ onNavigate }) {
                       }}
                     >
                       Isi Kredensial Pengujian
-                    </Button>
+                    </button>
                   </div>
                 )}
               </form>
@@ -287,27 +280,51 @@ export default function Login({ onNavigate }) {
         </section>
       </main>
 
-      <Modal
-        isOpen={Boolean(infoModal)}
-        onClose={() => setInfoModal(null)}
-        title={infoModal && (
-          <span className="login-info-modal-title">
-            <span className="confirm-icon-wrap bg-primary-subtle text-primary">
-              {infoModal.icon ? <infoModal.icon size={22} /> : <HelpCircle size={22} />}
-            </span>
-            {infoModal.title}
-          </span>
-        )}
-        description={infoModal?.subtitle}
-        className="login-info-modal"
-        footer={(
-          <Button variant="primary" onClick={() => setInfoModal(null)}>
-            Mengerti
-          </Button>
-        )}
-      >
-        {infoModal?.content}
-      </Modal>
+      {/* Accessible Info & Help Modal Dialog */}
+      {infoModal && (
+        <div
+          className="confirm-modal-overlay fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setInfoModal(null);
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="login-info-modal-title"
+        >
+          <div className="confirm-dialog-card zoom-in">
+            <div className="confirm-dialog-header">
+              <div className="confirm-icon-wrap bg-primary-subtle text-primary">
+                {infoModal.icon ? <infoModal.icon size={22} /> : <HelpCircle size={22} />}
+              </div>
+              <button
+                className="confirm-dialog-close"
+                onClick={() => setInfoModal(null)}
+                aria-label="Tutup jendela informasi"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div>
+              <h3 id="login-info-modal-title" className="confirm-dialog-title">
+                {infoModal.title}
+              </h3>
+              <p style={{ fontSize: '12px', color: 'var(--clr-dark-500, #6B7280)', marginBottom: 14 }}>
+                {infoModal.subtitle}
+              </p>
+              {infoModal.content}
+            </div>
+            <div className="confirm-dialog-footer">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setInfoModal(null)}
+              >
+                Mengerti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

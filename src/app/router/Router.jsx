@@ -11,7 +11,8 @@ const RouteParamsContext = createContext({});
 // ------------------------------------------------------------------
 export function getHashPath() {
   const hash = window.location.hash || '';
-  if (hash && hash !== '#' && hash !== '#/') {
+  if (hash) {
+    if (hash === '#' || hash === '#/') return '/';
     const clean = hash.startsWith('#') ? hash.slice(1) : hash;
     const pathWithoutQuery = clean.split('?')[0];
     return pathWithoutQuery.startsWith('/') ? pathWithoutQuery : `/${pathWithoutQuery}`;
@@ -77,11 +78,13 @@ export function Router({ children }) {
 
   const navigate = useCallback((to, { replace = false } = {}) => {
     const formatted = to.startsWith('/') ? to : `/${to}`;
+    setCurrentPath(formatted);
     if (replace) {
       window.location.replace(`#${formatted}`);
     } else {
       window.location.hash = formatted;
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   useEffect(() => {

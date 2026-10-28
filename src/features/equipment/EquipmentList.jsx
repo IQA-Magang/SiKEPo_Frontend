@@ -1,180 +1,496 @@
-import React, { useState, useEffect } from 'react';
-import './equipment.css';
-import { Package, Plus } from 'lucide-react';
-import { getCurrentUser, getEquipmentId, getEquipmentLabId, peralatanApi, ruanganApi, verifikasiApi } from '../../shared/services/api.js';
-import { ACCESS, ACTIONS, can, getUserRole } from '../../shared/utils/permissions.js';
-import { usePagination } from '../../shared/components/ui/Pagination.jsx';
-import TableFilters from '../../shared/components/ui/TableFilters.jsx';
-import { Button, PageHeader, LoadingState, EmptyState, ErrorState } from '../../shared/components/ui/index.js';
-import ConfirmDialog from '../../shared/components/ui/ConfirmDialog.jsx';
-import EquipmentListTable from './components/EquipmentListTable.jsx';
-import { useToast } from '../../app/providers/ToastContext.jsx';
+import React, { useState, useEffect } from "react";
+import { Package, Plus, RefreshCw, Hand } from "lucide-react";
 import {
-  filterEquipment,
-  getEquipmentCategories,
-  getEquipmentLifecycleHeader,
-  mergePendingVerificationActivity,
-} from './equipmentListData.js';
-
+  getEquipmentId,
+  getEquipmentCategoryId,
+  peralatanApi,
+  ruanganApi,
+  peminjamanApi,
+  STATUS_BADGE_CLASS,
+} from "../../shared/services/api.js";
+import { ACCESS, ACTIONS, can } from "../../shared/utils/permissions.js";
+import { usePagination } from "../../shared/components/ui/Pagination.jsx";
+import PaginatedDataTable from "../../shared/components/ui/PaginatedDataTable.jsx";
+import TableFilters from "../../shared/components/ui/TableFilters.jsx";
+import WorkflowGuide from "../../shared/components/ui/WorkflowGuide.jsx";
 
 // ------------------------------------------------------------------
 // Daftar Peralatan
 // ------------------------------------------------------------------
 export default function EquipmentList({
   onNavigate,
-  initialLifecycle = 'all',
-  returnPath = '/peralatan',
+  initialLifecycle = "all",
+  returnPath = "/peralatan",
 }) {
   const canCreate = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD);
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const canRequestLoan = can(ACCESS.LOAN_REQUEST, ACTIONS.ADD);
-  const canReturnEquipment = can(ACCESS.RETURN_PROCESS, ACTIONS.EDIT);
-  const { success: toastSuccess, error: toastError } = useToast();
-  const user = getCurrentUser();
-  const role = getUserRole(user);
-  const isLabScopedUser = role === 'staff' || role === 'manager';
-  const currentUserLabId = user?.labs_id ?? user?.labs?.id;
-  const [list, setList]         = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [loadError, setLoadError] = useState('');
-  const [search, setSearch]     = useState('');
-  const [filterKat, setFilterKat] = useState('');
-  const [filterLab, setFilterLab] = useState('');
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterKat, setFilterKat] = useState("");
   const [lifecycleView, setLifecycleView] = useState(initialLifecycle);
   const [rooms, setRooms] = useState([]);
-  const [equipmentToReturn, setEquipmentToReturn] = useState(null);
-  const [returningEquipmentId, setReturningEquipmentId] = useState(null);
-  const [loaningEquipmentId, setLoaningEquipmentId] = useState(null);
+  const [jadwal, setJadwal] = useState([]);
+  const hariIni = new Date();
+  const hariIniStr = `${hariIni.getFullYear()}-${String(hariIni.getMonth() + 1).padStart(2, "0")}-${String(hariIni.getDate()).padStart(2, "0")}`;
+  const jadwalPerAlat = new Map();
+  for (const j of jadwal) {
+    const pid = String(j.peralatan_id);
+    if (!jadwalPerAlat.has(pid)) jadwalPerAlat.set(pid, []);
+    jadwalPerAlat.get(pid).push(j);
+  }
+  function formatTgl(dateStr) {
+    if (!dateStr) return "";
+    const d = String(dateStr).slice(0, 10);
+    const parts = d.split("-");
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return dateStr;
+  }
 
+  function isCurrentlyOut(p) {
+    const pid = String(getEquipmentId(p));
+    const ranges = jadwalPerAlat.get(pid) || [];
+    for (const r of ranges) {
+      if (
+        hariIniStr >= r.rencana_tanggal_keluar &&
+        hariIniStr <= r.rencana_tanggal_kembali
+      )
+        return r;
+    }
+    if (p.status_alat === "Dipinjam" && ranges.length > 0) {
+      return ranges[0];
+    }
+    return null;
+  }
 
-  useEffect(() => { loadData(); }, []);
-  useEffect(() => { setLifecycleView(initialLifecycle); }, [initialLifecycle]);
+  useEffect(() => {
+    loadData();
+  }, []);
+  useEffect(() => {
+    setLifecycleView(initialLifecycle);
+  }, [initialLifecycle]);
 
   async function loadData() {
     setLoading(true);
-    setLoadError('');
     try {
-      if (isLabScopedUser && currentUserLabId == null) {
-        throw new Error('Akun pengguna belum terhubung dengan lab.');
-      }
-      const [res, roomsRes, verificationsRes] = await Promise.all([
+      const [res, roomsRes, jadwalRes] = await Promise.all([
         peralatanApi.getAll(),
         ruanganApi.getAll().catch((err) => {
-          console.error('Gagal memuat lokasi peralatan:', err);
-          if (isLabScopedUser) throw err;
+          console.error("Gagal memuat lokasi peralatan:", err);
           return { data: [] };
         }),
-        verifikasiApi.getAll(),
+        peminjamanApi.getAllJadwal().catch(() => ({ data: [] })),
       ]);
-      if (!Array.isArray(res?.data) || !Array.isArray(verificationsRes?.data)) {
-        throw new Error('Format data peralatan atau verifikasi tidak valid.');
-      }
-      setList(mergePendingVerificationActivity(res.data, verificationsRes.data));
+      setList(res.data || []);
       setRooms(roomsRes.data || []);
+      setJadwal(jadwalRes.data || []);
     } catch (err) {
-      console.error('Gagal memuat peralatan:', err);
-      setLoadError(err.message || 'Gagal memuat data peralatan.');
+      console.error("Gagal memuat peralatan:", err);
     } finally {
       setLoading(false);
     }
   }
 
-  async function confirmReturnEquipment() {
-    if (!equipmentToReturn) return;
-
-    const equipmentId = getEquipmentId(equipmentToReturn);
-    setReturningEquipmentId(equipmentId);
-    try {
-      await peralatanApi.returnFromLoan(equipmentId);
-      setEquipmentToReturn(null);
-      toastSuccess('Peralatan dikembalikan dan masuk antrean verifikasi A3.');
-      await loadData();
-    } catch (err) {
-      console.error('Gagal mencatat pengembalian peralatan:', err);
-      toastError(err.message || 'Gagal mencatat pengembalian peralatan.');
-    } finally {
-      setReturningEquipmentId(null);
-    }
-  }
-
-  async function markEquipmentAsLoaned(equipment) {
-    const equipmentId = getEquipmentId(equipment);
-    if (equipmentId == null) return;
-
-    setLoaningEquipmentId(equipmentId);
-    try {
-      await peralatanApi.markAsLoaned(equipmentId);
-      toastSuccess('Status peralatan berubah menjadi Dipinjam.');
-      await loadData();
-    } catch (err) {
-      console.error('Gagal mengubah status peminjaman peralatan:', err);
-      toastError(err.message || 'Gagal mengubah status peralatan.');
-    } finally {
-      setLoaningEquipmentId(null);
-    }
-  }
-
-  const roomsById = new Map(rooms.map((room) => [String(room.id), room]));
-  const visibleList = isLabScopedUser
-    ? list.filter((item) => {
-        const labId = getEquipmentLabId(item, roomsById);
-        return labId != null && String(labId) === String(currentUserLabId);
-      })
-    : list;
-  const labsById = new Map();
-  rooms.forEach((room) => {
-    const lab = room.labs || room.laboratorium;
-    const labId = room.labs_id ?? lab?.id;
-    if (labId != null) {
-      labsById.set(String(labId), {
-        ...(lab || {}),
-        id: lab?.id ?? labId,
-        nama_labs: lab?.nama_labs || lab?.nama_lab || `Laboratorium ${labId}`,
-      });
-    }
+  // Filter
+  const filtered = list.filter((p) => {
+    const q = search.toLowerCase();
+    const matchQ =
+      !q ||
+      p.nama_peralatan?.toLowerCase().includes(q) ||
+      p.nomor_aset?.toLowerCase().includes(q) ||
+      p.merek?.toLowerCase().includes(q);
+    const catId = getEquipmentCategoryId(p);
+    const matchKat = !filterKat || String(catId) === filterKat;
+    const approved = p.status_verifikasi === "Disetujui";
+    // Peralatan berstatus Aktif maupun Dipinjam tetap tampil di daftar utama
+    const available = p.status_alat === "Aktif" || p.status_alat === "Dipinjam";
+    const rejected = p.status_verifikasi === "Ditolak";
+    const pending = !approved && !rejected;
+    const matchLifecycle =
+      lifecycleView === "pending"
+        ? pending
+        : lifecycleView === "review"
+          ? rejected
+          : available && approved;
+    return matchQ && matchKat && matchLifecycle;
   });
-  const labs = Array.from(labsById.values())
-    .filter((lab) => !isLabScopedUser || String(lab.id) === String(currentUserLabId))
-    .sort((first, second) => first.nama_labs.localeCompare(second.nama_labs, 'id-ID'));
-  const filtered = filterEquipment(visibleList, {
-    search,
-    categoryId: filterKat,
-    labId: filterLab,
-    roomsById,
-    lifecycle: lifecycleView,
-  });
-  const pagination = usePagination(filtered.length, `${search}\u0000${filterKat}\u0000${filterLab}\u0000${lifecycleView}`);
-  const categories = getEquipmentCategories(visibleList);
-  const [title, description] = getEquipmentLifecycleHeader(lifecycleView);
+  const pagination = usePagination(
+    filtered.length,
+    `${search}\u0000${filterKat}\u0000${lifecycleView}`,
+  );
+  const columns = [
+    {
+      key: "number",
+      header: "No.",
+      headerStyle: { width: 40 },
+      cellStyle: { color: "var(--clr-dark-400)", width: 40 },
+      render: (_, index) => pagination.startIndex + index + 1,
+    },
+    {
+      key: "asset",
+      header: "No. Aset",
+      render: (equipment) => (
+        <code
+          style={{
+            fontSize: "var(--text-xs)",
+            background: "var(--clr-dark-100)",
+            padding: "2px 6px",
+            borderRadius: "var(--radius-sm)",
+          }}
+        >
+          {equipment.nomor_aset || "–"}
+        </code>
+      ),
+    },
+    {
+      key: "name",
+      header: "Nama Peralatan",
+      render: (equipment) => (
+        <>
+          <div
+            style={{
+              fontWeight: "var(--fw-medium)",
+              color: "var(--clr-dark-900)",
+            }}
+          >
+            {equipment.nama_peralatan}
+          </div>
+          {(equipment.merek || equipment.tipe_model) && (
+            <div
+              style={{
+                fontSize: "var(--text-xs)",
+                color: "var(--clr-dark-400)",
+              }}
+            >
+              {[equipment.merek, equipment.tipe_model]
+                .filter(Boolean)
+                .join(" — ")}
+            </div>
+          )}
+          {equipment.peranti_lunak_versi && (
+            <div
+              style={{
+                fontSize: "var(--text-xs)",
+                color: "var(--clr-dark-500)",
+              }}
+            >
+              Firmware: {equipment.peranti_lunak_versi}
+            </div>
+          )}
+        </>
+      ),
+    },
+    {
+      key: "category-location",
+      header: "Kategori & Lokasi",
+      render: (equipment) => {
+        const room = rooms.find(
+          (item) => String(item.id) === String(equipment.ruangan_id),
+        );
+        const location = [room?.labs?.nama_labs, room?.nama_ruangan]
+          .filter(Boolean)
+          .join(" · ");
+        return (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: 4,
+            }}
+          >
+            <span
+              className="badge badge-gray"
+              style={{ fontSize: "var(--text-xs)" }}
+            >
+              {equipment.kategori_peralatan?.nama_kategori || "–"}
+            </span>
+            <span
+              style={{
+                fontSize: "var(--text-xs)",
+                color: "var(--clr-dark-500)",
+              }}
+            >
+              {location || "Lokasi belum tersedia"}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "description",
+      header: "Keterangan",
+      render: (equipment) => {
+        const approved = equipment.status_verifikasi === "Disetujui";
+        const rejected = equipment.status_verifikasi === "Ditolak";
+        const description = rejected
+          ? "Perlu verifikasi ulang"
+          : !approved
+            ? "Menunggu verifikasi"
+            : equipment.status_alat === "Aktif"
+              ? "Masuk inventaris"
+              : equipment.status_alat === "Dalam Kalibrasi"
+                ? "Sedang dikalibrasi"
+                : equipment.status_alat === "Dipinjam"
+                  ? "Sedang dipinjam"
+                  : equipment.status_alat === "Rusak"
+                    ? "Dalam kondisi rusak"
+                    : equipment.status_alat || "Dalam proses";
+        return (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: 4,
+            }}
+          >
+            <span
+              className={`badge ${STATUS_BADGE_CLASS[rejected ? "Rusak" : approved ? equipment.status_alat : "Karantina"] || "badge-gray"}`}
+            >
+              <span className="badge-dot" />
+              {description}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "last-user",
+      header: "Pemakai Terakhir",
+      render: (p) => {
+        if (!p.pemakai_terakhir)
+          return <span style={{ color: "var(--clr-dark-400)" }}>–</span>;
+        return (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: 2,
+            }}
+          >
+            <span
+              style={{
+                fontWeight: 600,
+                color: "var(--clr-dark-800)",
+                fontSize: "13px",
+              }}
+            >
+              {p.pemakai_terakhir.nama}
+            </span>
+            {p.pemakai_terakhir.sedang_digunakan ? (
+              <span
+                className="badge badge-warning"
+                style={{ fontSize: "10px", padding: "1px 6px" }}
+              >
+                Sedang Digunakan
+              </span>
+            ) : (
+              <small style={{ color: "var(--clr-dark-500)", fontSize: "11px" }}>
+                {p.pemakai_terakhir.tanggal_keluar
+                  ? String(p.pemakai_terakhir.tanggal_keluar).slice(0, 10)
+                  : ""}
+              </small>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: "actions",
+      header: "Aksi",
+      cellProps: () => ({ onClick: (event) => event.stopPropagation() }),
+      render: (equipment) => {
+        const equipmentId = getEquipmentId(equipment);
+        const approved = equipment.status_verifikasi === "Disetujui";
+        const rejected = equipment.status_verifikasi === "Ditolak";
+        const detailPath = `/peralatan/detail/${equipmentId}?returnTo=${encodeURIComponent(returnPath)}`;
+        const verificationPath = `/verifikasi/${equipmentId}?returnTo=${encodeURIComponent(returnPath)}`;
+        const out = isCurrentlyOut(equipment);
+        return (
+          <div style={{ display: "flex", gap: "var(--sp-1)" }}>
+            {canViewVerification && !approved && !rejected && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => onNavigate(verificationPath)}
+                title="Mulai atau lanjutkan verifikasi"
+              >
+                Verifikasi
+              </button>
+            )}
+            {canViewVerification && rejected && (
+              <>
+                <button
+                  className="btn btn-ghost btn-sm text-error"
+                  onClick={() => onNavigate(detailPath)}
+                  title="Lihat Catatan Peninjauan (TLKM13/IK/012)"
+                >
+                  Tinjau
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => onNavigate(verificationPath)}
+                  title="Ajukan Verifikasi Ulang (TLKM13/IK/003)"
+                >
+                  Verifikasi Ulang
+                </button>
+              </>
+            )}
+            {canRequestLoan && approved && (
+              <div
+                style={{
+                  display: "inline-flex",
+                  flexDirection: "column",
+                  gap: 3,
+                  alignItems: "flex-start",
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => onNavigate(`/peminjaman/${equipmentId}`)}
+                  title={
+                    out
+                      ? `Alat sedang dipinjam: ${out.rencana_tanggal_keluar} s.d. ${out.rencana_tanggal_kembali}. Klik untuk mengajukan peminjaman pada jadwal lain.`
+                      : "Pinjam peralatan"
+                  }
+                  id={`btn-pinjam-${equipmentId}`}
+                >
+                  <Hand size={14} /> Pinjam
+                </button>
+                {out && (
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--clr-primary-700, #c53030)",
+                      background: "var(--clr-primary-50, #fff5f5)",
+                      border: "1px solid var(--clr-primary-200, #fed7d7)",
+                      padding: "1px 5px",
+                      borderRadius: "var(--radius-sm, 4px)",
+                      whiteSpace: "nowrap",
+                      lineHeight: 1.25,
+                      fontWeight: "var(--fw-medium, 500)",
+                    }}
+                    title={`Dipinjam dari ${out.rencana_tanggal_keluar} s.d. ${out.rencana_tanggal_kembali}`}
+                  >
+                    Dipinjam: {formatTgl(out.rencana_tanggal_keluar)} –{" "}
+                    {formatTgl(out.rencana_tanggal_kembali)}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
+  const categories = Array.from(
+    new Map(
+      list
+        .filter(
+          (item) =>
+            item.kategori_peralatan?.id &&
+            item.kategori_peralatan?.nama_kategori,
+        )
+        .map((item) => [item.kategori_peralatan.id, item.kategori_peralatan]),
+    ).values(),
+  );
+  const lifecycleCopy = {
+    pending: [
+      "Menunggu Verifikasi",
+      "peralatan menunggu pemeriksaan dan belum dapat digunakan",
+    ],
+    review: [
+      "Peralatan dalam Peninjauan",
+      "peralatan ditolak dan membutuhkan tindak lanjut",
+    ],
+    all: [
+      "Daftar Peralatan",
+      "Pantau data, status, dan kelayakan peralatan laboratorium.",
+    ],
+  };
+  const [title, description] = lifecycleCopy[lifecycleView];
 
   return (
     <div className="page-container fade-in-up">
-      <PageHeader
-        title={title}
-        subtitle={description}
-        actions={canCreate ? (
-          <Button variant="primary" icon={<Plus size={16} />} onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan">
-            Tambah Peralatan
-          </Button>
-        ) : null}
+      {/* Header */}
+      <div
+        className="page-header"
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "var(--sp-3)",
+        }}
+      >
+        <div>
+          <h1 className="page-title">{title}</h1>
+          <p className="page-subtitle">{description}</p>
+        </div>
+        <div
+          style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)" }}
+        >
+          {canCreate && (
+            <button
+              className="btn btn-primary"
+              onClick={() => onNavigate("/peralatan/tambah")}
+              id="btn-tambah-peralatan"
+            >
+              <Plus size={16} /> Tambah Peralatan
+            </button>
+          )}
+        </div>
+      </div>
+
+      <WorkflowGuide
+        title="Alur Pengelolaan Peralatan"
+        description="Ikuti tahapan pengelolaan peralatan dari pendataan hingga siap digunakan."
+        steps={[
+          {
+            title: "Input Data Peralatan",
+            description:
+              "Catat identitas dan lokasi peralatan ke dalam sistem.",
+          },
+          {
+            title: "Verifikasi Pengelola",
+            description: "Pengelola memeriksa data dan kondisi awal peralatan.",
+          },
+          {
+            title: "Persetujuan Manager Lab",
+            description:
+              "Manager Lab meninjau dan menyetujui hasil verifikasi.",
+          },
+          {
+            title: "Masuk Inventaris",
+            description: "Peralatan yang disetujui tercatat dalam inventaris.",
+          },
+          {
+            title: "Pemeliharaan Berkala",
+            description: "Pantau status dan jadwal pemeriksaan peralatan.",
+          },
+        ]}
       />
 
       {/* Filters */}
       <TableFilters
         fields={[
           {
-            type: 'search',
-            id: 'input-search-peralatan',
-            label: 'Cari peralatan',
-            placeholder: 'Nama, nomor aset, atau merek',
+            type: "search",
+            id: "input-search-peralatan",
+            label: "Cari peralatan",
+            placeholder: "Nama, nomor aset, atau merek",
             value: search,
             onChange: (event) => setSearch(event.target.value),
           },
           {
-            type: 'select',
-            id: 'select-filter-kategori',
-            label: 'Kategori',
-            placeholder: 'Semua Kategori',
+            type: "select",
+            id: "select-filter-kategori",
+            label: "Kategori",
+            placeholder: "Semua Kategori",
             value: filterKat,
             onChange: (event) => setFilterKat(event.target.value),
             options: categories.map((category) => ({
@@ -182,66 +498,84 @@ export default function EquipmentList({
               label: category.nama_kategori,
             })),
           },
-          {
-            type: 'select',
-            id: 'select-filter-laboratorium-peralatan',
-            label: 'Laboratorium',
-            placeholder: 'Semua Laboratorium',
-            value: filterLab,
-            onChange: (event) => setFilterLab(event.target.value),
-            options: labs.map((lab) => ({
-              value: String(lab.id),
-              label: lab.nama_labs || lab.nama_lab || `Laboratorium ${lab.id}`,
-            })),
-          },
         ]}
+        actions={
+          <button
+            className="btn btn-secondary btn-icon"
+            onClick={loadData}
+            title="Refresh"
+            id="btn-refresh-peralatan"
+          >
+            <RefreshCw size={16} />
+          </button>
+        }
       />
 
+      {/* Tabel */}
       {loading ? (
-        <LoadingState message="Memuat daftar peralatan..." />
-      ) : loadError ? (
-        <ErrorState title="Gagal memuat peralatan" message={loadError} onRetry={loadData} />
+        <div
+          className="card"
+          style={{
+            padding: "var(--sp-6)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--sp-3)",
+          }}
+        >
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="skeleton" style={{ height: 52 }} />
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
-        <EmptyState
-          title="Tidak ada peralatan ditemukan"
-          description="Daftar ini menampilkan peralatan aktif yang disetujui serta peralatan dengan verifikasi lanjutan yang sedang diproses."
-          icon={<Package size={32} />}
-          action={canCreate ? (
-            <Button variant="primary" icon={<Plus size={16} />} onClick={() => onNavigate('/peralatan/tambah')}>
-              Tambah Peralatan Pertama
-            </Button>
-          ) : null}
-        />
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <Package size={32} />
+          </div>
+          <p className="empty-state-title">Tidak ada peralatan ditemukan</p>
+          <p className="empty-state-desc">
+            Daftar ini hanya menampilkan peralatan berstatus aktif yang telah
+            disetujui manager.
+          </p>
+          {canCreate && (
+            <button
+              className="btn btn-primary"
+              onClick={() => onNavigate("/peralatan/tambah")}
+              style={{ marginTop: "var(--sp-2)" }}
+            >
+              <Plus size={16} /> Tambah Peralatan Pertama
+            </button>
+          )}
+        </div>
       ) : (
-        <EquipmentListTable
-          equipment={filtered}
-          rooms={rooms}
-          pagination={pagination}
-          canViewVerification={canViewVerification}
-          canRequestLoan={canRequestLoan}
-          loaningEquipmentId={loaningEquipmentId}
-          onMarkAsLoaned={markEquipmentAsLoaned}
-          canReturnEquipment={canReturnEquipment}
-          returningEquipmentId={returningEquipmentId}
-          onReturnEquipment={setEquipmentToReturn}
-          onNavigate={onNavigate}
-          returnPath={returnPath}
-        />
+        <div className="table-card">
+          <PaginatedDataTable
+            columns={columns}
+            rows={filtered}
+            pagination={pagination}
+            rowKey={(equipment) => getEquipmentId(equipment)}
+            className="data-table-mobile-priority equipment-list-table"
+            rowProps={(equipment) => {
+              const equipmentId = getEquipmentId(equipment);
+              const detailPath = `/peralatan/detail/${equipmentId}?returnTo=${encodeURIComponent(returnPath)}`;
+              return {
+                className: "cursor-pointer",
+                onClick: () => onNavigate(detailPath),
+                onKeyDown: (event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onNavigate(detailPath);
+                  }
+                },
+                tabIndex: 0,
+                role: "link",
+                "aria-label": `Lihat detail ${equipment.nama_peralatan}`,
+              };
+            }}
+            emptyMessage="Tidak ada peralatan ditemukan."
+          />
+        </div>
       )}
-
-      <ConfirmDialog
-        isOpen={Boolean(equipmentToReturn)}
-        title="Konfirmasi Pengembalian"
-        message={`Tandai ${equipmentToReturn?.nama_peralatan || 'peralatan ini'} sudah selesai dipinjam? Status alat akan kembali Aktif dan masuk antrean verifikasi A3.`}
-        confirmText={returningEquipmentId ? 'Memproses...' : 'Ya, Sudah Kembali'}
-        cancelText="Batal"
-        variant="primary"
-        onConfirm={confirmReturnEquipment}
-        onCancel={() => {
-          if (returningEquipmentId == null) setEquipmentToReturn(null);
-        }}
-      />
-
     </div>
   );
 }

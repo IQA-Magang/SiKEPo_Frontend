@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, User, ChevronDown, LogOut, Menu, Settings, QrCode } from 'lucide-react';
 import { getCurrentUser, authApi } from '../../services/api.js';
 import { ACCESS, ACTIONS, can } from '../../utils/permissions.js';
+import sikepoLogo from '../../../assets/logo/tth-logo3.png';
 import NotificationBell from '../NotificationBell.jsx';
 
 import { useToast } from '../../../app/providers/ToastContext.jsx';
@@ -81,13 +82,13 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
           <div className="topbar-tth-logo">
             <svg width="42" height="30" viewBox="0 0 70 50" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M5 25C15 15 25 35 35 25C45 15 55 35 65 25" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" />
-              <text x="35" y="44" fill="#FFFFFF" fontSize="13" fontWeight="700" textAnchor="middle" fontFamily="var(--font-sans)">tth</text>
+              <text x="35" y="44" fill="#FFFFFF" fontSize="13" fontWeight="800" textAnchor="middle" fontFamily="var(--font-sans)">tth</text>
             </svg>
             <div className="topbar-tth-sub">Telkom Test House</div>
           </div>
 
           <div className="brand-divider" />
-          <span className="brand-name">SiKEPo</span>
+          <img className="topbar-sikepo-logo" src={sikepoLogo} alt="SiKEPo" />
         </div>
       </div>
 
@@ -119,7 +120,7 @@ export default function Topbar({ currentPath, onNavigate, onToggleSidebar, onSea
         )}
 
         {/* Live Notification Bell */}
-        {user?.role?.toLowerCase() === 'manager' && <NotificationBell onNavigate={onNavigate} />}
+        {Boolean(user) && <NotificationBell onNavigate={onNavigate} />}
 
         <div className="profile-wrapper" ref={profileRef}>
           <button

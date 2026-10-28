@@ -1,5 +1,5 @@
 import React from 'react';
-import tthLogo from '../../assets/logo/tth-logo.png';
+import tthLogo from '../../assets/logo/tth-logo2.png';
 
 export default function TelkomTestHouseLogo() {
   return (

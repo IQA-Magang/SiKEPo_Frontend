@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2, CalendarDays, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, jadwalPemeriksaanBerkalaApi, notificationApi } from '../../shared/services/api.js';
+import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2, CalendarDays, ArrowRight, ChevronLeft, ChevronRight, FileSignature } from 'lucide-react';
+import { getCurrentUser, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, jadwalPemeriksaanBerkalaApi, notificationApi, peminjamanApi, markNotificationsAsReadByRef } from '../../shared/services/api.js';
 import { can, ACCESS, ACTIONS } from '../../shared/utils/permissions.js';
 import DataTable from '../../shared/components/ui/DataTable.jsx';
-import { Button, Badge, Card, PageHeader, LoadingState, ErrorState, EmptyState } from '../../shared/components/ui/index.js';
 
 // ------------------------------------------------------------------
 // Dashboard: tampilan berbeda berdasarkan role
@@ -14,7 +13,7 @@ export default function Dashboard({ onNavigate }) {
 
   return (
     <div className="page-container fade-in-up">
-      {role === 'admin'   && <AdminDashboard onNavigate={onNavigate} />}
+      {role === 'admin' && <AdminDashboard onNavigate={onNavigate} />}
       {role === 'manager' && <ManagerDashboard onNavigate={onNavigate} user={user} />}
       {role === 'staff'   && <StaffDashboard onNavigate={onNavigate} user={user} />}
       <ScheduleDateCards onNavigate={onNavigate} />
@@ -116,26 +115,25 @@ function ScheduleDateCards({ onNavigate }) {
           <h2 className="card-title" id="dashboard-schedule-title">Kalender Pemeriksaan</h2>
           <p className="page-subtitle">Pilih tanggal untuk melihat jadwal pemeriksaan peralatan.</p>
         </div>
-        <Button variant="secondary" size="sm" icon={<ArrowRight size={14} />} onClick={() => onNavigate('/penjadwalan')}>
-          Semua jadwal
-        </Button>
+        <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/penjadwalan')}>
+          Semua jadwal <ArrowRight size={14} />
+        </button>
       </div>
 
       {loadError ? (
-        <ErrorState title="Gagal memuat kalender" message={loadError} onRetry={() => window.location.reload()} />
+        <div className="alert alert-warning" role="alert">{loadError}</div>
       ) : loading ? (
-        <LoadingState message="Memuat kalender pemeriksaan..." />
+        <div className="card-padded" role="status">Memuat kalender pemeriksaan...</div>
       ) : (
         <div className="dashboard-calendar">
           <div className="dashboard-calendar-toolbar">
             <div className="dashboard-calendar-month">{monthLabel}</div>
             <div className="dashboard-calendar-controls">
-              <Button variant="secondary" size="sm" onClick={() => changeMonth(-1)} aria-label="Bulan sebelumnya">
+              <button className="btn btn-secondary btn-sm" onClick={() => changeMonth(-1)} aria-label="Bulan sebelumnya">
                 <ChevronLeft size={16} />
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
                 onClick={() => {
                   const today = new Date();
                   setVisibleMonth(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -143,10 +141,10 @@ function ScheduleDateCards({ onNavigate }) {
                 }}
               >
                 Hari ini
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => changeMonth(1)} aria-label="Bulan berikutnya">
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={() => changeMonth(1)} aria-label="Bulan berikutnya">
                 <ChevronRight size={16} />
-              </Button>
+              </button>
             </div>
           </div>
 
@@ -182,7 +180,7 @@ function ScheduleDateCards({ onNavigate }) {
           <div className="dashboard-calendar-agenda">
             <div className="dashboard-calendar-agenda-heading">
               <h3>{selectedDateLabel}</h3>
-              <Badge tone={selectedSchedules.length > 0 ? 'info' : 'neutral'}>{selectedSchedules.length} jadwal</Badge>
+              <span>{selectedSchedules.length} jadwal</span>
             </div>
             {selectedSchedules.length ? (
               <div className="dashboard-calendar-agenda-list">
@@ -200,7 +198,7 @@ function ScheduleDateCards({ onNavigate }) {
                           {schedule.peran_jadwal ? ` · ${schedule.peran_jadwal}` : ''}
                         </span>
                       </div>
-                      <Badge tone={getDueDateBadgeTone(dueDate)}>{formatDueDate(dueDate)}</Badge>
+                      <span className={`badge ${getDueDateBadgeClass(dueDate)}`}>{formatDueDate(dueDate)}</span>
                     </div>
                   );
                 })}
@@ -210,9 +208,7 @@ function ScheduleDateCards({ onNavigate }) {
                 <CalendarDays size={18} />
                 <span>Tidak ada jadwal pada tanggal ini.</span>
                 {items.length === 0 && (
-                  <Button variant="primary" size="sm" onClick={() => onNavigate('/penjadwalan')}>
-                    Buat Jadwal
-                  </Button>
+                  <button className="btn btn-primary btn-sm" onClick={() => onNavigate('/penjadwalan')}>Buat Jadwal</button>
                 )}
               </div>
             )}
@@ -233,16 +229,16 @@ function getLocalDateKey(date) {
 function getProcessStage(equipment) {
   switch (equipment.status_verifikasi) {
     case 'Disetujui':
-      return { label: 'Verifikasi selesai', description: 'Persetujuan manager sudah diberikan', tone: 'badge-aktif', badgeTone: 'success' };
+      return { label: 'Verifikasi selesai', description: 'Persetujuan manager sudah diberikan', tone: 'badge-aktif' };
     case 'Diajukan':
-      return { label: 'Menunggu persetujuan', description: 'Pengajuan sedang menunggu manager', tone: 'badge-kalibrasi', badgeTone: 'warning' };
+      return { label: 'Menunggu persetujuan', description: 'Pengajuan sedang menunggu manager', tone: 'badge-kalibrasi' };
     case 'Ditolak':
-      return { label: 'Perlu tindak lanjut', description: 'Perbaiki catatan lalu ajukan ulang', tone: 'badge-rusak', badgeTone: 'danger' };
+      return { label: 'Perlu tindak lanjut', description: 'Perbaiki catatan lalu ajukan ulang', tone: 'badge-rusak' };
     case 'Draft':
-      return { label: 'Draft verifikasi', description: 'Belum diajukan untuk persetujuan manager', tone: 'badge-gray', badgeTone: 'neutral' };
+      return { label: 'Draft verifikasi', description: 'Belum diajukan untuk persetujuan manager', tone: 'badge-gray' };
     case 'Belum Diverifikasi':
     default:
-      return { label: 'Belum diverifikasi', description: 'PIC perlu memulai pemeriksaan alat', tone: 'badge-gray', badgeTone: 'neutral' };
+      return { label: 'Belum diverifikasi', description: 'PIC perlu memulai pemeriksaan alat', tone: 'badge-gray' };
   }
 }
 
@@ -289,14 +285,202 @@ function getDueDateBadgeClass(date) {
   return 'badge-aktif';
 }
 
-function getDueDateBadgeTone(date) {
-  if (!date) return 'neutral';
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const days = Math.ceil((date.getTime() - today.getTime()) / 86400000);
-  if (days <= 0) return 'danger';
-  if (days <= 30) return 'warning';
-  return 'success';
+const DEFAULT_LOAN_DATA = [
+  { id: 'PINJAM-2026-001', status: 'MENUNGGU_MANAGER_PEMINJAM' },
+  { id: 'PINJAM-2026-002', status: 'MENUNGGU_PENGELOLA' },
+  { id: 'PINJAM-2026-003', status: 'MENUNGGU_MANAGER_LAB' },
+  { id: 'PINJAM-2026-004', status: 'MENUNGGU_SERAH_TERIMA' },
+  { id: 'PINJAM-2026-005', status: 'SEDANG_DIPINJAM' },
+  { id: 'PINJAM-2026-006', status: 'DITOLAK' },
+];
+
+async function fetchDashboardLoans() {
+  try {
+    const res = await peminjamanApi.getAll();
+    if (res?.success && Array.isArray(res.data)) {
+      return res.data;
+    }
+    return [];
+  } catch {
+    return DEFAULT_LOAN_DATA;
+  }
+}
+
+function getLoanStatusBadge(status) {
+  switch (status) {
+    case 'MENUNGGU_MANAGER_PEMINJAM':
+      return { label: 'Menunggu Atasan Peminjam', className: 'badge-kalibrasi' };
+    case 'MENUNGGU_PENGELOLA':
+      return { label: 'Menunggu Pengelola', className: 'badge-kalibrasi' };
+    case 'MENUNGGU_MANAGER_LAB':
+      return { label: 'Menunggu Manager Lab', className: 'badge-kalibrasi' };
+    case 'DISETUJUI':
+    case 'MENUNGGU_SERAH_TERIMA':
+      return { label: 'Disetujui — Tunggu Serah Terima', className: 'badge-kalibrasi' };
+    case 'SIAP_DISERAHKAN':
+      return { label: 'Siap Diserahkan — Tunggu TTD Anda', className: 'badge-rusak' };
+    case 'SEDANG_DIPINJAM':
+      return { label: 'Sedang Dipinjam', className: 'badge-aktif' };
+    case 'SELESAI':
+      return { label: 'Selesai Dikembalikan', className: 'badge-gray' };
+    case 'DITOLAK':
+      return { label: 'Ditolak', className: 'badge-rusak' };
+    default:
+      return { label: status || '-', className: 'badge-gray' };
+  }
+}
+
+function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
+  const total = loans.length;
+  const tahap1 = loans.filter((l) => l.status === 'MENUNGGU_MANAGER_PEMINJAM').length;
+  const tahap2 = loans.filter((l) => l.status === 'MENUNGGU_PENGELOLA').length;
+  const tahap3 = loans.filter((l) => l.status === 'MENUNGGU_MANAGER_LAB').length;
+  const tahap4 = loans.filter((l) => l.status === 'MENUNGGU_SERAH_TERIMA' || l.status === 'DISETUJUI' || l.status === 'SIAP_DISERAHKAN').length;
+
+  return (
+    <div style={{ marginBottom: 'var(--sp-6)' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 'var(--sp-3)',
+          flexWrap: 'wrap',
+          gap: 8,
+        }}
+      >
+        <div>
+          <h2 className="card-title dash-section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Alur & Persetujuan Peminjaman Peralatan
+
+          </h2>
+          <p className="page-subtitle" style={{ margin: 0, marginTop: 2 }}>
+            Ringkasan status proses permohonan peminjaman peralatan antar-laboratorium
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          Buka Modul Peminjaman &rarr;
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--sp-3)' }}>
+        {/* TOTAL PENGAJUAN */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #3b82f6',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TOTAL PENGAJUAN
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0f172a', margin: '4px 0 2px' }}>
+            {loading ? '...' : total}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Semua riwayat peminjaman</div>
+        </div>
+
+        {/* TAHAP 1 (ATASAN) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #d97706',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 1 (ATASAN)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#d97706', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap1}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Validasi atasan peminjam</div>
+        </div>
+
+        {/* TAHAP 2 (PENGELOLA) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #0284c7',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 2 (PENGELOLA)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0284c7', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap2}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Review teknis & ketersediaan</div>
+        </div>
+
+        {/* TAHAP 3 (MGR LAB) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #7c3aed',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 3 (MGR LAB)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#7c3aed', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap3}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Pengesahan izin final</div>
+        </div>
+
+        {/* TAHAP 4 (SERAH TERIMA) */}
+        <div
+          className="card stat-card-clickable"
+          onClick={() => onNavigate('/peminjaman')}
+          style={{
+            padding: 'var(--sp-4)',
+            borderLeft: '4px solid #ea580c',
+            borderRadius: 'var(--radius-lg, 12px)',
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            TAHAP 4 (SERAH TERIMA)
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ea580c', margin: '4px 0 2px' }}>
+            {loading ? '...' : tahap4}
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>Cek fisik Lampiran A bersama peminjam</div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ------------------------------------------------------------------
@@ -315,17 +499,19 @@ function AdminDashboard({ onNavigate }) {
     kelompokAset: 0,
     processItems: [],
   });
+  const [loans, setLoans] = useState(DEFAULT_LOAN_DATA);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
     try {
-      const [u, l, r, p, k] = await Promise.allSettled([
+      const [u, l, r, p, k, loanData] = await Promise.allSettled([
         usersApi.getAll(),
         labsApi.getAll(),
         ruanganApi.getAll(),
         peralatanApi.getAll(),
         kelompokAssetApi.getAll(),
+        fetchDashboardLoans(),
       ]);
 
       const pList = p.status === 'fulfilled' ? (p.value.data || []) : [];
@@ -333,6 +519,10 @@ function AdminDashboard({ onNavigate }) {
       const aktifCount = pList.filter(item => item.status_alat === 'Aktif').length;
       const kalibrasiCount = pList.filter(item => item.status_alat === 'Dalam Kalibrasi').length;
       const dipinjamCount = pList.filter(item => item.status_alat === 'Dipinjam').length;
+
+      if (loanData.status === 'fulfilled' && loanData.value) {
+        setLoans(loanData.value);
+      }
 
       setStats({
         users: u.status === 'fulfilled' ? (u.value.data?.length ?? 0) : 0,
@@ -358,18 +548,25 @@ function AdminDashboard({ onNavigate }) {
   return (
     <>
       {/* Level 1: Page Header */}
-      <PageHeader
-        title="Dashboard Administrator"
-        subtitle="Ringkasan inventaris peralatan, personel, dan monitoring peminjaman laboratorium Telkom Test House"
-        eyebrow="Live Data"
-        actions={(
-          <>
-            <Button variant="primary" size="sm" icon={<Plus size={16} />} onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan">
-              Tambah Peralatan
-            </Button>
-          </>
-        )}
-      />
+      <div className="dash-header">
+        <div className="dash-header-left">
+          <div className="dash-title-row">
+            <h1 className="page-title">Dashboard Administrator</h1>
+            <span className="live-tag">Live Data</span>
+          </div>
+          <p className="page-subtitle">
+            Ringkasan inventaris peralatan, personel, dan monitoring peminjaman laboratorium Telkom Test House
+          </p>
+        </div>
+        <div className="dash-header-actions">
+          <button className="btn-pill-secondary" onClick={load} id="btn-refresh-dashboard">
+            <RefreshCw size={15} /> Segarkan
+          </button>
+          <button className="btn-pill-primary" onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan">
+            <Plus size={16} /> Tambah Peralatan
+          </button>
+        </div>
+      </div>
 
       {/* Level 1: 4 KPI Stat Cards */}
       <div className="stats-grid">
@@ -430,9 +627,13 @@ function AdminDashboard({ onNavigate }) {
         </div>
       </div>
 
+      {/* Ringkasan 5 Kotak Alur Peminjaman Peralatan (TLKM13/IK/005) */}
+      <LoanPipelineSummary loans={loans} onNavigate={onNavigate} loading={loading} />
+
       {/* Level 2: Ringkasan kondisi peralatan */}
       <div className="dash-level2-grid">
-        <Card title="Kondisi & Tata Kelola Peralatan">
+        <div className="card card-padded">
+          <h2 className="card-title dash-section-title">Kondisi & Tata Kelola Peralatan</h2>
           <div className="dash-category-list">
             <div className="dash-cat-item">
               <div className="dash-cat-header">
@@ -498,19 +699,20 @@ function AdminDashboard({ onNavigate }) {
               </div>
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card
-          title="Tahapan Verifikasi"
-          subtitle="Status proses dan tindak lanjut setiap pengajuan"
-          action={(
-            <Button variant="secondary" size="sm" onClick={() => onNavigate('/verifikasi')}>
+        <div className="card card-padded">
+          <div className="dash-card-header-row">
+            <div>
+              <h2 className="card-title dash-section-title">Tahapan Verifikasi</h2>
+              <p className="page-subtitle">Status proses dan tindak lanjut setiap pengajuan</p>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/verifikasi')}>
               Buka Verifikasi
-            </Button>
-          )}
-        >
+            </button>
+          </div>
           <ProcessSummary peralatan={loading ? [] : stats.processItems} />
-        </Card>
+        </div>
       </div>
     </>
   );
@@ -522,17 +724,20 @@ function AdminDashboard({ onNavigate }) {
 function ManagerDashboard({ onNavigate, user }) {
   const [peralatan, setPeralatan] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [loans, setLoans] = useState(DEFAULT_LOAN_DATA);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [n, p] = await Promise.allSettled([
+        const [n, p, loanData] = await Promise.allSettled([
           notificationApi.getByUserId(user?.user_id),
           peralatanApi.getAll(),
+          fetchDashboardLoans(),
         ]);
         if (n.status === 'fulfilled') setNotifications(n.value.data || []);
         if (p.status === 'fulfilled') setPeralatan(p.value.data || []);
+        if (loanData.status === 'fulfilled' && loanData.value) setLoans(loanData.value);
       } finally {
         setLoading(false);
       }
@@ -546,10 +751,10 @@ function ManagerDashboard({ onNavigate, user }) {
 
   return (
     <>
-      <PageHeader
-        title="Dashboard Manager Lab"
-        subtitle={`Selamat datang, ${user?.name}. Pantau kondisi peralatan di laboratorium Anda.`}
-      />
+      <div className="page-header">
+        <h1 className="page-title">Dashboard Manager Lab</h1>
+        <p className="page-subtitle">Selamat datang, <strong>{user?.name}</strong>. Pantau kondisi peralatan di laboratorium Anda.</p>
+      </div>
 
       <div className="stats-grid dash-stats-mb">
         <div className="stat-card accent-red">
@@ -574,15 +779,16 @@ function ManagerDashboard({ onNavigate, user }) {
         </div>
       </div>
 
+      {/* Ringkasan 5 Kotak Alur Peminjaman Peralatan (TLKM13/IK/005) */}
+      <LoanPipelineSummary loans={loans} onNavigate={onNavigate} loading={loading} />
+
       {/* Notifikasi terbaru */}
-      {loading ? (
-        <LoadingState message="Memuat notifikasi dan status peralatan..." />
-      ) : unread.length > 0 ? (
-        <Card
-          className="dash-card-mb"
-          title="Notifikasi Terbaru"
-          action={<Badge tone="danger">{unread.length} belum dibaca</Badge>}
-        >
+      {!loading && unread.length > 0 && (
+        <div className="card dash-card-mb">
+          <div className="card-header">
+            <h2 className="card-title">Notifikasi Terbaru</h2>
+            <span className="badge badge-red">{unread.length} belum dibaca</span>
+          </div>
           <div className="notif-list-container">
             {unread.slice(0, 5).map((n) => (
               <div key={n.id} className="notif-item unread">
@@ -595,33 +801,27 @@ function ManagerDashboard({ onNavigate, user }) {
             ))}
           </div>
           <div style={{ padding: '0 var(--sp-4) var(--sp-4)', display: 'flex', justifyContent: 'flex-end' }}>
-            <Button variant="secondary" size="sm" onClick={() => onNavigate('/verifikasi')}>
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/verifikasi')}>
               Buka Proses Verifikasi
-            </Button>
+            </button>
           </div>
-        </Card>
-      ) : (
-        <EmptyState
-          title="Tidak ada notifikasi baru"
-          description="Semua pemberitahuan sudah dibaca atau belum ada aktivitas terbaru."
-          icon={<Bell size={22} />}
-          action={<Button variant="secondary" size="sm" onClick={() => onNavigate('/verifikasi')}>Lihat proses</Button>}
-        />
+        </div>
       )}
 
-      <Card
-        title="Tahapan Proses Peralatan"
-        subtitle="Pantau verifikasi dari pengajuan PIC sampai keputusan manager."
-        action={(
-          <Button variant="secondary" size="sm" onClick={() => onNavigate('/verifikasi')}>
+      <div className="card card-padded">
+        <div className="dash-card-header-row">
+          <div>
+            <h2 className="card-title">Tahapan Proses Peralatan</h2>
+            <p className="page-subtitle">Pantau verifikasi dari pengajuan PIC sampai keputusan manager.</p>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/verifikasi')}>
             Buka Verifikasi
-          </Button>
-        )}
-      >
-        {loading ? <LoadingState message="Memuat tahapan proses peralatan..." /> : (
+          </button>
+        </div>
+        {loading ? <div className="skeleton-list">{[...Array(4)].map((_, i) => <div key={i} className="skeleton skeleton-row" />)}</div> : (
           <ProcessSummary peralatan={peralatan} />
         )}
-      </Card>
+      </div>
     </>
   );
 }
@@ -631,6 +831,7 @@ function ManagerDashboard({ onNavigate, user }) {
 // ------------------------------------------------------------------
 function StaffDashboard({ onNavigate, user }) {
   const [peralatan, setPeralatan] = useState([]);
+  const [loans, setLoans] = useState(DEFAULT_LOAN_DATA);
   const [loading, setLoading] = useState(true);
   const [detailLoadError, setDetailLoadError] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -638,6 +839,7 @@ function StaffDashboard({ onNavigate, user }) {
   useEffect(() => {
     async function load() {
       try {
+        fetchDashboardLoans().then(setLoans);
         const [equipmentResult, scheduleResult] = await Promise.allSettled([
           peralatanApi.getAll(),
           jadwalPemeriksaanBerkalaApi.getAll(),
@@ -697,10 +899,10 @@ function StaffDashboard({ onNavigate, user }) {
 
   return (
     <>
-      <PageHeader
-        title="Dashboard Staff Lab"
-        subtitle={`Selamat datang, ${user?.name}.`}
-      />
+      <div className="page-header">
+        <h1 className="page-title">Dashboard Staff Lab</h1>
+        <p className="page-subtitle">Selamat datang, <strong>{user?.name}</strong>.</p>
+      </div>
 
       <div className="stats-grid dash-stats-mb">
         <div className="stat-card accent-red">
@@ -715,41 +917,149 @@ function StaffDashboard({ onNavigate, user }) {
         </div>
       </div>
 
-      {can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) && (
-        <div className="dash-action-group dash-actions-mb">
-          <Button variant="primary" icon={<Plus size={16} />} onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan-staff">
-            Tambah Peralatan Baru
-          </Button>
+      {/* Ringkasan 5 Kotak Alur Peminjaman Peralatan (TLKM13/IK/005) */}
+      <LoanPipelineSummary loans={loans} onNavigate={onNavigate} loading={loading} />
+
+
+
+      {/* Tabel Status Peminjaman Peralatan Laboratorium Anda */}
+      {loans.length > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--sp-6)' }}>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 className="card-title">Status Peminjaman Laboratorium Anda</h2>
+              <p className="page-subtitle">Daftar permohonan peminjaman alat keluar dan masuk yang melibatkan laboratorium Anda.</p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => onNavigate('/peminjaman')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              Buka Modul Peminjaman &rarr;
+            </button>
+          </div>
+          <div className="table-wrapper table-borderless">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Kode Peminjaman</th>
+                  <th>Peralatan</th>
+                  <th>Lab Pemilik</th>
+                  <th>Rentang Tanggal</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loans.slice(0, 5).map((l) => {
+                  const badge = getLoanStatusBadge(l.status);
+                  const isReady = l.status === 'SIAP_DISERAHKAN';
+                  return (
+                    <tr
+                      key={l.id}
+                      className="cursor-pointer"
+                      onClick={() => {
+                        onNavigate('/peminjaman');
+                      }}
+                    >
+                      <td><code className="text-mono-xs" style={{ fontWeight: 600 }}>{l.kode || `PJM-${l.id}`}</code></td>
+                      <td>
+                        <div style={{ fontWeight: 'var(--fw-medium)' }}>{l.peralatan?.nama_peralatan || '-'}</div>
+                        <small style={{ color: 'var(--clr-dark-500)' }}><code className="text-mono-xs">{l.peralatan?.nomor_aset || '-'}</code></small>
+                      </td>
+                      <td>{l.peralatan?.lab_pemilik || '-'}</td>
+                      <td>
+                        <div style={{ fontSize: '13px' }}>
+                          {l.rencana_tanggal_keluar || '-'} &rarr; {l.rencana_tanggal_kembali || '-'}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${badge.className}`}>{badge.label}</span>
+                      </td>
+                      <td>
+                        {isReady ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{
+                              background: '#ea580c',
+                              color: '#fff',
+                              borderColor: '#ea580c',
+                              padding: '4px 10px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const ticketCode = l?.kode || (typeof l?.id === 'number' ? `PJM-2026-${String(l.id).padStart(3, '0')}` : String(l?.id || ''));
+                              if (ticketCode) markNotificationsAsReadByRef({ ticketCode });
+                              onNavigate('/peminjaman');
+                            }}
+                          >
+                            Tanda Tangan Terima
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '4px 10px', fontSize: '12px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const ticketCode = l?.kode || (typeof l?.id === 'number' ? `PJM-2026-${String(l.id).padStart(3, '0')}` : String(l?.id || ''));
+                              if (ticketCode) markNotificationsAsReadByRef({ ticketCode });
+                              onNavigate('/peminjaman');
+                            }}
+                          >
+                            Detail
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      <Card
-        title="Prioritas Pemeriksaan & Tahapan Proses"
-        action={(
-          <Button variant="secondary" size="sm" onClick={() => onNavigate('/penjadwalan')}>
+      {can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) && (
+        <div className="dash-action-group dash-actions-mb">
+          <button className="btn btn-primary" onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan-staff">
+            <Plus size={16} /> Tambah Peralatan Baru
+          </button>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <h2 className="card-title">Prioritas Pemeriksaan & Tahapan Proses</h2>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/penjadwalan')}>
             Buka Penjadwalan
-          </Button>
-        )}
-      >
+          </button>
+        </div>
         {loadError && (
-          <ErrorState title="Gagal memuat data" message={loadError} onRetry={() => window.location.reload()} />
+          <div className="alert alert-warning" role="alert" style={{ margin: 'var(--sp-4)' }}>
+            {loadError}
+          </div>
         )}
         {detailLoadError && (
-          <ErrorState
-            title="Jadwal pemeriksaan tidak lengkap"
-            message="Jadwal pemeriksaan berkala gagal dimuat. Tanggal dari data lama mungkin masih ditampilkan."
-            variant={undefined}
-          />
+          <div className="alert alert-warning" role="status" style={{ margin: '0 var(--sp-4) var(--sp-3)' }}>
+            Jadwal pemeriksaan berkala gagal dimuat. Tanggal dari data lama mungkin masih ditampilkan.
+          </div>
         )}
         {loading ? (
-          <LoadingState message="Memuat prioritas pemeriksaan dan proses..." />
+          <div className="skeleton-list">
+            {[...Array(5)].map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
+          </div>
         ) : peralatan.length === 0 ? (
-          <EmptyState
-            title="Belum ada peralatan terdaftar"
-            description="Tambahkan peralatan baru untuk mulai memantau jadwal pemeriksaan dan status proses."
-            icon={<Package size={28} />}
-            action={can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD, user) ? <Button variant="primary" size="sm" onClick={() => onNavigate('/peralatan/tambah')}>Tambah Peralatan</Button> : null}
-          />
+          <div className="empty-state">
+            <div className="empty-state-icon"><Package size={28} /></div>
+            <p className="empty-state-title">Belum ada peralatan terdaftar</p>
+          </div>
         ) : (
           <DataTable
             wrapperClassName="table-borderless"
@@ -769,7 +1079,7 @@ function StaffDashboard({ onNavigate, user }) {
                   const dueDate = getCalibrationDueDate(equipment);
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                      <Badge tone={getDueDateBadgeTone(dueDate)}>{formatDueDate(dueDate)}</Badge>
+                      <span className={`badge ${getDueDateBadgeClass(dueDate)}`}>{formatDueDate(dueDate)}</span>
                       {dueDate && <small style={{ color: 'var(--clr-dark-500)' }}>{dueDate.toLocaleDateString('id-ID')}</small>}
                     </div>
                   );
@@ -782,7 +1092,7 @@ function StaffDashboard({ onNavigate, user }) {
                   const process = getProcessStage(equipment);
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                      <Badge tone={process.badgeTone || 'neutral'}>{process.label}</Badge>
+                      <span className={`badge ${process.tone}`}>{process.label}</span>
                       <small style={{ color: 'var(--clr-dark-500)' }}>{process.description}</small>
                     </div>
                   );
@@ -791,7 +1101,7 @@ function StaffDashboard({ onNavigate, user }) {
             ]}
           />
         )}
-      </Card>
+      </div>
     </>
   );
 }

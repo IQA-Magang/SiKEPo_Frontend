@@ -1,5 +1,5 @@
 import React from 'react';
-import tthLogo from '../../assets/logo/tth-logo.png';
+import tthLogo from '../../assets/logo/tth-logo1.png';
 
 export default function LogoSiKEPo() {
   return (

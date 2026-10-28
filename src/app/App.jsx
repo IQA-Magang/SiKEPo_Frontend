@@ -34,6 +34,8 @@ const VerificationManagement = lazy(() => import('../features/verification/Verif
 const JadwalPemeriksaanBerkala = lazy(() => import('../features/scheduling/JadwalPemeriksaanBerkala.jsx'));
 const LandingPage = lazy(() => import('../pages/LandingPage.jsx'));
 const GuestEquipmentPage = lazy(() => import('../features/guest-equipment/GuestEquipmentPage.jsx'));
+const LoanRequest = lazy(() => import('../features/loan/LoanRequest.jsx'));
+const LoanApproval = lazy(() => import('../features/loan/LoanApproval.jsx'));
 const QRScannerModal = lazy(() => import('../shared/components/QRScannerModal.jsx'));
 
 // Wrapper for parameterized Equipment Detail
@@ -66,17 +68,10 @@ function EquipmentLifecycleRoute({ lifecycle, returnPath }) {
   );
 }
 
-function LoanRequestPlaceholder() {
-  return (
-    <div className="page-container fade-in-up">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Peminjaman Peralatan</h1>
-          <p className="page-subtitle">Tampilan pengajuan peminjaman belum tersedia.</p>
-        </div>
-      </div>
-    </div>
-  );
+function LoanRequestRoute() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  return <LoanRequest equipmentId={id} onNavigate={navigate} />;
 }
 
 function PageLoading() {
@@ -287,8 +282,32 @@ function AppContent() {
         <Route
           path="/peminjaman"
           element={
+            <ProtectedRoute feature={ACCESS.LOAN_REQUEST}>
+              <LoanApproval onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/peminjaman/tambah"
+          element={
             <ProtectedRoute feature={ACCESS.LOAN_REQUEST} action={ACTIONS.ADD}>
-              <LoanRequestPlaceholder />
+              <LoanRequest onNavigate={navigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/peminjaman/tambah/:id"
+          element={
+            <ProtectedRoute feature={ACCESS.LOAN_REQUEST} action={ACTIONS.ADD}>
+              <LoanRequestRoute />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/peminjaman/:id"
+          element={
+            <ProtectedRoute feature={ACCESS.LOAN_REQUEST}>
+              <LoanRequestRoute />
             </ProtectedRoute>
           }
         />

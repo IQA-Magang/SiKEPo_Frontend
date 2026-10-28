@@ -366,6 +366,9 @@ export default function VerificationListPage({
       >
         <div>
           <h1 className="page-title">Verifikasi Peralatan</h1>
+          <p className="page-subtitle">
+            Kelola pemeriksaan dan persetujuan verifikasi peralatan laboratorium.
+          </p>
         </div>
       </div>
 
