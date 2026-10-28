@@ -501,24 +501,42 @@ export default function VerificationListPage({
 
       {/* Tabs Alur Verifikasi */}
       <Tabs
-        className="tabs"
+        className="settings-tabs"
         ariaLabel="Alur verifikasi"
         activeId={activeTab}
         onChange={setActiveTab}
         tabs={[
           {
             id: "pending",
-            label: `Menunggu Verifikasi Pengelola (${pendingItems.length})`,
+            idAttribute: "verification-tab-pending",
+            label: (
+              <>
+                <ClipboardCheck size={16} />
+                Menunggu Verifikasi Pengelola ({pendingItems.length})
+              </>
+            ),
           },
           ...((canApprove || role === "staff")
             ? [{
                 id: "review",
-                label: `Menunggu Persetujuan Manager (${filteredReviewItems.length})`,
+                idAttribute: "verification-tab-review",
+                label: (
+                  <>
+                    <Eye size={16} />
+                    Menunggu Persetujuan Manager ({filteredReviewItems.length})
+                  </>
+                ),
               }]
             : []),
           {
             id: "history",
-            label: `Riwayat Verifikasi (${historyItems.length})`,
+            idAttribute: "verification-tab-history",
+            label: (
+              <>
+                <FileText size={16} />
+                Riwayat Verifikasi ({historyItems.length})
+              </>
+            ),
           },
         ]}
       />
