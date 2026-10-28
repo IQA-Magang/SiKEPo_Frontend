@@ -29,6 +29,7 @@ export default function VerificationListPage({
   const [pendingCategoryFilter, setPendingCategoryFilter] = useState("");
   const [pendingActivityFilter, setPendingActivityFilter] = useState("");
   const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewCategoryFilter, setReviewCategoryFilter] = useState("");
   const [reviewActivityFilter, setReviewActivityFilter] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [historyStatusFilter, setHistoryStatusFilter] = useState("");
@@ -56,6 +57,10 @@ export default function VerificationListPage({
   });
   const reviewItems = items.filter((item) => item.status === "Diajukan");
   const filteredReviewItems = reviewItems.filter((item) => {
+    const category =
+      item.peralatan?.kategori_peralatan?.nama_kategori ||
+      item.kategori_peralatan?.nama_kategori ||
+      "Kategori Umum";
     const query = reviewSearch.trim().toLocaleLowerCase("id-ID");
     const searchable = [
       item.peralatan?.nama_peralatan,
@@ -66,10 +71,21 @@ export default function VerificationListPage({
       .toLocaleLowerCase("id-ID");
     return (
       (!query || searchable.includes(query)) &&
+      (!reviewCategoryFilter || category === reviewCategoryFilter) &&
       (!reviewActivityFilter ||
         String(item.kode_aktivitas || "").toUpperCase() === reviewActivityFilter)
     );
   });
+  const reviewCategories = [
+    ...new Set(
+      reviewItems.map(
+        (item) =>
+          item.peralatan?.kategori_peralatan?.nama_kategori ||
+          item.kategori_peralatan?.nama_kategori ||
+          "Kategori Umum",
+      ),
+    ),
+  ].sort((first, second) => first.localeCompare(second, "id-ID"));
   const pendingCategories = [
     ...new Set(
       pendingEquipment.map(
@@ -98,7 +114,7 @@ export default function VerificationListPage({
   );
   const reviewPagination = usePagination(
     filteredReviewItems.length,
-    `${reviewSearch}\u0000${reviewActivityFilter}`,
+    `${reviewSearch}\u0000${reviewCategoryFilter}\u0000${reviewActivityFilter}`,
   );
   const historyPagination = usePagination(historyItems.length);
   const pendingColumns = [
@@ -146,20 +162,49 @@ export default function VerificationListPage({
     {
       key: "category-location",
       header: "Kategori & Lokasi",
-      render: (item) => (
-        <div style={{ fontSize: "var(--text-xs)", color: "var(--clr-dark-700)" }}>
-          <div>{item.kategori_peralatan?.nama_kategori || "Kategori Umum"}</div>
-          <div style={{ color: "var(--clr-dark-400)" }}>
-            {[
-              item.laboratorium?.nama_lab ||
-                item.laboratorium?.nama_labs ||
-                item.ruangan?.labs?.nama_labs ||
-                item.ruangan?.labs?.nama_lab,
-              item.ruangan?.nama_ruangan,
-            ].filter(Boolean).join(" · ") || "Lokasi belum tersedia"}
+      render: (item) => {
+        const equipment = item.peralatan || item;
+        const room = equipment.ruangan || item.ruangan;
+        const lab =
+          equipment.laboratorium ||
+          item.laboratorium ||
+          room?.labs ||
+          room?.laboratorium;
+        const location = [
+          lab?.nama_labs || lab?.nama_lab,
+          room?.nama_ruangan,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+        return (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: 4,
+            }}
+          >
+            <span
+              className="badge badge-gray"
+              style={{ fontSize: "var(--text-xs)" }}
+            >
+              {equipment.kategori_peralatan?.nama_kategori ||
+                item.kategori_peralatan?.nama_kategori ||
+                "–"}
+            </span>
+            <span
+              style={{
+                fontSize: "var(--text-xs)",
+                color: "var(--clr-dark-500)",
+              }}
+            >
+              {location || "Lokasi belum tersedia"}
+            </span>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "description",
@@ -230,6 +275,53 @@ export default function VerificationListPage({
           )}
         </>
       ),
+    },
+    {
+      key: "category-location",
+      header: "Kategori & Lokasi",
+      render: (item) => {
+        const equipment = item.peralatan || item;
+        const room = equipment.ruangan || item.ruangan;
+        const lab =
+          equipment.laboratorium ||
+          item.laboratorium ||
+          room?.labs ||
+          room?.laboratorium;
+        const location = [
+          lab?.nama_labs || lab?.nama_lab,
+          room?.nama_ruangan,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+        return (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: 4,
+            }}
+          >
+            <span
+              className="badge badge-gray"
+              style={{ fontSize: "var(--text-xs)" }}
+            >
+              {equipment.kategori_peralatan?.nama_kategori ||
+                item.kategori_peralatan?.nama_kategori ||
+                "–"}
+            </span>
+            <span
+              style={{
+                fontSize: "var(--text-xs)",
+                color: "var(--clr-dark-500)",
+              }}
+            >
+              {location || "Lokasi belum tersedia"}
+            </span>
+          </div>
+        );
+      },
     },
     {
       key: "submitted-at",
@@ -455,6 +547,9 @@ export default function VerificationListPage({
             columns={reviewColumns}
             search={reviewSearch}
             onSearchChange={setReviewSearch}
+            categoryFilter={reviewCategoryFilter}
+            onCategoryChange={setReviewCategoryFilter}
+            categories={reviewCategories}
             activityFilter={reviewActivityFilter}
             onActivityChange={setReviewActivityFilter}
             busy={busy}

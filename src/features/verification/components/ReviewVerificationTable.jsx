@@ -8,6 +8,9 @@ export default function ReviewVerificationTable({
   columns,
   search,
   onSearchChange,
+  categoryFilter,
+  onCategoryChange,
+  categories,
   activityFilter,
   onActivityChange,
   busy,
@@ -23,6 +26,18 @@ export default function ReviewVerificationTable({
             placeholder: "Nama peralatan atau nomor aset",
             value: search,
             onChange: (event) => onSearchChange(event.target.value),
+          },
+          {
+            type: "select",
+            id: "review-category",
+            label: "Kategori",
+            placeholder: "Semua kategori",
+            value: categoryFilter,
+            onChange: (event) => onCategoryChange(event.target.value),
+            options: categories.map((category) => ({
+              value: category,
+              label: category,
+            })),
           },
           {
             type: "select",
