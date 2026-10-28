@@ -139,7 +139,7 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
               defaultOpen={isManajemenAlatActive}
             >
               <NavItem
-                label="Peralatan"
+                label="Daftar Peralatan"
                 path="/peralatan"
                 feature={ACCESS.MASTER_EQUIPMENT}
                 excludeActivePaths={['/peralatan/dalam-peninjauan']}
