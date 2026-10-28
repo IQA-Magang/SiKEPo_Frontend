@@ -55,11 +55,11 @@ export const ACTIVITY_REQUIREMENTS = {
   },
   A3: {
     identitas: "W",
-    kelengkapan: "-",
+    kelengkapan: "K",
     firmware: "K",
     kondisi_fisik: "W",
     segel: "W",
-    fungsi_awal: "-",
+    fungsi_awal: "W",
     metrologi: "K",
     sertifikat: "-",
   },
