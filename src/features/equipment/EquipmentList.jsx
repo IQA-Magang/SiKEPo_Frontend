@@ -4,8 +4,10 @@ import {
   getEquipmentId,
   getEquipmentCategoryId,
   peralatanApi,
+  labsApi,
   ruanganApi,
   peminjamanApi,
+  getEquipmentLabId,
   STATUS_BADGE_CLASS,
 } from "../../shared/services/api.js";
 import { ACCESS, ACTIONS, can } from "../../shared/utils/permissions.js";
@@ -29,7 +31,9 @@ export default function EquipmentList({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterKat, setFilterKat] = useState("");
+  const [filterLab, setFilterLab] = useState("");
   const [lifecycleView, setLifecycleView] = useState(initialLifecycle);
+  const [labs, setLabs] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [jadwal, setJadwal] = useState([]);
   const hariIni = new Date();
@@ -74,16 +78,21 @@ export default function EquipmentList({
   async function loadData() {
     setLoading(true);
     try {
-      const [res, roomsRes, jadwalRes] = await Promise.all([
+      const [res, roomsRes, labsRes, jadwalRes] = await Promise.all([
         peralatanApi.getAll(),
         ruanganApi.getAll().catch((err) => {
           console.error("Gagal memuat lokasi peralatan:", err);
+          return { data: [] };
+        }),
+        labsApi.getAll().catch((err) => {
+          console.error("Gagal memuat laboratorium:", err);
           return { data: [] };
         }),
         peminjamanApi.getAllJadwal().catch(() => ({ data: [] })),
       ]);
       setList(res.data || []);
       setRooms(roomsRes.data || []);
+      setLabs(labsRes.data || []);
       setJadwal(jadwalRes.data || []);
     } catch (err) {
       console.error("Gagal memuat peralatan:", err);
@@ -93,6 +102,7 @@ export default function EquipmentList({
   }
 
   // Filter
+  const roomsById = new Map(rooms.map((room) => [String(room.id), room]));
   const filtered = list.filter((p) => {
     const q = search.toLowerCase();
     const matchQ =
@@ -102,6 +112,8 @@ export default function EquipmentList({
       p.merek?.toLowerCase().includes(q);
     const catId = getEquipmentCategoryId(p);
     const matchKat = !filterKat || String(catId) === filterKat;
+    const labId = getEquipmentLabId(p, roomsById);
+    const matchLab = !filterLab || String(labId) === filterLab;
     const approved = p.status_verifikasi === "Disetujui";
     // Peralatan berstatus Aktif maupun Dipinjam tetap tampil di daftar utama
     const available = p.status_alat === "Aktif" || p.status_alat === "Dipinjam";
@@ -113,11 +125,11 @@ export default function EquipmentList({
         : lifecycleView === "review"
           ? rejected
           : available && approved;
-    return matchQ && matchKat && matchLifecycle;
+    return matchQ && matchKat && matchLab && matchLifecycle;
   });
   const pagination = usePagination(
     filtered.length,
-    `${search}\u0000${filterKat}\u0000${lifecycleView}`,
+    `${search}\u0000${filterKat}\u0000${filterLab}\u0000${lifecycleView}`,
   );
   const columns = [
     {
@@ -496,6 +508,18 @@ export default function EquipmentList({
             options: categories.map((category) => ({
               value: String(category.id),
               label: category.nama_kategori,
+            })),
+          },
+          {
+            type: "select",
+            id: "select-filter-lab",
+            label: "Lab",
+            placeholder: "Semua Lab",
+            value: filterLab,
+            onChange: (event) => setFilterLab(event.target.value),
+            options: labs.map((lab) => ({
+              value: String(lab.id),
+              label: lab.nama_labs,
             })),
           },
         ]}
