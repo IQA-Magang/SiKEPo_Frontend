@@ -116,7 +116,10 @@ export default function VerificationListPage({
     filteredReviewItems.length,
     `${reviewSearch}\u0000${reviewCategoryFilter}\u0000${reviewActivityFilter}`,
   );
-  const historyPagination = usePagination(historyItems.length);
+  const historyPagination = usePagination(
+    historyItems.length,
+    `${historySearch}\u0000${historyStatusFilter}\u0000${historyActivityFilter}`,
+  );
   const pendingColumns = [
     {
       key: "number",
@@ -535,6 +538,11 @@ export default function VerificationListPage({
             categories={pendingCategories}
             activityFilter={pendingActivityFilter}
             onActivityChange={setPendingActivityFilter}
+            onResetFilters={() => {
+              setPendingSearch("");
+              setPendingCategoryFilter("");
+              setPendingActivityFilter("");
+            }}
             busy={busy}
             onNavigate={onNavigate}
           />
@@ -552,6 +560,11 @@ export default function VerificationListPage({
             categories={reviewCategories}
             activityFilter={reviewActivityFilter}
             onActivityChange={setReviewActivityFilter}
+            onResetFilters={() => {
+              setReviewSearch("");
+              setReviewCategoryFilter("");
+              setReviewActivityFilter("");
+            }}
             busy={busy}
           />
         )}
@@ -567,6 +580,11 @@ export default function VerificationListPage({
             onStatusChange={setHistoryStatusFilter}
             activityFilter={historyActivityFilter}
             onActivityChange={setHistoryActivityFilter}
+            onResetFilters={() => {
+              setHistorySearch("");
+              setHistoryStatusFilter("");
+              setHistoryActivityFilter("");
+            }}
             busy={busy}
           />
         )}

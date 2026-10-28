@@ -1,5 +1,6 @@
 import TableFilters from "../../../shared/components/ui/TableFilters.jsx";
 import PaginatedDataTable from "../../../shared/components/ui/PaginatedDataTable.jsx";
+import { RotateCcw } from "lucide-react";
 import { getEquipmentId } from "../../../shared/services/api.js";
 import { ACTIVITY_OPTIONS, getActivityLabel } from "../verificationData.js";
 
@@ -14,6 +15,7 @@ export default function PendingVerificationTable({
   categories,
   activityFilter,
   onActivityChange,
+  onResetFilters,
   busy,
   onNavigate,
 }) {
@@ -54,6 +56,17 @@ export default function PendingVerificationTable({
             })),
           },
         ]}
+        actions={
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onResetFilters}
+            title="Reset filter"
+            aria-label="Reset filter verifikasi"
+          >
+            <RotateCcw size={16} />
+          </button>
+        }
       />
       <div className="table-card">
         <PaginatedDataTable

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Package, Plus, RefreshCw, Hand } from "lucide-react";
+import { Package, Plus, RotateCcw, Hand } from "lucide-react";
 import {
   getEquipmentId,
   getEquipmentCategoryId,
@@ -525,12 +525,18 @@ export default function EquipmentList({
         ]}
         actions={
           <button
-            className="btn btn-secondary btn-icon"
-            onClick={loadData}
-            title="Refresh"
-            id="btn-refresh-peralatan"
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              setSearch("");
+              setFilterKat("");
+              setFilterLab("");
+            }}
+            title="Reset filter"
+            aria-label="Reset filter peralatan"
+            id="btn-reset-filter-peralatan"
           >
-            <RefreshCw size={16} />
+            <RotateCcw size={16} />
           </button>
         }
       />

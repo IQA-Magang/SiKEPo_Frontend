@@ -1,5 +1,6 @@
 import TableFilters from "../../../shared/components/ui/TableFilters.jsx";
 import PaginatedDataTable from "../../../shared/components/ui/PaginatedDataTable.jsx";
+import { RotateCcw } from "lucide-react";
 import { ACTIVITY_OPTIONS, getActivityLabel } from "../verificationData.js";
 
 export default function ReviewVerificationTable({
@@ -13,6 +14,7 @@ export default function ReviewVerificationTable({
   categories,
   activityFilter,
   onActivityChange,
+  onResetFilters,
   busy,
 }) {
   return (
@@ -52,6 +54,17 @@ export default function ReviewVerificationTable({
             })),
           },
         ]}
+        actions={
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onResetFilters}
+            title="Reset filter"
+            aria-label="Reset filter persetujuan manager"
+          >
+            <RotateCcw size={16} />
+          </button>
+        }
       />
       <div className="table-card">
         <PaginatedDataTable
