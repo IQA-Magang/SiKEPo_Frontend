@@ -7,6 +7,8 @@ import PaginatedDataTable from '../../shared/components/ui/PaginatedDataTable.js
 import TableFilters from '../../shared/components/ui/TableFilters.jsx';
 
 
+
+
 // ------------------------------------------------------------------
 // Daftar Peralatan
 // ------------------------------------------------------------------
@@ -18,15 +20,15 @@ export default function EquipmentList({
   const canCreate = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD);
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const canRequestLoan = can(ACCESS.LOAN_REQUEST, ACTIONS.ADD);
-  const [list, setList]         = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [search, setSearch]     = useState('');
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const [filterKat, setFilterKat] = useState('');
   const [lifecycleView, setLifecycleView] = useState(initialLifecycle);
   const [rooms, setRooms] = useState([]);
   const [jadwal, setJadwal] = useState([]);
   const hariIni = new Date();
-  const hariIniStr = `${hariIni.getFullYear()}-${String(hariIni.getMonth()+1).padStart(2,'0')}-${String(hariIni.getDate()).padStart(2,'0')}`;
+  const hariIniStr = `${hariIni.getFullYear()}-${String(hariIni.getMonth() + 1).padStart(2, '0')}-${String(hariIni.getDate()).padStart(2, '0')}`;
   const jadwalPerAlat = new Map();
   for (const j of jadwal) {
     const pid = String(j.peralatan_id);
