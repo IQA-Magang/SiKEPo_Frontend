@@ -852,7 +852,7 @@ const STATUS_META = {
     bg: '#d1fae5',
   },
   DIBATALKAN_TS: {
-    label: 'Dibatalkan (Ada TS - DO NOT USE)',
+    label: 'Dibatalkan (Ada TS)',
     badgeClass: 'badge-error',
     color: '#b91c1c',
     bg: '#fee2e2',
@@ -1812,7 +1812,8 @@ export default function LoanApproval({ onNavigate }) {
             keterangan: it.keterangan ? it.keterangan.trim() : '',
           })),
           catatan: checkoutNote ? checkoutNote.trim() : '',
-          ttd: checkoutSigPengelola?.trim() || (adaItemTS ? FALLBACK_EMPTY_PNG : ''),
+          // Ada butir TS: backend tidak memakai tanda tangan, cukup kirim kosong
+          ttd: adaItemTS ? '' : checkoutSigPengelola.trim(),
         };
 
         const res = await peminjamanApi.serahTerima(selectedLoan.id, payload);
@@ -1826,7 +1827,7 @@ export default function LoanApproval({ onNavigate }) {
 
         if (adaItemTS) {
           toastError(
-            `Serah terima dibatalkan karena terdapat butir TS. Tiket ${selectedLoan.kode || selectedLoan.id} ditutup dan status alat dialihkan menjadi DO NOT USE.`
+            `Serah terima dibatalkan karena terdapat butir TS. Tiket ${selectedLoan.kode || selectedLoan.id} ditutup, peralatan tetap Aktif dan butir TS dicatat sebagai temuan.`
           );
         } else {
           success(
@@ -2094,7 +2095,7 @@ export default function LoanApproval({ onNavigate }) {
             <option value="SIAP_DISERAHKAN">Tahap 4B: Siap Diserahkan (TTD Peminjam)</option>
             <option value="SEDANG_DIPINJAM">Sedang Dipinjam (Alat Diserahkan)</option>
             <option value="DIKEMBALIKAN">Dikembalikan</option>
-            <option value="DIBATALKAN_TS">Dibatalkan (Ada TS - DO NOT USE)</option>
+            <option value="DIBATALKAN_TS">Dibatalkan (Ada TS)</option>
             <option value="DITOLAK">Ditolak</option>
           </select>
         </div>
@@ -3346,7 +3347,7 @@ export default function LoanApproval({ onNavigate }) {
                       <strong>Hasil:</strong>{' '}
                       {selectedLoan.serah_terima_keluar.ada_ts ? (
                         <span style={{ color: '#dc2626', fontWeight: 600 }}>
-                          Dibatalkan karena terdapat butir Tidak Sesuai (TS). Status alat dialihkan menjadi DO NOT USE.
+                          Dibatalkan karena terdapat butir Tidak Sesuai (TS). Peralatan tetap Aktif dan butir TS dicatat sebagai temuan.
                         </span>
                       ) : (
                         <span style={{ color: '#16a34a', fontWeight: 600 }}>
@@ -4606,7 +4607,7 @@ export default function LoanApproval({ onNavigate }) {
                         <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                           <li>Peralatan yang menunjukkan kondisi tidak normal <strong>TIDAK BOLEH DISERAHKAN</strong>.</li>
                           <li>Peminjaman otomatis <strong>DIBATALKAN</strong>.</li>
-                          <li>Status alat akan dialihkan menjadi <strong>DO NOT USE</strong> untuk penanganan peninjauan teknis lebih lanjut.</li>
+                          <li>Peralatan tetap <strong>AKTIF</strong>, butir TS dicatat sebagai temuan di logbook.</li>
                         </ul>
                       </div>
                     </div>
