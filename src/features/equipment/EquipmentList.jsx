@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Package, Plus, RotateCcw, Hand } from "lucide-react";
+import {
+  ClipboardCheck,
+  Package,
+  Plus,
+  RotateCcw,
+  Hand,
+} from "lucide-react";
 import {
   getEquipmentId,
   getEquipmentCategoryId,
@@ -118,13 +124,26 @@ export default function EquipmentList({
     // Peralatan berstatus Aktif maupun Dipinjam tetap tampil di daftar utama
     const available = p.status_alat === "Aktif" || p.status_alat === "Dipinjam";
     const rejected = p.status_verifikasi === "Ditolak";
-    const pending = !approved && !rejected;
+    const activityCode = String(p.kode_aktivitas || "")
+      .trim()
+      .toUpperCase();
+    const pending =
+      !approved && !rejected && activityCode === "A1";
+    const followUpVerification =
+      ["Draft", "Diajukan"].includes(p.status_verifikasi) &&
+      activityCode !== "" &&
+      activityCode !== "A1";
+    const returnedFromLoanAwaitingVerification =
+      activityCode === "A3" &&
+      p.status_verifikasi === "Belum Diverifikasi";
     const matchLifecycle =
       lifecycleView === "pending"
         ? pending
         : lifecycleView === "review"
           ? rejected
-          : available && approved;
+          : (available && approved) ||
+            followUpVerification ||
+            returnedFromLoanAwaitingVerification;
     return matchQ && matchKat && matchLab && matchLifecycle;
   });
   const pagination = usePagination(
@@ -325,11 +344,11 @@ export default function EquipmentList({
           <div style={{ display: "flex", gap: "var(--sp-1)" }}>
             {canViewVerification && !approved && !rejected && (
               <button
-                className="btn btn-ghost btn-sm"
+                className="btn btn-primary btn-sm"
                 onClick={() => onNavigate(verificationPath)}
-                title="Mulai atau lanjutkan verifikasi"
+                title="Mulai pengisian tahapan verifikasi alat"
               >
-                Verifikasi
+                <ClipboardCheck size={14} /> Verifikasi
               </button>
             )}
             {canViewVerification && rejected && (
@@ -342,11 +361,11 @@ export default function EquipmentList({
                   Tinjau
                 </button>
                 <button
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-primary btn-sm"
                   onClick={() => onNavigate(verificationPath)}
-                  title="Ajukan Verifikasi Ulang (TLKM13/IK/003)"
+                  title="Mulai pengisian tahapan verifikasi alat"
                 >
-                  Verifikasi Ulang
+                  <ClipboardCheck size={14} /> Verifikasi Ulang
                 </button>
               </>
             )}
@@ -413,7 +432,7 @@ export default function EquipmentList({
   const lifecycleCopy = {
     pending: [
       "Menunggu Verifikasi",
-      "peralatan menunggu pemeriksaan dan belum dapat digunakan",
+      "peralatan aktivitas A1 yang menunggu pemeriksaan awal",
     ],
     review: [
       "Peralatan dalam Peninjauan",
