@@ -539,7 +539,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 <strong style={{ color: returnBeyondDueDate ? '#b91c1c' : 'var(--clr-dark-900, #0F172A)' }}>
                   {nextInspection.toLocaleDateString('id-ID')}
                 </strong>
-                {' — rencana tanggal kembali tidak boleh melampaui tanggal ini (butir 7.d).'}
+                {' — rencana tanggal kembali tidak boleh melampaui tanggal ini.'}
               </>
             ) : (
               'Jadwal pemeriksaan berikutnya belum tersedia.'
@@ -713,7 +713,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 onChange={(e) => setForm({ ...form, nama_operator: e.target.value })}
               />
               <span className="form-hint">
-                Peminjam/operator harus personel TTH yang kompeten dan berwenang mengoperasikan peralatan (butir 7.b).
+                Peminjam/operator harus personel TTH yang kompeten dan berwenang mengoperasikan peralatan.
               </span>
             </div>
           </div>
