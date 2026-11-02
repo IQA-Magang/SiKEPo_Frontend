@@ -957,6 +957,31 @@ const INITIAL_LOAN_DATA = [
   },
 ];
 
+// Tanggal hari ini (zona waktu lokal) dalam format YYYY-MM-DD
+function tanggalHariIni() {
+  return new Date().toLocaleDateString("en-CA");
+}
+
+// Jumlah hari keterlambatan alat yang belum dikembalikan.
+// Bernilai 0 bila alat tidak sedang dipinjam atau belum lewat rencana tanggal kembali.
+function hariTerlambat(loan) {
+  if (loan?.status !== "SEDANG_DIPINJAM" || !loan.rencana_tanggal_kembali) return 0;
+  const batas = new Date(`${String(loan.rencana_tanggal_kembali).slice(0, 10)}T00:00:00`);
+  const hariIni = new Date(`${tanggalHariIni()}T00:00:00`);
+  const selisih = Math.round((hariIni - batas) / 86400000);
+  return selisih > 0 ? selisih : 0;
+}
+
+// Badge pengganti "Sedang Dipinjam" bila alat sudah lewat rencana tanggal kembali
+function metaTerlambat(hari) {
+  return {
+    label: `Belum Dikembalikan · Terlambat ${hari} hari`,
+    badgeClass: "badge-error",
+    color: "#b91c1c",
+    bg: "#fee2e2",
+  };
+}
+
 // Badge status peminjaman (Sesuai Alur 4 Tahap + Life Cycle Selesai)
 const STATUS_META = {
   MENUNGGU_MANAGER_PEMINJAM: {
@@ -1433,6 +1458,8 @@ export default function LoanApproval({ onNavigate }) {
       }
       if (statusFilter === "MENUNGGU_SAYA") {
         params.menunggu_saya = true;
+      } else if (statusFilter === "TERLAMBAT") {
+        params.status = "SEDANG_DIPINJAM";
       } else if (statusFilter !== "SEMUA") {
         params.status = statusFilter;
       }
@@ -1534,6 +1561,9 @@ export default function LoanApproval({ onNavigate }) {
         pending?.canReturnConfirm ||
         pending?.canReviewExtension,
       );
+    }
+    if (statusFilter === "TERLAMBAT") {
+      return hariTerlambat(item) > 0;
     }
     if (
       statusFilter === "DISETUJUI" ||
@@ -2581,6 +2611,7 @@ export default function LoanApproval({ onNavigate }) {
               { value: "DISETUJUI", label: "Disetujui (Cek Pengelola)" },
               { value: "SIAP_DISERAHKAN", label: "Siap Diserahkan (TTD Peminjam)" },
               { value: "SEDANG_DIPINJAM", label: "Sedang Dipinjam (Alat Diserahkan)" },
+              { value: "TERLAMBAT", label: "Belum Dikembalikan (Terlambat)" },
               { value: "DIKEMBALIKAN", label: "Dikembalikan" },
               { value: "DIBATALKAN_TS", label: "Dibatalkan (Ada TS - DO NOT USE)" },
               { value: "DITOLAK", label: "Ditolak" },
@@ -2739,7 +2770,8 @@ export default function LoanApproval({ onNavigate }) {
                 </tr>
               ) : (
                 filteredLoans.map((loan) => {
-                  const meta = STATUS_META[loan.status] || {
+                  const terlambat = hariTerlambat(loan);
+                  const meta = terlambat > 0 ? metaTerlambat(terlambat) : STATUS_META[loan.status] || {
                     label: loan.status,
                     badgeClass: "badge-gray",
                     color: "#64748b",
@@ -4019,6 +4051,21 @@ export default function LoanApproval({ onNavigate }) {
                         <strong>{selectedLoan.rencana_tanggal_keluar}</strong>{" "}
                         s.d{" "}
                         <strong>{selectedLoan.rencana_tanggal_kembali}</strong>
+                        {hariTerlambat(selectedLoan) > 0 && (
+                          <span
+                            style={{
+                              marginLeft: 6,
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              color: "#b91c1c",
+                              background: "#fee2e2",
+                              padding: "1px 6px",
+                              borderRadius: 4,
+                            }}
+                          >
+                            Terlambat {hariTerlambat(selectedLoan)} hari
+                          </span>
+                        )}
                       </div>
                       <div>
                         <span
@@ -7809,6 +7856,31 @@ export default function LoanApproval({ onNavigate }) {
               onSubmit={handleSubmitReturn}
               style={{ padding: "var(--sp-6)" }}
             >
+              {/* Info keterlambatan pengembalian */}
+              {hariTerlambat(selectedLoan) > 0 && (
+                <div
+                  style={{
+                    background: "#fef2f2",
+                    border: "1.5px solid #fecaca",
+                    borderRadius: 8,
+                    padding: "10px 14px",
+                    marginBottom: "var(--sp-4)",
+                    fontSize: "12px",
+                    color: "#991b1b",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <Clock size={16} style={{ color: "#dc2626", flexShrink: 0 }} />
+                  <span>
+                    <strong>Terlambat {hariTerlambat(selectedLoan)} hari</strong>{" "}
+                    dari rencana tanggal kembali {selectedLoan.rencana_tanggal_kembali}.
+                    Keterlambatan dicatat di logbook peralatan.
+                  </span>
+                </div>
+              )}
+
               {/* Bagian A: Data Identitas Peminjaman */}
               <div
                 style={{
