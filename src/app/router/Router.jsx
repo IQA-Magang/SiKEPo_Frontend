@@ -7,32 +7,22 @@ const RouterContext = createContext(null);
 const RouteParamsContext = createContext({});
 
 // ------------------------------------------------------------------
-// Helper: ambil pathname dari window.location.hash
+// Helper: ambil pathname dan migrasikan URL aplikasi lama yang memakai hash.
 // ------------------------------------------------------------------
 export function getHashPath() {
   const hash = window.location.hash || '';
-  if (hash) {
-    if (hash === '#' || hash === '#/') return '/';
-    const clean = hash.startsWith('#') ? hash.slice(1) : hash;
-    const pathWithoutQuery = clean.split('?')[0];
-    return pathWithoutQuery.startsWith('/') ? pathWithoutQuery : `/${pathWithoutQuery}`;
+  if (hash.startsWith('#/')) {
+    const legacyUrl = new URL(hash.slice(1), window.location.origin);
+    const cleanUrl = `${legacyUrl.pathname}${legacyUrl.search}`;
+    window.history.replaceState(window.history.state, '', cleanUrl);
+    return legacyUrl.pathname;
   }
 
-  const pathname = window.location.pathname || '/';
-  if (pathname === '/' || pathname === '/login') {
-    return pathname;
-  }
-
-  if (pathname.startsWith('/guest/peralatan/')) {
-    return pathname;
-  }
-
-  return '/';
+  return window.location.pathname || '/';
 }
 
 export function getSafeReturnPath(fallback) {
-  const query = window.location.hash.split('?')[1] || '';
-  const returnPath = new URLSearchParams(query).get('returnTo');
+  const returnPath = new URLSearchParams(window.location.search).get('returnTo');
   const allowedPaths = new Set([
     '/dashboard',
     '/peralatan',
@@ -78,17 +68,18 @@ export function Router({ children }) {
 
   const navigate = useCallback((to, { replace = false } = {}) => {
     const formatted = to.startsWith('/') ? to : `/${to}`;
-    setCurrentPath(formatted);
+    const destination = new URL(formatted, window.location.origin);
+    setCurrentPath(destination.pathname);
     if (replace) {
-      window.location.replace(`#${formatted}`);
+      window.history.replaceState({}, '', `${destination.pathname}${destination.search}`);
     } else {
-      window.location.hash = formatted;
+      window.history.pushState({}, '', `${destination.pathname}${destination.search}`);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   useEffect(() => {
-    function handleHashChange() {
+    function handlePopState() {
       const p = getHashPath();
       setCurrentPath(p);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -98,11 +89,11 @@ export function Router({ children }) {
       navigate('/login');
     }
 
-    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handlePopState);
     window.addEventListener('sikepo_session_expired', handleSessionExpired);
 
     return () => {
-      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('sikepo_session_expired', handleSessionExpired);
     };
   }, [navigate]);
@@ -125,9 +116,7 @@ export function Router({ children }) {
 export function useNavigate() {
   const ctx = useContext(RouterContext);
   if (!ctx) {
-    return (to) => {
-      window.location.hash = to.startsWith('/') ? to : `/${to}`;
-    };
+    return (to) => window.location.assign(to.startsWith('/') ? to : `/${to}`);
   }
   return ctx.navigate;
 }
@@ -240,8 +229,28 @@ export function Navigate({ to, replace = true }) {
 // ------------------------------------------------------------------
 export function Link({ to, children, className = '', ...props }) {
   const formatted = to.startsWith('/') ? to : `/${to}`;
+  const navigate = useNavigate();
+  const handleClick = (event) => {
+    props.onClick?.(event);
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      props.target ||
+      props.download
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    navigate(formatted);
+  };
+
   return (
-    <a href={`#${formatted}`} className={className} {...props}>
+    <a href={formatted} className={className} {...props} onClick={handleClick}>
       {children}
     </a>
   );
