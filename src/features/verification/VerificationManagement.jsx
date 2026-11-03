@@ -1,9 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  akunApi,
-  getCurrentUser,
-  verifikasiApi,
-} from "../../shared/services/api.js";
+import React, { useEffect, useState } from "react";
+import { getCurrentUser, verifikasiApi } from "../../shared/services/api.js";
 import { useToast } from "../../app/providers/ToastContext.jsx";
 import { getUserRole, isStaffPengelola } from "../../shared/utils/permissions.js";
 import { getSafeReturnPath, useNavigate } from "../../app/router/Router.jsx";
@@ -35,7 +31,6 @@ export default function VerificationManagement({
   const canSubmit = staffIsPengelola || role === "manager" || role === "admin";
   const canApprove = role === "manager" || role === "admin";
   const currentUserLabId = currentUser?.labs_id ?? currentUser?.labs?.id;
-  const [savedSignature, setSavedSignature] = useState("");
 
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(() => ({
@@ -49,34 +44,6 @@ export default function VerificationManagement({
   const [rejectReason, setRejectReason] = useState("");
   const [rejectCatatan, setRejectCatatan] = useState("");
   const [affirmApproved, setAffirmApproved] = useState(false);
-  const signatureEditVersion = useRef(0);
-  const signatureSaveQueue = useRef(Promise.resolve());
-
-  useEffect(() => {
-    let active = true;
-    const editVersionAtLoad = signatureEditVersion.current;
-
-    akunApi
-      .getTtd()
-      .then((response) => {
-        if (!active || signatureEditVersion.current !== editVersionAtLoad) {
-          return;
-        }
-        const signature = response?.data?.ttd || "";
-        setSavedSignature(signature);
-        setPicSignature(signature);
-        setManagerSignature(signature);
-      })
-      .catch((err) => {
-        if (active) {
-          error(err.message || "Gagal memuat tanda tangan dari akun.");
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [error]);
 
   const {
     items,
@@ -104,20 +71,6 @@ export default function VerificationManagement({
 
   function handleSignatureChange(setSignature, signature) {
     setSignature(signature);
-    signatureEditVersion.current += 1;
-    if (!signature) return;
-
-    signatureSaveQueue.current = signatureSaveQueue.current
-      .then(() => akunApi.saveTtd(signature))
-      .then((response) => {
-        setSavedSignature(response?.data?.ttd || signature);
-      })
-      .catch((err) => {
-        error(
-          err.message ||
-            "Tanda tangan digunakan, tetapi gagal disimpan ke akun backend.",
-        );
-      });
   }
 
   // Submit verifikasi — langsung diajukan ke Manager (tanpa draft)
@@ -267,7 +220,7 @@ export default function VerificationManagement({
         navigate(returnPath);
       } else {
         setForm(emptyForm());
-        setPicSignature(picSignature);
+        setPicSignature("");
         await loadList();
       }
     } catch (err) {
@@ -278,7 +231,7 @@ export default function VerificationManagement({
   }
 
   function closeApprovalModal() {
-    setManagerSignature(savedSignature);
+    setManagerSignature("");
     setRejectReason("");
     setRejectCatatan("");
     setAffirmApproved(false);
@@ -390,7 +343,7 @@ export default function VerificationManagement({
         busy={busy}
         onNavigate={navigate}
         onReview={(item) => {
-          setManagerSignature(savedSignature);
+          setManagerSignature("");
           setApprovalMode("approve");
           setRejectReason("");
           setRejectCatatan("");
