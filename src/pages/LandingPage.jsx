@@ -2,6 +2,8 @@ import React, { lazy, Suspense, useState } from 'react';
 import {
   Archive,
   ArrowLeftRight,
+  ChevronLeft,
+  ChevronRight,
   Bell,
   CheckCircle2,
   CircleAlert,
@@ -20,6 +22,8 @@ import {
   X,
 } from 'lucide-react';
 import sikepoLogo from '../assets/logo/tth-logo2.png';
+import telkomTestHouseLogo from '../assets/logo/tth-logo1.png';
+import landingWave from '../assets/landing-wave.svg';
 import '../styles/landing-page.css';
 
 const QRScannerModal = lazy(() => import('../shared/components/QRScannerModal.jsx'));
@@ -180,6 +184,29 @@ export default function LandingPage({ onNavigate }) {
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [qrScannerInitialTab, setQrScannerInitialTab] = useState('camera');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeHeroSlide, setActiveHeroSlide] = useState(0);
+
+  const heroSlides = [
+    {
+      eyebrow: 'Cek alat dengan cepat',
+      title: 'Status alat ukur, cukup satu pindai.',
+      description: 'Pindai kode QR untuk melihat identitas, status kelayakan, dan informasi kalibrasi alat.',
+    },
+    {
+      eyebrow: 'Jadwal lebih terkendali',
+      title: 'Kalibrasi terpantau, tidak terlewat.',
+      description: 'Catat jadwal dan riwayat kalibrasi agar setiap peralatan tetap terjaga kelayakannya.',
+    },
+    {
+      eyebrow: 'Data dalam satu sistem',
+      title: 'Riwayat peralatan tercatat rapi.',
+      description: 'Kelola informasi aset, lokasi, peminjaman, dan verifikasi secara terpusat bersama SiKEPo.',
+    },
+  ];
+
+  function changeHeroSlide(direction) {
+    setActiveHeroSlide((current) => (current + direction + heroSlides.length) % heroSlides.length);
+  }
 
   function openQrScanner(initialTab = 'camera') {
     setIsMobileMenuOpen(false);
@@ -205,11 +232,7 @@ export default function LandingPage({ onNavigate }) {
       <header className="lp-header">
         <div className="lp-container lp-header-inner">
           <a className="lp-brand" href="/" aria-label="SiKEPo — beranda">
-            <img src={sikepoLogo} alt="" />
-            <span>
-              <strong>SiKEPo</strong>
-              <small>Telkom Test House</small>
-            </span>
+            <img src={sikepoLogo} alt="SiKEPo" />
           </a>
 
           <nav
@@ -221,14 +244,11 @@ export default function LandingPage({ onNavigate }) {
             ))}
           </nav>
 
+          <a className="lp-brand lp-partner-brand" href="/" aria-label="Telkom Test House — beranda">
+            <img src={telkomTestHouseLogo} alt="Telkom Test House" />
+          </a>
+
           <div className="lp-header-actions">
-            <button className="lp-button lp-button-brand lp-button-small" type="button" onClick={openQrScanner}>
-              <QrCode aria-hidden="true" />
-              Scan QR
-            </button>
-            <a className="lp-button lp-button-outline lp-button-small" href="/login" onClick={navigateToLogin}>
-              Masuk
-            </a>
             <button
               className="lp-mobile-menu"
               type="button"
@@ -243,74 +263,67 @@ export default function LandingPage({ onNavigate }) {
       </header>
 
       <main id="main">
-        <section className="lp-hero">
-          <div className="lp-container lp-hero-grid">
+        <section className="lp-hero" aria-label="Sorotan SiKEPo">
+          <div className="lp-hero-layout">
             <div className="lp-hero-copy">
-              <span className="lp-eyebrow">SiKEPo · Telkom Test House</span>
-              <h1>Status alat ukur TTH, terlihat dalam satu pindai.</h1>
+              <span className="lp-eyebrow">SIKEPO · TELKOM TEST HOUSE</span>
+              <h1>Semua peralatan lab, <span>lebih mudah dikelola.</span></h1>
               <p className="lp-lead">
-                SiKEPo mencatat lokasi, kalibrasi, dan kelayakan setiap alat ukur di Telkom Test House.
-                Tamu cukup memindai stiker QR; personel TTH masuk untuk meminjam, memverifikasi, dan
-                memantau jadwal.
+                Pantau aset, lokasi, dan status kalibrasi peralatan Telkom Test House secara terpusat.
               </p>
-
-              <div className="lp-paths">
-                <article className="lp-path lp-path-primary">
-                  <span className="lp-eyebrow">Tamu &amp; pelanggan</span>
-                  <h2>Cek status alat</h2>
-                  <p>Pindai stiker QR pada alat untuk melihat status kelayakan dan jatuh temponya.</p>
-                  <button className="lp-button lp-button-brand lp-button-large" type="button" onClick={openQrScanner}>
-                    <QrCode aria-hidden="true" />
-                    Pindai QR Alat
-                  </button>
-                  <div className="lp-path-more">
-                    <button className="lp-text-button" type="button" onClick={() => openQrScanner('manual')}>
-                      atau ketik nomor aset
-                    </button>
-                  </div>
-                </article>
-
-                <article className="lp-path">
-                  <span className="lp-eyebrow">Personel TTH</span>
-                  <h2>Kelola peralatan</h2>
-                  <p>Pinjam alat, ajukan verifikasi, dan pantau jadwal kalibrasi lab Anda.</p>
-                  <a className="lp-button lp-button-navy lp-button-large" href="/login" onClick={navigateToLogin}>
-                    <LogIn aria-hidden="true" />
-                    Masuk ke SiKEPo
-                  </a>
-                  <div className="lp-path-more">
-                    Belum punya akun? <a className="lp-text-link" href="#faq-akun">Hubungi admin</a>
-                  </div>
-                </article>
+              <div className="lp-hero-actions lp-hero-copy-actions">
+                <button className="lp-button lp-button-light" type="button" onClick={openQrScanner}>
+                  <QrCode aria-hidden="true" />
+                  Pindai QR Alat
+                </button>
+                <a className="lp-button lp-button-outline" href="/login" onClick={navigateToLogin}>
+                  <LogIn aria-hidden="true" />
+                  Masuk
+                </a>
               </div>
+              <button className="lp-hero-manual" type="button" onClick={() => openQrScanner('manual')}>
+                Tidak bisa memindai? Ketik nomor aset
+              </button>
+              <ul className="lp-hero-points" aria-label="Keunggulan SiKEPo">
+                <li><CheckCircle2 aria-hidden="true" />Data aset terpusat</li>
+                <li><CheckCircle2 aria-hidden="true" />Status mudah dipantau</li>
+                <li><CheckCircle2 aria-hidden="true" />Jadwal lebih tertata</li>
+              </ul>
             </div>
-
-            <div className="lp-hero-visual">
-              <p className="lp-mock-caption" id="lp-mock-caption">Contoh tampilan setelah memindai</p>
-              <div className="lp-phone" role="img" aria-labelledby="lp-mock-caption" aria-describedby="lp-mock-description">
-                <div className="lp-phone-top"><span /></div>
-                <div className="lp-phone-body">
-                  <div className="lp-phone-heading">
-                    <strong>SiKEPo</strong>
-                    <span className="lp-demo-tag">Contoh</span>
-                  </div>
-                  <div className="lp-phone-card">
-                    <strong className="lp-asset-number">001/DEMO</strong>
-                    <p>Optical Power Meter</p>
-                    <span className="lp-status-badge is-ok"><CheckCircle2 aria-hidden="true" />Laik Pakai</span>
-                  </div>
-                  <div className="lp-phone-card">
-                    <div className="lp-key-value"><span>Jatuh tempo</span><strong>10 Okt 2027</strong></div>
-                    <div className="lp-key-value"><span>Sisa</span><strong>342 hari</strong></div>
-                    <div className="lp-key-value"><span>Regime</span><strong>Kalibrasi</strong></div>
-                  </div>
-                  <span className="lp-phone-login">Masuk untuk meminjam</span>
+            <div className="lp-hero-banner">
+              <img className="lp-hero-pattern" src={landingWave} alt="" aria-hidden="true" />
+              <div className="lp-hero-controls" aria-label="Kontrol sorotan">
+                <button type="button" onClick={() => changeHeroSlide(-1)} aria-label="Sorotan sebelumnya">
+                  <ChevronLeft aria-hidden="true" />
+                </button>
+                <div className="lp-hero-dots" role="group" aria-label="Pilih sorotan">
+                  {heroSlides.map((slide, index) => (
+                    <button
+                      key={slide.title}
+                      type="button"
+                      className={index === activeHeroSlide ? 'is-active' : ''}
+                      onClick={() => setActiveHeroSlide(index)}
+                      aria-label={`Tampilkan sorotan ${index + 1}`}
+                      aria-pressed={index === activeHeroSlide}
+                    />
+                  ))}
                 </div>
+                <button type="button" onClick={() => changeHeroSlide(1)} aria-label="Sorotan berikutnya">
+                  <ChevronRight aria-hidden="true" />
+                </button>
               </div>
-              <p className="lp-sr-only" id="lp-mock-description">
-                Contoh ponsel menampilkan nomor aset 001/DEMO, Optical Power Meter, status Laik Pakai,
-                jatuh tempo 10 Oktober 2027, dan informasi kalibrasi.
-              </p>
+              <div className="lp-banner-brand" aria-hidden="true">
+                <img src={sikepoLogo} alt="" />
+                <span>Telkom Test House</span>
+              </div>
+              <div className="lp-banner-copy" key={heroSlides[activeHeroSlide].title} aria-live="polite">
+                <span className="lp-banner-eyebrow">{heroSlides[activeHeroSlide].eyebrow}</span>
+                <h2>{heroSlides[activeHeroSlide].title}</h2>
+                <p>{heroSlides[activeHeroSlide].description}</p>
+              </div>
+              <span className="lp-banner-index" aria-hidden="true">
+                0{activeHeroSlide + 1}<i />0{heroSlides.length}
+              </span>
             </div>
           </div>
         </section>
@@ -329,8 +342,8 @@ export default function LandingPage({ onNavigate }) {
         <section className="lp-section" id="cara-kerja">
           <div className="lp-container">
             <div className="lp-section-heading">
-              <h2>Pindai stiker, lihat status dalam hitungan detik</h2>
-              <p>Setiap alat ukur di TTH memiliki stiker QR. Kamera ponsel Anda cukup untuk membukanya, tanpa aplikasi tambahan.</p>
+              <h2>Cek alat semudah memindai QR</h2>
+              <p>Pindai stiker pada alat dengan kamera ponsel—tanpa perlu memasang aplikasi tambahan.</p>
             </div>
             <ol className="lp-steps">
               <li>
@@ -384,8 +397,8 @@ export default function LandingPage({ onNavigate }) {
         <section className="lp-section" id="fitur">
           <div className="lp-container">
             <div className="lp-section-heading">
-              <h2>Setelah masuk, personel TTH dapat</h2>
-              <p>Satu register untuk seluruh siklus alat, mulai dari pengadaan hingga penghapusan.</p>
+              <h2>Semua kebutuhan alat lab, dalam satu sistem</h2>
+              <p>Kelola seluruh siklus peralatan, dari pencatatan hingga penghapusan, dengan data yang terpusat.</p>
             </div>
             <div className="lp-feature-grid">
               {features.map(({ title, description, reference, icon: Icon }) => (
@@ -441,8 +454,8 @@ export default function LandingPage({ onNavigate }) {
 
         <section className="lp-cta">
           <div className="lp-container">
-            <h2>Siap memeriksa alat?</h2>
-            <p>Pindai stiker QR untuk melihat statusnya, atau masuk untuk mengelola peralatan lab Anda.</p>
+            <h2>Mulai dengan satu pindai</h2>
+            <p>Periksa status alat melalui QR, atau masuk ke SiKEPo untuk mengelola peralatan laboratorium.</p>
             <div className="lp-cta-actions">
               <button className="lp-button lp-button-brand" type="button" onClick={openQrScanner}>
                 <QrCode aria-hidden="true" />
