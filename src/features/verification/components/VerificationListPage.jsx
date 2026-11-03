@@ -13,6 +13,18 @@ import VerificationHistoryTable from "./VerificationHistoryTable.jsx";
 import PendingVerificationTable from "./PendingVerificationTable.jsx";
 import ReviewVerificationTable from "./ReviewVerificationTable.jsx";
 
+const sortByAssetNumber = (items, getAssetNumber) =>
+  [...items].sort((first, second) => {
+    const firstNumber = getAssetNumber(first);
+    const secondNumber = getAssetNumber(second);
+    if (!firstNumber) return secondNumber ? 1 : 0;
+    if (!secondNumber) return -1;
+    return String(firstNumber).localeCompare(String(secondNumber), "id-ID", {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
+
 export default function VerificationListPage({
   pendingEquipment,
   items,
@@ -36,7 +48,7 @@ export default function VerificationListPage({
   const [historyActivityFilter, setHistoryActivityFilter] = useState("");
 
   const id = (item) => item.id_verifikasi ?? item.id;
-  const pendingItems = pendingEquipment.filter((item) => {
+  const pendingItems = sortByAssetNumber(pendingEquipment.filter((item) => {
     const query = pendingSearch.trim().toLocaleLowerCase("id-ID");
     const searchable = [
       item.nama_peralatan,
@@ -54,9 +66,9 @@ export default function VerificationListPage({
       (!pendingActivityFilter ||
         String(item.kode_aktivitas || "").toUpperCase() === pendingActivityFilter)
     );
-  });
+  }), (item) => item.nomor_aset || item.peralatan?.nomor_aset);
   const reviewItems = items.filter((item) => item.status === "Diajukan");
-  const filteredReviewItems = reviewItems.filter((item) => {
+  const filteredReviewItems = sortByAssetNumber(reviewItems.filter((item) => {
     const category =
       item.peralatan?.kategori_peralatan?.nama_kategori ||
       item.kategori_peralatan?.nama_kategori ||
@@ -75,7 +87,7 @@ export default function VerificationListPage({
       (!reviewActivityFilter ||
         String(item.kode_aktivitas || "").toUpperCase() === reviewActivityFilter)
     );
-  });
+  }), (item) => item.peralatan?.nomor_aset || item.nomor_aset);
   const reviewCategories = [
     ...new Set(
       reviewItems.map(
@@ -96,7 +108,7 @@ export default function VerificationListPage({
   const completedItems = items.filter(
     (item) => item.status === "Disetujui" || item.status === "Ditolak",
   );
-  const historyItems = completedItems.filter((item) => {
+  const historyItems = sortByAssetNumber(completedItems.filter((item) => {
     const query = historySearch.trim().toLocaleLowerCase("id-ID");
     const equipmentName = item.peralatan?.nama_peralatan || "";
     const assetNumber = item.peralatan?.nomor_aset || "";
@@ -107,7 +119,7 @@ export default function VerificationListPage({
       (!historyActivityFilter ||
         String(item.kode_aktivitas || "").toUpperCase() === historyActivityFilter)
     );
-  });
+  }), (item) => item.peralatan?.nomor_aset || item.nomor_aset);
   const pendingPagination = usePagination(
     pendingItems.length,
     `${pendingSearch}\u0000${pendingCategoryFilter}\u0000${pendingActivityFilter}`,
