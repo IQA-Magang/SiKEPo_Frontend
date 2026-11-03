@@ -5,10 +5,8 @@ export default function VerificationFollowUpSection({
   form,
   setForm,
   picSignature,
-  savedSignature,
   setPicSignature,
   handleSignatureChange,
-  forgetSavedSignature,
 }) {
   return (
     <>
@@ -24,16 +22,11 @@ export default function VerificationFollowUpSection({
               D. Keputusan dan Tindak Lanjut
             </h3>
             <div className="form-group">
-              <label className="form-label">
-                Rencana Tindak Lanjut <span style={{ color: "red" }}>*</span>
-              </label>
+              <label className="form-label">Rencana Tindak Lanjut</label>
               <select
                 className="form-select"
                 value={form.tindak_lanjut}
-                onChange={(e) =>
-                  setForm({ ...form, tindak_lanjut: e.target.value })
-                }
-                required
+                disabled
               >
                 <option value="">-- Pilih Tindak Lanjut --</option>
                 {FOLLOW_UP_OPTIONS.map((val) => (
@@ -42,6 +35,16 @@ export default function VerificationFollowUpSection({
                   </option>
                 ))}
               </select>
+              <small
+                style={{
+                  display: "block",
+                  marginTop: 6,
+                  color: "var(--clr-dark-500)",
+                  fontSize: "var(--text-xs)",
+                }}
+              >
+                Ditentukan otomatis berdasarkan hasil pemeriksaan.
+              </small>
             </div>
 
             <div className="form-group" style={{ marginTop: "var(--sp-3)" }}>
@@ -65,9 +68,6 @@ export default function VerificationFollowUpSection({
                     handleSignatureChange(setPicSignature, signature)
                   }
                   label="Tanda Tangan Pengelola"
-                  savedSignature={savedSignature}
-                  onRestore={() => setPicSignature(savedSignature)}
-                  onForgetSaved={forgetSavedSignature}
                 />
               </div>
             </div>

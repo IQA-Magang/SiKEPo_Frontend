@@ -35,8 +35,6 @@ export default function VerificationDetailsModal({
   handleApproveFromModal,
   handleRejectFromModal,
   handleSignatureChange,
-  forgetSavedSignature,
-  savedSignature,
   setSelected,
 }) {
   const picSigner =
@@ -338,8 +336,6 @@ export default function VerificationDetailsModal({
                     managerSignature={managerSignature}
                     setManagerSignature={setManagerSignature}
                     handleSignatureChange={handleSignatureChange}
-                    savedSignature={savedSignature}
-                    forgetSavedSignature={forgetSavedSignature}
                     affirmApproved={affirmApproved}
                     setAffirmApproved={setAffirmApproved}
                     rejectReason={rejectReason}

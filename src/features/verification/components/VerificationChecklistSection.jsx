@@ -37,6 +37,7 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                     key === "firmware" && form.hasil_verifikasi[key] === "TS";
                   const isTS =
                     key !== "firmware" && form.hasil_verifikasi[key] === "TS";
+                  const isUnselected = !form.hasil_verifikasi[key];
                   return (
                     <div
                       key={key}
@@ -44,12 +45,22 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                       style={{
                         padding: "var(--sp-3)",
                         borderRadius: "var(--radius-md, 6px)",
-                        background: isTS
-                          ? "#fff1f2"
-                          : isTB || isFirmwareUnavailable
-                            ? "#f8fafc"
-                            : "#f0fdf4",
-                        border: `1px solid ${isTS ? "#fecdd3" : isTB || isFirmwareUnavailable ? "#e2e8f0" : "#bbf7d0"}`,
+                        background: isUnselected
+                          ? "#f3f4f6"
+                          : isTS
+                            ? "#fff1f2"
+                            : isTB || isFirmwareUnavailable
+                              ? "#f8fafc"
+                              : "#f0fdf4",
+                        border: `1px solid ${
+                          isUnselected
+                            ? "#d1d5db"
+                            : isTS
+                              ? "#fecdd3"
+                              : isTB || isFirmwareUnavailable
+                                ? "#e2e8f0"
+                                : "#bbf7d0"
+                        }`,
                       }}
                     >
                       <label
@@ -80,6 +91,15 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                       <select
                         className="form-select"
                         value={form.hasil_verifikasi[key]}
+                        style={
+                          isUnselected
+                            ? {
+                                backgroundColor: "#f3f4f6",
+                                borderColor: "#9ca3af",
+                                boxShadow: "none",
+                              }
+                            : undefined
+                        }
                         onChange={(e) => {
                           const value = e.target.value;
                           setForm({

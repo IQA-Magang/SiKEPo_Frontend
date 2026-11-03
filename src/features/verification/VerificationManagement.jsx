@@ -1,9 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  akunApi,
   getCurrentUser,
-  getSavedSignature,
-  saveSignature,
-  removeSavedSignature,
   verifikasiApi,
 } from "../../shared/services/api.js";
 import { useToast } from "../../app/providers/ToastContext.jsx";
@@ -18,6 +16,7 @@ import {
   CHECKS,
   CHECK_LABELS,
   emptyForm,
+  getAutomaticFollowUp,
   isMetrologyApplicable,
 } from "./verificationData.js";
 
@@ -36,9 +35,7 @@ export default function VerificationManagement({
   const canSubmit = staffIsPengelola || role === "manager" || role === "admin";
   const canApprove = role === "manager" || role === "admin";
   const currentUserLabId = currentUser?.labs_id ?? currentUser?.labs?.id;
-  const [savedSignature, setSavedSignature] = useState(() =>
-    getSavedSignature(currentUser),
-  );
+  const [savedSignature, setSavedSignature] = useState("");
 
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(() => ({
@@ -46,16 +43,40 @@ export default function VerificationManagement({
     id_peralatan: equipmentId || "",
   }));
   const [busy, setBusy] = useState(false);
-  const [picSignature, setPicSignature] = useState(() =>
-    getSavedSignature(currentUser),
-  );
-  const [managerSignature, setManagerSignature] = useState(() =>
-    getSavedSignature(currentUser),
-  );
+  const [picSignature, setPicSignature] = useState("");
+  const [managerSignature, setManagerSignature] = useState("");
   const [approvalMode, setApprovalMode] = useState("approve"); // 'approve' | 'reject'
   const [rejectReason, setRejectReason] = useState("");
   const [rejectCatatan, setRejectCatatan] = useState("");
   const [affirmApproved, setAffirmApproved] = useState(false);
+  const signatureEditVersion = useRef(0);
+  const signatureSaveQueue = useRef(Promise.resolve());
+
+  useEffect(() => {
+    let active = true;
+    const editVersionAtLoad = signatureEditVersion.current;
+
+    akunApi
+      .getTtd()
+      .then((response) => {
+        if (!active || signatureEditVersion.current !== editVersionAtLoad) {
+          return;
+        }
+        const signature = response?.data?.ttd || "";
+        setSavedSignature(signature);
+        setPicSignature(signature);
+        setManagerSignature(signature);
+      })
+      .catch((err) => {
+        if (active) {
+          error(err.message || "Gagal memuat tanda tangan dari akun.");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [error]);
 
   const {
     items,
@@ -72,29 +93,31 @@ export default function VerificationManagement({
     onError: error,
   });
 
+  useEffect(() => {
+    const tindakLanjut = getAutomaticFollowUp(form, equipmentInfo);
+    setForm((previous) =>
+      previous.tindak_lanjut === tindakLanjut
+        ? previous
+        : { ...previous, tindak_lanjut: tindakLanjut },
+    );
+  }, [equipmentInfo, form.hasil_verifikasi, form.kode_aktivitas, setForm]);
+
   function handleSignatureChange(setSignature, signature) {
     setSignature(signature);
+    signatureEditVersion.current += 1;
     if (!signature) return;
 
-    try {
-      saveSignature(signature, currentUser);
-      setSavedSignature(signature);
-    } catch (err) {
-      error(
-        err.message ||
-          "Tanda tangan digunakan, tetapi gagal disimpan untuk penggunaan berikutnya.",
-      );
-    }
-  }
-
-  function forgetSavedSignature() {
-    try {
-      removeSavedSignature(currentUser);
-      setSavedSignature("");
-      success("Tanda tangan tersimpan telah dihapus dari sesi ini.");
-    } catch (err) {
-      error(err.message || "Gagal menghapus tanda tangan tersimpan.");
-    }
+    signatureSaveQueue.current = signatureSaveQueue.current
+      .then(() => akunApi.saveTtd(signature))
+      .then((response) => {
+        setSavedSignature(response?.data?.ttd || signature);
+      })
+      .catch((err) => {
+        error(
+          err.message ||
+            "Tanda tangan digunakan, tetapi gagal disimpan ke akun backend.",
+        );
+      });
   }
 
   // Submit verifikasi — langsung diajukan ke Manager (tanpa draft)
@@ -181,10 +204,9 @@ export default function VerificationManagement({
       return;
     }
 
-    if (tsKeys.length > 0 && !form.tindak_lanjut) {
-      error(
-        "Hasil TS (Tidak Sesuai/Tidak Ada) harus disertai pemilihan tindak lanjut alat.",
-      );
+    const tindakLanjut = getAutomaticFollowUp(form, equipmentInfo);
+    if (!tindakLanjut) {
+      error("Lengkapi hasil pemeriksaan untuk menentukan tindak lanjut.");
       return;
     }
 
@@ -216,7 +238,7 @@ export default function VerificationManagement({
       const res = await verifikasiApi.create({
         id_peralatan: Number(form.id_peralatan),
         tanggal_verifikasi: form.tanggal_verifikasi,
-        tindak_lanjut: form.tindak_lanjut,
+        tindak_lanjut: tindakLanjut,
         catatan: catatanTerstruktur,
         hasil_verifikasi: {
           ...Object.fromEntries(
@@ -245,7 +267,7 @@ export default function VerificationManagement({
         navigate(returnPath);
       } else {
         setForm(emptyForm());
-        setPicSignature(getSavedSignature(currentUser));
+        setPicSignature(picSignature);
         await loadList();
       }
     } catch (err) {
@@ -256,7 +278,7 @@ export default function VerificationManagement({
   }
 
   function closeApprovalModal() {
-    setManagerSignature(getSavedSignature(currentUser));
+    setManagerSignature(savedSignature);
     setRejectReason("");
     setRejectCatatan("");
     setAffirmApproved(false);
@@ -348,11 +370,9 @@ export default function VerificationManagement({
         setForm={setForm}
         submitVerifikasi={submitVerifikasi}
         busy={busy}
-        savedSignature={savedSignature}
         picSignature={picSignature}
         setPicSignature={setPicSignature}
         handleSignatureChange={handleSignatureChange}
-        forgetSavedSignature={forgetSavedSignature}
       />
     );
   }
@@ -370,7 +390,7 @@ export default function VerificationManagement({
         busy={busy}
         onNavigate={navigate}
         onReview={(item) => {
-          setManagerSignature(getSavedSignature(currentUser));
+          setManagerSignature(savedSignature);
           setApprovalMode("approve");
           setRejectReason("");
           setRejectCatatan("");
@@ -398,8 +418,6 @@ export default function VerificationManagement({
         handleApproveFromModal={handleApproveFromModal}
         handleRejectFromModal={handleRejectFromModal}
         handleSignatureChange={handleSignatureChange}
-        forgetSavedSignature={forgetSavedSignature}
-        savedSignature={savedSignature}
         setSelected={setSelected}
       />
     </>

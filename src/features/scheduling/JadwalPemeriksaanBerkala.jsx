@@ -1,17 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Activity,
-  CalendarDays,
   CalendarClock,
-  CheckCircle2,
-  Clock3,
-  CircleHelp,
-  CircleX,
   Grid2X2,
   Plus,
-  ShieldCheck,
-  Target,
-  Wrench,
 } from "lucide-react";
 import { useToast } from "../../app/providers/ToastContext.jsx";
 import {
@@ -47,38 +38,18 @@ import {
 import "./scheduling.css";
 
 const SCHEDULE_TYPES = [
-  {
-    key: "kalibrasi",
-    label: "Kalibrasi",
-    description: "Jadwal utama",
-    icon: Target,
-  },
-  {
-    key: "verifikasi_fungsi",
-    label: "Verifikasi Fungsi",
-    description: "Jadwal utama",
-    icon: ShieldCheck,
-  },
-  {
-    key: "pengecekan_antara",
-    label: "Pengecekan Antara",
-    description: "Jadwal tambahan",
-    icon: Activity,
-  },
-  {
-    key: "pemeliharaan",
-    label: "Pemeliharaan",
-    description: "Jadwal tambahan",
-    icon: Wrench,
-  },
+  { key: "kalibrasi", label: "Kalibrasi" },
+  { key: "verifikasi_fungsi", label: "Verifikasi Fungsi" },
+  { key: "pengecekan_antara", label: "Pengecekan Antara" },
+  { key: "pemeliharaan", label: "Pemeliharaan" },
 ];
 
-const SCHEDULE_STATUS_CHIPS = [
-  { key: "late", label: "Terlambat", icon: CircleX },
-  { key: "urgent", label: "Mendesak", icon: Clock3 },
-  { key: "soon", label: "Mendekati jatuh tempo", icon: CalendarDays },
-  { key: "unset", label: "Belum diatur", icon: CircleHelp },
-  { key: "safe", label: "Aman", icon: CheckCircle2 },
+const SCHEDULE_STATUS_OPTIONS = [
+  { key: "late", label: "Terlambat" },
+  { key: "urgent", label: "Mendesak" },
+  { key: "soon", label: "Mendekati jatuh tempo" },
+  { key: "unset", label: "Belum diatur" },
+  { key: "safe", label: "Aman" },
 ];
 
 export default function JadwalPemeriksaanBerkala() {
@@ -244,18 +215,6 @@ export default function JadwalPemeriksaanBerkala() {
     [filteredMatrixSchedules, equipmentById],
   );
   const equipmentPagination = usePagination(equipmentGroups.length, filterKey);
-  const summaryCards = useMemo(() => SCHEDULE_TYPES.map((type) => {
-    const summary = schedules.reduce((counts, schedule) => {
-      if (schedule.jenis_jadwal !== type.key) return counts;
-      const state = getScheduleStatus(schedule);
-      if (state === "late") counts.late += 1;
-      if (state === "urgent") counts.urgent += 1;
-      if (state === "soon") counts.soon += 1;
-      return counts;
-    }, { late: 0, urgent: 0, soon: 0 });
-    return { ...type, ...summary };
-  }), [schedules]);
-
   function resetFilters() {
     setSearch("");
     setLabFilter("");
@@ -362,22 +321,6 @@ export default function JadwalPemeriksaanBerkala() {
         onRecordRealization={openRealization}
       />
 
-      <section className="scheduling-summary" aria-label="Ringkasan jadwal">
-        {summaryCards.map((summary) => (
-          <SummaryCard
-            key={summary.key}
-            summary={summary}
-            isSelected={typeFilter === summary.key}
-            onClick={() => {
-              setActiveView("actions");
-              setStatusFilter("");
-              setShowAllStatuses(false);
-              setTypeFilter(typeFilter === summary.key ? "" : summary.key);
-            }}
-          />
-        ))}
-      </section>
-
       <section className="scheduling-workspace">
         <nav className="scheduling-tabs" aria-label="Tampilan jadwal">
           <button
@@ -390,7 +333,7 @@ export default function JadwalPemeriksaanBerkala() {
               setShowAllStatuses(false);
             }}
           >
-            <span className="scheduling-tab-number">1</span>
+            <CalendarClock size={16} aria-hidden="true" />
             Daftar Peralatan
           </button>
           <button
@@ -399,13 +342,13 @@ export default function JadwalPemeriksaanBerkala() {
             aria-pressed={activeView === "equipment"}
             onClick={() => setActiveView("equipment")}
           >
-            <span className="scheduling-tab-number">2</span>
+            <Grid2X2 size={16} aria-hidden="true" />
             Per Alat
           </button>
         </nav>
 
         <TableFilters
-          className="scheduling-filters"
+          className={`scheduling-filters${activeView === "actions" ? " has-status-filter" : ""}`}
           fields={[
             {
               id: "schedule-search",
@@ -433,6 +376,30 @@ export default function JadwalPemeriksaanBerkala() {
               onChange: (event) => setTypeFilter(event.target.value),
               options: SCHEDULE_TYPES.map(({ key, label }) => ({ value: key, label })),
             },
+            ...(activeView === "actions"
+              ? [{
+                id: "schedule-status",
+                label: "Status jadwal",
+                type: "select",
+                placeholder: "Perlu tindakan",
+                value: statusFilter || (showAllStatuses ? "all" : "needs_action"),
+                onChange: (event) => {
+                  const { value } = event.target;
+                  setShowAllStatuses(value !== "needs_action");
+                  setStatusFilter(value === "all" || value === "needs_action" ? "" : value);
+                },
+                options: [
+                  { value: "needs_action", label: "Perlu tindakan" },
+                  { value: "all", label: "Semua status" },
+                  ...SCHEDULE_STATUS_OPTIONS.map(({ key, label }) => {
+                    const count = schedules.filter((schedule) => (
+                      getScheduleStatus(schedule) === key
+                    )).length;
+                    return { value: key, label: `${label} (${count})` };
+                  }),
+                ],
+              }]
+              : []),
           ]}
           actions={(
             <>
@@ -450,54 +417,6 @@ export default function JadwalPemeriksaanBerkala() {
             </>
           )}
         />
-        {activeView === "actions" && (
-          <div className="scheduling-status-filters" aria-label="Filter jatuh tempo">
-            <button
-              type="button"
-              className={`scheduling-filter-chip is-need${!showAllStatuses && !statusFilter ? " is-selected" : ""}`}
-              aria-pressed={!showAllStatuses && !statusFilter}
-              onClick={() => {
-                setStatusFilter("");
-                setShowAllStatuses(false);
-              }}
-            >
-              Perlu tindakan
-            </button>
-            <button
-              type="button"
-              className={`scheduling-filter-chip${showAllStatuses ? " is-selected" : ""}`}
-              aria-pressed={showAllStatuses}
-              onClick={() => {
-                setStatusFilter("");
-                setShowAllStatuses(true);
-              }}
-            >
-              Semua
-            </button>
-            <span className="scheduling-chip-divider" aria-hidden="true" />
-            {SCHEDULE_STATUS_CHIPS.map(({ key, label, icon: Icon }) => {
-              const count = schedules.filter((schedule) => (
-                getScheduleStatus(schedule) === key
-              )).length;
-              const selected = statusFilter === key;
-              return (
-                <button
-                  type="button"
-                  key={key}
-                  className={`scheduling-filter-chip schedule-status-chip schedule-status--${key}${selected ? " is-selected" : ""}`}
-                  aria-pressed={selected}
-                  onClick={() => {
-                    setShowAllStatuses(true);
-                    setStatusFilter(selected ? "" : key);
-                  }}
-                >
-                  <Icon size={14} aria-hidden="true" />
-                  {label} <span>· {count}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
         {activeView === "equipment" && (
           <div className="scheduling-equipment-heading">
             <span className="scheduling-equipment-heading-icon" aria-hidden="true">
@@ -557,33 +476,5 @@ export default function JadwalPemeriksaanBerkala() {
         )}
       </section>
     </div>
-  );
-}
-
-function SummaryCard({ summary, isSelected, onClick }) {
-  const Icon = summary.icon;
-  return (
-    <button
-      type="button"
-      className={`scheduling-summary-card${isSelected ? " is-selected" : ""}${summary.late ? " has-late" : ""}`}
-      aria-pressed={isSelected}
-      onClick={onClick}
-    >
-      <span className="scheduling-summary-heading">
-        <span className="scheduling-summary-icon" aria-hidden="true"><Icon size={18} /></span>
-        <span>
-          <strong>{summary.label}</strong>
-          <small>{summary.description}</small>
-        </span>
-      </span>
-      <span className="scheduling-summary-late">
-        <strong>{summary.late}</strong>
-        <span>terlambat</span>
-      </span>
-      <span className="scheduling-summary-badges">
-        <span className="schedule-status-chip schedule-status--urgent">{summary.urgent} mendesak</span>
-        <span className="schedule-status-chip schedule-status--soon">{summary.soon} mendekati jatuh tempo</span>
-      </span>
-    </button>
   );
 }
