@@ -20,11 +20,9 @@ export default function VerificationFormPage({
   setForm,
   submitVerifikasi,
   busy,
-  savedSignature,
   picSignature,
   setPicSignature,
   handleSignatureChange,
-  forgetSavedSignature,
 }) {
   if (equipmentId) {
     if (!canSubmit) {
@@ -264,10 +262,8 @@ export default function VerificationFormPage({
             form={form}
             setForm={setForm}
             picSignature={picSignature}
-            savedSignature={savedSignature}
             setPicSignature={setPicSignature}
             handleSignatureChange={handleSignatureChange}
-            forgetSavedSignature={forgetSavedSignature}
           />
           <div
             style={{

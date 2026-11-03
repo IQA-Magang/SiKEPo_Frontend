@@ -8,8 +8,6 @@ export default function VerificationDecisionForm({
   managerSignature,
   setManagerSignature,
   handleSignatureChange,
-  savedSignature,
-  forgetSavedSignature,
   affirmApproved,
   setAffirmApproved,
   rejectReason,
@@ -70,9 +68,6 @@ export default function VerificationDecisionForm({
             ? "Tanda Tangan Digital Manager"
             : "Tanda Tangan Digital Manager untuk Penolakan"
         }
-        savedSignature={savedSignature}
-        onRestore={() => setManagerSignature(savedSignature)}
-        onForgetSaved={forgetSavedSignature}
       />
 
       {approvalMode === "approve" ? (

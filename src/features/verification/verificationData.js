@@ -90,6 +90,37 @@ export const FOLLOW_UP_OPTIONS = [
   "Tidak Dapat Digunakan - Masuk Peralatan dalam Masa Peninjauan",
 ];
 
+export function getEquipmentFirmwareVersion(equipment) {
+  return String(
+    equipment?.detail?.peranti_lunak_versi ||
+      equipment?.peranti_lunak_versi ||
+      "",
+  ).trim();
+}
+
+export function getAutomaticFollowUp(form, equipment) {
+  const requirements =
+    ACTIVITY_REQUIREMENTS[form.kode_aktivitas] || ACTIVITY_REQUIREMENTS.A1;
+  const applicableRequirements = isMetrologyApplicable(equipment)
+    ? requirements
+    : { ...requirements, metrologi: "-" };
+  const requiredKeys = CHECKS.filter(
+    (key) => applicableRequirements[key] === "W",
+  );
+
+  if (requiredKeys.some((key) => !form.hasil_verifikasi[key])) return "";
+
+  const hasNonconformingResult = CHECKS.some(
+    (key) =>
+      applicableRequirements[key] !== "-" &&
+      form.hasil_verifikasi[key] === "TS",
+  );
+
+  return hasNonconformingResult
+    ? FOLLOW_UP_OPTIONS[1]
+    : FOLLOW_UP_OPTIONS[0];
+}
+
 export function isMetrologyApplicable(equipment) {
   return String(equipment?.nomor_aset || "")
     .trim()
@@ -143,7 +174,7 @@ export const emptyForm = () => ({
   id_peralatan: "",
   tanggal_verifikasi: new Date().toISOString().slice(0, 10),
   kode_aktivitas: "A1",
-  tindak_lanjut: "Masuk layanan - label diperbarui",
+  tindak_lanjut: "",
   catatan: "",
   acuan_kriteria: "",
   nomor_sertifikat: "",

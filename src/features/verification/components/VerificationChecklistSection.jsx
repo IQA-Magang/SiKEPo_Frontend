@@ -1,4 +1,10 @@
-import { ACTIVITY_REQUIREMENTS, CHECKS, CHECK_LABELS, isMetrologyApplicable } from "../verificationData.js";
+import {
+  ACTIVITY_REQUIREMENTS,
+  CHECKS,
+  CHECK_LABELS,
+  getEquipmentFirmwareVersion,
+  isMetrologyApplicable,
+} from "../verificationData.js";
 
 export default function VerificationChecklistSection({form, setForm, equipmentInfo}) {
   return (
@@ -32,11 +38,14 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                 ).map((key) => {
                   const requirement =
                     ACTIVITY_REQUIREMENTS[form.kode_aktivitas][key];
+                  const registeredFirmwareVersion =
+                    getEquipmentFirmwareVersion(equipmentInfo);
                   const isTB = form.hasil_verifikasi[key] === "TB";
                   const isFirmwareUnavailable =
                     key === "firmware" && form.hasil_verifikasi[key] === "TS";
                   const isTS =
                     key !== "firmware" && form.hasil_verifikasi[key] === "TS";
+                  const isUnselected = !form.hasil_verifikasi[key];
                   return (
                     <div
                       key={key}
@@ -44,12 +53,22 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                       style={{
                         padding: "var(--sp-3)",
                         borderRadius: "var(--radius-md, 6px)",
-                        background: isTS
-                          ? "#fff1f2"
-                          : isTB || isFirmwareUnavailable
-                            ? "#f8fafc"
-                            : "#f0fdf4",
-                        border: `1px solid ${isTS ? "#fecdd3" : isTB || isFirmwareUnavailable ? "#e2e8f0" : "#bbf7d0"}`,
+                        background: isUnselected
+                          ? "#f3f4f6"
+                          : isTS
+                            ? "#fff1f2"
+                            : isTB || isFirmwareUnavailable
+                              ? "#f8fafc"
+                              : "#f0fdf4",
+                        border: `1px solid ${
+                          isUnselected
+                            ? "#d1d5db"
+                            : isTS
+                              ? "#fecdd3"
+                              : isTB || isFirmwareUnavailable
+                                ? "#e2e8f0"
+                                : "#bbf7d0"
+                        }`,
                       }}
                     >
                       <label
@@ -64,14 +83,16 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                           style={{
                             marginLeft: 6,
                             color:
-                              requirement === "W" || key === "firmware"
+                              requirement === "W"
                                 ? "#b91c1c"
                                 : "#64748b",
                             fontWeight: "var(--fw-medium)",
                           }}
                         >
                           {key === "firmware"
-                            ? "(Wajib: Ada/Tidak Ada)"
+                            ? requirement === "W"
+                              ? "(Wajib: Ada/Tidak Ada)"
+                              : "(Opsional: Ada/Tidak Ada)"
                             : requirement === "W"
                               ? "(Wajib)"
                               : "(Opsional)"}
@@ -80,6 +101,15 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                       <select
                         className="form-select"
                         value={form.hasil_verifikasi[key]}
+                        style={
+                          isUnselected
+                            ? {
+                                backgroundColor: "#f3f4f6",
+                                borderColor: "#9ca3af",
+                                boxShadow: "none",
+                              }
+                            : undefined
+                        }
                         onChange={(e) => {
                           const value = e.target.value;
                           setForm({
@@ -92,14 +122,18 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                               ? {
                                   firmware_versi_aktual:
                                     value === "S"
-                                      ? equipmentInfo?.peranti_lunak_versi || ""
+                                      ? registeredFirmwareVersion
                                       : "",
                                 }
                               : {}),
                           });
                         }}
                       >
-                        <option value="">Pilih hasil verifikasi</option>
+                        <option value="">
+                          {key === "firmware" && requirement !== "W"
+                            ? "Pilih hasil verifikasi"
+                            : "Pilih hasil verifikasi"}
+                        </option>
                         {key === "firmware" ? (
                           <>
                             <option value="S">Ada</option>
@@ -138,9 +172,21 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                                 placeholder="Masukkan nama atau versi firmware"
                                 required
                               />
-                              {form.firmware_versi_aktual.trim() &&
+                              <small
+                                style={{
+                                  display: "block",
+                                  marginTop: 6,
+                                  color: "#64748b",
+                                  fontSize: "var(--text-xs)",
+                                }}
+                              >
+                                Terisi otomatis dari data peralatan dan dapat
+                                diubah jika hasil pemeriksaan berbeda.
+                              </small>
+                              {registeredFirmwareVersion &&
+                                form.firmware_versi_aktual.trim() &&
                                 form.firmware_versi_aktual.trim() !==
-                                  (equipmentInfo?.peranti_lunak_versi || "").trim() && (
+                                  registeredFirmwareVersion && (
                                   <small
                                     style={{
                                       display: "block",
