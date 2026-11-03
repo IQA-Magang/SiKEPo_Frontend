@@ -95,9 +95,7 @@ export default function Login({ onNavigate }) {
         <section className="login-left-col">
           <div className="login-left-wrapper">
             <LogoSiKEPo />
-            <p className="sikepo-onboarding-sub">
-              Sistem untuk Memantau Posisi dan Pengoperasian Peralatan
-            </p>
+      
 
             <div className="login-card">
               <form onSubmit={handleSubmit} noValidate>
