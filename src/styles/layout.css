@@ -67,19 +67,12 @@
 }
 
 .topbar-tth-logo {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1;
-}
-
-.topbar-tth-sub {
-  font-size: 8px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  letter-spacing: 0.4px;
-  margin-top: -2px;
-  text-transform: uppercase;
+  display: block;
+  width: 110px;
+  height: 84px;
+  object-fit: contain;
+  object-position: center;
+  flex: 0 0 auto;
 }
 
 .brand-divider {
@@ -751,7 +744,6 @@
     padding: 0 12px;
   }
 
-  .topbar-tth-sub,
   .brand-divider {
     display: none;
   }
@@ -774,6 +766,11 @@
   }
 
   .topbar-sikepo-logo {
+    width: 76px;
+    height: 25px;
+  }
+
+  .topbar-tth-logo {
     width: 76px;
     height: 25px;
   }
