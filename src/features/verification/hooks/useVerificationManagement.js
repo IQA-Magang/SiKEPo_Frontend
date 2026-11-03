@@ -8,6 +8,7 @@ import {
 import {
   ACTIVITY_REQUIREMENTS,
   CHECKS,
+  getEquipmentFirmwareVersion,
   isEquipmentInUserLab,
   isMetrologyApplicable,
 } from "../verificationData.js";
@@ -236,9 +237,25 @@ export default function useVerificationManagement({
             isEquipmentInUserLab(found, roomsById, currentUserLabId));
         if (!canViewEquipment || !active) return;
 
-        setEquipmentInfo(found);
-        const detail = found.detail || {};
-        const autoActivity = found.kode_aktivitas || "A1";
+        const detailResponse = await peralatanApi.getByAssetNumber(
+          found.nomor_aset,
+        );
+        const equipmentDetails = detailResponse?.data;
+        if (!equipmentDetails?.peralatan || !active) {
+          if (active) {
+            throw new Error("Format detail peralatan tidak valid.");
+          }
+          return;
+        }
+
+        const equipmentWithDetails = {
+          ...found,
+          ...equipmentDetails.peralatan,
+          detail: equipmentDetails.detail,
+        };
+        setEquipmentInfo(equipmentWithDetails);
+        const detail = equipmentDetails.detail || {};
+        const autoActivity = equipmentWithDetails.kode_aktivitas || "A1";
         const requirements = ACTIVITY_REQUIREMENTS[autoActivity] || {};
 
         setForm((previous) => {
@@ -262,7 +279,8 @@ export default function useVerificationManagement({
               ? detail.tgl_jatuh_tempo.slice(0, 10)
               : previous.berlaku_sampai,
             firmware_versi_aktual:
-              found.peranti_lunak_versi || previous.firmware_versi_aktual,
+              getEquipmentFirmwareVersion(equipmentWithDetails) ||
+              previous.firmware_versi_aktual,
             hasil_verifikasi: nextResults,
           };
         });

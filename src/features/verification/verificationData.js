@@ -90,6 +90,14 @@ export const FOLLOW_UP_OPTIONS = [
   "Tidak Dapat Digunakan - Masuk Peralatan dalam Masa Peninjauan",
 ];
 
+export function getEquipmentFirmwareVersion(equipment) {
+  return String(
+    equipment?.detail?.peranti_lunak_versi ||
+      equipment?.peranti_lunak_versi ||
+      "",
+  ).trim();
+}
+
 export function getAutomaticFollowUp(form, equipment) {
   const requirements =
     ACTIVITY_REQUIREMENTS[form.kode_aktivitas] || ACTIVITY_REQUIREMENTS.A1;
@@ -97,7 +105,7 @@ export function getAutomaticFollowUp(form, equipment) {
     ? requirements
     : { ...requirements, metrologi: "-" };
   const requiredKeys = CHECKS.filter(
-    (key) => applicableRequirements[key] === "W" || key === "firmware",
+    (key) => applicableRequirements[key] === "W",
   );
 
   if (requiredKeys.some((key) => !form.hasil_verifikasi[key])) return "";

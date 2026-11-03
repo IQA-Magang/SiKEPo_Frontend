@@ -1,4 +1,10 @@
-import { ACTIVITY_REQUIREMENTS, CHECKS, CHECK_LABELS, isMetrologyApplicable } from "../verificationData.js";
+import {
+  ACTIVITY_REQUIREMENTS,
+  CHECKS,
+  CHECK_LABELS,
+  getEquipmentFirmwareVersion,
+  isMetrologyApplicable,
+} from "../verificationData.js";
 
 export default function VerificationChecklistSection({form, setForm, equipmentInfo}) {
   return (
@@ -32,6 +38,8 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                 ).map((key) => {
                   const requirement =
                     ACTIVITY_REQUIREMENTS[form.kode_aktivitas][key];
+                  const registeredFirmwareVersion =
+                    getEquipmentFirmwareVersion(equipmentInfo);
                   const isTB = form.hasil_verifikasi[key] === "TB";
                   const isFirmwareUnavailable =
                     key === "firmware" && form.hasil_verifikasi[key] === "TS";
@@ -75,14 +83,16 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                           style={{
                             marginLeft: 6,
                             color:
-                              requirement === "W" || key === "firmware"
+                              requirement === "W"
                                 ? "#b91c1c"
                                 : "#64748b",
                             fontWeight: "var(--fw-medium)",
                           }}
                         >
                           {key === "firmware"
-                            ? "(Wajib: Ada/Tidak Ada)"
+                            ? requirement === "W"
+                              ? "(Wajib: Ada/Tidak Ada)"
+                              : "(Opsional: Ada/Tidak Ada)"
                             : requirement === "W"
                               ? "(Wajib)"
                               : "(Opsional)"}
@@ -112,14 +122,18 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                               ? {
                                   firmware_versi_aktual:
                                     value === "S"
-                                      ? equipmentInfo?.peranti_lunak_versi || ""
+                                      ? registeredFirmwareVersion
                                       : "",
                                 }
                               : {}),
                           });
                         }}
                       >
-                        <option value="">Pilih hasil verifikasi</option>
+                        <option value="">
+                          {key === "firmware" && requirement !== "W"
+                            ? "Pilih hasil verifikasi"
+                            : "Pilih hasil verifikasi"}
+                        </option>
                         {key === "firmware" ? (
                           <>
                             <option value="S">Ada</option>
@@ -158,9 +172,21 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                                 placeholder="Masukkan nama atau versi firmware"
                                 required
                               />
-                              {form.firmware_versi_aktual.trim() &&
+                              <small
+                                style={{
+                                  display: "block",
+                                  marginTop: 6,
+                                  color: "#64748b",
+                                  fontSize: "var(--text-xs)",
+                                }}
+                              >
+                                Terisi otomatis dari data peralatan dan dapat
+                                diubah jika hasil pemeriksaan berbeda.
+                              </small>
+                              {registeredFirmwareVersion &&
+                                form.firmware_versi_aktual.trim() &&
                                 form.firmware_versi_aktual.trim() !==
-                                  (equipmentInfo?.peranti_lunak_versi || "").trim() && (
+                                  registeredFirmwareVersion && (
                                   <small
                                     style={{
                                       display: "block",

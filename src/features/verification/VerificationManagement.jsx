@@ -12,6 +12,7 @@ import {
   CHECKS,
   CHECK_LABELS,
   emptyForm,
+  getEquipmentFirmwareVersion,
   getAutomaticFollowUp,
   isMetrologyApplicable,
 } from "./verificationData.js";
@@ -100,7 +101,6 @@ export default function VerificationManagement({
       CHECKS.map((key) => [
         key,
         applicableRequirements[key] === "K" &&
-        key !== "firmware" &&
         !form.hasil_verifikasi[key]?.trim()
           ? "TB"
           : form.hasil_verifikasi[key],
@@ -110,7 +110,7 @@ export default function VerificationManagement({
       (key) => applicableRequirements[key] !== "-",
     );
     const requiredKeys = CHECKS.filter(
-      (key) => applicableRequirements[key] === "W" || key === "firmware",
+      (key) => applicableRequirements[key] === "W",
     );
     const missingKeys = requiredKeys.filter(
       (key) => !verificationResults[key],
@@ -130,7 +130,7 @@ export default function VerificationManagement({
     }
     const invalidKeys = applicableKeys.filter((key) => {
       const allowedResults =
-        key === "firmware" || applicableRequirements[key] === "W"
+        applicableRequirements[key] === "W"
           ? ["S", "TS"]
           : ["S", "TS", "TB"];
       return (
@@ -170,7 +170,7 @@ export default function VerificationManagement({
         catatan_pic: form.catatan,
         acuan_kriteria: form.acuan_kriteria,
         firmware: {
-          versi_tercatat: equipmentInfo?.peranti_lunak_versi || "",
+          versi_tercatat: getEquipmentFirmwareVersion(equipmentInfo),
           versi_aktual:
             verificationResults.firmware === "S"
               ? form.firmware_versi_aktual.trim()
