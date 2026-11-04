@@ -435,7 +435,7 @@ export default function EquipmentList({
       "peralatan aktivitas A1 yang menunggu pemeriksaan awal",
     ],
     review: [
-      "Peralatan dalam Peninjauan",
+      "Peninjauan Peralatan",
       "peralatan ditolak dan membutuhkan tindak lanjut",
     ],
     all: [

@@ -280,8 +280,8 @@ export default function JadwalPemeriksaanBerkala() {
       <PageHeader
         className="scheduling-page-header"
         eyebrow="PEMANTAUAN PERALATAN"
-        title="Jadwal Pemeriksaan"
-        subtitle="Pantau jadwal pemeriksaan dan catat realisasi peralatan."
+        title="Penjadwalan"
+        subtitle="Atur jadwal pemeriksaan berkala dan catat realisasi peralatan."
         actions={(
           <Button
             variant="primary"

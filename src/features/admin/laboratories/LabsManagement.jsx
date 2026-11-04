@@ -150,8 +150,8 @@ export default function LabsManagement() {
   return (
     <div className="page-container fade-in-up">
       <PageHeader
-        title="Laboratorium Pengujian"
-        subtitle={`Kelola laboratorium uji Telkom Test House (${filtered.length} terdaftar)`}
+        title="Kelompok Lab"
+        subtitle={`Kelola laboratorium pengujian Telkom Test House (${filtered.length} terdaftar).`}
         actions={canAdd ? (
           <Button variant="primary" size="sm" icon={<Plus size={16} />} onClick={openCreate} id="btn-tambah-lab">
             Tambah Lab

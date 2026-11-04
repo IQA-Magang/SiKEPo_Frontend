@@ -84,8 +84,8 @@ export default function CategoryManagement() {
   return (
     <div className="page-container fade-in-up">
       <PageHeader
-        title="Klasifikasi Kategori Peralatan"
-        subtitle="Standar klasifikasi, tata kelola metrologis, dan regulasi kepatuhan peralatan laboratorium uji"
+        title="Kelompok Peralatan"
+        subtitle="Kelola kategori dan klasifikasi peralatan laboratorium."
         eyebrow="ISO/IEC 17025:2017"
       />
 
