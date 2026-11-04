@@ -559,9 +559,6 @@ function AdminDashboard({ onNavigate }) {
           </p>
         </div>
         <div className="dash-header-actions">
-          <button className="btn-pill-secondary" onClick={load} id="btn-refresh-dashboard">
-            <RefreshCw size={15} /> Segarkan
-          </button>
           <button className="btn-pill-primary" onClick={() => onNavigate('/peralatan/tambah')} id="btn-tambah-peralatan">
             <Plus size={16} /> Tambah Peralatan
           </button>
