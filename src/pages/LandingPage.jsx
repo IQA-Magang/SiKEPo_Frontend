@@ -37,7 +37,7 @@ const navigation = [
 
 const statusItems = [
   {
-    label: 'Laik Pakai',
+    label: 'Layak Pakai',
     className: 'is-ok',
     icon: CheckCircle2,
     description: 'Bukti kelayakan berlaku lebih dari 90 hari lagi.',
@@ -58,7 +58,7 @@ const statusItems = [
     availability: 'Boleh digunakan',
   },
   {
-    label: 'Tidak Laik',
+    label: 'Tidak Layak',
     className: 'is-expired',
     icon: CircleX,
     description: 'Bukti kelayakan sudah kedaluwarsa. Status berubah otomatis sehari setelah jatuh tempo.',
@@ -108,7 +108,7 @@ const features = [
   },
   {
     title: 'Peminjaman alat',
-    description: 'Alat yang tidak laik otomatis tidak bisa dipinjam.',
+    description: 'Alat yang tidak layak otomatis tidak bisa dipinjam.',
     reference: '§6.4.3',
     icon: ArrowLeftRight,
   },
@@ -129,7 +129,7 @@ const features = [
 const roles = [
   {
     title: 'Tamu & pelanggan',
-    description: 'Memastikan alat yang dipakai untuk pengujian produk Anda berstatus laik.',
+    description: 'Memastikan alat yang dipakai untuk pengujian produk Anda berstatus layak.',
     access: 'Tanpa akun · Pindai QR',
     guest: true,
   },
@@ -160,8 +160,8 @@ const questions = [
     answer: 'Izinkan akses kamera untuk situs ini di pengaturan browser. Bila tetap tidak bisa, gunakan tab Unggah File atau Manual pada pemindai QR.',
   },
   {
-    question: 'Apa arti status "Tidak Laik" atau "Karantina"?',
-    answer: 'Keduanya berarti alat tidak boleh digunakan. Tidak Laik berarti bukti kelayakan kedaluwarsa. Karantina berarti alat sedang ditahan untuk diperiksa.',
+    question: 'Apa arti status "Tidak Layak" atau "Karantina"?',
+    answer: 'Keduanya berarti alat tidak boleh digunakan. Tidak Layak berarti bukti kelayakan kedaluwarsa. Karantina berarti alat sedang ditahan untuk diperiksa.',
     statusLink: true,
   },
   {
@@ -376,7 +376,7 @@ export default function LandingPage({ onNavigate }) {
           <div className="lp-container">
             <div className="lp-section-heading">
               <h2>Arti status pada alat</h2>
-              <p>Warna selalu disertai ikon dan teks. Hanya alat berstatus Laik Pakai, Segera Jatuh Tempo, atau Mendesak yang boleh dipakai.</p>
+              <p>Warna selalu disertai ikon dan teks. Hanya alat berstatus Layak Pakai, Segera Jatuh Tempo, atau Mendesak yang boleh dipakai.</p>
             </div>
             <div className="lp-status-grid">
               {statusItems.map(({ label, className, icon: Icon, description, availability }) => (

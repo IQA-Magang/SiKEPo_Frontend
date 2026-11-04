@@ -259,7 +259,7 @@
 .lp-hero-layout {
   display: grid;
   width: min(100% - 112px, 1720px);
-  grid-template-columns: minmax(340px, 0.8fr) minmax(0, 1.55fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: clamp(36px, 4.1vw, 74px);
   margin: 0 auto;
@@ -315,15 +315,22 @@
 }
 
 .lp-hero-copy-actions {
-  gap: 10px;
+  gap: 16px;
   margin-top: 23px;
 }
 
 .lp-hero-copy-actions .lp-button {
-  min-height: 48px;
-  padding: 0 19px;
-  border-radius: 7px;
-  font-size: 14px;
+  min-width: 176px;
+  min-height: 58px;
+  padding: 0 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+.lp-hero-copy-actions .lp-button svg {
+  width: 21px;
+  height: 21px;
 }
 
 .lp-hero-copy-actions .lp-button-light {
