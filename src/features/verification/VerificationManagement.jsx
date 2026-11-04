@@ -202,6 +202,10 @@ export default function VerificationManagement({
                 : verificationResults[key],
             ]),
           ),
+          nama_firmware:
+            verificationResults.firmware === "S"
+              ? form.firmware_versi_aktual.trim()
+              : "",
           catatan: JSON.stringify({ alasan_tb: form.tb_alasan }),
         },
       });
