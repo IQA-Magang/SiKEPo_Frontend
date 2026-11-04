@@ -453,6 +453,15 @@
   color: #111827;
 }
 
+.nav-user-management-header.active {
+  color: #E30613;
+  background: #FEF2F2;
+}
+
+.nav-user-management-header.active .nav-group-icon {
+  color: #E30613;
+}
+
 .nav-group-icon {
   color: #9CA3AF;
   flex-shrink: 0;
