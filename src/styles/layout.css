@@ -72,6 +72,7 @@
   height: 84px;
   object-fit: contain;
   object-position: center;
+  filter: brightness(0) invert(1);
   flex: 0 0 auto;
 }
 
