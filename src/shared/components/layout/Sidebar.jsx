@@ -4,6 +4,7 @@ import {
   Wrench,
   ShieldCheck,
   Settings2,
+  UserRound,
   ChevronDown,
   X
 } from 'lucide-react';
@@ -63,7 +64,6 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
     '/admin/labs',
     '/admin/kelompok-aset',
     '/admin/ruangan',
-    '/admin/users',
   ].includes(currentPath);
 
   function navigate(path) {
@@ -98,16 +98,30 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
     );
   };
 
-  const NavTopItem = ({ label, icon: Icon, path }) => {
-    const isActive = currentPath === path;
+  const NavTopItem = ({ label, icon: Icon, path, feature, roles }) => {
+    if (feature && !canView(feature)) return null;
+    if (roles && !roles.includes(userRole)) return null;
+
+    const isDashboard = path === '/dashboard';
+    const isActive = currentPath === path ||
+      (path !== '/dashboard' && currentPath.startsWith(`${path}/`));
     return (
       <button
-        className={`nav-item ${isActive ? 'active' : ''}`}
+        className={`${isDashboard ? 'nav-item' : 'nav-group-header nav-user-management-header'} ${isActive ? 'active' : ''}`}
         onClick={() => navigate(path)}
       >
-        <Icon className="nav-icon-svg" size={17} />
-        <span className="nav-label">{label}</span>
-        {isActive && <div className="active-indicator" />}
+        {isDashboard ? (
+          <>
+            <Icon className="nav-icon-svg" size={17} />
+            <span className="nav-label">{label}</span>
+            {isActive && <div className="active-indicator" />}
+          </>
+        ) : (
+          <div className="nav-group-left">
+            <Icon size={15} className="nav-group-icon" />
+            <span className="nav-group-label">{label}</span>
+          </div>
+        )}
       </button>
     );
   };
@@ -176,9 +190,15 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
                 <NavItem label="Kelompok Lab" path="/admin/labs" feature={ACCESS.MASTER_LAB} roles={['admin', 'manager']} />
                 <NavItem label="Kelompok Aset" path="/admin/kelompok-aset" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin', 'manager']} />
                 <NavItem label="Kelompok Lokasi" path="/admin/ruangan" feature={ACCESS.MASTER_EQUIPMENT} roles={['admin', 'manager']} />
-                <NavItem label="Manajemen Pengguna" path="/admin/users" feature={ACCESS.MASTER_USERS} roles={['admin', 'manager']} />
               </NavGroup>
             )}
+            <NavTopItem
+              label="Manajemen Pengguna"
+              icon={UserRound}
+              path="/admin/users"
+              feature={ACCESS.MASTER_USERS}
+              roles={['admin', 'manager']}
+            />
           </nav>
         </div>
 

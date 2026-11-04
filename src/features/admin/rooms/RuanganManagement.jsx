@@ -155,11 +155,11 @@ export default function RuanganManagement() {
   return (
     <div className="page-container fade-in-up">
       <PageHeader
-        title="Lokasi Penyimpanan"
-        subtitle={`Daftar ruangan uji dan alokasi laboratorium (${filtered.length} terdaftar)`}
+        title="Kelompok Lokasi"
+        subtitle={`Kelola lokasi dan ruangan laboratorium (${filtered.length} terdaftar).`}
         actions={canAdd ? (
           <Button variant="primary" size="sm" icon={<Plus size={16} />} onClick={openCreate} id="btn-tambah-ruangan">
-            Tambah Ruangan
+            Tambah Lokasi
           </Button>
         ) : null}
       />

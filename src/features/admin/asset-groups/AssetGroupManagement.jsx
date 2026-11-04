@@ -168,8 +168,8 @@ export default function AssetGroupManagement() {
   return (
     <div className="page-container fade-in-up">
       <PageHeader
-        title="Kelompok Aset Peralatan"
-        subtitle={`Klasifikasi pengelompokan aset laboratorium (${filteredAssetGroups.length} terdaftar)`}
+        title="Kelompok Aset"
+        subtitle={`Kelola pengelompokan aset laboratorium (${filteredAssetGroups.length} terdaftar).`}
         actions={canAdd ? (
           <Button
             variant="primary"
