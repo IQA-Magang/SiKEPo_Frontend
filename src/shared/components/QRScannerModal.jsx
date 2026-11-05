@@ -8,8 +8,13 @@ import CameraScanner from './qr-scanner/CameraScanner.jsx';
 import ImageScanner from './qr-scanner/ImageScanner.jsx';
 import ManualIdSearch from './qr-scanner/ManualIdSearch.jsx';
 
-export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
-  const [activeTab, setActiveTab] = useState('camera'); // 'camera', 'upload', 'manual'
+export default function QRScannerModal({
+  isOpen,
+  onClose,
+  onNavigate,
+  initialTab = 'camera',
+}) {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [manualInput, setManualInput] = useState('');
   const [scanResult, setScanResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -29,10 +34,14 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
 
   useEffect(() => {
     if (isOpen) {
-      setActiveTab('camera');
+      setActiveTab(['camera', 'upload', 'manual'].includes(initialTab) ? initialTab : 'camera');
       setScanResult(null);
       setErrorMsg('');
+      setManualInput('');
     }
+  }, [isOpen, initialTab]);
+
+  useEffect(() => {
     if (isOpen && activeTab === 'camera') {
       startCamera();
     } else {
@@ -41,7 +50,7 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
     return () => {
       stopCamera();
     };
-  }, [isOpen, activeTab, cameraFacing]);
+  }, [isOpen, activeTab, cameraFacing, cameraDeviceId]);
 
   // Handle camera start
   async function startCamera() {
@@ -261,13 +270,14 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
       if (!found) {
         setErrorMsg(`QR Code "${rawValue}" tidak cocok dengan peralatan di sistem.`);
         scanInProgressRef.current = false;
-        animationFrameRef.current = requestAnimationFrame(() => startScanningLoop());
+        if (streamRef.current) startScanningLoop();
         return;
       }
       navigateToEquipment(getEquipmentId(found));
     } catch (err) {
       setErrorMsg(`Gagal memvalidasi QR Code: ${err.message}`);
       scanInProgressRef.current = false;
+      if (streamRef.current) startScanningLoop();
     }
   }
 
@@ -285,41 +295,53 @@ export default function QRScannerModal({ isOpen, onClose, onNavigate }) {
   }
 
   // Handle file upload QR
-  function handleFileUpload(e) {
+  async function handleFileUpload(e) {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     setErrorMsg('');
     setScanning(true);
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const img = new Image();
-      img.onload = async () => {
-        try {
-          const canvas = canvasRef.current || document.createElement('canvas');
-          const width = img.naturalWidth || img.width;
-          const height = img.naturalHeight || img.height;
-          canvas.width = width;
-          canvas.height = height;
-          const context = canvas.getContext('2d', { willReadFrequently: true });
-          context.drawImage(img, 0, 0, width, height);
-          const imageData = context.getImageData(0, 0, width, height);
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'attemptBoth',
-          });
-          const rawValue = code?.data;
-          if (!rawValue) throw new Error('QR Code tidak ditemukan pada gambar.');
-          await handleScanPayload(rawValue);
-        } catch (err) {
-          setActiveTab('manual');
-          setErrorMsg(`${err.message} Gunakan Input ID Manual.`);
-        } finally {
-          setScanning(false);
-        }
-      };
-      img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
+    try {
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Pilih file gambar PNG, JPG, atau WEBP.');
+      }
+
+      const imageUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('File gambar tidak dapat dibaca.'));
+        reader.readAsDataURL(file);
+      });
+      const image = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('File bukan gambar yang dapat dibaca.'));
+        img.src = imageUrl;
+      });
+
+      const canvas = document.createElement('canvas');
+      const width = image.naturalWidth || image.width;
+      const height = image.naturalHeight || image.height;
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) throw new Error('Gambar tidak dapat diproses oleh browser.');
+
+      context.drawImage(image, 0, 0, width, height);
+      const imageData = context.getImageData(0, 0, width, height);
+      const code = jsQR(imageData.data, width, height, {
+        inversionAttempts: 'attemptBoth',
+      });
+      if (!code?.data) {
+        throw new Error('QR Code tidak ditemukan. Pastikan gambar menampilkan QR dengan jelas.');
+      }
+      await handleScanPayload(code.data);
+    } catch (err) {
+      setErrorMsg(err.message || 'Gambar QR gagal diproses.');
+    } finally {
+      setScanning(false);
+    }
   }
 
   function navigateToEquipment(id) {
