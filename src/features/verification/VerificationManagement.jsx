@@ -231,7 +231,9 @@ export default function VerificationManagement({
     }
     const invalidKeys = applicableKeys.filter((key) => {
       const allowedResults =
-        applicableRequirements[key] === "W"
+        key === "firmware"
+          ? ["S", "TB"]
+          : applicableRequirements[key] === "W"
           ? ["S", "TS"]
           : ["S", "TS", "TB"];
       return (
@@ -241,7 +243,7 @@ export default function VerificationManagement({
     });
     if (invalidKeys.length > 0) {
       error(
-        "Firmware hanya boleh Ada atau Tidak Ada; aspek wajib hanya boleh Sesuai atau Tidak Sesuai; aspek opsional boleh Tidak Berlaku.",
+        "Hasil firmware harus Ada atau Tidak Ada (TB); aspek wajib harus Sesuai atau Tidak Sesuai; aspek opsional boleh Tidak Berlaku.",
       );
       return;
     }

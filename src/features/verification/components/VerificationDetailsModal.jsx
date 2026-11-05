@@ -289,7 +289,7 @@ export default function VerificationDetailsModal({
                                 ? "Tidak Ada"
                                 : "TS (Tidak Sesuai)"
                               : key === "firmware" && result === "TB"
-                                ? "Belum dinilai"
+                                ? "TB (Tidak Ada)"
                                 : result;
                         return (
                           <span

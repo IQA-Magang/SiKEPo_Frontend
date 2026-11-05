@@ -43,7 +43,7 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                     getEquipmentFirmwareVersion(equipmentInfo);
                   const isTB = form.hasil_verifikasi[key] === "TB";
                   const isFirmwareUnavailable =
-                    key === "firmware" && form.hasil_verifikasi[key] === "TS";
+                    key === "firmware" && isTB;
                   const isTS =
                     key !== "firmware" && form.hasil_verifikasi[key] === "TS";
                   const isUnselected = !form.hasil_verifikasi[key];
@@ -138,7 +138,7 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                         {key === "firmware" ? (
                           <>
                             <option value="S">Ada</option>
-                            <option value="TS">Tidak Ada</option>
+                            <option value="TB">Tidak Ada</option>
                           </>
                         ) : (
                           <>
