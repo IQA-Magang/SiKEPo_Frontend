@@ -9,6 +9,7 @@ import {
   X
 } from 'lucide-react';
 import { ACCESS, ACTIONS, can, getUserRole } from '../../utils/permissions.js';
+import sikepoLogo from '../../../assets/logo/tth-logo2.png';
 
 function NavGroup({ label, icon: Icon, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -41,7 +42,7 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
   const canView = (feature) => can(feature, ACTIONS.VIEW);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const mediaQuery = window.matchMedia('(max-width: 1024px)');
     const updateDrawerMode = () => setIsMobileDrawer(mediaQuery.matches);
     updateDrawerMode();
     mediaQuery.addEventListener('change', updateDrawerMode);
@@ -135,7 +136,7 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
       >
         {/* Mobile Header with close button */}
         <div className="sidebar-mobile-header">
-          <span className="sidebar-brand">SiKEPo</span>
+          <img className="sidebar-brand-logo" src={sikepoLogo} alt="SiKEPo" />
           <button className="sidebar-close-btn" onClick={onClose} aria-label="Tutup menu">
             <X size={20} />
           </button>

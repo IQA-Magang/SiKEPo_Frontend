@@ -165,6 +165,52 @@
   box-shadow: var(--shadow-sm);
 }
 
+.dashboard-category-tabs {
+  display: flex;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--clr-dark-200);
+  background: #F8F9FB;
+  scrollbar-width: thin;
+}
+
+.dashboard-category-tab {
+  display: inline-flex;
+  min-height: 54px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-4);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--clr-dark-500);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration-fast), border-color var(--duration-fast), background var(--duration-fast);
+}
+
+.dashboard-category-tab:hover {
+  background: #fff;
+  color: var(--clr-dark-800);
+}
+
+.dashboard-category-tab.is-active {
+  border-bottom-color: var(--clr-primary-600);
+  color: var(--clr-primary-600);
+}
+
+.dashboard-category-tab-count {
+  color: var(--clr-dark-400);
+  font-weight: var(--fw-medium);
+}
+
+.dashboard-category-tab.is-active .dashboard-category-tab-count {
+  color: inherit;
+}
+
 .dashboard-calendar-toolbar {
   display: flex;
   align-items: center;
