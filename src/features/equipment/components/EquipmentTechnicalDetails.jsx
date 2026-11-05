@@ -258,7 +258,15 @@ function ReferenceArtifactFields({ form, setField }) {
       <DetailInputField id="d-metode-kar" label="Metode Karakterisasi" value={form.metode_karakterisasi} onChange={(event) => setField('metode_karakterisasi', event.target.value)} />
       <DetailInputField id="d-no-laporan" label="No. Laporan Karakterisasi" value={form.no_laporan_karakterisasi} onChange={(event) => setField('no_laporan_karakterisasi', event.target.value)} />
       <DetailInputField id="d-tgl-kar" label="Tgl. Karakterisasi Terakhir" type="date" value={form.tgl_karakterisasi_terakhir} onChange={(event) => setField('tgl_karakterisasi_terakhir', event.target.value)} />
-      <DetailInputField id="d-jatuh-aa" label="Tgl. Jatuh Tempo" type="date" value={form.tgl_jatuh_tempo} onChange={(event) => setField('tgl_jatuh_tempo', event.target.value)} />
+      <DetailInputField
+        id="d-jatuh-aa"
+        label="Tgl. Jatuh Tempo"
+        type="date"
+        value={form.tgl_jatuh_tempo}
+        onChange={(event) => setField('tgl_jatuh_tempo', event.target.value)}
+        readOnly
+        helpText="Dihitung otomatis dari tanggal karakterisasi terakhir dan interval karakterisasi."
+      />
       <DetailInputField
         id="d-kondisi"
         label="Kondisi Penyimpanan"

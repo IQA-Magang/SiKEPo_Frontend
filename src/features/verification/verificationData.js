@@ -1,6 +1,11 @@
 /* Shared verification criteria, labels, and helpers. */
 
-import { getEquipmentLabId } from "../../shared/services/api.js";
+import {
+  getEquipmentCategoryId,
+  getEquipmentLabId,
+} from "../../shared/services/api.js";
+
+const FIRMWARE_OPTIONAL_CATEGORY_IDS = new Set([3, 4]);
 
 export const CHECKS = [
   "identitas",
@@ -98,12 +103,27 @@ export function getEquipmentFirmwareVersion(equipment) {
   ).trim();
 }
 
-export function getAutomaticFollowUp(form, equipment) {
-  const requirements =
-    ACTIVITY_REQUIREMENTS[form.kode_aktivitas] || ACTIVITY_REQUIREMENTS.A1;
+export function getApplicableRequirements(equipment, requirements) {
   const applicableRequirements = isMetrologyApplicable(equipment)
     ? requirements
     : { ...requirements, metrologi: "-" };
+
+  return isFirmwareOptionalForEquipment(equipment)
+    ? { ...applicableRequirements, firmware: "K" }
+    : applicableRequirements;
+}
+
+export function isFirmwareOptionalForEquipment(equipment) {
+  return FIRMWARE_OPTIONAL_CATEGORY_IDS.has(getEquipmentCategoryId(equipment));
+}
+
+export function getAutomaticFollowUp(form, equipment) {
+  const requirements =
+    ACTIVITY_REQUIREMENTS[form.kode_aktivitas] || ACTIVITY_REQUIREMENTS.A1;
+  const applicableRequirements = getApplicableRequirements(
+    equipment,
+    requirements,
+  );
   const requiredKeys = CHECKS.filter(
     (key) => applicableRequirements[key] === "W",
   );
@@ -113,6 +133,7 @@ export function getAutomaticFollowUp(form, equipment) {
   const hasNonconformingResult = CHECKS.some(
     (key) =>
       applicableRequirements[key] !== "-" &&
+      !(key === "firmware" && isFirmwareOptionalForEquipment(equipment)) &&
       form.hasil_verifikasi[key] === "TS",
   );
 

@@ -20,8 +20,9 @@ import {
   CHECK_LABELS,
   emptyForm,
   getEquipmentFirmwareVersion,
+  getApplicableRequirements,
   getAutomaticFollowUp,
-  isMetrologyApplicable,
+  isFirmwareOptionalForEquipment,
 } from "./verificationData.js";
 
 export default function VerificationManagement({
@@ -191,9 +192,10 @@ export default function VerificationManagement({
       error("Kode aktivitas peralatan tidak valid.");
       return;
     }
-    const applicableRequirements = isMetrologyApplicable(equipmentInfo)
-      ? requirements
-      : { ...requirements, metrologi: "-" };
+    const applicableRequirements = getApplicableRequirements(
+      equipmentInfo,
+      requirements,
+    );
 
     const verificationResults = Object.fromEntries(
       CHECKS.map((key) => [
@@ -221,14 +223,17 @@ export default function VerificationManagement({
     }
     if (
       verificationResults.firmware === "S" &&
-      !form.firmware_versi_aktual.trim()
+      !form.firmware_versi_aktual.trim() &&
+      !isFirmwareOptionalForEquipment(equipmentInfo)
     ) {
       error("Versi firmware yang terpasang wajib diisi jika firmware tersedia.");
       return;
     }
     const invalidKeys = applicableKeys.filter((key) => {
       const allowedResults =
-        applicableRequirements[key] === "W"
+        key === "firmware"
+          ? ["S", "TB"]
+          : applicableRequirements[key] === "W"
           ? ["S", "TS"]
           : ["S", "TS", "TB"];
       return (
@@ -238,7 +243,7 @@ export default function VerificationManagement({
     });
     if (invalidKeys.length > 0) {
       error(
-        "Firmware hanya boleh Ada atau Tidak Ada; aspek wajib hanya boleh Sesuai atau Tidak Sesuai; aspek opsional boleh Tidak Berlaku.",
+        "Hasil firmware harus Ada atau Tidak Ada (TB); aspek wajib harus Sesuai atau Tidak Sesuai; aspek opsional boleh Tidak Berlaku.",
       );
       return;
     }

@@ -19,6 +19,7 @@ import {
   CHECKS,
   CHECK_LABELS,
   getActivityLabel,
+  getApplicableRequirements,
   getEquipmentFirmwareVersion,
   getEquipmentKeterangan,
 } from "../verificationData.js";
@@ -66,6 +67,10 @@ export default function VerificationDetailsModal({
     previousFirmwareVersion &&
     updatedFirmwareVersion &&
     previousFirmwareVersion !== updatedFirmwareVersion;
+  const applicableRequirements = getApplicableRequirements(
+    selected?.peralatan,
+    ACTIVITY_REQUIREMENTS[selected?.kode_aktivitas] || {},
+  );
 
   function officialNotes(item) {
     try {
@@ -284,7 +289,7 @@ export default function VerificationDetailsModal({
                                 ? "Tidak Ada"
                                 : "TS (Tidak Sesuai)"
                               : key === "firmware" && result === "TB"
-                                ? "Belum dinilai"
+                                ? "Tidak Ada"
                                 : result;
                         return (
                           <span
@@ -322,9 +327,7 @@ export default function VerificationDetailsModal({
                     },
                   ]}
                   rows={CHECKS.filter(
-                    (key) =>
-                      ACTIVITY_REQUIREMENTS[selected.kode_aktivitas]?.[key] !==
-                      "-",
+                    (key) => applicableRequirements[key] !== "-",
                   )}
                   rowKey={(key) => key}
                 />

@@ -2,11 +2,16 @@ import {
   ACTIVITY_REQUIREMENTS,
   CHECKS,
   CHECK_LABELS,
+  getApplicableRequirements,
   getEquipmentFirmwareVersion,
-  isMetrologyApplicable,
 } from "../verificationData.js";
 
 export default function VerificationChecklistSection({form, setForm, equipmentInfo}) {
+  const applicableRequirements = getApplicableRequirements(
+    equipmentInfo,
+    ACTIVITY_REQUIREMENTS[form.kode_aktivitas] || {},
+  );
+
   return (
     <>
           {/* B. Hasil Pemeriksaan Aspek Verifikasi */}
@@ -31,18 +36,14 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
             {form.kode_aktivitas ? (
               <div className="form-grid-2">
                 {CHECKS.filter(
-                  (key) =>
-                    ACTIVITY_REQUIREMENTS[form.kode_aktivitas][key] !== "-" &&
-                    (key !== "metrologi" ||
-                      isMetrologyApplicable(equipmentInfo)),
+                  (key) => applicableRequirements[key] !== "-",
                 ).map((key) => {
-                  const requirement =
-                    ACTIVITY_REQUIREMENTS[form.kode_aktivitas][key];
+                  const requirement = applicableRequirements[key];
                   const registeredFirmwareVersion =
                     getEquipmentFirmwareVersion(equipmentInfo);
                   const isTB = form.hasil_verifikasi[key] === "TB";
                   const isFirmwareUnavailable =
-                    key === "firmware" && form.hasil_verifikasi[key] === "TS";
+                    key === "firmware" && isTB;
                   const isTS =
                     key !== "firmware" && form.hasil_verifikasi[key] === "TS";
                   const isUnselected = !form.hasil_verifikasi[key];
@@ -137,7 +138,7 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                         {key === "firmware" ? (
                           <>
                             <option value="S">Ada</option>
-                            <option value="TS">Tidak Ada</option>
+                            <option value="TB">Tidak Ada</option>
                           </>
                         ) : (
                           <>
@@ -157,7 +158,9 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                             <div className="form-group" style={{ marginBottom: 0 }}>
                               <label className="form-label" style={{ fontSize: "var(--text-xs)" }}>
                                 Nama / versi firmware yang terpasang{" "}
-                                <span style={{ color: "red" }}>*</span>
+                                {requirement === "W" && (
+                                  <span style={{ color: "red" }}>*</span>
+                                )}
                               </label>
                               <input
                                 className="form-input"
@@ -170,7 +173,7 @@ export default function VerificationChecklistSection({form, setForm, equipmentIn
                                   })
                                 }
                                 placeholder="Masukkan nama atau versi firmware"
-                                required
+                                required={requirement === "W"}
                               />
                               <small
                                 style={{

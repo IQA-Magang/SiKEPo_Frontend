@@ -130,6 +130,15 @@ export default function EquipmentCreate({ onNavigate }) {
           updated.interval_bulan,
         );
       }
+      if (
+        Number(prev.kategori_id) === 3 &&
+        ['tgl_karakterisasi_terakhir', 'interval_bulan'].includes(name)
+      ) {
+        updated.tgl_jatuh_tempo = calculateCalibrationDueDate(
+          updated.tgl_karakterisasi_terakhir,
+          updated.interval_bulan,
+        );
+      }
       return updated;
     });
     if (error) setError('');
