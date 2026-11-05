@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ClipboardCheck, Eye, FileText, Printer } from "lucide-react";
+import { ClipboardCheck, Eye, FileText, History, Printer } from "lucide-react";
 import { usePagination } from "../../../shared/components/ui/Pagination.jsx";
 import {
   exportVerificationPdf,
@@ -12,6 +12,7 @@ import { ACTIVITY_OPTIONS, getActivityLabel } from "../verificationData.js";
 import VerificationHistoryTable from "./VerificationHistoryTable.jsx";
 import PendingVerificationTable from "./PendingVerificationTable.jsx";
 import ReviewVerificationTable from "./ReviewVerificationTable.jsx";
+import VerificationActionLogModal from "./VerificationActionLogModal.jsx";
 
 const sortByAssetNumber = (items, getAssetNumber) =>
   [...items].sort((first, second) => {
@@ -46,6 +47,7 @@ export default function VerificationListPage({
   const [historySearch, setHistorySearch] = useState("");
   const [historyStatusFilter, setHistoryStatusFilter] = useState("");
   const [historyActivityFilter, setHistoryActivityFilter] = useState("");
+  const [logTarget, setLogTarget] = useState(null);
 
   const id = (item) => item.id_verifikasi ?? item.id;
   const pendingItems = sortByAssetNumber(pendingEquipment.filter((item) => {
@@ -354,21 +356,32 @@ export default function VerificationListPage({
     {
       key: "actions",
       header: "Aksi",
-      render: (item) =>
-        canApprove ? (
+      render: (item) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {canApprove ? (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<ClipboardCheck size={13} />}
+              onClick={() => onReview(item)}
+            >
+              Tinjau Pengajuan
+            </Button>
+          ) : (
+            <Button variant="secondary" size="sm" onClick={() => onSelect(item)}>
+              Lihat Pengajuan
+            </Button>
+          )}
           <Button
-            variant="primary"
+            variant="secondary"
             size="sm"
-            icon={<ClipboardCheck size={13} />}
-            onClick={() => onReview(item)}
+            icon={<History size={14} />}
+            onClick={() => setLogTarget(item)}
           >
-            Tinjau Pengajuan
+            Log
           </Button>
-        ) : (
-          <Button variant="secondary" size="sm" onClick={() => onSelect(item)}>
-            Lihat Pengajuan
-          </Button>
-        ),
+        </div>
+      ),
     },
   ];
   const historyColumns = [
@@ -461,6 +474,10 @@ export default function VerificationListPage({
 
   return (
     <div className="page-container fade-in-up">
+      <VerificationActionLogModal
+        verification={logTarget}
+        onClose={() => setLogTarget(null)}
+      />
       <div
         className="page-header"
         style={{

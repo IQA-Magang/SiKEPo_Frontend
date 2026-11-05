@@ -474,6 +474,8 @@ export const verifikasiApi = {
     fetchWithAuth(`/api/verifikasi/peralatan/${peralatanId}`),
   getHistoriByPeralatanId: (peralatanId) =>
     fetchWithAuth(`/api/verifikasi/histori/${peralatanId}`),
+  getActionHistory: (id) =>
+    fetchWithAuth(`/api/verifikasi/riwayat-aksi/${id}`),
   getById: (id) => fetchWithAuth(`/api/verifikasi/${id}`),
   create: (body) =>
     fetchWithAuth('/api/verifikasi/', { method: 'POST', body: JSON.stringify(body) }),

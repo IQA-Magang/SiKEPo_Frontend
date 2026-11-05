@@ -2722,6 +2722,41 @@
   min-width: 0;
 }
 
+.equipment-verification-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.equipment-verification-log-card {
+  overflow: hidden;
+  border: 1px solid var(--clr-dark-200);
+  border-radius: var(--radius-lg);
+  background: #fff;
+}
+
+.equipment-verification-log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+}
+
+.equipment-verification-log-entry + .equipment-verification-log-entry {
+  border-top: 1px solid var(--clr-dark-100);
+}
+
+.equipment-verification-log-entry__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.equipment-verification-log-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+
 .equipment-info-body {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.85fr);
