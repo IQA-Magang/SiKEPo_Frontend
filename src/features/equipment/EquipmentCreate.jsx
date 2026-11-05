@@ -7,6 +7,7 @@ import { Button, FormField } from '../../shared/components/ui/index.js';
 import {
   buildEquipmentPayload,
   calculateCalibrationDueDate,
+  calculateInspectionLastDate,
   EQUIPMENT_CREATE_STEPS,
   getEquipmentStepValidationError,
 } from './equipmentCreateData.js';
@@ -117,6 +118,15 @@ export default function EquipmentCreate({ onNavigate }) {
       ) {
         updated.tgl_jatuh_tempo = calculateCalibrationDueDate(
           updated.tgl_kalibrasi,
+          updated.interval_bulan,
+        );
+      }
+      if (
+        Number(prev.kategori_id) === 2 &&
+        ['tgl_jatuh_tempo', 'interval_bulan'].includes(name)
+      ) {
+        updated.tgl_pemeriksaan_terakhir = calculateInspectionLastDate(
+          updated.tgl_jatuh_tempo,
           updated.interval_bulan,
         );
       }

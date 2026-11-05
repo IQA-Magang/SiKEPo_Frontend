@@ -189,6 +189,8 @@ function AuxiliaryEquipmentFields({ form, setField }) {
         type="date"
         value={form.tgl_pemeriksaan_terakhir}
         onChange={(event) => setField('tgl_pemeriksaan_terakhir', event.target.value)}
+        readOnly
+        helpText="Dihitung otomatis dari tanggal jatuh tempo dikurangi interval pemeriksaan."
       />
       <DetailInputField
         id="d-karakteristik-acuan"

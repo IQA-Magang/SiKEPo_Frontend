@@ -1,5 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { getCurrentUser, verifikasiApi } from "../../shared/services/api.js";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  akunApi,
+  getCurrentUser,
+  getSavedSignature,
+  removeSavedSignature,
+  saveSignature,
+  verifikasiApi,
+} from "../../shared/services/api.js";
 import { useToast } from "../../app/providers/ToastContext.jsx";
 import { getUserRole, isStaffPengelola } from "../../shared/utils/permissions.js";
 import { getSafeReturnPath, useNavigate } from "../../app/router/Router.jsx";
@@ -32,6 +39,9 @@ export default function VerificationManagement({
   const canSubmit = staffIsPengelola || role === "manager" || role === "admin";
   const canApprove = role === "manager" || role === "admin";
   const currentUserLabId = currentUser?.labs_id ?? currentUser?.labs?.id;
+  const currentUserId = currentUser?.user_id ?? currentUser?.id;
+  const signatureSavePromiseRef = useRef(Promise.resolve());
+  const signatureEditedRef = useRef(false);
 
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(() => ({
@@ -39,12 +49,59 @@ export default function VerificationManagement({
     id_peralatan: equipmentId || "",
   }));
   const [busy, setBusy] = useState(false);
-  const [picSignature, setPicSignature] = useState("");
-  const [managerSignature, setManagerSignature] = useState("");
+  const [picSignature, setPicSignature] = useState(() =>
+    getSavedSignature(currentUser),
+  );
+  const [managerSignature, setManagerSignature] = useState(() =>
+    getSavedSignature(currentUser),
+  );
   const [approvalMode, setApprovalMode] = useState("approve"); // 'approve' | 'reject'
   const [rejectReason, setRejectReason] = useState("");
   const [rejectCatatan, setRejectCatatan] = useState("");
   const [affirmApproved, setAffirmApproved] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    signatureEditedRef.current = false;
+    const cachedSignature = getSavedSignature(currentUser);
+    setPicSignature(cachedSignature);
+    setManagerSignature(cachedSignature);
+
+    async function loadSavedSignature() {
+      try {
+        const response = await akunApi.getTtd();
+        if (!active) return;
+        if (signatureEditedRef.current) return;
+
+        const savedSignature = response?.data?.ttd || "";
+        if (savedSignature) {
+          saveSignature(savedSignature, currentUser);
+          setPicSignature(savedSignature);
+          setManagerSignature(savedSignature);
+          return;
+        }
+
+        if (cachedSignature) {
+          await akunApi.saveTtd(cachedSignature);
+          if (!active || signatureEditedRef.current) return;
+          setPicSignature(cachedSignature);
+          setManagerSignature(cachedSignature);
+        }
+      } catch (err) {
+        if (active) {
+          error(
+            err.message ||
+              "Gagal memuat tanda tangan tersimpan dari akun.",
+          );
+        }
+      }
+    }
+
+    loadSavedSignature();
+    return () => {
+      active = false;
+    };
+  }, [currentUserId]);
 
   const {
     items,
@@ -71,7 +128,41 @@ export default function VerificationManagement({
   }, [equipmentInfo, form.hasil_verifikasi, form.kode_aktivitas, setForm]);
 
   function handleSignatureChange(setSignature, signature) {
+    signatureEditedRef.current = true;
     setSignature(signature);
+    if (setSignature === setPicSignature) {
+      setManagerSignature(signature);
+    } else {
+      setPicSignature(signature);
+    }
+    try {
+      if (signature) {
+        saveSignature(signature, currentUser);
+      } else {
+        removeSavedSignature(currentUser);
+      }
+    } catch (err) {
+      error(err.message || "Gagal menyimpan tanda tangan di perangkat.");
+    }
+
+    signatureSavePromiseRef.current = signatureSavePromiseRef.current
+      .catch(() => {})
+      .then(async () => {
+        if (signature) {
+          await akunApi.saveTtd(signature);
+        } else {
+          await akunApi.deleteTtd();
+        }
+      });
+    signatureSavePromiseRef.current.catch((err) => {
+      error(err.message || "Gagal menyimpan tanda tangan ke akun.");
+    });
+  }
+
+  async function ensureSignatureSaved(signature) {
+    await signatureSavePromiseRef.current;
+    await akunApi.saveTtd(signature);
+    saveSignature(signature, currentUser);
   }
 
   // Submit verifikasi — langsung diajukan ke Manager (tanpa draft)
@@ -82,6 +173,13 @@ export default function VerificationManagement({
       error(
         "Tanda tangan Pengelola wajib tersedia sebelum verifikasi diajukan.",
       );
+      return;
+    }
+
+    try {
+      await ensureSignatureSaved(picSignature.trim());
+    } catch (err) {
+      error(err.message || "Gagal menyimpan tanda tangan Pengelola.");
       return;
     }
 
@@ -212,9 +310,10 @@ export default function VerificationManagement({
 
       // 2. Tanda tangan PIC menjadi bukti pengajuan kepada Manager
       const newId = res?.data?.id_verifikasi ?? res?.data?.id ?? res?.id;
-      if (newId) {
-        await verifikasiApi.signPic(newId, picSignature);
+      if (!newId) {
+        throw new Error("Verifikasi berhasil dibuat tetapi ID tidak ditemukan; tanda tangan belum tersimpan.");
       }
+      await verifikasiApi.signPic(newId, picSignature);
 
       success(
         "Verifikasi berhasil diajukan kepada Manager Lab untuk ditinjau.",
@@ -224,7 +323,6 @@ export default function VerificationManagement({
         navigate(returnPath);
       } else {
         setForm(emptyForm());
-        setPicSignature("");
         await loadList();
       }
     } catch (err) {
@@ -235,7 +333,6 @@ export default function VerificationManagement({
   }
 
   function closeApprovalModal() {
-    setManagerSignature("");
     setRejectReason("");
     setRejectCatatan("");
     setAffirmApproved(false);
@@ -258,6 +355,7 @@ export default function VerificationManagement({
     setBusy(true);
     try {
       const verifikasiId = target.id_verifikasi ?? target.id;
+      await ensureSignatureSaved(managerSignature.trim());
       await verifikasiApi.approve(verifikasiId, managerSignature.trim());
       success(
         "Verifikasi berhasil disetujui. Status peralatan kini Aktif dan masuk ke inventaris.",
@@ -291,6 +389,7 @@ export default function VerificationManagement({
     setBusy(true);
     try {
       const verifikasiId = target.id_verifikasi ?? target.id;
+      await ensureSignatureSaved(managerSignature.trim());
       await verifikasiApi.reject(verifikasiId, {
         alasan: rejectReason.trim(),
         catatan: rejectCatatan.trim(),
@@ -347,7 +446,6 @@ export default function VerificationManagement({
         busy={busy}
         onNavigate={navigate}
         onReview={(item) => {
-          setManagerSignature("");
           setApprovalMode("approve");
           setRejectReason("");
           setRejectCatatan("");

@@ -201,3 +201,35 @@ export function calculateCalibrationDueDate(calibrationDate, intervalMonths) {
 
   return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`;
 }
+
+export function calculateInspectionLastDate(dueDate, intervalMonths) {
+  const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dueDate || '');
+  const months = Number(intervalMonths);
+  if (!dateParts || !Number.isInteger(months) || months <= 0) return '';
+
+  const year = Number(dateParts[1]);
+  const month = Number(dateParts[2]);
+  const day = Number(dateParts[3]);
+  const sourceDate = new Date(`${dueDate}T00:00:00Z`);
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    Number.isNaN(sourceDate.getTime()) ||
+    sourceDate.toISOString().slice(0, 10) !== dueDate
+  ) {
+    return '';
+  }
+
+  const targetMonthIndex = month - 1 - months;
+  const targetYear = year + Math.floor(targetMonthIndex / 12);
+  if (targetYear < 1 || targetYear > 9999) return '';
+
+  const targetMonth = ((targetMonthIndex % 12) + 12) % 12;
+  const lastDayOfTargetMonth = new Date(0);
+  lastDayOfTargetMonth.setUTCHours(0, 0, 0, 0);
+  lastDayOfTargetMonth.setUTCFullYear(targetYear, targetMonth + 1, 0);
+  const inspectionDay = Math.min(day, lastDayOfTargetMonth.getUTCDate());
+
+  return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(inspectionDay).padStart(2, '0')}`;
+}
