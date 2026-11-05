@@ -8,9 +8,9 @@ import {
 import {
   ACTIVITY_REQUIREMENTS,
   CHECKS,
+  getApplicableRequirements,
   getEquipmentFirmwareVersion,
   isEquipmentInUserLab,
-  isMetrologyApplicable,
 } from "../verificationData.js";
 
 export default function useVerificationManagement({
@@ -256,15 +256,15 @@ export default function useVerificationManagement({
         setEquipmentInfo(equipmentWithDetails);
         const detail = equipmentDetails.detail || {};
         const autoActivity = equipmentWithDetails.kode_aktivitas || "A1";
-        const requirements = ACTIVITY_REQUIREMENTS[autoActivity] || {};
+        const requirements = getApplicableRequirements(
+          equipmentWithDetails,
+          ACTIVITY_REQUIREMENTS[autoActivity] || {},
+        );
 
         setForm((previous) => {
           const nextResults = { ...previous.hasil_verifikasi };
           CHECKS.forEach((key) => {
-            if (
-              requirements[key] === "-" ||
-              (key === "metrologi" && !isMetrologyApplicable(found))
-            ) {
+            if (requirements[key] === "-") {
               nextResults[key] = "TB";
             }
           });
