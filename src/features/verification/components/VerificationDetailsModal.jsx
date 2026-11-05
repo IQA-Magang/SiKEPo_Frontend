@@ -1,5 +1,11 @@
 import { createPortal } from "react-dom";
-import { CheckCircle2, FileText, Printer, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  FileText,
+  Printer,
+  RefreshCw,
+  XCircle,
+} from "lucide-react";
 import DataTable from "../../../shared/components/ui/DataTable.jsx";
 import { Button } from "../../../shared/components/ui/index.js";
 import {
@@ -13,6 +19,7 @@ import {
   CHECKS,
   CHECK_LABELS,
   getActivityLabel,
+  getEquipmentFirmwareVersion,
   getEquipmentKeterangan,
 } from "../verificationData.js";
 
@@ -43,6 +50,22 @@ export default function VerificationDetailsModal({
     selected?.peralatan?.pic_user ||
     selected?.peralatan?.pic ||
     selected?.peralatan?.ruangan?.pic_user;
+  const notes = selected ? officialNotes(selected) : null;
+  const previousFirmwareVersion = String(
+    notes?.firmware?.versi_tercatat ||
+      getEquipmentFirmwareVersion(selected?.peralatan) ||
+      "",
+  ).trim();
+  const updatedFirmwareVersion = String(
+    notes?.firmware?.versi_aktual ||
+      selected?.hasil_verifikasi?.[0]?.nama_firmware ||
+      "",
+  ).trim();
+  const firmwareWasUpdated =
+    selected?.hasil_verifikasi?.[0]?.firmware === "S" &&
+    previousFirmwareVersion &&
+    updatedFirmwareVersion &&
+    previousFirmwareVersion !== updatedFirmwareVersion;
 
   function officialNotes(item) {
     try {
@@ -136,6 +159,46 @@ export default function VerificationDetailsModal({
                     </p>
                   </div>
                 </div>
+
+                {canApprove &&
+                  selected.status === "Diajukan" &&
+                  firmwareWasUpdated && (
+                    <section
+                      role="status"
+                      aria-label="Pemberitahuan perubahan firmware"
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "var(--sp-3)",
+                        marginBottom: "var(--sp-4)",
+                        padding: "var(--sp-3)",
+                        background: "#fff7ed",
+                        border: "1px solid #fed7aa",
+                        borderRadius: "var(--radius-md)",
+                        color: "#9a3412",
+                      }}
+                    >
+                      <RefreshCw
+                        size={18}
+                        aria-hidden="true"
+                        style={{ flexShrink: 0, marginTop: 2 }}
+                      />
+                      <div>
+                        <strong>Perubahan firmware terdeteksi</strong>
+                        <p
+                          style={{
+                            margin: "4px 0 0",
+                            fontSize: "var(--text-xs)",
+                            color: "#7c2d12",
+                          }}
+                        >
+                          Versi firmware diubah dari{" "}
+                          <strong>{previousFirmwareVersion}</strong> menjadi{" "}
+                          <strong>{updatedFirmwareVersion}</strong>.
+                        </p>
+                      </div>
+                    </section>
+                  )}
 
                 <div className="verification-review-signatures">
                   <SignatureDisplayCard
