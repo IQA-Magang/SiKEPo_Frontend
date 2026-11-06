@@ -10,12 +10,12 @@ import {
   useLocation,
   useParams,
   Navigate,
+  useRouteLoading,
 } from './router/Router.jsx';
 import { ToastProvider, useToast } from './providers/ToastContext.jsx';
 import { ConfirmProvider } from './providers/ConfirmContext.jsx';
 import { getToken } from '../shared/services/api.js';
 import { ACCESS, ACTIONS, getUserRole } from '../shared/utils/permissions.js';
-import LoadingState from '../shared/components/ui/LoadingState.jsx';
 
 // Pages are split into route-level chunks and loaded only when visited.
 const Login = lazy(() => import('../features/auth/Login.jsx'));
@@ -76,7 +76,14 @@ function LoanRequestRoute() {
 }
 
 function PageLoading() {
-  return <LoadingState message="Memuat halaman..." className="page-loading" />;
+  const { setRouteSuspended } = useRouteLoading();
+
+  useEffect(() => {
+    setRouteSuspended(true);
+    return () => setRouteSuspended(false);
+  }, [setRouteSuspended]);
+
+  return null;
 }
 
 // Global Event Listener for API Auth & Forbidden Notifications

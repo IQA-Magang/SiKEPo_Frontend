@@ -1599,10 +1599,61 @@
   object-fit: contain;
 }
 
-.page-loading {
-  min-height: min(70vh, 640px);
-  border: 0;
-  background: transparent;
+.route-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #f8fafc;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: route-loading-fade-in 180ms ease-out both;
+}
+
+.route-loading-state {
+  width: min(100%, 280px);
+  min-height: 180px;
+  gap: 12px;
+  padding: 28px 24px;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: var(--radius-2xl, 20px);
+  background: #fff;
+  box-shadow: var(--shadow-xl);
+}
+
+.route-loading-state .ui-state__reloader {
+  width: 64px;
+  height: 64px;
+  animation: route-loader-float 1.4s ease-in-out infinite;
+}
+
+.route-loading-state .ui-state__text {
+  font-size: var(--text-sm, 14px);
+  font-weight: var(--fw-medium, 500);
+  color: var(--clr-dark-600, #475569);
+}
+
+@keyframes route-loading-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes route-loader-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-loading-overlay {
+    animation: none;
+  }
+
+  .route-loading-state .ui-state__reloader {
+    animation: none;
+  }
 }
 
 .ui-state--error {

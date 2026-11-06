@@ -6,6 +6,7 @@ import TelkomTestHouseLogo from '../../shared/components/TelkomTestHouseLogo.jsx
 import Captcha from '../../shared/components/Captcha.jsx';
 import { authApi, getToken } from '../../shared/services/api.js';
 import { useToast } from '../../app/providers/ToastContext.jsx';
+import { LoadingOverlay } from '../../shared/components/ui/LoadingState.jsx';
 
 export default function Login({ onNavigate }) {
   const [emailOrNip, setEmailOrNip] = useState('');
@@ -61,6 +62,7 @@ export default function Login({ onNavigate }) {
     }
 
     setErrors({ email: '', password: '', captcha: '', general: '' });
+    const submittedAt = Date.now();
     setIsLoading(true);
 
     try {
@@ -69,6 +71,11 @@ export default function Login({ onNavigate }) {
         password: password,
         recaptcha_token: recaptchaToken,
       });
+
+      const remainingLoadingTime = Math.max(0, 1500 - (Date.now() - submittedAt));
+      if (remainingLoadingTime > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, remainingLoadingTime));
+      }
 
       setIsLoading(false);
       toast.success('Berhasil masuk ke SiKEPo!', 3000);
@@ -87,6 +94,7 @@ export default function Login({ onNavigate }) {
 
   return (
     <div className="login-page-container">
+      {isLoading && <LoadingOverlay message="Menyiapkan halaman..." />}
       {/* Curved Wave Background */}
       <WaveBackground />
 
@@ -177,13 +185,7 @@ export default function Login({ onNavigate }) {
                 />
 
                 <button type="submit" className="btn-masuk" disabled={isLoading} id="btn-login-submit">
-                  {isLoading ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <span className="spinner-mini" /> Memproses...
-                    </span>
-                  ) : (
-                    'Masuk'
-                  )}
+                  {isLoading ? 'Memproses...' : 'Masuk'}
                 </button>
 
                 {/* Accessible Replacement for alert() */}

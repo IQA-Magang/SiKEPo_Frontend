@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { getToken, getCurrentUser } from '../../shared/services/api.js';
 import { can, getUserRole } from '../../shared/utils/permissions.js';
 import Forbidden from '../../pages/Forbidden.jsx';
+import { LoadingOverlay } from '../../shared/components/ui/LoadingState.jsx';
 
 const RouterContext = createContext(null);
 const RouteParamsContext = createContext({});
@@ -65,10 +66,35 @@ function matchPath(pattern, pathname) {
 // ------------------------------------------------------------------
 export function Router({ children }) {
   const [currentPath, setCurrentPath] = useState(getHashPath);
+  const [routeLoading, setRouteLoading] = useState(true);
+  const [routeSuspended, setRouteSuspended] = useState(false);
+  const [minimumLoadingElapsed, setMinimumLoadingElapsed] = useState(false);
+  const navigationTimeoutRef = React.useRef(null);
+
+  useEffect(() => {
+    navigationTimeoutRef.current = window.setTimeout(() => {
+      setMinimumLoadingElapsed(true);
+      navigationTimeoutRef.current = null;
+    }, 500);
+
+    return () => window.clearTimeout(navigationTimeoutRef.current);
+  }, []);
+
+  const showRouteLoading = useCallback(() => {
+    setRouteLoading(true);
+    setRouteSuspended(false);
+    setMinimumLoadingElapsed(false);
+    window.clearTimeout(navigationTimeoutRef.current);
+    navigationTimeoutRef.current = window.setTimeout(() => {
+      setMinimumLoadingElapsed(true);
+      navigationTimeoutRef.current = null;
+    }, 280);
+  }, []);
 
   const navigate = useCallback((to, { replace = false } = {}) => {
     const formatted = to.startsWith('/') ? to : `/${to}`;
     const destination = new URL(formatted, window.location.origin);
+    showRouteLoading();
     setCurrentPath(destination.pathname);
     if (replace) {
       window.history.replaceState({}, '', `${destination.pathname}${destination.search}`);
@@ -76,11 +102,12 @@ export function Router({ children }) {
       window.history.pushState({}, '', `${destination.pathname}${destination.search}`);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  }, [showRouteLoading]);
 
   useEffect(() => {
     function handlePopState() {
       const p = getHashPath();
+      showRouteLoading();
       setCurrentPath(p);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -95,17 +122,27 @@ export function Router({ children }) {
     return () => {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('sikepo_session_expired', handleSessionExpired);
+      window.clearTimeout(navigationTimeoutRef.current);
     };
-  }, [navigate]);
+  }, [navigate, showRouteLoading]);
 
   const value = useMemo(() => ({
     pathname: currentPath,
     navigate,
-  }), [currentPath, navigate]);
+    isNavigating: routeLoading && (!minimumLoadingElapsed || routeSuspended),
+    setRouteSuspended,
+  }), [currentPath, navigate, routeLoading, minimumLoadingElapsed, routeSuspended]);
+
+  useEffect(() => {
+    if (routeLoading && minimumLoadingElapsed && !routeSuspended) {
+      setRouteLoading(false);
+    }
+  }, [routeLoading, minimumLoadingElapsed, routeSuspended]);
 
   return (
     <RouterContext.Provider value={value}>
       {children}
+      {value.isNavigating && <LoadingOverlay />}
     </RouterContext.Provider>
   );
 }
@@ -125,6 +162,13 @@ export function useLocation() {
   const ctx = useContext(RouterContext);
   return {
     pathname: ctx ? ctx.pathname : getHashPath(),
+  };
+}
+
+export function useRouteLoading() {
+  const ctx = useContext(RouterContext);
+  return {
+    setRouteSuspended: ctx?.setRouteSuspended || (() => {}),
   };
 }
 

@@ -12,3 +12,11 @@ export default function LoadingState({
     </div>
   );
 }
+
+export function LoadingOverlay({ message = 'Memuat halaman...' }) {
+  return (
+    <div className="route-loading-overlay">
+      <LoadingState message={message} className="route-loading-state" />
+    </div>
+  );
+}
