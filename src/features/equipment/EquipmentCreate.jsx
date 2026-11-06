@@ -629,7 +629,7 @@ export default function EquipmentCreate({ onNavigate }) {
                   Persyaratan Dokumen: Minimal 2 File Wajib
                 </div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-700)', lineHeight: '1.5' }}>
-                  Wajib menyimpan <strong>minimal 2 file dokumen</strong> untuk setiap peralatan baru (contoh: 1. Sertifikat Kalibrasi / Laporan Pemeriksaan, 2. Manual Book / Foto Seri Identifikasi).
+                  Wajib menyimpan <strong>minimal 2 file dokumen</strong> untuk setiap peralatan baru.
                 </div>
                 <div style={{ marginTop: 6 }}>
                   <span
