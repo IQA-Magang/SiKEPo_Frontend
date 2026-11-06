@@ -7,15 +7,15 @@ export default defineConfig({
     port: 5174,
     proxy: {
       '/api': {
-        target: 'sikepo-be.odeandialamsyah.my.id',
+        target: 'https://k45l2pqb-5000.asse.devtunnels.ms',
         changeOrigin: true,
       },
       '/recaptcha': {
-        target: 'sikepo-be.odeandialamsyah.my.id',
+        target: 'https://k45l2pqb-5000.asse.devtunnels.ms',
         changeOrigin: true,
       },
       '/static': {
-        target: 'sikepo-be.odeandialamsyah.my.id',
+        target: 'https://k45l2pqb-5000.asse.devtunnels.ms',
         changeOrigin: true,
       },
     },
