@@ -1593,14 +1593,16 @@
   margin-top: 18px;
 }
 
-.ui-state--loading .ui-state__spinner {
-  display: inline-block;
-  width: 28px;
-  height: 28px;
-  border: 3px solid rgba(17, 17, 17, 0.1);
-  border-top-color: var(--clr-primary-600);
-  border-radius: 50%;
-  animation: ui-spin 0.8s linear infinite;
+.ui-state--loading .ui-state__reloader {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.page-loading {
+  min-height: min(70vh, 640px);
+  border: 0;
+  background: transparent;
 }
 
 .ui-state--error {

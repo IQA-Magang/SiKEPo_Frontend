@@ -15,6 +15,7 @@ import { ToastProvider, useToast } from './providers/ToastContext.jsx';
 import { ConfirmProvider } from './providers/ConfirmContext.jsx';
 import { getToken } from '../shared/services/api.js';
 import { ACCESS, ACTIONS, getUserRole } from '../shared/utils/permissions.js';
+import LoadingState from '../shared/components/ui/LoadingState.jsx';
 
 // Pages are split into route-level chunks and loaded only when visited.
 const Login = lazy(() => import('../features/auth/Login.jsx'));
@@ -75,11 +76,7 @@ function LoanRequestRoute() {
 }
 
 function PageLoading() {
-  return (
-    <div className="page-container" role="status" aria-live="polite">
-      Memuat halaman...
-    </div>
-  );
+  return <LoadingState message="Memuat halaman..." className="page-loading" />;
 }
 
 // Global Event Listener for API Auth & Forbidden Notifications
