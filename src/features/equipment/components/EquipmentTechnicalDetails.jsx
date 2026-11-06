@@ -52,85 +52,186 @@ function StandardEquipmentToggle({ id, checked, onChange }) {
   );
 }
 
+function PeriodicActivityFields({ form, setField }) {
+  return (
+    <>
+      <FormField
+        label="Metode Pemeriksaan Berkala"
+        htmlFor="d-metode-pemeriksaan"
+        hint="Pilih kalibrasi atau verifikasi fungsi untuk peralatan ini."
+        hintId="d-metode-pemeriksaan-help"
+        required
+      >
+        <select
+          id="d-metode-pemeriksaan"
+          className="form-select"
+          value={form.metode_pemeriksaan}
+          onChange={(event) => setField('metode_pemeriksaan', event.target.value)}
+          aria-describedby="d-metode-pemeriksaan-help"
+        >
+          <option value="kalibrasi">Kalibrasi</option>
+          <option value="verifikasi fungsi">Verifikasi fungsi</option>
+        </select>
+      </FormField>
+
+      {form.metode_pemeriksaan === 'kalibrasi' ? (
+        <div className="form-grid-2" style={{ gridColumn: '1/-1' }}>
+          <FormField label="Metode Kalibrasi" htmlFor="d-metode-kalibrasi" required>
+            <select
+              id="d-metode-kalibrasi"
+              className="form-select"
+              value={form.metode_kalibrasi}
+              onChange={(event) => setField('metode_kalibrasi', event.target.value)}
+            >
+              <option value="Eksternal">Eksternal</option>
+              <option value="Internal">Internal</option>
+            </select>
+          </FormField>
+          <DetailInputField
+            id="d-lab-kalibrasi"
+            label="Laboratorium Kalibrasi"
+            value={form.lab_kalibrasi}
+            onChange={(event) => setField('lab_kalibrasi', event.target.value)}
+            placeholder="Laboratorium Kalibrasi ABC"
+          />
+          <DetailInputField
+            id="d-interval-kalibrasi"
+            label="Interval Kalibrasi (Bulan)"
+            type="number"
+            value={form.interval_bulan}
+            onChange={(event) => setField('interval_bulan', event.target.value)}
+            placeholder="12"
+          />
+          <DetailInputField
+            id="d-tanggal-keluar"
+            label="Tanggal Keluar"
+            type="date"
+            value={form.tanggal_keluar}
+            onChange={(event) => setField('tanggal_keluar', event.target.value)}
+          />
+          <DetailInputField
+            id="d-perkiraan-kembali"
+            label="Perkiraan Kembali"
+            type="date"
+            value={form.perkiraan_kembali}
+            onChange={(event) => setField('perkiraan_kembali', event.target.value)}
+          />
+          <DetailInputField
+            id="d-no-sertifikat-kalibrasi"
+            label="No. Sertifikat Kalibrasi"
+            value={form.no_sertifikat}
+            onChange={(event) => setField('no_sertifikat', event.target.value)}
+            placeholder="CERT-2026-001"
+          />
+          <DetailInputField
+            id="d-penerbit-sertifikat"
+            label="Diterbitkan Oleh"
+            value={form.diterbitkan_oleh}
+            onChange={(event) => setField('diterbitkan_oleh', event.target.value)}
+            placeholder="Laboratorium Kalibrasi ABC"
+          />
+          <DetailInputField
+            id="d-tgl-kalibrasi"
+            label="Tanggal Kalibrasi"
+            type="date"
+            value={form.tgl_kalibrasi}
+            onChange={(event) => setField('tgl_kalibrasi', event.target.value)}
+          />
+          <FormField
+            label="Upload Sertifikat Kalibrasi (PDF)"
+            htmlFor="d-sertifikat-pdf"
+            hint="File PDF, maksimal 15 MB."
+            hintId="d-sertifikat-pdf-help"
+            required
+          >
+            <input
+              id="d-sertifikat-pdf"
+              type="file"
+              className="form-input"
+              accept=".pdf,application/pdf"
+              onChange={(event) => setField('sertifikat_pdf_file', event.target.files?.[0] || null)}
+              aria-describedby="d-sertifikat-pdf-help"
+            />
+          </FormField>
+        </div>
+      ) : (
+        <div className="form-grid-2" style={{ gridColumn: '1/-1' }}>
+          <FormField
+            label="Jenis Verifikasi Fungsi"
+            htmlFor="d-jenis-verifikasi"
+            required
+          >
+            <select
+              id="d-jenis-verifikasi"
+              className="form-select"
+              value={form.jenis_pemeriksaan_berkala}
+              onChange={(event) => setField('jenis_pemeriksaan_berkala', event.target.value)}
+            >
+              <option value="verifikasi fungsi metode tertentu">Verifikasi fungsi metode tertentu</option>
+              <option value="verifikasi fungsi uji banding">Verifikasi fungsi uji banding</option>
+            </select>
+          </FormField>
+          <DetailInputField
+            id="d-tgl-pemeriksaan-terakhir"
+            label="Tanggal Pemeriksaan Terakhir"
+            type="date"
+            value={form.tgl_pemeriksaan_terakhir}
+            onChange={(event) => setField('tgl_pemeriksaan_terakhir', event.target.value)}
+          />
+          <DetailInputField
+            id="d-tgl-jatuh-tempo-verifikasi"
+            label="Tanggal Jatuh Tempo"
+            type="date"
+            value={form.tgl_jatuh_tempo}
+            onChange={(event) => setField('tgl_jatuh_tempo', event.target.value)}
+          />
+          <DetailInputField
+            id="d-acuan-pembanding"
+            label="Acuan Pembanding"
+            value={form.acuan_pembanding}
+            onChange={(event) => setField('acuan_pembanding', event.target.value)}
+            placeholder="Sensor referensi suhu dan kelembapan"
+          />
+          <DetailInputField
+            id="d-pelaksana-verifikasi"
+            label="Pelaksana"
+            value={form.pelaksana}
+            onChange={(event) => setField('pelaksana', event.target.value)}
+            placeholder="Nama Pelaksana"
+          />
+          <DetailInputField
+            id="d-no-laporan-verifikasi"
+            label="No. Laporan"
+            value={form.no_laporan}
+            onChange={(event) => setField('no_laporan', event.target.value)}
+            placeholder="LAP-VER-2026-001"
+          />
+          <FormField
+            label="Upload Dokumen Laporan (PDF)"
+            htmlFor="d-pdf-laporan"
+            hint="File PDF, maksimal 15 MB."
+            hintId="d-pdf-laporan-help"
+            required
+          >
+            <input
+              id="d-pdf-laporan"
+              type="file"
+              className="form-input"
+              accept=".pdf,application/pdf"
+              onChange={(event) => setField('pdf_laporan_file', event.target.files?.[0] || null)}
+              aria-describedby="d-pdf-laporan-help"
+            />
+          </FormField>
+        </div>
+      )}
+    </>
+  );
+}
+
 function MeasuringEquipmentFields({ form, setField }) {
   return (
     <div className="form-grid-2">
-      <DetailInputField
-        id="d-sertifikat"
-        label="No. Sertifikat Kalibrasi"
-        value={form.no_sertifikat}
-        onChange={(event) => setField('no_sertifikat', event.target.value)}
-        placeholder="CAL-2026-0012"
-        helpText="Salin nomor yang tercantum pada sertifikat kalibrasi terbaru."
-      />
-      <DetailInputField
-        id="d-interval"
-        label="Interval Kalibrasi (Bulan)"
-        type="number"
-        value={form.interval_bulan}
-        onChange={(event) => setField('interval_bulan', event.target.value)}
-        placeholder="12"
-        helpText="Jarak waktu kalibrasi dalam bulan, dihitung dari tanggal kalibrasi terakhir."
-      />
-      <DetailInputField
-        id="d-tgl-kalibrasi"
-        label="Tgl. Kalibrasi Terakhir"
-        type="date"
-        value={form.tgl_kalibrasi}
-        onChange={(event) => setField('tgl_kalibrasi', event.target.value)}
-        helpText="Tanggal pelaksanaan yang tertera pada sertifikat."
-      />
-      <DetailInputField
-        id="d-tgl-jatuh"
-        label="Tgl. Jatuh Tempo Kalibrasi"
-        type="date"
-        value={form.tgl_jatuh_tempo}
-        readOnly
-        helpText="Dihitung otomatis dari tanggal kalibrasi terakhir dan interval kalibrasi."
-      />
-      <FormField
-        label="Metode Kelayakan"
-        htmlFor="d-metode-kelayakan"
-        hint="Pilih cara penetapan kelayakan yang digunakan untuk alat ini."
-        hintId="d-metode-kelayakan-help"
-      >
-        <select
-          id="d-metode-kelayakan"
-          className="form-select"
-          value={form.metode_kelayakan || 'kalibrasi eksternal'}
-          onChange={(event) => setField('metode_kelayakan', event.target.value)}
-          aria-describedby="d-metode-kelayakan-help"
-        >
-          <option value="kalibrasi internal">Kalibrasi internal</option>
-          <option value="kalibrasi eksternal">Kalibrasi eksternal</option>
-          <option value="verifikasi fungsi (metode tertentu)">Verifikasi fungsi (metode tertentu)</option>
-          <option value="verifikasi fungsi (uji banding)">Verifikasi fungsi (uji banding)</option>
-        </select>
-      </FormField>
-      <FormField label="Status Kelayakan" htmlFor="d-status-kelayakan">
-        <select
-          id="d-status-kelayakan"
-          className="form-select"
-          value={form.status_kelayakan}
-          onChange={(event) => setField('status_kelayakan', event.target.value)}
-        >
-          <option value="Layak">Layak</option>
-          <option value="Terbatas">Terbatas</option>
-          <option value="Tidak layak">Tidak layak</option>
-        </select>
-      </FormField>
-      <FormField label="Jenis Label" htmlFor="d-jenis-label">
-        <select
-          id="d-jenis-label"
-          className="form-select"
-          value={form.jenis_label}
-          onChange={(event) => setField('jenis_label', event.target.value)}
-        >
-          <option value="calibration">Kalibrasi</option>
-          <option value="limited calibration">Kalibrasi terbatas</option>
-          <option value="do not use">Jangan digunakan</option>
-        </select>
-      </FormField>
+      <PeriodicActivityFields form={form} setField={setField} />
       <StandardEquipmentToggle
         id="d-alat-standar"
         checked={form.fungsi_sbg_alat_standar}
@@ -143,90 +244,12 @@ function MeasuringEquipmentFields({ form, setField }) {
 function AuxiliaryEquipmentFields({ form, setField }) {
   return (
     <div className="form-grid-2">
-      <DetailInputField
-        id="d-fungsi"
-        label="Fungsi / Kegunaan"
-        value={form.fungsi_kegunaan}
-        onChange={(event) => setField('fungsi_kegunaan', event.target.value)}
-        helpText="Jelaskan pekerjaan atau pengukuran yang dibantu alat ini."
-      />
-      <FormField
-        label="Jenis Pemeriksaan Berkala"
-        htmlFor="d-jenis-pemeriksaan"
-        hint="Pilih aktivitas berkala yang digunakan untuk memastikan alat bantu tetap berfungsi."
-        hintId="d-jenis-pemeriksaan-help"
-        required
-      >
-        <select
-          id="d-jenis-pemeriksaan"
-          className="form-select"
-          value={form.jenis_pemeriksaan_berkala || 'kalibrasi'}
-          onChange={(event) => setField('jenis_pemeriksaan_berkala', event.target.value)}
-        >
-          <option value="kalibrasi">Kalibrasi</option>
-          <option value="verifikasi fungsi">Verifikasi fungsi</option>
-          <option value="pemeriksaan lain">Pemeriksaan lain</option>
-        </select>
-      </FormField>
-      <DetailInputField
-        id="d-interval-ab"
-        label="Interval (Bulan)"
-        type="number"
-        value={form.interval_bulan}
-        onChange={(event) => setField('interval_bulan', event.target.value)}
-        helpText="Jarak antar pemeriksaan berkala dalam bulan."
-      />
-      <DetailInputField
-        id="d-jatuh-ab"
-        label="Tgl. Jatuh Tempo"
-        type="date"
-        value={form.tgl_jatuh_tempo}
-        onChange={(event) => setField('tgl_jatuh_tempo', event.target.value)}
-      />
-      <DetailInputField
-        id="d-tgl-pemeriksaan"
-        label="Tgl. Pemeriksaan Terakhir"
-        type="date"
-        value={form.tgl_pemeriksaan_terakhir}
-        onChange={(event) => setField('tgl_pemeriksaan_terakhir', event.target.value)}
-        readOnly
-        helpText="Dihitung otomatis dari tanggal jatuh tempo dikurangi interval pemeriksaan."
-      />
-      <DetailInputField
-        id="d-karakteristik-acuan"
-        label="Karakteristik Acuan"
-        value={form.karakteristik_acuan}
-        onChange={(event) => setField('karakteristik_acuan', event.target.value)}
-        required={false}
-        helpText="Besaran atau karakteristik yang dijadikan acuan saat pemeriksaan."
-      />
-      <DetailInputField
-        id="d-jadwal-karakterisasi"
-        label="Jadwal Karakterisasi Ulang"
-        value={form.jadwal_karakterisasi_ulang}
-        onChange={(event) => setField('jadwal_karakterisasi_ulang', event.target.value)}
-        required={false}
-        helpText="Isi jadwal atau interval karakterisasi ulang bila berlaku."
-      />
+      <PeriodicActivityFields form={form} setField={setField} />
       <StandardEquipmentToggle
         id="d-alat-standar-ab"
         checked={form.fungsi_sbg_alat_standar}
         onChange={(event) => setField('fungsi_sbg_alat_standar', event.target.checked)}
       />
-      <FormField
-        label="Kriteria Pemeriksaan"
-        htmlFor="d-kriteria"
-        required
-        style={{ gridColumn: '1/-1' }}
-      >
-        <textarea
-          id="d-kriteria"
-          className="form-textarea"
-          value={form.kriteria_pemeriksaan}
-          onChange={(event) => setField('kriteria_pemeriksaan', event.target.value)}
-          style={{ minHeight: 80 }}
-        />
-      </FormField>
     </div>
   );
 }

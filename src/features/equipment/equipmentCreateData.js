@@ -32,18 +32,10 @@ export function getEquipmentStepValidationError(form, step, photoFile, documentC
   if (step === 2) {
     const categoryRequiredFields = {
       1: [
-        ['no_sertifikat', 'No. sertifikat kalibrasi wajib diisi.'],
-        ['interval_bulan', 'Interval kalibrasi (bulan) wajib diisi.'],
-        ['tgl_kalibrasi', 'Tanggal kalibrasi terakhir wajib diisi.'],
-        ['tgl_jatuh_tempo', 'Tanggal jatuh tempo kalibrasi wajib diisi.'],
+        ['metode_pemeriksaan', 'Pilih kalibrasi atau verifikasi fungsi.'],
       ],
       2: [
-        ['fungsi_kegunaan', 'Fungsi / Kegunaan wajib diisi.'],
-        ['jenis_pemeriksaan_berkala', 'Jenis pemeriksaan berkala wajib diisi.'],
-        ['interval_bulan', 'Interval pemeriksaan (bulan) wajib diisi.'],
-        ['tgl_jatuh_tempo', 'Tanggal jatuh tempo wajib diisi.'],
-        ['tgl_pemeriksaan_terakhir', 'Tanggal pemeriksaan terakhir wajib diisi.'],
-        ['kriteria_pemeriksaan', 'Kriteria pemeriksaan wajib diisi.'],
+        ['metode_pemeriksaan', 'Pilih kalibrasi atau verifikasi fungsi.'],
       ],
       3: [
         ['jenis_deskripsi', 'Jenis / deskripsi acuan wajib diisi.'],
@@ -72,6 +64,67 @@ export function getEquipmentStepValidationError(form, step, photoFile, documentC
       const value = form[field];
       if (typeof value === 'string' ? !value.trim() : !value) return message;
     }
+
+    if ([1, 2].includes(Number(form.kategori_id))) {
+      if (form.metode_pemeriksaan === 'kalibrasi') {
+        const calibrationFields = [
+          ['metode_kalibrasi', 'Metode kalibrasi wajib dipilih.'],
+          ['lab_kalibrasi', 'Laboratorium kalibrasi wajib diisi.'],
+          ['tanggal_keluar', 'Tanggal keluar wajib diisi.'],
+          ['perkiraan_kembali', 'Perkiraan tanggal kembali wajib diisi.'],
+          ['interval_bulan', 'Interval kalibrasi wajib diisi.'],
+          ['no_sertifikat', 'Nomor sertifikat kalibrasi wajib diisi.'],
+          ['diterbitkan_oleh', 'Penerbit sertifikat wajib diisi.'],
+          ['tgl_kalibrasi', 'Tanggal kalibrasi wajib diisi.'],
+          ['sertifikat_pdf_file', 'File sertifikat kalibrasi wajib diunggah.'],
+        ];
+        for (const [field, message] of calibrationFields) {
+          if (field.endsWith('_file')) {
+            const file = form[field];
+            if (!file) return message;
+            if (!/\.pdf$/i.test(file.name) || file.type && file.type !== 'application/pdf') {
+              return 'Sertifikat kalibrasi harus berupa PDF.';
+            }
+            if (file.size <= 0 || file.size > 15 * 1024 * 1024) {
+              return 'Ukuran PDF sertifikat harus lebih dari 0 dan maksimal 15 MB.';
+            }
+          } else if (!String(form[field] || '').trim()) {
+            return message;
+          }
+        }
+        if (Number(form.interval_bulan) <= 0) return 'Interval kalibrasi harus lebih dari 0 bulan.';
+        if (form.perkiraan_kembali < form.tanggal_keluar) {
+          return 'Perkiraan tanggal kembali tidak boleh sebelum tanggal keluar.';
+        }
+      } else {
+        const verificationFields = [
+          ['jenis_pemeriksaan_berkala', 'Jenis verifikasi fungsi wajib dipilih.'],
+          ['tgl_pemeriksaan_terakhir', 'Tanggal pemeriksaan terakhir wajib diisi.'],
+          ['tgl_jatuh_tempo', 'Tanggal jatuh tempo verifikasi wajib diisi.'],
+          ['acuan_pembanding', 'Acuan pembanding wajib diisi.'],
+          ['pelaksana', 'Pelaksana verifikasi wajib diisi.'],
+          ['no_laporan', 'Nomor laporan wajib diisi.'],
+          ['pdf_laporan_file', 'Dokumen laporan verifikasi wajib diunggah.'],
+        ];
+        for (const [field, message] of verificationFields) {
+          if (field === 'pdf_laporan_file') {
+            const file = form[field];
+            if (!file) return message;
+            if (!/\.pdf$/i.test(file.name) || file.type && file.type !== 'application/pdf') {
+              return 'Dokumen laporan verifikasi harus berupa PDF.';
+            }
+            if (file.size <= 0 || file.size > 15 * 1024 * 1024) {
+              return 'Ukuran PDF laporan harus lebih dari 0 dan maksimal 15 MB.';
+            }
+          } else if (!String(form[field] || '').trim()) {
+            return message;
+          }
+        }
+        if (form.tgl_jatuh_tempo < form.tgl_pemeriksaan_terakhir) {
+          return 'Tanggal jatuh tempo tidak boleh sebelum tanggal pemeriksaan terakhir.';
+        }
+      }
+    }
   }
 
   if (step === 3 && documentCount < 2) {
@@ -98,11 +151,8 @@ export function buildEquipmentPayload(form) {
   if (categoryId === 1) {
     detail = {
       peranti_lunak_versi: form.peranti_lunak_versi || '',
-      metode_kelayakan: form.metode_kelayakan || 'kalibrasi eksternal',
-      no_sertifikat: form.no_sertifikat || '',
-      tgl_kalibrasi: toIsoDate(form.tgl_kalibrasi),
-      tgl_jatuh_tempo: toIsoDate(form.tgl_jatuh_tempo),
       interval_bulan: Number(form.interval_bulan) || 0,
+      buat_histori_pemeriksaan_terpisah: true,
       fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
       jenis_label: form.jenis_label || 'calibration',
       status_kelayakan: form.status_kelayakan || 'Layak',
@@ -115,16 +165,8 @@ export function buildEquipmentPayload(form) {
     };
   } else if (categoryId === 2) {
     detail = {
-      fungsi_kegunaan: form.fungsi_kegunaan || '',
       peranti_lunak_versi: form.peranti_lunak_versi || '',
-      jenis_pemeriksaan_berkala: form.jenis_pemeriksaan_berkala || 'pemeriksaan lain',
-      kriteria_pemeriksaan: form.kriteria_pemeriksaan || '',
-      tgl_pemeriksaan_terakhir: toIsoDate(form.tgl_pemeriksaan_terakhir),
-      tgl_jatuh_tempo: toIsoDate(form.tgl_jatuh_tempo),
-      interval_bulan: Number(form.interval_bulan) || 0,
-      fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
-      karakteristik_acuan: form.karakteristik_acuan || '',
-      jadwal_karakterisasi_ulang: form.jadwal_karakterisasi_ulang || '',
+      buat_histori_pemeriksaan_terpisah: true,
     };
   } else if (categoryId === 3) {
     detail = {
@@ -167,6 +209,29 @@ export function buildEquipmentPayload(form) {
     keterangan: form.keterangan,
     status_alat: 'Karantina',
     detail,
+  };
+}
+
+export function buildCalibrationPayload(form) {
+  return {
+    metode: form.metode_kalibrasi,
+    lab_kalibrasi: form.lab_kalibrasi.trim(),
+    tanggal_keluar: toIsoDate(form.tanggal_keluar),
+    perkiraan_kembali: toIsoDate(form.perkiraan_kembali),
+    status: 'direncanakan',
+    interval_bulan: Number(form.interval_bulan),
+  };
+}
+
+export function buildFunctionVerificationPayload(form) {
+  return {
+    jenis_pemeriksaan_berkala: form.jenis_pemeriksaan_berkala,
+    tgl_pemeriksaan_terakhir: toIsoDate(form.tgl_pemeriksaan_terakhir),
+    tgl_jatuh_tempo: toIsoDate(form.tgl_jatuh_tempo),
+    fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
+    acuan_pembanding: form.acuan_pembanding.trim(),
+    pelaksana: form.pelaksana.trim(),
+    no_laporan: form.no_laporan.trim(),
   };
 }
 

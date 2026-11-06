@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import './equipment.css';
 import { ArrowLeft, ArrowRight, Package, Upload, FileText, Trash2, Info, Layers, CheckCircle, Plus, HardDrive, ShieldCheck } from 'lucide-react';
-import { peralatanApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, STATIC_EQUIPMENT_CATEGORIES } from '../../shared/services/api.js';
+import { peralatanApi, kalibrasiApi, verifikasiFungsiApi, dokumenApi, labsApi, ruanganApi, kelompokAssetApi, STATIC_EQUIPMENT_CATEGORIES } from '../../shared/services/api.js';
 import { useToast } from '../../app/providers/ToastContext.jsx';
 import { Button, FormField } from '../../shared/components/ui/index.js';
 import {
+  buildCalibrationPayload,
+  buildFunctionVerificationPayload,
   buildEquipmentPayload,
   calculateCalibrationDueDate,
-  calculateInspectionLastDate,
   EQUIPMENT_CREATE_STEPS,
   getEquipmentStepValidationError,
 } from './equipmentCreateData.js';
@@ -24,6 +25,9 @@ export default function EquipmentCreate({ onNavigate }) {
   const [documentFiles, setDocumentFiles] = useState([]);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [createdEquipmentId, setCreatedEquipmentId] = useState(null);
+  const [uploadedPhotoFile, setUploadedPhotoFile] = useState(null);
+  const [uploadedDocumentFiles, setUploadedDocumentFiles] = useState(() => new Set());
 
   // Options
   const [labs, setLabs] = useState([]);
@@ -53,23 +57,29 @@ export default function EquipmentCreate({ onNavigate }) {
     resolusi: '',
     akurasi_spesifikasi: '',
     satuan: '',
-    metode_kelayakan: '',
-    no_sertifikat: '',
-    tgl_kalibrasi: '',
-    tgl_jatuh_tempo: '',
+    metode_pemeriksaan: 'kalibrasi',
+    metode_kalibrasi: 'Eksternal',
+    lab_kalibrasi: '',
+    tanggal_keluar: '',
+    perkiraan_kembali: '',
     interval_bulan: '',
+    no_sertifikat: '',
+    diterbitkan_oleh: '',
+    tgl_kalibrasi: '',
+    sertifikat_pdf_file: null,
     nilai_koreksi: '',
     ketidakpastian: '',
     status_kelayakan: 'Layak',
     fungsi_sbg_alat_standar: false,
     jenis_label: 'calibration',
-    // Alat Bantu
-    fungsi_kegunaan: '',
-    jenis_pemeriksaan_berkala: '',
-    kriteria_pemeriksaan: '',
+    jenis_pemeriksaan_berkala: 'verifikasi fungsi metode tertentu',
     tgl_pemeriksaan_terakhir: '',
-    jadwal_karakterisasi_ulang: '',
-    karakteristik_acuan: '',
+    tgl_jatuh_tempo: '',
+    acuan_pembanding: '',
+    pelaksana: '',
+    no_laporan: '',
+    pdf_laporan_file: null,
+    // Alat Bantu
     // Artefak Acuan
     jenis_deskripsi: '',
     karakteristik_yang_diacu: '',
@@ -112,24 +122,6 @@ export default function EquipmentCreate({ onNavigate }) {
   function setField(name, value) {
     setForm((prev) => {
       const updated = { ...prev, [name]: value };
-      if (
-        Number(prev.kategori_id) === 1 &&
-        ['tgl_kalibrasi', 'interval_bulan'].includes(name)
-      ) {
-        updated.tgl_jatuh_tempo = calculateCalibrationDueDate(
-          updated.tgl_kalibrasi,
-          updated.interval_bulan,
-        );
-      }
-      if (
-        Number(prev.kategori_id) === 2 &&
-        ['tgl_jatuh_tempo', 'interval_bulan'].includes(name)
-      ) {
-        updated.tgl_pemeriksaan_terakhir = calculateInspectionLastDate(
-          updated.tgl_jatuh_tempo,
-          updated.interval_bulan,
-        );
-      }
       if (
         Number(prev.kategori_id) === 3 &&
         ['tgl_karakterisasi_terakhir', 'interval_bulan'].includes(name)
@@ -202,28 +194,90 @@ export default function EquipmentCreate({ onNavigate }) {
   async function handleSubmit() {
     setSubmitting(true);
     setError('');
+    let equipmentId = createdEquipmentId;
     try {
-      const payload = buildEquipmentPayload(form);
-
-      const res = await peralatanApi.create(payload);
-      const equipmentId = res.id || res.data?.id;
-      if (!equipmentId) throw new Error('Peralatan tersimpan, tetapi ID peralatan tidak diterima.');
+      if (!equipmentId) {
+        const payload = buildEquipmentPayload(form);
+        const res = await peralatanApi.create(payload);
+        equipmentId = res.id || res.data?.id;
+        if (!equipmentId) throw new Error('Peralatan tersimpan, tetapi ID peralatan tidak diterima.');
+        setCreatedEquipmentId(equipmentId);
+      }
 
       // Upload foto jika ada
-      if (photoFile) {
+      if (photoFile && uploadedPhotoFile !== photoFile) {
         await peralatanApi.uploadFoto(equipmentId, photoFile);
+        setUploadedPhotoFile(photoFile);
       }
 
       // Upload semua dokumen
+      const completedDocuments = new Set(uploadedDocumentFiles);
       for (const file of documentFiles) {
+        if (completedDocuments.has(file)) continue;
         await dokumenApi.upload(equipmentId, file);
+        completedDocuments.add(file);
+        setUploadedDocumentFiles(new Set(completedDocuments));
+      }
+
+      if ([1, 2].includes(Number(form.kategori_id))) {
+        if (form.metode_pemeriksaan === 'kalibrasi') {
+          let history = await kalibrasiApi.getByEquipment(equipmentId);
+          if (!Array.isArray(history?.data)) {
+            throw new Error('Format respons histori kalibrasi tidak valid.');
+          }
+          let cycle = history.data.find(
+            (item) => ['direncanakan', 'dalam_proses'].includes(item.status),
+          );
+          const hasCompletedCycle = history.data.some((item) => item.status === 'selesai');
+          if (!cycle && !hasCompletedCycle) {
+            const created = await kalibrasiApi.create(equipmentId, buildCalibrationPayload(form));
+            cycle = created?.data;
+            if (!cycle?.id) {
+              history = await kalibrasiApi.getByEquipment(equipmentId);
+              if (!Array.isArray(history?.data)) {
+                throw new Error('Format respons histori kalibrasi tidak valid.');
+              }
+              cycle = history.data.find(
+                (item) => ['direncanakan', 'dalam_proses'].includes(item.status),
+              );
+            }
+          }
+          if (!cycle && !hasCompletedCycle) {
+            throw new Error('Siklus kalibrasi tersimpan, tetapi detail siklus tidak dapat ditemukan.');
+          }
+          if (cycle && ['direncanakan', 'dalam_proses'].includes(cycle.status)) {
+            await kalibrasiApi.complete(cycle.id, {
+              no_sertifikat: form.no_sertifikat.trim(),
+              diterbitkan_oleh: form.diterbitkan_oleh.trim(),
+              tgl_kalibrasi: form.tgl_kalibrasi,
+              sertifikat_pdf: form.sertifikat_pdf_file,
+            });
+          }
+        } else {
+          const history = await verifikasiFungsiApi.getByEquipment(equipmentId);
+          if (!Array.isArray(history?.data)) {
+            throw new Error('Format respons histori verifikasi fungsi tidak valid.');
+          }
+          if (history.data.length === 0) {
+            await verifikasiFungsiApi.create(
+              equipmentId,
+              buildFunctionVerificationPayload(form),
+              form.pdf_laporan_file,
+            );
+          }
+        }
       }
 
       // Peralatan baru berstatus Karantina dan masuk ke daftar verifikasi (menunggu verifikasi)
       toastSuccess(`Peralatan "${form.nama_peralatan}" berhasil ditambahkan dan masuk ke daftar verifikasi.`);
       onNavigate('/verifikasi');
     } catch (err) {
-      setError(err.message || 'Gagal menyimpan peralatan.');
+      const message = err.message || 'Gagal menyimpan peralatan.';
+      setError(
+        equipmentId
+          ? `${message} Peralatan ID ${equipmentId} sudah tersimpan; tekan Simpan lagi untuk melanjutkan tanpa membuat duplikat.`
+          : message,
+      );
     } finally {
       setSubmitting(false);
     }
@@ -575,7 +629,7 @@ export default function EquipmentCreate({ onNavigate }) {
                   Persyaratan Dokumen: Minimal 2 File Wajib
                 </div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--clr-dark-700)', lineHeight: '1.5' }}>
-                  Wajib menyimpan <strong>minimal 2 file dokumen</strong> untuk setiap peralatan baru (contoh: 1. Sertifikat Kalibrasi / Laporan Pemeriksaan, 2. Manual Book / Foto Seri Identifikasi).
+                  Wajib menyimpan <strong>minimal 2 file dokumen</strong> untuk setiap peralatan baru.
                 </div>
                 <div style={{ marginTop: 6 }}>
                   <span

@@ -1,5 +1,4 @@
-// export const API_BASE = (import.meta.env.VITE_API_BASE || 'sikepo-be.odeandialamsyah.my.id').replace(/\/+$/, '');
-export const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:5000').replace(/\/+$/, '');
+export const API_BASE = (import.meta.env.VITE_API_BASE || 'https://k45l2pqb-5000.asse.devtunnels.ms').replace(/\/+$/, '');
 
 const TOKEN_KEY = 'sikepo_token';
 const USER_KEY = 'sikepo_user';
@@ -428,6 +427,42 @@ export const peralatanApi = {
     return fetchFormData(`/api/peralatan/${id}/foto`, form);
   },
   getQRCodeUrl: (id) => `${API_BASE}/api/peralatan/${id}/qr`,
+};
+
+export const kalibrasiApi = {
+  create: (peralatanId, body) =>
+    fetchWithAuth(`/api/peralatan/${peralatanId}/kalibrasi`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  getByEquipment: (peralatanId) =>
+    fetchWithAuth(`/api/peralatan/${peralatanId}/kalibrasi`),
+  getById: (id) => fetchWithAuth(`/api/kalibrasi/${id}`),
+  updateStatus: (id, status) =>
+    fetchWithAuth(`/api/kalibrasi/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  complete: (id, { no_sertifikat, diterbitkan_oleh, tgl_kalibrasi, sertifikat_pdf }) => {
+    const form = new FormData();
+    form.append('no_sertifikat', no_sertifikat);
+    form.append('diterbitkan_oleh', diterbitkan_oleh);
+    form.append('tgl_kalibrasi', tgl_kalibrasi);
+    form.append('sertifikat_pdf', sertifikat_pdf);
+    return fetchFormData(`/api/kalibrasi/${id}/selesai`, form);
+  },
+};
+
+export const verifikasiFungsiApi = {
+  create: (peralatanId, body, pdfFile) => {
+    const form = new FormData();
+    form.append('data', JSON.stringify(body));
+    form.append('pdf_laporan', pdfFile);
+    return fetchFormData(`/api/peralatan/${peralatanId}/verifikasi-fungsi`, form);
+  },
+  getByEquipment: (peralatanId) =>
+    fetchWithAuth(`/api/peralatan/${peralatanId}/verifikasi-fungsi`),
+  getById: (id) => fetchWithAuth(`/api/verifikasi-fungsi/${id}`),
 };
 
 // =============================================================
