@@ -35,15 +35,17 @@ import {
   isStaffPengelola,
 } from "../../shared/utils/permissions.js";
 import { exportVerificationPdf } from "../../shared/lib/verificationPdf.js";
-import { exportEquipmentActivityLogPdf } from "../../shared/lib/equipmentActivityLogPdf.js";
+import { exportLoanF006Pdf } from "../../shared/lib/loanPdf.js";
 import { getSafeReturnPath } from "../../app/router/Router.jsx";
 
 function getLogActionValue(log) {
   const record = log.record || log;
   const verification = record.verifikasi || record;
+  if (log.jenis === "verifikasi" && verification.kode_aktivitas) {
+    return String(verification.kode_aktivitas).toUpperCase();
+  }
   return String(
     record.aksi ||
-      verification.kode_aktivitas ||
       log.title ||
       log.judul ||
       "lainnya",
@@ -53,10 +55,10 @@ function getLogActionValue(log) {
 function getLogActionLabel(log, actionValue) {
   const record = log.record || log;
   const verification = record.verifikasi || record;
-  if (record.aksi) return log.title || log.judul || record.aksi.replaceAll("_", " ");
-  if (verification.kode_aktivitas) {
+  if (log.jenis === "verifikasi" && verification.kode_aktivitas) {
     return `${verification.kode_aktivitas} — ${getActivityName(verification.kode_aktivitas)}`;
   }
+  if (record.aksi) return log.title || log.judul || record.aksi.replaceAll("_", " ");
   return log.title || log.judul || actionValue;
 }
 
@@ -560,14 +562,39 @@ export default function EquipmentDetail({
     }
   }
 
-  function handleExportActivityLogPdf() {
+  async function handleExportActivityLogPdf() {
     setLogExportError("");
     try {
-      exportEquipmentActivityLogPdf(
-        selectedActivityLog,
-        peralatan,
-        logTypeLabels[selectedActivityLog.jenis] || "Log Aktivitas",
-      );
+      if (selectedActivityLog.jenis === "verifikasi") {
+        const verificationId =
+          selectedActivityLog.record.verifikasi?.id_verifikasi ??
+          selectedActivityLog.record.id_verifikasi;
+        const verification =
+          verificationLogs.find(
+            (item) =>
+              String(item.id_verifikasi ?? item.id) ===
+              String(verificationId),
+          ) || selectedActivityLog.record.verifikasi;
+        if (!verification) {
+          throw new Error("Data verifikasi untuk PDF tidak tersedia.");
+        }
+        exportVerificationPdf(verification);
+        return;
+      }
+
+      if (selectedActivityLog.jenis !== "peminjaman") {
+        throw new Error("Ekspor PDF belum tersedia untuk jenis log ini.");
+      }
+
+      const loanId = selectedActivityLog.record.referensi_id;
+      if (!loanId) {
+        throw new Error("ID peminjaman untuk PDF tidak tersedia.");
+      }
+      const response = await peminjamanApi.getById(loanId);
+      if (!response?.success || !response.data) {
+        throw new Error(response?.message || "Data peminjaman untuk PDF tidak tersedia.");
+      }
+      await exportLoanF006Pdf(response.data);
     } catch (err) {
       setLogExportError(err.message || "Log gagal diekspor ke PDF.");
     }
@@ -1409,13 +1436,20 @@ export default function EquipmentDetail({
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: "var(--sp-2)" }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleExportActivityLogPdf}
-                  >
-                    <Printer size={14} /> Export PDF
-                  </button>
+                  {["verifikasi", "peminjaman"].includes(
+                    selectedActivityLog.jenis,
+                  ) && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleExportActivityLogPdf}
+                    >
+                      <Printer size={14} />{" "}
+                      {selectedActivityLog.jenis === "verifikasi"
+                        ? "PDF Verifikasi"
+                        : "PDF Peminjaman"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
