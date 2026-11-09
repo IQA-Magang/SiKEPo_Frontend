@@ -2,9 +2,9 @@ import React, { lazy, Suspense, useState } from 'react';
 import {
   Archive,
   ArrowLeftRight,
+  CalendarCheck,
   ChevronLeft,
   ChevronRight,
-  Bell,
   CheckCircle2,
   CircleAlert,
   CircleX,
@@ -13,9 +13,7 @@ import {
   FileText,
   FlaskConical,
   LogIn,
-  MapPin,
   Menu,
-  PenLine,
   QrCode,
   RefreshCw,
   ShieldCheck,
@@ -23,6 +21,7 @@ import {
 } from 'lucide-react';
 import sikepoLogo from '../assets/logo/tth-logo2.png';
 import telkomTestHouseLogo from '../assets/logo/tth-logo1.png';
+import isoLogo from '../assets/logo/iso.png';
 import landingWave from '../assets/landing-wave.svg';
 import '../styles/landing-page.css';
 
@@ -40,14 +39,14 @@ const statusItems = [
     label: 'Layak Pakai',
     className: 'is-ok',
     icon: CheckCircle2,
-    description: 'Bukti kelayakan berlaku lebih dari 90 hari lagi.',
+    description: 'Bukti kelayakan berlaku lebih dari 60 hari lagi.',
     availability: 'Boleh digunakan',
   },
   {
     label: 'Segera Jatuh Tempo',
     className: 'is-due',
     icon: Clock3,
-    description: 'Jatuh tempo dalam 90 hari. Jadwal kalibrasi atau verifikasi sedang disiapkan.',
+    description: 'Jatuh tempo dalam 60 hari. Jadwal kalibrasi atau verifikasi sedang disiapkan.',
     availability: 'Boleh digunakan',
   },
   {
@@ -89,40 +88,34 @@ const statusItems = [
 
 const features = [
   {
-    title: 'Register & lokasi alat',
-    description: 'Data induk, lokasi terkini, dan riwayat perpindahan setiap alat.',
-    reference: '§6.4.13 a, b, d',
-    icon: Database,
+    title: 'Pindai QR alat',
+    description: 'Lihat identitas, status kelayakan, dan jadwal alat dengan cepat.',
+    access: 'Publik',
+    icon: QrCode,
   },
   {
-    title: 'Pengingat jatuh tempo',
-    description: 'Notifikasi H−90, H−30, dan H−7 ke Manager lab, ditambah peringatan saat lewat tempo.',
-    reference: '§6.4.7',
-    icon: Bell,
+    title: 'Verifikasi peralatan',
+    description: 'Catat hasil verifikasi dan pantau proses persetujuan.',
+    access: 'Personel TTH',
+    icon: ShieldCheck,
   },
   {
-    title: 'Verifikasi & tanda tangan',
-    description: 'Ajukan verifikasi, unggah sertifikat PDF, dan setujui dengan tanda tangan digital.',
-    reference: '§6.4.4, §6.5',
-    icon: PenLine,
+    title: 'Pemeriksaan berkala',
+    description: 'Pantau jadwal kalibrasi atau verifikasi agar tidak terlewat.',
+    access: 'Personel TTH',
+    icon: CalendarCheck,
   },
   {
-    title: 'Peminjaman alat',
-    description: 'Alat yang tidak layak otomatis tidak bisa dipinjam.',
-    reference: '§6.4.3',
+    title: 'Peminjaman',
+    description: 'Ajukan peminjaman, persetujuan, serah terima, dan pengembalian alat.',
+    access: 'Personel TTH',
     icon: ArrowLeftRight,
   },
   {
-    title: 'Riwayat bukti kelayakan',
-    description: 'Sertifikat dan laporan verifikasi tersimpan utuh; status pada tanggal mana pun dapat diperiksa ulang.',
-    reference: '§6.4.9, §6.4.13 e',
+    title: 'Dokumen peralatan',
+    description: 'Simpan dan akses sertifikat serta dokumen pendukung alat.',
+    access: 'Personel TTH',
     icon: FileText,
-  },
-  {
-    title: 'Jejak audit',
-    description: 'Siapa mengubah apa, kapan, dan mengapa tercatat sebagai jejak audit.',
-    reference: '§7.11, §8.4',
-    icon: MapPin,
   },
 ];
 
@@ -331,7 +324,7 @@ export default function LandingPage({ onNavigate }) {
         <section className="lp-trust" aria-label="Informasi sistem">
           <div className="lp-container">
             <ul>
-              <li><ShieldCheck aria-hidden="true" /><span>Mengacu <strong>ISO/IEC 17025:2017 §6.4</strong></span></li>
+              <li><ShieldCheck aria-hidden="true" /><span>Mengacu Pada</span><img className="lp-iso-logo" src={isoLogo} alt="ISO/IEC 17025:2017 §6.4" /></li>
               <li><CheckCircle2 aria-hidden="true" /><span>Status <strong>dihitung otomatis</strong> dari bukti kelayakan</span></li>
               <li><Database aria-hidden="true" /><span><strong>Data alat</strong> terdaftar terpusat</span></li>
               <li><FlaskConical aria-hidden="true" /><span><strong>Data laboratorium</strong> dikelola terintegrasi</span></li>
@@ -397,16 +390,18 @@ export default function LandingPage({ onNavigate }) {
         <section className="lp-section" id="fitur">
           <div className="lp-container">
             <div className="lp-section-heading">
-              <h2>Semua kebutuhan alat lab, dalam satu sistem</h2>
-              <p>Kelola seluruh siklus peralatan, dari pencatatan hingga penghapusan, dengan data yang terpusat.</p>
+              <h2>Fitur SiKEPo</h2>
+              <p>Fitur utama untuk memantau dan mengelola peralatan laboratorium.</p>
             </div>
             <div className="lp-feature-grid">
-              {features.map(({ title, description, reference, icon: Icon }) => (
+              {features.map(({ title, description, access, icon: Icon }) => (
                 <article className="lp-feature-card" key={title}>
                   <span className="lp-feature-icon"><Icon aria-hidden="true" /></span>
-                  <h3>{title}</h3>
-                  <p>{description}</p>
-                  <span className="lp-feature-reference">{reference}</span>
+                  <div>
+                    <h3>{title}</h3>
+                    <p>{description}</p>
+                  </div>
+                  <span className="lp-feature-access">{access}</span>
                 </article>
               ))}
             </div>
