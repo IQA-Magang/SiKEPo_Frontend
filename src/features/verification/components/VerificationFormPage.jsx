@@ -257,7 +257,9 @@ export default function VerificationFormPage({
             setForm={setForm}
             equipmentInfo={equipmentInfo}
           />
-          <VerificationCertificateSection form={form} setForm={setForm} />
+          {activityCode !== "A3" && (
+            <VerificationCertificateSection form={form} setForm={setForm} />
+          )}
           <VerificationFollowUpSection
             form={form}
             setForm={setForm}
