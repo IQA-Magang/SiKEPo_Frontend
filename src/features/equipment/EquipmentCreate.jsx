@@ -122,6 +122,10 @@ export default function EquipmentCreate({ onNavigate }) {
   function setField(name, value) {
     setForm((prev) => {
       const updated = { ...prev, [name]: value };
+      if (name === 'lab_id') {
+        updated.ruangan_id = '';
+        updated.kelompok_aset_id = '';
+      }
       if (
         Number(prev.kategori_id) === 3 &&
         ['tgl_karakterisasi_terakhir', 'interval_bulan'].includes(name)
@@ -561,9 +565,11 @@ export default function EquipmentCreate({ onNavigate }) {
                 <FormField label="Kelompok Aset" htmlFor="select-kelompok" hint="Kelompok aset menentukan pengelompokan inventaris dan awalan nomor aset." hintId="help-select-kelompok" required>
                   <select id="select-kelompok" className="form-select" value={form.kelompok_aset_id} onChange={(e) => setField('kelompok_aset_id', e.target.value)} aria-describedby="help-select-kelompok">
                     <option value="">– Pilih Kelompok Aset –</option>
-                    {kelompokAset.map((k) => (
-                      <option key={k.id} value={k.id}>{k.nama} ({k.kode})</option>
-                    ))}
+                    {kelompokAset
+                      .filter((k) => form.lab_id && String(k.lab_id) === String(form.lab_id))
+                      .map((k) => (
+                        <option key={k.id} value={k.id}>{k.nama} ({k.kode})</option>
+                      ))}
                   </select>
                 </FormField>
 
