@@ -404,6 +404,22 @@ export default function EquipmentDetail({
   const outRange = isCurrentlyOut();
   const canBorrowNow = canRequestLoan && isVerified && !outRange;
   const displayStatus = isVerified ? peralatan.status_alat : "Karantina";
+  const guideDocument = peralatan.detail?.sertifikat_pdf
+    ? {
+        label: "Sertifikat Kalibrasi",
+        path: peralatan.detail.sertifikat_pdf,
+        number: peralatan.detail.no_sertifikat,
+      }
+    : peralatan.detail?.pdf_laporan
+      ? {
+          label: "Laporan Verifikasi Fungsi",
+          path: peralatan.detail.pdf_laporan,
+          number: peralatan.detail.no_laporan,
+        }
+      : null;
+  const guideDocumentUrl = guideDocument
+    ? formatPhotoUrl(guideDocument.path)
+    : null;
   const visibleDetailSection =
     activeDetailSection === "qr" && !isVerified
       ? "informasi"
@@ -725,6 +741,7 @@ export default function EquipmentDetail({
           {[
             ["informasi", "Informasi"],
             ["dokumen", "Dokumen"],
+            ["panduan-mutu", "Panduan Mutu"],
             ["qr", "QR Code"],
             ["log", "Log"],
           ]
@@ -1256,6 +1273,52 @@ export default function EquipmentDetail({
                   )}
                 </div>
               </div>
+            </section>
+          )}
+
+          {visibleDetailSection === "panduan-mutu" && (
+            <section className="card card-padded equipment-guide-card">
+              <div className="equipment-guide-heading">
+                <h2 className="card-title">Panduan Mutu</h2>
+                <p>
+                  Dokumen kalibrasi atau verifikasi fungsi untuk peralatan ini.
+                </p>
+              </div>
+              {guideDocument && guideDocumentUrl ? (
+                <div className="equipment-guide-document">
+                  <div className="equipment-guide-document-icon">
+                    <FileText size={19} />
+                  </div>
+                  <div className="equipment-guide-document-copy">
+                    <strong>{guideDocument.label}</strong>
+                    {guideDocument.number && (
+                      <span>Nomor dokumen: {guideDocument.number}</span>
+                    )}
+                  </div>
+                  <a
+                    href={guideDocumentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary btn-sm"
+                  >
+                    <Download size={14} />
+                    Lihat dokumen
+                  </a>
+                </div>
+              ) : (
+                <div className="empty-state" style={{ padding: "var(--sp-8)" }}>
+                  <div className="empty-state-icon">
+                    <FileText size={24} />
+                  </div>
+                  <p className="empty-state-title">
+                    Dokumen panduan mutu belum tersedia
+                  </p>
+                  <p className="empty-state-desc">
+                    Dokumen akan tampil setelah sertifikat kalibrasi atau
+                    laporan verifikasi fungsi diunggah.
+                  </p>
+                </div>
+              )}
             </section>
           )}
 

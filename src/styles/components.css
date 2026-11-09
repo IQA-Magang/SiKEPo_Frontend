@@ -2942,8 +2942,59 @@
 }
 
 .equipment-document-card,
-.equipment-qr-card {
+.equipment-qr-card,
+.equipment-guide-card {
   min-height: 220px;
+}
+
+.equipment-guide-heading {
+  margin-bottom: var(--sp-4);
+}
+
+.equipment-guide-heading p {
+  margin: var(--sp-1) 0 0;
+  color: var(--clr-dark-500);
+  font-size: var(--text-sm);
+}
+
+.equipment-guide-document {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--clr-dark-100);
+  border-radius: var(--radius-lg);
+  background: #fff;
+}
+
+.equipment-guide-document-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--clr-info-500);
+  background: var(--clr-info-100);
+}
+
+.equipment-guide-document-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+  color: var(--clr-dark-800);
+  font-size: var(--text-sm);
+}
+
+.equipment-guide-document-copy span {
+  color: var(--clr-dark-500);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.equipment-guide-document .btn {
+  flex: 0 0 auto;
 }
 
 @media (max-width: 992px) {
@@ -2973,6 +3024,15 @@
     justify-content: center;
     width: auto;
     min-width: max-content;
+  }
+
+  .equipment-guide-document {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .equipment-guide-document .btn {
+    margin-left: calc(42px + var(--sp-3));
   }
 
   .equipment-info-grid > div {
