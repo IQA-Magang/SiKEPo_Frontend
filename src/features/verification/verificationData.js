@@ -41,7 +41,7 @@ export const ACTIVITY_REQUIREMENTS = {
   A1: {
     identitas: "W",
     kelengkapan: "W",
-    firmware: "K",
+    firmware: "W",
     kondisi_fisik: "W",
     segel: "W",
     fungsi_awal: "W",
@@ -51,7 +51,7 @@ export const ACTIVITY_REQUIREMENTS = {
   A2: {
     identitas: "W",
     kelengkapan: "K",
-    firmware: "K",
+    firmware: "W",
     kondisi_fisik: "W",
     segel: "W",
     fungsi_awal: "W",
@@ -61,7 +61,7 @@ export const ACTIVITY_REQUIREMENTS = {
   A3: {
     identitas: "W",
     kelengkapan: "K",
-    firmware: "K",
+    firmware: "W",
     kondisi_fisik: "W",
     segel: "W",
     fungsi_awal: "W",
@@ -137,9 +137,7 @@ export function getAutomaticFollowUp(form, equipment) {
       form.hasil_verifikasi[key] === "TS",
   );
 
-  return hasNonconformingResult
-    ? FOLLOW_UP_OPTIONS[1]
-    : FOLLOW_UP_OPTIONS[0];
+  return hasNonconformingResult ? FOLLOW_UP_OPTIONS[1] : FOLLOW_UP_OPTIONS[0];
 }
 
 export function isMetrologyApplicable(equipment) {
@@ -189,7 +187,6 @@ export function isEquipmentInUserLab(equipment, roomsById, userLabId) {
 
   return roomLabId != null && String(roomLabId) === String(userLabId);
 }
-
 
 export const emptyForm = () => ({
   id_peralatan: "",
