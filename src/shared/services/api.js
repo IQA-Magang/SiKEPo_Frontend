@@ -1,4 +1,4 @@
-export const API_BASE = (import.meta.env.VITE_API_BASE || 'https://k45l2pqb-5000.asse.devtunnels.ms').replace(/\/+$/, '');
+export const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:5000').replace(/\/+$/, '');
 
 const TOKEN_KEY = 'sikepo_token';
 const USER_KEY = 'sikepo_user';
