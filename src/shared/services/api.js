@@ -455,10 +455,39 @@ export const kalibrasiApi = {
 
 export const verifikasiFungsiApi = {
   create: (peralatanId, body, pdfFile) => {
+    if (!pdfFile) {
+      return fetchWithAuth(`/api/peralatan/${peralatanId}/verifikasi-fungsi`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+    }
+
     const form = new FormData();
     form.append('data', JSON.stringify(body));
     form.append('pdf_laporan', pdfFile);
     return fetchFormData(`/api/peralatan/${peralatanId}/verifikasi-fungsi`, form);
+  },
+  updateStatus: (id, status) =>
+    fetchWithAuth(`/api/verifikasi-fungsi/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  complete: (id, {
+    tgl_pemeriksaan_terakhir,
+    tgl_jatuh_tempo,
+    pelaksana,
+    hasil,
+    no_laporan,
+    pdf_laporan,
+  }) => {
+    const form = new FormData();
+    form.append('tgl_pemeriksaan_terakhir', tgl_pemeriksaan_terakhir);
+    form.append('tgl_jatuh_tempo', tgl_jatuh_tempo);
+    form.append('pelaksana', pelaksana);
+    form.append('hasil', hasil);
+    form.append('no_laporan', no_laporan);
+    form.append('pdf_laporan', pdf_laporan);
+    return fetchFormData(`/api/verifikasi-fungsi/${id}/selesai`, form);
   },
   getByEquipment: (peralatanId) =>
     fetchWithAuth(`/api/peralatan/${peralatanId}/verifikasi-fungsi`),

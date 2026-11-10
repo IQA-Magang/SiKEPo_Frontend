@@ -75,6 +75,7 @@ export default function EquipmentCreate({ onNavigate }) {
     jenis_pemeriksaan_berkala: 'verifikasi fungsi metode tertentu',
     tgl_pemeriksaan_terakhir: '',
     tgl_jatuh_tempo: '',
+    hasil: '',
     acuan_pembanding: '',
     pelaksana: '',
     no_laporan: '',
@@ -258,19 +259,53 @@ export default function EquipmentCreate({ onNavigate }) {
             });
           }
         } else {
-          const history = await verifikasiFungsiApi.getByEquipment(equipmentId);
+          let history = await verifikasiFungsiApi.getByEquipment(equipmentId);
           if (!Array.isArray(history?.data)) {
             throw new Error('Format respons histori verifikasi fungsi tidak valid.');
           }
-          if (history.data.length === 0) {
-            await verifikasiFungsiApi.create(
+          let cycle = history.data.find((item) =>
+            ['direncanakan', 'dalam_proses'].includes(item.status),
+          );
+          if (!cycle) {
+            const created = await verifikasiFungsiApi.create(
               equipmentId,
               buildFunctionVerificationPayload(form),
-              form.pdf_laporan_file,
             );
+            cycle = created?.data;
+            if (!cycle?.id) {
+              history = await verifikasiFungsiApi.getByEquipment(equipmentId);
+              if (!Array.isArray(history?.data)) {
+                throw new Error('Format respons histori verifikasi fungsi tidak valid.');
+              }
+              cycle = history.data.find((item) =>
+                ['direncanakan', 'dalam_proses'].includes(item.status),
+              );
+            }
+          }
+          if (cycle) {
+            const detailResponse = await verifikasiFungsiApi.getById(cycle.id);
+            cycle = detailResponse?.data;
+            if (!cycle?.id) {
+              throw new Error('Detail siklus verifikasi fungsi tidak ditemukan.');
+            }
+            if (cycle.status === 'direncanakan') {
+              await verifikasiFungsiApi.updateStatus(cycle.id, 'dalam_proses');
+            } else if (cycle.status !== 'dalam_proses') {
+              throw new Error('Status siklus verifikasi fungsi tidak dapat diproses.');
+            }
+            await verifikasiFungsiApi.complete(cycle.id, {
+              tgl_pemeriksaan_terakhir: form.tgl_pemeriksaan_terakhir,
+              tgl_jatuh_tempo: form.tgl_jatuh_tempo,
+              pelaksana: form.pelaksana.trim(),
+              hasil: form.hasil,
+              no_laporan: form.no_laporan.trim(),
+              pdf_laporan: form.pdf_laporan_file,
+            });
           }
         }
       }
+
+      
 
       // Peralatan baru berstatus Karantina dan masuk ke daftar verifikasi (menunggu verifikasi)
       toastSuccess(`Peralatan "${form.nama_peralatan}" berhasil ditambahkan dan masuk ke daftar verifikasi.`);

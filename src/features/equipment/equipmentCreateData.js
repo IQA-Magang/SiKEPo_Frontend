@@ -101,6 +101,7 @@ export function getEquipmentStepValidationError(form, step, photoFile, documentC
           ['jenis_pemeriksaan_berkala', 'Jenis verifikasi fungsi wajib dipilih.'],
           ['tgl_pemeriksaan_terakhir', 'Tanggal pemeriksaan terakhir wajib diisi.'],
           ['tgl_jatuh_tempo', 'Tanggal jatuh tempo verifikasi wajib diisi.'],
+          ['hasil', 'Hasil verifikasi fungsi wajib dipilih.'],
           ['acuan_pembanding', 'Acuan pembanding wajib diisi.'],
           ['pelaksana', 'Pelaksana verifikasi wajib diisi.'],
           ['no_laporan', 'Nomor laporan wajib diisi.'],
@@ -226,12 +227,10 @@ export function buildCalibrationPayload(form) {
 export function buildFunctionVerificationPayload(form) {
   return {
     jenis_pemeriksaan_berkala: form.jenis_pemeriksaan_berkala,
-    tgl_pemeriksaan_terakhir: toIsoDate(form.tgl_pemeriksaan_terakhir),
+    status: 'direncanakan',
     tgl_jatuh_tempo: toIsoDate(form.tgl_jatuh_tempo),
     fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
     acuan_pembanding: form.acuan_pembanding.trim(),
-    pelaksana: form.pelaksana.trim(),
-    no_laporan: form.no_laporan.trim(),
   };
 }
 
