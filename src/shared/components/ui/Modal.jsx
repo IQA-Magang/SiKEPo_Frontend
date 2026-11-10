@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Button from './Button.jsx';
 
 export default function Modal({
@@ -29,7 +30,7 @@ export default function Modal({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="ui-modal-backdrop" onClick={onClose}>
       <div
         className={['ui-modal', `ui-modal--${size}`, className].filter(Boolean).join(' ')}
@@ -53,6 +54,7 @@ export default function Modal({
         <div className="ui-modal__body">{children}</div>
         {footer && <div className="ui-modal__footer">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
