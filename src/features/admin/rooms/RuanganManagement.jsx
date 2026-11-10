@@ -104,7 +104,7 @@ export default function RuanganManagement() {
     setError('');
 
     try {
-      const payload = createRoomPayload(form);
+      const payload = createRoomPayload(form, modal.mode);
 
       if (modal.mode === 'create') {
         await ruanganApi.create(payload);

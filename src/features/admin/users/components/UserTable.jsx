@@ -20,7 +20,7 @@ export default function UserTable({
   const columns = [
     {
       key: 'number',
-      header: '#',
+      header: 'No.',
       headerStyle: { width: 48 },
       render: (_, index) => pagination.startIndex + index + 1,
       cellStyle: { color: 'var(--clr-dark-400)' },
@@ -59,7 +59,7 @@ export default function UserTable({
             <IconButton
               icon={<Pencil size={13} />}
               label={`Edit pengguna ${user.name}`}
-              variant="secondary"
+              variant="ghost"
               className="btn-action-icon"
               onClick={() => onEdit(user)}
               id={`btn-edit-user-${user.user_id}`}
@@ -71,8 +71,8 @@ export default function UserTable({
             <IconButton
               icon={<Trash2 size={13} />}
               label={`Hapus pengguna ${user.name}`}
-              variant="secondary"
-              className="btn-action-icon btn-action-delete"
+              variant="danger"
+              className="btn-action-icon"
               onClick={() => onDelete(user.user_id)}
               disabled={deleting === user.user_id}
               id={`btn-hapus-user-${user.user_id}`}

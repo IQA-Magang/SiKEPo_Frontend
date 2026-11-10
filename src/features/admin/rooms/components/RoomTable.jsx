@@ -18,7 +18,7 @@ export default function RoomTable({
   const columns = [
     {
       key: 'number',
-      header: '#',
+      header: 'No.',
       headerStyle: { width: 48 },
       render: (_, index) => pagination.startIndex + index + 1,
       cellStyle: { color: 'var(--clr-dark-400)' },
@@ -84,7 +84,7 @@ export default function RoomTable({
             <IconButton
               icon={<Pencil size={13} />}
               label={`Edit ruangan ${room.nama_ruangan}`}
-              variant="secondary"
+              variant="ghost"
               className="btn-action-icon"
               onClick={() => onEdit(room)}
               id={`btn-edit-ruangan-${room.id}`}
@@ -96,8 +96,8 @@ export default function RoomTable({
             <IconButton
               icon={<Trash2 size={13} />}
               label={`Hapus ruangan ${room.nama_ruangan}`}
-              variant="secondary"
-              className="btn-action-icon btn-action-delete"
+              variant="danger"
+              className="btn-action-icon"
               onClick={() => onDelete(room.id)}
               disabled={deleting === room.id}
               id={`btn-hapus-ruangan-${room.id}`}
