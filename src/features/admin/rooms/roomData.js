@@ -17,20 +17,25 @@ export function createRoomForm(room) {
 }
 
 export function getRoomValidationError(form) {
-  return !form.nama_ruangan.trim() || !form.kode_ruangan.trim() ||
-    !form.lantai_ruangan.trim() || !form.labs_id || !form.pic_user_id
-    ? 'Kode Ruangan, Nama Ruangan, Lantai, Laboratorium, dan PIC Ruangan wajib diisi.'
+  return !form.nama_ruangan.trim() || !form.lantai_ruangan.trim() ||
+    !form.labs_id || !form.pic_user_id
+    ? 'Nama Ruangan, Lantai, Laboratorium, dan PIC Ruangan wajib diisi.'
     : '';
 }
 
-export function createRoomPayload(form) {
-  return {
+export function createRoomPayload(form, mode) {
+  const payload = {
     nama_ruangan: form.nama_ruangan.trim(),
-    kode_ruangan: form.kode_ruangan.trim().toUpperCase(),
     lantai_ruangan: form.lantai_ruangan.trim(),
     labs_id: form.labs_id ? Number(form.labs_id) : null,
     pic_user_id: form.pic_user_id ? Number(form.pic_user_id) : null,
   };
+
+  if (mode === 'edit' && form.kode_ruangan) {
+    payload.kode_ruangan = form.kode_ruangan.trim().toUpperCase();
+  }
+
+  return payload;
 }
 
 export function filterRooms(rooms, { search, labId }) {

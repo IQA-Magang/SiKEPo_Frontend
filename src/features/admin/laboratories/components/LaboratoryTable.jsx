@@ -17,7 +17,7 @@ export default function LaboratoryTable({
   const columns = [
     {
       key: 'number',
-      header: '#',
+      header: 'No.',
       headerStyle: { width: 48 },
       render: (_, index) => pagination.startIndex + index + 1,
       cellStyle: { color: 'var(--clr-dark-400)' },
