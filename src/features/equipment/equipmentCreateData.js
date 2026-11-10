@@ -99,6 +99,7 @@ export function getEquipmentStepValidationError(form, step, photoFile, documentC
       } else {
         const verificationFields = [
           ['jenis_pemeriksaan_berkala', 'Jenis verifikasi fungsi wajib dipilih.'],
+          ['interval_bulan', 'Interval verifikasi fungsi wajib dipilih.'],
           ['tgl_pemeriksaan_terakhir', 'Tanggal pemeriksaan terakhir wajib diisi.'],
           ['tgl_jatuh_tempo', 'Tanggal jatuh tempo verifikasi wajib diisi.'],
           ['hasil', 'Hasil verifikasi fungsi wajib dipilih.'],
@@ -108,7 +109,9 @@ export function getEquipmentStepValidationError(form, step, photoFile, documentC
           ['pdf_laporan_file', 'Dokumen laporan verifikasi wajib diunggah.'],
         ];
         for (const [field, message] of verificationFields) {
-          if (field === 'pdf_laporan_file') {
+          if (field === 'interval_bulan') {
+            if (![12, 24, 36].includes(Number(form[field]))) return message;
+          } else if (field === 'pdf_laporan_file') {
             const file = form[field];
             if (!file) return message;
             if (!/\.pdf$/i.test(file.name) || file.type && file.type !== 'application/pdf') {
@@ -228,6 +231,7 @@ export function buildFunctionVerificationPayload(form) {
   return {
     jenis_pemeriksaan_berkala: form.jenis_pemeriksaan_berkala,
     status: 'direncanakan',
+    interval_bulan: Number(form.interval_bulan),
     tgl_jatuh_tempo: toIsoDate(form.tgl_jatuh_tempo),
     fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
     acuan_pembanding: form.acuan_pembanding.trim(),

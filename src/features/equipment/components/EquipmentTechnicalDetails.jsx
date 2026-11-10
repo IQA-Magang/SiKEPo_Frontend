@@ -94,14 +94,19 @@ function PeriodicActivityFields({ form, setField }) {
             onChange={(event) => setField('lab_kalibrasi', event.target.value)}
             placeholder="Laboratorium Kalibrasi ABC"
           />
-          <DetailInputField
-            id="d-interval-kalibrasi"
-            label="Interval Kalibrasi (Bulan)"
-            type="number"
-            value={form.interval_bulan}
-            onChange={(event) => setField('interval_bulan', event.target.value)}
-            placeholder="12"
-          />
+          <FormField label="Interval Kalibrasi" htmlFor="d-interval-kalibrasi" required>
+            <select
+              id="d-interval-kalibrasi"
+              className="form-select"
+              value={form.interval_bulan}
+              onChange={(event) => setField('interval_bulan', event.target.value)}
+            >
+              <option value="">Pilih interval</option>
+              <option value="12">1 tahun (12 bulan)</option>
+              <option value="24">2 tahun (24 bulan)</option>
+              <option value="36">3 tahun (36 bulan)</option>
+            </select>
+          </FormField>
           <DetailInputField
             id="d-tanggal-keluar"
             label="Tanggal Keluar"
@@ -169,6 +174,19 @@ function PeriodicActivityFields({ form, setField }) {
             >
               <option value="verifikasi fungsi metode tertentu">Verifikasi fungsi metode tertentu</option>
               <option value="verifikasi fungsi uji banding">Verifikasi fungsi uji banding</option>
+            </select>
+          </FormField>
+          <FormField label="Interval Verifikasi Fungsi" htmlFor="d-interval-verifikasi" required>
+            <select
+              id="d-interval-verifikasi"
+              className="form-select"
+              value={form.interval_bulan}
+              onChange={(event) => setField('interval_bulan', event.target.value)}
+            >
+              <option value="">Pilih interval</option>
+              <option value="12">1 tahun (12 bulan)</option>
+              <option value="24">2 tahun (24 bulan)</option>
+              <option value="36">3 tahun (36 bulan)</option>
             </select>
           </FormField>
           <DetailInputField
