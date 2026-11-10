@@ -199,6 +199,18 @@ function PeriodicActivityFields({ form, setField }) {
             onChange={(event) => setField('pelaksana', event.target.value)}
             placeholder="Nama Pelaksana"
           />
+          <FormField label="Hasil Verifikasi Fungsi" htmlFor="d-hasil-verifikasi" required>
+            <select
+              id="d-hasil-verifikasi"
+              className="form-select"
+              value={form.hasil}
+              onChange={(event) => setField('hasil', event.target.value)}
+            >
+              <option value="">Pilih hasil</option>
+              <option value="sesuai">Sesuai</option>
+              <option value="tidak sesuai">Tidak Sesuai</option>
+            </select>
+          </FormField>
           <DetailInputField
             id="d-no-laporan-verifikasi"
             label="No. Laporan"
