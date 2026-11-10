@@ -15,6 +15,8 @@ import {
   fetchBlobWithAuth,
   peralatanApi,
   dokumenApi,
+  kalibrasiApi,
+  verifikasiFungsiApi,
   verifikasiApi,
   kelompokAssetApi,
   ruanganApi,
@@ -108,6 +110,8 @@ export default function EquipmentDetail({
   const [peralatan, setPeralatan] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [dokumen, setDokumen] = useState([]);
+  const [guideDocuments, setGuideDocuments] = useState([]);
+  const [guideLoadError, setGuideLoadError] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState("");
@@ -231,6 +235,8 @@ export default function EquipmentDetail({
     setLoading(true);
     setPeralatan(null);
     setLoadError("");
+    setGuideDocuments([]);
+    setGuideLoadError("");
     setReviewLogError("");
     setVerificationLogError("");
     setVerificationActionLogs([]);
@@ -260,6 +266,65 @@ export default function EquipmentDetail({
         setPeralatan(
           item ? { ...item, detail: result?.detail ?? item.detail } : null,
         );
+        if (item) {
+          const categoryId = getEquipmentCategoryId(item);
+          const peralatanId = getEquipmentId(item);
+          const guideApi =
+            categoryId === 1
+              ? kalibrasiApi
+              : categoryId === 2
+                ? verifikasiFungsiApi
+                : null;
+
+          if (guideApi && peralatanId) {
+            try {
+              const response = await guideApi.getByEquipment(peralatanId);
+              if (!Array.isArray(response?.data)) {
+                throw new Error(
+                  "Format respons dokumen panduan mutu tidak valid.",
+                );
+              }
+
+              const isCalibration = categoryId === 1;
+              setGuideDocuments(
+                response.data
+                  .filter(
+                    (record) =>
+                      record.status === "selesai" &&
+                      typeof (isCalibration
+                        ? record.sertifikat_pdf
+                        : record.pdf_laporan) === "string" &&
+                      (isCalibration
+                        ? record.sertifikat_pdf
+                        : record.pdf_laporan).trim(),
+                  )
+                  .map((record) => {
+                    const path = isCalibration
+                      ? record.sertifikat_pdf
+                      : record.pdf_laporan;
+                    return {
+                      id: record.id,
+                      label: isCalibration
+                        ? "Sertifikat Kalibrasi"
+                        : "Laporan Verifikasi Fungsi",
+                      number: isCalibration
+                        ? record.no_sertifikat
+                        : record.no_laporan,
+                      date: isCalibration
+                        ? record.tgl_kalibrasi
+                        : record.tgl_pemeriksaan_terakhir,
+                      url: formatPhotoUrl(path),
+                    };
+                  })
+                  .filter((document) => document.url),
+              );
+            } catch (err) {
+              setGuideLoadError(
+                err?.message || "Gagal memuat dokumen panduan mutu.",
+              );
+            }
+          }
+        }
       } else {
         setLoadError(
           equipmentRes.reason?.message || "Gagal memuat data peralatan.",
@@ -404,22 +469,6 @@ export default function EquipmentDetail({
   const outRange = isCurrentlyOut();
   const canBorrowNow = canRequestLoan && isVerified && !outRange;
   const displayStatus = isVerified ? peralatan.status_alat : "Karantina";
-  const guideDocument = peralatan.detail?.sertifikat_pdf
-    ? {
-        label: "Sertifikat Kalibrasi",
-        path: peralatan.detail.sertifikat_pdf,
-        number: peralatan.detail.no_sertifikat,
-      }
-    : peralatan.detail?.pdf_laporan
-      ? {
-          label: "Laporan Verifikasi Fungsi",
-          path: peralatan.detail.pdf_laporan,
-          number: peralatan.detail.no_laporan,
-        }
-      : null;
-  const guideDocumentUrl = guideDocument
-    ? formatPhotoUrl(guideDocument.path)
-    : null;
   const visibleDetailSection =
     activeDetailSection === "qr" && !isVerified
       ? "informasi"
@@ -1280,30 +1329,50 @@ export default function EquipmentDetail({
             <section className="card card-padded equipment-guide-card">
               <div className="equipment-guide-heading">
                 <h2 className="card-title">Panduan Mutu</h2>
-                <p>
+                {/* <p>
                   Dokumen kalibrasi atau verifikasi fungsi untuk peralatan ini.
-                </p>
+                </p> */}
               </div>
-              {guideDocument && guideDocumentUrl ? (
-                <div className="equipment-guide-document">
-                  <div className="equipment-guide-document-icon">
-                    <FileText size={19} />
+              {guideDocuments.length > 0 ? (
+                <div style={{ display: "grid", gap: "var(--sp-3)" }}>
+                  {guideDocuments.map((document) => (
+                    <div
+                      className="equipment-guide-document"
+                      key={`${document.label}-${document.id}`}
+                    >
+                      <div className="equipment-guide-document-icon">
+                        <FileText size={19} />
+                      </div>
+                      <div className="equipment-guide-document-copy">
+                        <strong>{document.label}</strong>
+                        {document.number && (
+                          <span>Nomor dokumen: {document.number}</span>
+                        )}
+                        {document.date && (
+                          <span>Tanggal: {formatTgl(document.date)}</span>
+                        )}
+                      </div>
+                      <a
+                        href={document.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-primary btn-sm"
+                      >
+                        <Download size={14} />
+                        Lihat dokumen
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              ) : guideLoadError ? (
+                <div className="empty-state" style={{ padding: "var(--sp-8)" }}>
+                  <div className="empty-state-icon">
+                    <FileText size={24} />
                   </div>
-                  <div className="equipment-guide-document-copy">
-                    <strong>{guideDocument.label}</strong>
-                    {guideDocument.number && (
-                      <span>Nomor dokumen: {guideDocument.number}</span>
-                    )}
-                  </div>
-                  <a
-                    href={guideDocumentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-primary btn-sm"
-                  >
-                    <Download size={14} />
-                    Lihat dokumen
-                  </a>
+                  <p className="empty-state-title">
+                    Dokumen panduan mutu gagal dimuat
+                  </p>
+                  <p className="empty-state-desc">{guideLoadError}</p>
                 </div>
               ) : (
                 <div className="empty-state" style={{ padding: "var(--sp-8)" }}>
