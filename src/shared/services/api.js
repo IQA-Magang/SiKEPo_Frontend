@@ -495,22 +495,74 @@ export const verifikasiFungsiApi = {
 };
 
 // =============================================================
-// JADWAL PEMERIKSAAN BERKALA — /api/jadwal-pemeriksaan-berkala
+// PENGECEKAN ANTARA — /api/pengecekan-antara
 // =============================================================
-export const jadwalPemeriksaanBerkalaApi = {
-  getAll: () => fetchWithAuth('/api/jadwal-pemeriksaan-berkala/'),
-  getById: (id) => fetchWithAuth(`/api/jadwal-pemeriksaan-berkala/${id}`),
+export const pengecekanAntaraApi = {
+  getAll: () => fetchWithAuth('/api/pengecekan-antara/'),
+  getById: (id) => fetchWithAuth(`/api/pengecekan-antara/${id}`),
   create: (body) =>
-    fetchWithAuth('/api/jadwal-pemeriksaan-berkala/', {
+    fetchWithAuth('/api/pengecekan-antara/', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  updateRealisasi: (id, tanggalRealisasi) =>
-    fetchWithAuth(`/api/jadwal-pemeriksaan-berkala/${id}/realisasi`, {
-      method: 'PUT',
-      body: JSON.stringify({ tanggal_realisasi: tanggalRealisasi }),
+  updateRealisasi: (id, body) =>
+    fetchWithAuth(`/api/pengecekan-antara/${id}/realisasi`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  review: (id, body) =>
+    fetchWithAuth(`/api/pengecekan-antara/${id}/review`, {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
 };
+
+// =============================================================
+// PEMELIHARAAN — /api/pemeliharaan
+// =============================================================
+export const pemeliharaanApi = {
+  getAll: () => fetchWithAuth('/api/pemeliharaan/'),
+  getById: (id) => fetchWithAuth(`/api/pemeliharaan/${id}`),
+  create: (body) =>
+    fetchWithAuth('/api/pemeliharaan/', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateRealisasi: (id, body) =>
+    fetchWithAuth(`/api/pemeliharaan/${id}/realisasi`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  review: (id, body) =>
+    fetchWithAuth(`/api/pemeliharaan/${id}/review`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+};
+
+export function normalizePemeriksaanSchedule(schedule, jenisJadwal) {
+  return {
+    ...schedule,
+    id: `${jenisJadwal}-${schedule.id}`,
+    record_id: schedule.id,
+    jenis_jadwal: jenisJadwal,
+    peran_jadwal: 'tambahan',
+  };
+}
+
+export async function getAllPemeriksaanSchedules() {
+  const [pengecekanResponse, pemeliharaanResponse] = await Promise.all([
+    pengecekanAntaraApi.getAll(),
+    pemeliharaanApi.getAll(),
+  ]);
+  if (!Array.isArray(pengecekanResponse?.data) || !Array.isArray(pemeliharaanResponse?.data)) {
+    throw new Error('Format respons pengecekan antara atau pemeliharaan tidak valid.');
+  }
+  return [
+    ...pengecekanResponse.data.map((schedule) => normalizePemeriksaanSchedule(schedule, 'pengecekan_antara')),
+    ...pemeliharaanResponse.data.map((schedule) => normalizePemeriksaanSchedule(schedule, 'pemeliharaan')),
+  ];
+}
 
 // =============================================================
 // KATEGORI PERALATAN  — /api/kategori-peralatan

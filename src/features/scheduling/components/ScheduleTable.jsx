@@ -17,6 +17,7 @@ export default function ScheduleTable({
   pagination,
   onRecordRealization,
   onOpenDetails,
+  canManage,
 }) {
   const columns = [
     {
@@ -56,7 +57,7 @@ export default function ScheduleTable({
     },
     {
       key: "type",
-      header: "Jenis pemeriksaan",
+      header: "Jenis jadwal",
       headerStyle: { minWidth: 180 },
       render: (schedule) => (
         <div className="schedule-list-type">
@@ -107,10 +108,16 @@ export default function ScheduleTable({
       headerStyle: { minWidth: 150 },
       render: (schedule) => {
         const status = getScheduleStatusInfo(getScheduleStatus(schedule));
+        const workflowStatus = schedule.status_realisasi;
         return (
-          <span className={`schedule-status-chip ${status.className}`}>
-            {status.label}
-          </span>
+          <div className="schedule-status-stack">
+            <span className={`schedule-status-chip ${status.className}`}>{status.label}</span>
+            {workflowStatus && workflowStatus !== "Terjadwal" && (
+              <span className={`schedule-workflow-status${workflowStatus === "Disetujui" ? " is-approved" : workflowStatus === "Ditolak" ? " is-rejected" : " is-pending"}`}>
+                {workflowStatus === "Menunggu Verifikasi" ? "Menunggu persetujuan Manager" : workflowStatus}
+              </span>
+            )}
+          </div>
         );
       },
     },
@@ -132,7 +139,9 @@ export default function ScheduleTable({
       header: "Aksi",
       headerStyle: { width: 155, textAlign: "right" },
       cellStyle: { textAlign: "right", whiteSpace: "nowrap" },
-      render: (schedule) => (
+      render: (schedule) => canManage
+        && ["pengecekan_antara", "pemeliharaan"].includes(schedule.jenis_jadwal)
+        && schedule.status_realisasi !== "Menunggu Verifikasi" ? (
         <Button
           variant="secondary"
           size="sm"
@@ -142,7 +151,7 @@ export default function ScheduleTable({
         >
           Catat hasil
         </Button>
-      ),
+      ) : <span className="schedule-action-hint">{schedule.status_realisasi === "Menunggu Verifikasi" ? "Menunggu persetujuan" : "—"}</span>,
     },
   ];
 

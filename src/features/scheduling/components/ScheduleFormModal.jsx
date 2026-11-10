@@ -9,7 +9,13 @@ export default function ScheduleFormModal({
   onChange,
   availableEquipment,
   saving,
+  allowAllFrequencies = false,
 }) {
+  const scheduleLabel = form.jenis_jadwal === "pengecekan_antara"
+    ? "Pengecekan Antara"
+    : form.jenis_jadwal === "pemeliharaan"
+      ? "Pemeliharaan"
+      : "Pengecekan / Pemeliharaan";
   const footer = (
     <>
       <Button variant="secondary" onClick={onClose} disabled={saving}>
@@ -17,6 +23,7 @@ export default function ScheduleFormModal({
       </Button>
       <Button
         type="submit"
+        form="schedule-create-form"
         variant="primary"
         disabled={saving || availableEquipment.length === 0}
       >
@@ -26,16 +33,16 @@ export default function ScheduleFormModal({
   );
 
   return (
-    <form onSubmit={onSubmit}>
-      <Modal
-        isOpen={isOpen}
-        onClose={saving ? undefined : onClose}
-        title="Buat Jadwal Pemeriksaan"
-        description="Satu peralatan akan mendapat jadwal utama dan jadwal tambahan."
-        size="xl"
-        className="schedule-form-modal"
-        footer={footer}
-      >
+    <Modal
+      isOpen={isOpen}
+      onClose={saving ? undefined : onClose}
+      title={`Buat Jadwal ${scheduleLabel}`}
+      description="Pengecekan antara dan pemeliharaan tersimpan sebagai jadwal terpisah."
+      size="xl"
+      className="schedule-form-modal"
+      footer={footer}
+    >
+      <form id="schedule-create-form" onSubmit={onSubmit}>
         <div className="form-grid">
           <FormField label="Peralatan" htmlFor="schedule-equipment" required>
             <select
@@ -56,34 +63,19 @@ export default function ScheduleFormModal({
             </select>
             {availableEquipment.length === 0 && (
               <span className="form-hint">
-                Semua peralatan sudah memiliki jadwal.
+                Semua peralatan sudah memiliki jadwal untuk jenis ini.
               </span>
             )}
-          </FormField>
-
-          <FormField label="Pemeriksaan Utama" htmlFor="schedule-main-type" required>
-            <select
-              id="schedule-main-type"
-              className="form-select"
-              name="jenis_utama"
-              value={form.jenis_utama}
-              onChange={onChange}
-              required
-            >
-              <option value="">Pilih jenis pemeriksaan</option>
-              <option value="kalibrasi">Kalibrasi</option>
-              <option value="verifikasi_fungsi">Verifikasi Fungsi</option>
-            </select>
           </FormField>
 
           <FormField
             label="Frekuensi Penggunaan"
             htmlFor="schedule-frequency"
-            hint={form.frekuensi_penggunaan === "tinggi"
-              ? "Jadwal tambahan: pengecekan antara."
-              : ["sedang", "rendah"].includes(form.frekuensi_penggunaan)
-                ? "Jadwal tambahan: pemeliharaan."
-                : "Pilih frekuensi untuk menentukan jenis jadwal tambahan."}
+            hint={form.jenis_jadwal === "pengecekan_antara"
+              ? "Pengecekan antara digunakan untuk peralatan dengan frekuensi tinggi."
+              : form.jenis_jadwal === "pemeliharaan"
+                ? "Pemeliharaan digunakan untuk peralatan dengan frekuensi sedang atau rendah."
+                : "Frekuensi tinggi membuat jadwal pengecekan antara; frekuensi sedang atau rendah untuk pemeliharaan."}
             required
           >
             <select
@@ -95,35 +87,26 @@ export default function ScheduleFormModal({
               required
             >
               <option value="">Pilih frekuensi penggunaan</option>
-              <option value="tinggi">Tinggi</option>
-              <option value="sedang">Sedang</option>
-              <option value="rendah">Rendah</option>
+              {(allowAllFrequencies || form.jenis_jadwal === "pengecekan_antara" || !form.jenis_jadwal) && <option value="tinggi">Tinggi</option>}
+              {(allowAllFrequencies || form.jenis_jadwal === "pemeliharaan" || !form.jenis_jadwal) && (
+                <>
+                  <option value="sedang">Sedang</option>
+                  <option value="rendah">Rendah</option>
+                </>
+              )}
             </select>
           </FormField>
 
-          <FormField label="Interval Utama (bulan)" htmlFor="schedule-main-interval" required>
+          <FormField label="Interval (bulan)" htmlFor="schedule-interval" required>
             <input
-              id="schedule-main-interval"
+              id="schedule-interval"
               className="form-input"
               type="number"
-              name="interval_utama"
+              name="interval_bulan"
               min="1"
+              max="120"
               step="1"
-              value={form.interval_utama}
-              onChange={onChange}
-              required
-            />
-          </FormField>
-
-          <FormField label="Interval Tambahan (bulan)" htmlFor="schedule-extra-interval" required>
-            <input
-              id="schedule-extra-interval"
-              className="form-input"
-              type="number"
-              name="interval_tambahan"
-              min="1"
-              step="1"
-              value={form.interval_tambahan}
+              value={form.interval_bulan}
               onChange={onChange}
               required
             />
@@ -141,50 +124,29 @@ export default function ScheduleFormModal({
             />
           </FormField>
 
-          <FormField label="Metode" htmlFor="schedule-method">
-            <input
-              id="schedule-method"
-              className="form-input"
-              name="metode"
-              value={form.metode}
-              onChange={onChange}
-            />
-          </FormField>
-
-          <FormField
-            label={form.jenis_utama === "kalibrasi" ? "Nomor Sertifikat" : "Nomor Laporan"}
-            htmlFor="schedule-document"
-          >
-            <input
-              id="schedule-document"
-              className="form-input"
-              name="nomor_dokumen"
-              value={form.nomor_dokumen}
-              onChange={onChange}
-            />
-          </FormField>
-
-          {form.jenis_utama === "kalibrasi" && (
-            <FormField label="Alat Standar / Benda Uji" htmlFor="schedule-standard">
+          {form.jenis_jadwal === "pengecekan_antara" && (
+            <FormField label="Acuan pembanding (opsional)" htmlFor="schedule-reference">
               <input
-                id="schedule-standard"
+                id="schedule-reference"
                 className="form-input"
-                name="alat_standar_benda_uji"
-                value={form.alat_standar_benda_uji}
+                name="acuan_pembanding"
+                value={form.acuan_pembanding}
                 onChange={onChange}
               />
             </FormField>
           )}
 
-          <FormField label="Jenis Pemeliharaan" htmlFor="schedule-maintenance">
-            <input
-              id="schedule-maintenance"
-              className="form-input"
-              name="jenis_pemeliharaan"
-              value={form.jenis_pemeliharaan}
-              onChange={onChange}
-            />
-          </FormField>
+          {form.jenis_jadwal === "pemeliharaan" && (
+            <FormField label="Jenis Pemeliharaan" htmlFor="schedule-maintenance">
+              <input
+                id="schedule-maintenance"
+                className="form-input"
+                name="jenis_pemeliharaan"
+                value={form.jenis_pemeliharaan}
+                onChange={onChange}
+              />
+            </FormField>
+          )}
 
           <FormField label="PIC" htmlFor="schedule-pic">
             <input
@@ -207,7 +169,7 @@ export default function ScheduleFormModal({
             />
           </FormField>
         </div>
-      </Modal>
-    </form>
+      </form>
+    </Modal>
   );
 }

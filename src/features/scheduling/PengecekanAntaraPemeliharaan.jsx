@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   CalendarClock,
+  CheckCircle2,
   Grid2X2,
   Plus,
+  XCircle,
 } from "lucide-react";
 import { useToast } from "../../app/providers/ToastContext.jsx";
 import {
@@ -16,11 +18,15 @@ import TableFilters from "../../shared/components/ui/TableFilters.jsx";
 import { usePagination } from "../../shared/components/ui/Pagination.jsx";
 import {
   getCurrentUser,
+  getAllPemeriksaanSchedules,
   getEquipmentId,
-  jadwalPemeriksaanBerkalaApi,
+  pengecekanAntaraApi,
+  pemeliharaanApi,
   peralatanApi,
   ruanganApi,
 } from "../../shared/services/api.js";
+import { getUserRole, isStaffPengelola } from "../../shared/utils/permissions.js";
+import InspectionTabs from "../inspection/InspectionTabs.jsx";
 import ScheduleFormModal from "./components/ScheduleFormModal.jsx";
 import ScheduleRealizationModal from "./components/ScheduleRealizationModal.jsx";
 import ScheduleEquipmentTable from "./components/ScheduleEquipmentTable.jsx";
@@ -28,6 +34,7 @@ import ScheduleEquipmentDetailPanel from "./components/ScheduleEquipmentDetailPa
 import ScheduleTable from "./components/ScheduleTable.jsx";
 import {
   getDaysUntilDue,
+  formatDate,
   getScheduleStatus,
   getScheduleStatusInfo,
   getScheduleStatusOrder,
@@ -38,8 +45,6 @@ import {
 import "./scheduling.css";
 
 const SCHEDULE_TYPES = [
-  { key: "kalibrasi", label: "Kalibrasi" },
-  { key: "verifikasi_fungsi", label: "Verifikasi Fungsi" },
   { key: "pengecekan_antara", label: "Pengecekan Antara" },
   { key: "pemeliharaan", label: "Pemeliharaan" },
 ];
@@ -52,8 +57,11 @@ const SCHEDULE_STATUS_OPTIONS = [
   { key: "safe", label: "Aman" },
 ];
 
-export default function JadwalPemeriksaanBerkala() {
+export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
   const { success, error } = useToast();
+  const currentUser = getCurrentUser();
+  const userRole = getUserRole(currentUser);
+  const canReviewSchedules = userRole === "manager" || userRole === "admin";
   const [schedules, setSchedules] = useState([]);
   const [equipment, setEquipment] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -61,28 +69,44 @@ export default function JadwalPemeriksaanBerkala() {
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [form, setForm] = useState(INITIAL_SCHEDULE_FORM);
+  const [form, setForm] = useState(() => ({
+    ...INITIAL_SCHEDULE_FORM,
+    jenis_jadwal: initialType,
+  }));
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState(initialType);
   const [labFilter, setLabFilter] = useState("");
   const [onlyMyEquipment, setOnlyMyEquipment] = useState(false);
-  const [showAllStatuses, setShowAllStatuses] = useState(false);
-  const [activeView, setActiveView] = useState("actions");
+  const [showAllStatuses, setShowAllStatuses] = useState(true);
+  const [activeView, setActiveView] = useState(() => (
+    userRole === "manager" ? "review" : "actions"
+  ));
+  const [reviewNotes, setReviewNotes] = useState({});
   const [realizationTarget, setRealizationTarget] = useState(null);
-  const [realizationDate, setRealizationDate] = useState("");
+  const [realizationForm, setRealizationForm] = useState({
+    tanggal_realisasi: "",
+    acuan_pembanding: "",
+    nilai_acuan: "",
+    batas_toleransi: "",
+    pembacaan: ["", "", "", "", ""],
+    versi_perangkat_lunak: "",
+    daftar_pekerjaan: [],
+    temuan: "",
+    menyentuh_komponen: false,
+  });
   const [selectedEquipmentId, setSelectedEquipmentId] = useState(null);
 
   async function loadData() {
     setLoading(true);
     setLoadError("");
     try {
-      const [scheduleResponse, equipmentResponse, roomResponse] = await Promise.all([
-        jadwalPemeriksaanBerkalaApi.getAll(),
+      const [scheduleData, equipmentResponse, roomResponse] = await Promise.all([
+        getAllPemeriksaanSchedules(),
         peralatanApi.getAll(),
         ruanganApi.getAll(),
       ]);
-      if (!Array.isArray(scheduleResponse?.data)) {
+      if (!Array.isArray(scheduleData)) {
         throw new Error("Format respons data jadwal tidak valid.");
       }
       if (!Array.isArray(equipmentResponse?.data)) {
@@ -91,7 +115,7 @@ export default function JadwalPemeriksaanBerkala() {
       if (!Array.isArray(roomResponse?.data)) {
         throw new Error("Format respons data ruangan tidak valid.");
       }
-      setSchedules(scheduleResponse.data);
+      setSchedules(scheduleData);
       setEquipment(equipmentResponse.data);
       setRooms(roomResponse.data);
     } catch (err) {
@@ -106,6 +130,15 @@ export default function JadwalPemeriksaanBerkala() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    setTypeFilter(initialType);
+    setForm((previous) => ({
+      ...previous,
+      jenis_jadwal: initialType,
+      frekuensi_penggunaan: "",
+    }));
+  }, [initialType]);
 
   const equipmentById = useMemo(
     () => {
@@ -130,16 +163,16 @@ export default function JadwalPemeriksaanBerkala() {
     )),
     [schedules, selectedEquipmentId],
   );
-  const scheduledEquipmentIds = useMemo(
-    () => new Set(schedules.map((item) => String(item.peralatan_id))),
-    [schedules],
-  );
   const availableEquipment = Array.from(equipmentById.values()).filter((item) => {
     const id = getEquipmentId(item);
-    return id != null && !scheduledEquipmentIds.has(String(id));
+    return id != null && (!form.jenis_jadwal || !schedules.some((schedule) => (
+      String(schedule.peralatan_id) === String(id)
+      && schedule.jenis_jadwal === form.jenis_jadwal
+    )));
   });
-  const currentUser = getCurrentUser();
   const currentUserId = currentUser?.user_id ?? currentUser?.id;
+  const canManageSchedules = getUserRole(currentUser) === "admin"
+    || isStaffPengelola(currentUser);
   const labOptions = useMemo(() => {
     const labs = new Map();
     equipmentById.forEach((item) => {
@@ -218,29 +251,75 @@ export default function JadwalPemeriksaanBerkala() {
   function resetFilters() {
     setSearch("");
     setLabFilter("");
-    setTypeFilter("");
+    setTypeFilter(initialType);
     setStatusFilter("");
     setOnlyMyEquipment(false);
-    setShowAllStatuses(false);
+    setShowAllStatuses(true);
   }
 
   function updateForm(event) {
     const { name, value } = event.target;
-    setForm((previous) => ({ ...previous, [name]: value }));
+    setForm((previous) => ({
+      ...previous,
+      [name]: value,
+      ...(name === "frekuensi_penggunaan" && !initialType
+        ? { jenis_jadwal: value === "tinggi" ? "pengecekan_antara" : "pemeliharaan" }
+        : {}),
+    }));
+  }
+
+  const pendingReviews = filteredMatrixSchedules.filter(
+    (schedule) => schedule.status_realisasi === "Menunggu Verifikasi",
+  );
+
+  async function reviewSchedule(schedule, decision) {
+    if (!canReviewSchedules) return;
+    const note = reviewNotes[schedule.record_id] || "";
+    if (decision === "ditolak" && !note.trim()) {
+      error("Catatan wajib diisi untuk menolak hasil pemeriksaan.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const api = schedule.jenis_jadwal === "pengecekan_antara"
+        ? pengecekanAntaraApi
+        : pemeliharaanApi;
+      const response = await api.review(schedule.record_id, {
+        keputusan: decision,
+        catatan: note.trim(),
+      });
+      success(response.message || "Tinjauan pemeriksaan berhasil disimpan.");
+      setReviewNotes((previous) => {
+        const next = { ...previous };
+        delete next[schedule.record_id];
+        return next;
+      });
+      await loadData();
+    } catch (reviewError) {
+      error(reviewError.message || "Gagal menyimpan tinjauan pemeriksaan.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function createSchedule(event) {
     event.preventDefault();
+    if (!canManageSchedules) {
+      error("Hanya pengelola peralatan yang dapat membuat jadwal.");
+      return;
+    }
     setSaving(true);
     try {
-      const response = await jadwalPemeriksaanBerkalaApi.create({
+      const api = form.jenis_jadwal === "pengecekan_antara"
+        ? pengecekanAntaraApi
+        : pemeliharaanApi;
+      const response = await api.create({
         ...form,
         peralatan_id: Number(form.peralatan_id),
-        interval_utama: Number(form.interval_utama),
-        interval_tambahan: Number(form.interval_tambahan),
+        interval_bulan: Number(form.interval_bulan),
       });
-      success(response.message || "Jadwal utama dan tambahan berhasil dibuat.");
-      setForm(INITIAL_SCHEDULE_FORM);
+      success(response.message || "Jadwal berhasil dibuat.");
+      setForm({ ...INITIAL_SCHEDULE_FORM, jenis_jadwal: initialType });
       setShowCreateForm(false);
       await loadData();
     } catch (err) {
@@ -252,21 +331,46 @@ export default function JadwalPemeriksaanBerkala() {
 
   function openRealization(schedule) {
     setRealizationTarget(schedule);
-    setRealizationDate(getTodayInputValue());
+    setRealizationForm({
+      tanggal_realisasi: getTodayInputValue(),
+      acuan_pembanding: "",
+      nilai_acuan: "",
+      batas_toleransi: "",
+      pembacaan: ["", "", "", "", ""],
+      versi_perangkat_lunak: "",
+      daftar_pekerjaan: [],
+      temuan: "",
+      menyentuh_komponen: false,
+    });
   }
 
   async function saveRealization(event) {
     event.preventDefault();
-    if (!realizationTarget || !realizationDate) return;
+    if (!realizationTarget || !realizationForm.tanggal_realisasi) return;
+    if (!canManageSchedules) {
+      error("Hanya pengelola peralatan yang dapat mencatat hasil pemeriksaan.");
+      return;
+    }
     setSaving(true);
     try {
-      const response = await jadwalPemeriksaanBerkalaApi.updateRealisasi(
-        realizationTarget.id,
-        realizationDate,
+      const api = realizationTarget.jenis_jadwal === "pengecekan_antara"
+        ? pengecekanAntaraApi
+        : pemeliharaanApi;
+      const response = await api.updateRealisasi(
+        realizationTarget.record_id,
+        {
+          ...realizationForm,
+          nilai_acuan: realizationForm.nilai_acuan === ""
+            ? undefined
+            : Number(realizationForm.nilai_acuan),
+          batas_toleransi: realizationForm.batas_toleransi === ""
+            ? undefined
+            : Number(realizationForm.batas_toleransi),
+          pembacaan: realizationForm.pembacaan.map(Number),
+        },
       );
-      success(response.message || "Realisasi dan jadwal berikutnya berhasil diperbarui.");
+      success(response.message || "Hasil tersimpan dan telah diajukan ke Manager untuk verifikasi.");
       setRealizationTarget(null);
-      setRealizationDate("");
       await loadData();
     } catch (err) {
       error(err.message || "Gagal memperbarui realisasi jadwal.");
@@ -280,22 +384,24 @@ export default function JadwalPemeriksaanBerkala() {
       <PageHeader
         className="scheduling-page-header"
         eyebrow="PEMANTAUAN PERALATAN"
-        title="Penjadwalan"
-        subtitle="Atur jadwal pemeriksaan berkala dan catat realisasi peralatan."
-        actions={(
+        title="Pengecekan & Pemeliharaan"
+        subtitle="Kelola jadwal peralatan, catat hasil pemeriksaan, dan pantau persetujuan verifikasi."
+        actions={canManageSchedules ? (
           <Button
             variant="primary"
             icon={<Plus size={16} />}
             onClick={() => {
               setRealizationTarget(null);
+              setForm({ ...INITIAL_SCHEDULE_FORM, jenis_jadwal: initialType });
               setShowCreateForm(true);
             }}
             disabled={availableEquipment.length === 0}
           >
             Jadwal Baru
           </Button>
-        )}
+        ) : null}
       />
+      <InspectionTabs activeType={typeFilter} />
 
       <ScheduleFormModal
         isOpen={showCreateForm}
@@ -305,24 +411,54 @@ export default function JadwalPemeriksaanBerkala() {
         onChange={updateForm}
         availableEquipment={availableEquipment}
         saving={saving}
+        allowAllFrequencies={!initialType}
       />
       <ScheduleRealizationModal
         schedule={realizationTarget}
-        date={realizationDate}
-        onDateChange={setRealizationDate}
+        form={realizationForm}
+        onChange={(name, value, index) => {
+          setRealizationForm((previous) => {
+            if (name === "pembacaan") {
+              const pembacaan = [...previous.pembacaan];
+              pembacaan[index] = value;
+              return { ...previous, pembacaan };
+            }
+            if (name === "daftar_pekerjaan") {
+              const tasks = new Set(previous.daftar_pekerjaan);
+              if (value.checked) tasks.add(value.task);
+              else tasks.delete(value.task);
+              return { ...previous, daftar_pekerjaan: Array.from(tasks) };
+            }
+            return { ...previous, [name]: value };
+          });
+        }}
         onClose={() => setRealizationTarget(null)}
         onSubmit={saveRealization}
         saving={saving}
+        canManage={canManageSchedules}
       />
       <ScheduleEquipmentDetailPanel
         equipment={selectedEquipment}
         schedules={selectedEquipmentSchedules}
         onClose={() => setSelectedEquipmentId(null)}
         onRecordRealization={openRealization}
+        canManage={canManageSchedules}
       />
 
       <section className="scheduling-workspace">
         <nav className="scheduling-tabs" aria-label="Tampilan jadwal">
+          {canReviewSchedules && (
+            <button
+              type="button"
+              className={`scheduling-tab${activeView === "review" ? " is-active" : ""}`}
+              aria-pressed={activeView === "review"}
+              onClick={() => setActiveView("review")}
+            >
+              <CheckCircle2 size={16} aria-hidden="true" />
+              Persetujuan Manager
+              <span className="schedule-review-count">{pendingReviews.length}</span>
+            </button>
+          )}
           <button
             type="button"
             className={`scheduling-tab${activeView === "actions" ? " is-active" : ""}`}
@@ -330,11 +466,11 @@ export default function JadwalPemeriksaanBerkala() {
             onClick={() => {
               setActiveView("actions");
               setStatusFilter("");
-              setShowAllStatuses(false);
+              setShowAllStatuses(true);
             }}
           >
             <CalendarClock size={16} aria-hidden="true" />
-            Daftar Peralatan
+            Jadwal
           </button>
           <button
             type="button"
@@ -367,7 +503,7 @@ export default function JadwalPemeriksaanBerkala() {
               onChange: (event) => setLabFilter(event.target.value),
               options: labOptions,
             },
-            {
+            ...(!initialType ? [{
               id: "schedule-type",
               label: "Jenis pemeriksaan",
               type: "select",
@@ -375,7 +511,7 @@ export default function JadwalPemeriksaanBerkala() {
               value: typeFilter,
               onChange: (event) => setTypeFilter(event.target.value),
               options: SCHEDULE_TYPES.map(({ key, label }) => ({ value: key, label })),
-            },
+            }] : []),
             ...(activeView === "actions"
               ? [{
                 id: "schedule-status",
@@ -440,6 +576,21 @@ export default function JadwalPemeriksaanBerkala() {
             message={loadError}
             onRetry={loadData}
           />
+        ) : activeView === "review" && pendingReviews.length === 0 ? (
+          <EmptyState
+            icon={<CheckCircle2 size={28} />}
+            title="Tidak ada hasil menunggu persetujuan"
+            description="Pengajuan pengecekan antara atau pemeliharaan dari pengelola lab akan tampil di sini."
+          />
+        ) : activeView === "review" ? (
+          <ScheduleReviewTable
+            schedules={pendingReviews}
+            equipmentById={equipmentById}
+            reviewNotes={reviewNotes}
+            onNoteChange={(id, value) => setReviewNotes((previous) => ({ ...previous, [id]: value }))}
+            onReview={reviewSchedule}
+            saving={saving}
+          />
         ) : activeView === "actions" && filteredSchedules.length === 0 ? (
           <EmptyState
             icon={<CalendarClock size={28} />}
@@ -465,6 +616,7 @@ export default function JadwalPemeriksaanBerkala() {
             pagination={schedulePagination}
             onRecordRealization={openRealization}
             onOpenDetails={(id) => setSelectedEquipmentId(id)}
+            canManage={canManageSchedules}
           />
         ) : (
           <ScheduleEquipmentTable
@@ -472,9 +624,109 @@ export default function JadwalPemeriksaanBerkala() {
             pagination={equipmentPagination}
             onRecordRealization={openRealization}
             onOpenDetails={(id) => setSelectedEquipmentId(id)}
+            canManage={canManageSchedules}
           />
         )}
       </section>
     </div>
   );
+}
+
+function ScheduleReviewTable({
+  schedules,
+  equipmentById,
+  reviewNotes,
+  onNoteChange,
+  onReview,
+  saving,
+}) {
+  return (
+    <div className="schedule-review-list">
+      {schedules.map((schedule) => {
+        const equipment = equipmentById.get(String(schedule.peralatan_id));
+        const isCheck = schedule.jenis_jadwal === "pengecekan_antara";
+        const report = parseScheduleReport(isCheck ? schedule.data_pembacaan : schedule.daftar_pekerjaan);
+        const tasks = Array.isArray(report) ? report : [];
+        return (
+          <article className="schedule-review-card" key={schedule.id}>
+            <header className="schedule-review-card__header">
+              <div>
+                <span className="schedule-review-type">{isCheck ? "Pengecekan Antara" : "Pemeliharaan"}</span>
+                <h3>{equipment?.nama_peralatan || `Peralatan #${schedule.peralatan_id}`}</h3>
+                <span>{equipment?.nomor_aset || "Nomor aset tidak tersedia"} · diajukan {formatDate(schedule.tanggal_realisasi)}</span>
+              </div>
+              <span className="schedule-workflow-status is-pending">Menunggu persetujuan</span>
+            </header>
+            <div className="schedule-review-details">
+              {isCheck ? (
+                <>
+                  <div><span>Acuan</span><strong>{schedule.acuan_pembanding || "—"}</strong></div>
+                  <div><span>Nilai acuan</span><strong>{schedule.nilai_acuan ?? "—"}</strong></div>
+                  <div><span>Batas toleransi</span><strong>{schedule.batas_toleransi ?? "—"}</strong></div>
+                  <div><span>Simpangan maksimum</span><strong>{schedule.simpangan_maksimum ?? "—"}</strong></div>
+                  <div className="schedule-review-details__wide">
+                    <span>Lima hasil pembacaan</span>
+                    <strong>{report?.pembacaan?.join(", ") || "Data pembacaan belum tersedia"}</strong>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div><span>Versi perangkat lunak</span><strong>{schedule.versi_perangkat_lunak || "—"}</strong></div>
+                  <div><span>Menyentuh komponen</span><strong>{schedule.menyentuh_komponen ? "Ya" : "Tidak"}</strong></div>
+                  <div className="schedule-review-details__wide">
+                    <span>Pekerjaan</span>
+                    <strong>{tasks.length ? tasks.join(", ") : "Daftar pekerjaan belum tersedia"}</strong>
+                  </div>
+                  <div className="schedule-review-details__wide">
+                    <span>Temuan</span><strong>{schedule.temuan || "Tidak ada temuan"}</strong>
+                  </div>
+                </>
+              )}
+              <div><span>Hasil</span><strong>{schedule.hasil_realisasi || "—"}</strong></div>
+            </div>
+            <div className="schedule-review-card__actions">
+              <textarea
+                className="form-textarea"
+                rows="2"
+                value={reviewNotes[schedule.record_id] || ""}
+                onChange={(event) => onNoteChange(schedule.record_id, event.target.value)}
+                placeholder="Catatan Manager (wajib jika menolak)"
+                aria-label={`Catatan tinjauan ${equipment?.nama_peralatan || "peralatan"}`}
+              />
+              <div>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  icon={<XCircle size={15} />}
+                  disabled={saving}
+                  onClick={() => onReview(schedule, "ditolak")}
+                >
+                  Tolak
+                </Button>
+                <Button
+                  variant="success"
+                  size="sm"
+                  icon={<CheckCircle2 size={15} />}
+                  disabled={saving}
+                  onClick={() => onReview(schedule, "disetujui")}
+                >
+                  Setujui
+                </Button>
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function parseScheduleReport(value) {
+  if (!value) return null;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }

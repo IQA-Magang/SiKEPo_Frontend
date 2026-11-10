@@ -11,8 +11,12 @@ import {
 import { ACCESS, ACTIONS, can, getUserRole } from '../../utils/permissions.js';
 import sikepoLogo from '../../../assets/logo/tth-logo2.png';
 
-function NavGroup({ label, icon: Icon, children, defaultOpen = true }) {
+function NavGroup({ label, icon: Icon, children, defaultOpen = true, active = false }) {
   const [open, setOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    if (active) setOpen(true);
+  }, [active]);
 
   return (
     <div className="nav-group">
@@ -170,12 +174,13 @@ export default function Sidebar({ currentPath, onNavigate, onClose, open: mobile
             <NavGroup
               label="PEMERIKSAAN PERALATAN"
               icon={ShieldCheck}
-              defaultOpen={currentPath.startsWith('/penjadwalan')}
+              defaultOpen={currentPath.startsWith('/penjadwalan') || currentPath.startsWith('/pemeriksaan/')}
+              active={currentPath.startsWith('/penjadwalan') || currentPath.startsWith('/pemeriksaan/')}
             >
-              <NavItem label="Kalibrasi" path="/pemeriksaan/kalibrasi" feature={ACCESS.CALIBRATION_DOCUMENTS} disabled />
-              <NavItem label="Verifikasi Fungsi" path="/pemeriksaan/verifikasi-fungsi" feature={ACCESS.EQUIPMENT_ELIGIBILITY} disabled />
-              <NavItem label="Pengecekan Antara" path="/pemeriksaan/pengecekan-antara" feature={ACCESS.DIGITAL_CHECK_FORM} disabled />
-              <NavItem label="Pemeliharaan" path="/pemeriksaan/pemeliharaan" feature={ACCESS.EQUIPMENT_USAGE} disabled />
+              <NavItem label="Kalibrasi" path="/pemeriksaan/kalibrasi" feature={ACCESS.CALIBRATION_DOCUMENTS} />
+              <NavItem label="Verifikasi Fungsi" path="/pemeriksaan/verifikasi-fungsi" feature={ACCESS.EQUIPMENT_ELIGIBILITY} />
+              <NavItem label="Pengecekan Antara" path="/pemeriksaan/pengecekan-antara" feature={ACCESS.DIGITAL_CHECK_FORM} />
+              <NavItem label="Pemeliharaan" path="/pemeriksaan/pemeliharaan" feature={ACCESS.DIGITAL_CHECK_FORM} />
             </NavGroup>
 
             {/* PENGATURAN INVENTARIS */}

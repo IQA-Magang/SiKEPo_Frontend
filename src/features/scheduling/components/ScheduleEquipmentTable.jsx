@@ -15,6 +15,7 @@ export default function ScheduleEquipmentTable({
   pagination,
   onRecordRealization,
   onOpenDetails,
+  canManage,
 }) {
   const columns = [
     {
@@ -58,17 +59,6 @@ export default function ScheduleEquipmentTable({
       render: (group) => <EquipmentStatus equipment={group.equipment} />,
     },
     {
-      key: "main",
-      header: "Kalibrasi / Verifikasi Fungsi",
-      headerStyle: { minWidth: 230 },
-      render: (group) => (
-        <ScheduleCells
-          schedules={group.mainSchedules}
-          onRecordRealization={onRecordRealization}
-        />
-      ),
-    },
-    {
       key: "checking",
       header: "Pengecekan Antara",
       headerStyle: { minWidth: 210 },
@@ -78,6 +68,7 @@ export default function ScheduleEquipmentTable({
             schedule.jenis_jadwal === "pengecekan_antara"
           ))}
           onRecordRealization={onRecordRealization}
+          canManage={canManage}
           emptyHint={group.frequency === "tinggi"
             ? "Jadwal belum dibuat"
             : group.frequency
@@ -96,6 +87,7 @@ export default function ScheduleEquipmentTable({
             schedule.jenis_jadwal === "pemeliharaan"
           ))}
           onRecordRealization={onRecordRealization}
+          canManage={canManage}
           emptyHint={group.frequency && group.frequency !== "tinggi"
             ? "Jadwal belum dibuat"
             : group.frequency
@@ -134,6 +126,7 @@ function EquipmentStatus({ equipment }) {
 function ScheduleCells({
   schedules,
   onRecordRealization,
+  canManage,
   emptyHint = "Belum ada jadwal",
 }) {
   if (schedules.length === 0) {
@@ -158,17 +151,30 @@ function ScheduleCells({
               {state === "safe" && <span aria-hidden="true">✓ </span>}
               {status.label}
             </span>
+            {schedule.status_realisasi && schedule.status_realisasi !== "Terjadwal" && (
+              <span className={`schedule-workflow-status${schedule.status_realisasi === "Disetujui" ? " is-approved" : schedule.status_realisasi === "Ditolak" ? " is-rejected" : " is-pending"}`}>
+                {schedule.status_realisasi === "Menunggu Verifikasi" ? "Menunggu persetujuan Manager" : schedule.status_realisasi}
+              </span>
+            )}
             <div className="schedule-cell-date">
               <strong>{formatDate(schedule.tanggal_jatuh_tempo)}</strong>
               <span className={days !== null && days < 0 ? "is-overdue" : ""}>{dueLabel}</span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onRecordRealization(schedule)}
-            >
-              Catat realisasi
-            </Button>
+            {canManage
+              && ["pengecekan_antara", "pemeliharaan"].includes(schedule.jenis_jadwal)
+              && schedule.status_realisasi !== "Menunggu Verifikasi" ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onRecordRealization(schedule)}
+              >
+                Catat hasil
+              </Button>
+            ) : (
+              <span className="schedule-action-hint">
+                {schedule.status_realisasi === "Menunggu Verifikasi" ? "Menunggu persetujuan Manager" : "Hanya pengelola yang dapat mencatat hasil"}
+              </span>
+            )}
           </div>
         );
       })}

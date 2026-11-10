@@ -24,6 +24,17 @@ import {
   getEquipmentKeterangan,
 } from "../verificationData.js";
 
+function parseScheduleReport(rawNotes) {
+  try {
+    const data = JSON.parse(rawNotes || "{}");
+    return ["SIKEPO/JADWAL-PEMERIKSAAN/v1", "SIKEPO/PEMERIKSAAN-BERKALA/v1"].includes(data.format)
+      ? data.hasil_pemeriksaan || null
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function VerificationDetailsModal({
   selected,
   role,
@@ -52,6 +63,7 @@ export default function VerificationDetailsModal({
     selected?.peralatan?.pic ||
     selected?.peralatan?.ruangan?.pic_user;
   const notes = selected ? officialNotes(selected) : null;
+  const scheduleReport = selected ? parseScheduleReport(selected.catatan) : null;
   const previousFirmwareVersion = String(
     notes?.firmware?.versi_tercatat ||
       getEquipmentFirmwareVersion(selected?.peralatan) ||
@@ -332,6 +344,48 @@ export default function VerificationDetailsModal({
                   rowKey={(key) => key}
                 />
 
+                {scheduleReport && (
+                  <section
+                    className="verification-schedule-report"
+                    aria-label={Array.isArray(scheduleReport.pembacaan)
+                      ? "Hasil pengecekan antara"
+                      : "Hasil pemeliharaan"}
+                  >
+                    <h4>{Array.isArray(scheduleReport.pembacaan)
+                      ? "Hasil Pengecekan Antara"
+                      : "Hasil Pemeliharaan"}</h4>
+                    {Array.isArray(scheduleReport.pembacaan) ? (
+                      <>
+                        <div className="verification-schedule-report-grid">
+                          <ReportValue label="Acuan pembanding" value={scheduleReport.acuan_pembanding} />
+                          <ReportValue label="Nilai acuan" value={scheduleReport.nilai_acuan} />
+                          <ReportValue label="Batas toleransi" value={scheduleReport.batas_toleransi} />
+                          <ReportValue label="Simpangan maksimum" value={scheduleReport.simpangan_maksimum} />
+                        </div>
+                        <div className="verification-schedule-readings">
+                          <strong>Lima hasil pembacaan</strong>
+                          <div>
+                            {scheduleReport.pembacaan.map((value, index) => (
+                              <span key={`verification-reading-${index + 1}`}>
+                                <small>{index + 1}</small>{Number(value).toLocaleString("id-ID")}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="verification-schedule-report-grid">
+                          <ReportValue label="Versi perangkat lunak" value={scheduleReport.versi_perangkat_lunak} />
+                          <ReportValue label="Butir pekerjaan" value={scheduleReport.daftar_pekerjaan?.join(", ")} />
+                          <ReportValue label="Temuan dan tindakan" value={scheduleReport.temuan} />
+                          <ReportValue label="Menyentuh komponen ukur" value={scheduleReport.menyentuh_komponen ? "Ya" : "Tidak"} />
+                        </div>
+                      </>
+                    )}
+                  </section>
+                )}
+
                 {officialNotes(selected) && (
                   <div style={{ marginTop: "var(--sp-4)" }}>
                     <h4
@@ -473,5 +527,14 @@ export default function VerificationDetailsModal({
           document.body,
         )}
     </>
+  );
+}
+
+function ReportValue({ label, value }) {
+  return (
+    <div>
+      <strong>{label}</strong>
+      <span>{value == null || value === "" ? "—" : String(value)}</span>
+    </div>
   );
 }

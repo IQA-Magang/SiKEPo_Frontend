@@ -17,6 +17,7 @@ export default function ScheduleEquipmentDetailPanel({
   schedules,
   onClose,
   onRecordRealization,
+  canManage,
 }) {
   useEffect(() => {
     if (!equipment) return undefined;
@@ -73,7 +74,7 @@ export default function ScheduleEquipmentDetailPanel({
           <section className="schedule-detail-section" aria-labelledby="schedule-detail-schedule-heading">
             <div className="schedule-detail-section-heading">
               <CalendarDays size={17} aria-hidden="true" />
-              <h3 id="schedule-detail-schedule-heading">Jadwal pemeriksaan</h3>
+              <h3 id="schedule-detail-schedule-heading">Pengecekan antara & pemeliharaan</h3>
             </div>
             {schedules.length === 0 ? (
               <p className="schedule-detail-empty">Belum ada jadwal pemeriksaan untuk alat ini.</p>
@@ -131,13 +132,16 @@ export default function ScheduleEquipmentDetailPanel({
                                 ? "Jatuh tempo hari ini"
                                 : `${days} hari lagi`}
                         </span>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => onRecordRealization(schedule)}
-                        >
-                          Catat realisasi
-                        </Button>
+                        {canManage && ["pengecekan_antara", "pemeliharaan"].includes(schedule.jenis_jadwal)
+                          && schedule.status_realisasi !== "Menunggu Verifikasi" && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => onRecordRealization(schedule)}
+                            >
+                              Catat hasil
+                            </Button>
+                          )}
                       </div>
                     </article>
                   );

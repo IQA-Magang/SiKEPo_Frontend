@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2, CalendarDays, ArrowRight, ChevronLeft, ChevronRight, FileSignature } from 'lucide-react';
-import { getCurrentUser, getEquipmentCategoryId, STATIC_EQUIPMENT_CATEGORIES, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, kategoriPeralatanApi, jadwalPemeriksaanBerkalaApi, notificationApi, peminjamanApi, markNotificationsAsReadByRef } from '../../shared/services/api.js';
+import { getAllPemeriksaanSchedules, getCurrentUser, getEquipmentCategoryId, STATIC_EQUIPMENT_CATEGORIES, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, kategoriPeralatanApi, notificationApi, peminjamanApi, markNotificationsAsReadByRef } from '../../shared/services/api.js';
 import { can, ACCESS, ACTIONS } from '../../shared/utils/permissions.js';
 import DataTable from '../../shared/components/ui/DataTable.jsx';
 
@@ -24,7 +24,7 @@ export default function Dashboard({ onNavigate }) {
 function ScheduleDateCards({ onNavigate }) {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState('1');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [visibleMonth, setVisibleMonth] = useState(() => {
@@ -36,14 +36,14 @@ function ScheduleDateCards({ onNavigate }) {
   useEffect(() => {
     async function load() {
       try {
-        const [scheduleResponse, equipmentResponse, categoryResponse, loanResponse] = await Promise.all([
-          jadwalPemeriksaanBerkalaApi.getAll(),
+        const [scheduleData, equipmentResponse, categoryResponse, loanResponse] = await Promise.all([
+          getAllPemeriksaanSchedules(),
           peralatanApi.getAll(),
           kategoriPeralatanApi.getAll(),
           peminjamanApi.getAll(),
         ]);
         if (
-          !Array.isArray(scheduleResponse?.data) ||
+          !Array.isArray(scheduleData) ||
           !Array.isArray(equipmentResponse?.data) ||
           !Array.isArray(categoryResponse?.data) ||
           !Array.isArray(loanResponse?.data)
@@ -67,32 +67,49 @@ function ScheduleDateCards({ onNavigate }) {
             };
           })
         );
-        const inspectionSchedules = scheduleResponse.data
-          .map((schedule) => {
+        const inspectionSchedules = scheduleData.flatMap((schedule) => {
             const equipment = equipmentById.get(String(schedule.peralatan_id));
             const categoryId = getEquipmentCategoryId(equipment)
               ?? Number(equipment?.kategori_peralatan?.id ?? equipment?.kategori?.id);
             const dueDate = schedule.tanggal_jatuh_tempo
               ? String(schedule.tanggal_jatuh_tempo).slice(0, 10)
               : '';
-            return {
+            const categoryKey = Number.isInteger(categoryId) && categoryId > 0
+              ? String(categoryId)
+              : '';
+            const nextDueEvent = {
               ...schedule,
-              id: `inspection-${schedule.id}`,
+              id: `inspection-due-${schedule.id}`,
               kind: 'inspection',
-              eventLabel: schedule.jenis_jadwal,
+              eventLabel: `Jadwal ${schedule.jenis_jadwal}`,
               equipment,
-              categoryId: Number.isInteger(categoryId) && categoryId > 0 ? String(categoryId) : '',
+              categoryId: categoryKey,
               startDate: dueDate,
               endDate: dueDate,
               dueDate,
             };
-          })
-          .filter((schedule) => schedule.dueDate && !Number.isNaN(new Date(`${schedule.dueDate}T00:00:00`).getTime()));
-        const scheduledCalibrations = new Set(
-          inspectionSchedules
-            .filter((schedule) => String(schedule.jenis_jadwal || '').toLowerCase() === 'kalibrasi')
-            .map((schedule) => `${schedule.peralatan_id}:${schedule.dueDate}`)
-        );
+            const events = [];
+            if (dueDate && !Number.isNaN(new Date(`${dueDate}T00:00:00`).getTime())) {
+              events.push(nextDueEvent);
+            }
+            if (schedule.status_realisasi === 'Disetujui') {
+              const approvalDate = String(schedule.reviewed_at || schedule.tanggal_realisasi || '').slice(0, 10);
+              if (approvalDate && !Number.isNaN(new Date(`${approvalDate}T00:00:00`).getTime())) {
+                events.push({
+                  ...schedule,
+                  id: `inspection-approved-${schedule.id}`,
+                  kind: 'inspection-approved',
+                  eventLabel: `${schedule.jenis_jadwal} disetujui`,
+                  equipment,
+                  categoryId: categoryKey,
+                  startDate: approvalDate,
+                  endDate: approvalDate,
+                  dueDate: approvalDate,
+                });
+              }
+            }
+            return events;
+          });
         const calibrationSchedules = equipmentResponse.data
           .map((equipment) => {
             const categoryId = getEquipmentCategoryId(equipment)
@@ -116,8 +133,7 @@ function ScheduleDateCards({ onNavigate }) {
           .filter((schedule) =>
             schedule.categoryId === '1' &&
             schedule.dueDate &&
-            !Number.isNaN(new Date(`${schedule.dueDate}T00:00:00`).getTime()) &&
-            !scheduledCalibrations.has(`${schedule.peralatan_id}:${schedule.dueDate}`)
+            !Number.isNaN(new Date(`${schedule.dueDate}T00:00:00`).getTime())
           );
         const activeLoanStatuses = new Set([
           'MENUNGGU_MANAGER_PEMINJAM',
@@ -162,7 +178,7 @@ function ScheduleDateCards({ onNavigate }) {
         const schedules = [...calibrationSchedules, ...inspectionSchedules, ...loanSchedules]
           .sort((first, second) => first.startDate.localeCompare(second.startDate));
         setItems(schedules);
-        setSelectedCategoryId('1');
+        setSelectedCategoryId('all');
         setLoadError('');
       } catch (err) {
         console.error('Gagal memuat kalender jadwal dashboard:', err);
@@ -174,7 +190,9 @@ function ScheduleDateCards({ onNavigate }) {
     load();
   }, []);
 
-  const filteredItems = items.filter((schedule) => schedule.categoryId === selectedCategoryId);
+  const filteredItems = selectedCategoryId === 'all'
+    ? items
+    : items.filter((schedule) => schedule.categoryId === selectedCategoryId);
   const scheduleTypeLabels = {
     kalibrasi: 'Kalibrasi',
     verifikasi_fungsi: 'Verifikasi Fungsi',
@@ -247,6 +265,16 @@ function ScheduleDateCards({ onNavigate }) {
       ) : (
         <div className="dashboard-calendar">
           <div className="dashboard-category-tabs" role="group" aria-label="Pilih kategori peralatan">
+            <button
+              className={`dashboard-category-tab${selectedCategoryId === 'all' ? ' is-active' : ''}`}
+              type="button"
+              aria-pressed={selectedCategoryId === 'all'}
+              onClick={() => setSelectedCategoryId('all')}
+            >
+              <Package size={17} />
+              <span>Semua kategori</span>
+              <span className="dashboard-category-tab-count">{items.length}</span>
+            </button>
             {categories.map((category) => {
               const categoryId = String(category.id);
               const count = items.filter((schedule) => schedule.categoryId === categoryId).length;
@@ -337,15 +365,17 @@ function ScheduleDateCards({ onNavigate }) {
                           {' · '}
                           {schedule.kind === 'loan'
                             ? `${schedule.eventLabel} · ${loanStatusLabels[schedule.status] || schedule.status}`
-                            : scheduleTypeLabels[schedule.jenis_jadwal] || schedule.jenis_jadwal || 'Pemeriksaan'}
+                            : schedule.eventLabel || scheduleTypeLabels[schedule.jenis_jadwal] || schedule.jenis_jadwal || 'Pemeriksaan'}
                           {schedule.kind === 'loan'
                             ? ` · ${schedule.startDate} s.d. ${schedule.endDate}`
                             : ''}
                           {schedule.peran_jadwal ? ` · ${schedule.peran_jadwal}` : ''}
                         </span>
                       </div>
-                      <span className={`badge ${schedule.kind === 'loan' ? 'badge-dipinjam' : getDueDateBadgeClass(dueDate)}`}>
-                        {schedule.kind === 'loan'
+                      <span className={`badge ${schedule.kind === 'loan' ? 'badge-dipinjam' : schedule.kind === 'inspection-approved' ? 'badge-aktif' : getDueDateBadgeClass(dueDate)}`}>
+                        {schedule.kind === 'inspection-approved'
+                          ? 'Disetujui'
+                          : schedule.kind === 'loan'
                           ? selectedDate === schedule.startDate
                             ? 'Mulai'
                             : selectedDate === schedule.endDate
@@ -993,7 +1023,7 @@ function StaffDashboard({ onNavigate, user }) {
         fetchDashboardLoans().then(setLoans);
         const [equipmentResult, scheduleResult] = await Promise.allSettled([
           peralatanApi.getAll(),
-          jadwalPemeriksaanBerkalaApi.getAll(),
+          getAllPemeriksaanSchedules(),
         ]);
         if (equipmentResult.status === 'rejected') throw equipmentResult.reason;
         if (!Array.isArray(equipmentResult.value?.data)) {
@@ -1004,13 +1034,13 @@ function StaffDashboard({ onNavigate, user }) {
         let scheduleLoadFailed = false;
         let schedules = [];
         if (scheduleResult.status === 'fulfilled') {
-          if (!Array.isArray(scheduleResult.value?.data)) {
+          if (!Array.isArray(scheduleResult.value)) {
             throw new Error('Format respons daftar jadwal tidak valid.');
           }
-          schedules = scheduleResult.value.data;
+          schedules = scheduleResult.value;
         } else {
           scheduleLoadFailed = true;
-          console.error('Gagal memuat jadwal pemeriksaan berkala:', scheduleResult.reason);
+          console.error('Gagal memuat pengecekan antara dan pemeliharaan:', scheduleResult.reason);
         }
 
         const schedulesByEquipment = new Map();
@@ -1199,7 +1229,7 @@ function StaffDashboard({ onNavigate, user }) {
         )}
         {detailLoadError && (
           <div className="alert alert-warning" role="status" style={{ margin: '0 var(--sp-4) var(--sp-3)' }}>
-            Jadwal pemeriksaan berkala gagal dimuat. Tanggal dari data lama mungkin masih ditampilkan.
+            Jadwal pengecekan antara atau pemeliharaan gagal dimuat. Tanggal dari data lain mungkin masih ditampilkan.
           </div>
         )}
         {loading ? (

@@ -81,6 +81,12 @@ export default function NotificationBell({ onNavigate }) {
     const title = (notif.title || '').toLowerCase();
     const message = (notif.message || '').toLowerCase();
 
+    if (type === 'inspection_schedule_review') {
+      return message.includes('pemeliharaan')
+        ? '/pemeriksaan/pemeliharaan'
+        : '/pemeriksaan/pengecekan-antara';
+    }
+
     // Notifikasi Peminjaman, Serah Terima & Pengembalian
     if (
       type.startsWith('peminjaman') ||
@@ -122,6 +128,7 @@ export default function NotificationBell({ onNavigate }) {
     if (!target) return '';
     if (target.startsWith('/peminjaman')) return 'Buka Peminjaman';
     if (target.startsWith('/verifikasi')) return 'Buka Verifikasi';
+    if (target.startsWith('/pemeriksaan/')) return 'Buka Pemeriksaan';
     if (target.startsWith('/peralatan/detail')) return 'Buka Alat';
     if (target.startsWith('/peralatan')) return 'Daftar Alat';
     return 'Lihat Detail';

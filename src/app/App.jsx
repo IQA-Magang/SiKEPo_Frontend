@@ -32,7 +32,8 @@ const Settings = lazy(() => import('../features/settings/Settings.jsx'));
 import NotFound from '../pages/NotFound.jsx';
 import Forbidden from '../pages/Forbidden.jsx';
 const VerificationManagement = lazy(() => import('../features/verification/VerificationManagement.jsx'));
-const JadwalPemeriksaanBerkala = lazy(() => import('../features/scheduling/JadwalPemeriksaanBerkala.jsx'));
+const PengecekanAntaraPemeliharaan = lazy(() => import('../features/scheduling/PengecekanAntaraPemeliharaan.jsx'));
+const InspectionCycleManagement = lazy(() => import('../features/inspection/InspectionCycleManagement.jsx'));
 const LandingPage = lazy(() => import('../pages/LandingPage.jsx'));
 const GuestEquipmentPage = lazy(() => import('../features/guest-equipment/GuestEquipmentPage.jsx'));
 const LoanRequest = lazy(() => import('../features/loan/LoanRequest.jsx'));
@@ -337,7 +338,39 @@ function AppContent() {
           path="/penjadwalan"
           element={
             <ProtectedRoute feature={ACCESS.DIGITAL_CHECK_FORM}>
-              <JadwalPemeriksaanBerkala />
+              <PengecekanAntaraPemeliharaan />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pemeriksaan/kalibrasi"
+          element={
+            <ProtectedRoute feature={ACCESS.CALIBRATION_DOCUMENTS}>
+              <InspectionCycleManagement type="kalibrasi" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pemeriksaan/verifikasi-fungsi"
+          element={
+            <ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}>
+              <InspectionCycleManagement type="verifikasi-fungsi" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pemeriksaan/pengecekan-antara"
+          element={
+            <ProtectedRoute feature={ACCESS.DIGITAL_CHECK_FORM}>
+              <PengecekanAntaraPemeliharaan initialType="pengecekan_antara" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pemeriksaan/pemeliharaan"
+          element={
+            <ProtectedRoute feature={ACCESS.DIGITAL_CHECK_FORM}>
+              <PengecekanAntaraPemeliharaan initialType="pemeliharaan" />
             </ProtectedRoute>
           }
         />

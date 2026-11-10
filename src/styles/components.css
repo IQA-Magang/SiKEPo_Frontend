@@ -3650,6 +3650,75 @@ textarea:focus-visible {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.verification-schedule-report {
+  display: grid;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-md);
+  background: linear-gradient(120deg, #eff6ff, #fff);
+}
+
+.verification-schedule-report h4 {
+  margin: 0;
+  color: #1e3a8a;
+  font-size: var(--text-sm);
+}
+
+.verification-schedule-report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.verification-schedule-report-grid > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  font-size: var(--text-xs);
+}
+
+.verification-schedule-report-grid strong,
+.verification-schedule-readings > strong {
+  color: var(--clr-dark-700);
+}
+
+.verification-schedule-report-grid span {
+  color: var(--clr-dark-900);
+  overflow-wrap: anywhere;
+}
+
+.verification-schedule-readings {
+  display: grid;
+  gap: 8px;
+  font-size: var(--text-xs);
+}
+
+.verification-schedule-readings > div {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.verification-schedule-readings > div > span {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--clr-dark-200);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--clr-dark-900);
+  font-weight: var(--fw-semibold);
+}
+
+.verification-schedule-readings small {
+  color: var(--clr-dark-500);
+  font-size: 10px;
+  font-weight: var(--fw-medium);
+}
+
 .verification-review-signatures {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3765,6 +3834,10 @@ textarea:focus-visible {
   .verification-review-notes {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--sp-3);
+  }
+
+  .verification-schedule-readings > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .verification-review-footer {

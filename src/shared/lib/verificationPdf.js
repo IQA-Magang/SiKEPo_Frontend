@@ -64,6 +64,13 @@ function parseOfficialNotes(rawNotes) {
   if (!rawNotes) return {};
   try {
     const parsed = typeof rawNotes === 'string' ? JSON.parse(rawNotes) : rawNotes;
+    if (parsed?.format === 'SIKEPO/JADWAL-PEMERIKSAAN/v1') {
+      const report = parsed.hasil_pemeriksaan || {};
+      const catatan = Array.isArray(report.pembacaan)
+        ? `Pengecekan antara — Acuan: ${report.acuan_pembanding || '-'}; nilai acuan: ${report.nilai_acuan ?? '-'}; batas toleransi: ${report.batas_toleransi ?? '-'}; simpangan maksimum: ${report.simpangan_maksimum ?? '-'}; lima bacaan: ${report.pembacaan.join(', ')}`
+        : `Pemeliharaan — Versi perangkat lunak: ${report.versi_perangkat_lunak || '-'}; pekerjaan: ${(report.daftar_pekerjaan || []).join(', ') || '-'}; temuan: ${report.temuan || '-'}; menyentuh komponen ukur: ${report.menyentuh_komponen ? 'Ya' : 'Tidak'}`;
+      return { catatan_pic: catatan };
+    }
     return parsed && typeof parsed === 'object' ? parsed : {};
   } catch {
     return { catatan_pic: String(rawNotes) };
