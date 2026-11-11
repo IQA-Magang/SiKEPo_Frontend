@@ -59,6 +59,8 @@ const SCHEDULE_STATUS_OPTIONS = [
 
 export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
   const { success, error } = useToast();
+  const pageTitle = SCHEDULE_TYPES.find(({ key }) => key === initialType)?.label
+    || SCHEDULE_TYPES[0].label;
   const currentUser = getCurrentUser();
   const userRole = getUserRole(currentUser);
   const canReviewSchedules = userRole === "manager" || userRole === "admin";
@@ -384,7 +386,7 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
       <PageHeader
         className="scheduling-page-header"
         eyebrow="PEMANTAUAN PERALATAN"
-        title="Pengecekan & Pemeliharaan"
+        title={pageTitle}
         subtitle="Kelola jadwal peralatan, catat hasil pemeriksaan, dan pantau persetujuan verifikasi."
         actions={canManageSchedules ? (
           <Button
