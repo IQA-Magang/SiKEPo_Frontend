@@ -28,12 +28,11 @@ import {
   verifikasiFungsiApi,
 } from "../../shared/services/api.js";
 import { getUserRole, isStaffPengelola } from "../../shared/utils/permissions.js";
-import InspectionTabs from "./InspectionTabs.jsx";
 
 const CYCLE_CONFIG = {
   kalibrasi: {
     title: "Kalibrasi",
-    categoryId: 1,
+    categoryIds: [1, 2],
     api: kalibrasiApi,
     statusLabels: {
       direncanakan: "Direncanakan",
@@ -44,7 +43,7 @@ const CYCLE_CONFIG = {
   },
   "verifikasi-fungsi": {
     title: "Verifikasi Fungsi",
-    categoryId: 2,
+    categoryIds: [1, 2],
     api: verifikasiFungsiApi,
     statusLabels: {
       direncanakan: "Direncanakan",
@@ -58,9 +57,6 @@ const CYCLE_CONFIG = {
 const EMPTY_CREATE_FORM = {
   peralatan_id: "",
   metode: "Eksternal",
-  lab_kalibrasi: "",
-  tanggal_keluar: "",
-  perkiraan_kembali: "",
   jenis_pemeriksaan_berkala: "verifikasi fungsi metode tertentu",
   tgl_jatuh_tempo: "",
   fungsi_sbg_alat_standar: false,
@@ -80,6 +76,13 @@ const EMPTY_RESULT_FORM = {
   hasil: "sesuai",
   no_laporan: "",
   pdf_laporan: null,
+};
+
+const EMPTY_CHECKOUT_FORM = {
+  metode: "Eksternal",
+  lab_kalibrasi: "",
+  tanggal_keluar: "",
+  perkiraan_kembali: "",
 };
 
 function dateOnly(value) {
@@ -122,9 +125,11 @@ export default function InspectionCycleManagement({ type }) {
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [panel, setPanel] = useState(null);
+  const [activeView, setActiveView] = useState("planned");
   const [selectedCycle, setSelectedCycle] = useState(null);
   const [createForm, setCreateForm] = useState(EMPTY_CREATE_FORM);
   const [resultForm, setResultForm] = useState(EMPTY_RESULT_FORM);
+  const [checkoutForm, setCheckoutForm] = useState(EMPTY_CHECKOUT_FORM);
 
   const user = useMemo(() => getCurrentUser(), []);
   const canManage = getUserRole(user) === "admin" || isStaffPengelola(user);
@@ -138,7 +143,7 @@ export default function InspectionCycleManagement({ type }) {
         throw new Error("Format respons daftar peralatan tidak valid.");
       }
       const equipmentList = equipmentResponse.data.filter(
-        (item) => getEquipmentCategoryId(item) === config.categoryId,
+        (item) => config.categoryIds.includes(getEquipmentCategoryId(item)),
       );
       const records = await Promise.all(equipmentList.map(async (item) => {
         const response = await config.api.getByEquipment(getEquipmentId(item));
@@ -158,6 +163,7 @@ export default function InspectionCycleManagement({ type }) {
 
   useEffect(() => {
     loadData();
+    setActiveView("planned");
   }, [type]);
 
   const activeCycles = cycles
@@ -171,13 +177,15 @@ export default function InspectionCycleManagement({ type }) {
   const availableEquipment = equipment.filter(
     (item) => !activeEquipmentIds.has(String(getEquipmentId(item))),
   );
+  const equipmentWithCycles = new Set(cycles.map((cycle) => String(cycle.peralatan_id)));
   const inProgressCycles = activeCycles.filter((cycle) => cycle.status === "dalam_proses");
   const plannedCycles = activeCycles.filter((cycle) => cycle.status === "direncanakan");
   const completedCycles = cycles
     .filter((cycle) => ["selesai", "dibatalkan"].includes(cycle.status))
-    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
-    .slice(0, 6);
-  const withoutSchedule = availableEquipment;
+    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+  const withoutSchedule = equipment.filter(
+    (item) => !equipmentWithCycles.has(String(getEquipmentId(item))),
+  );
 
   function openCreate(equipmentItem = null) {
     const equipmentId = equipmentItem ? getEquipmentId(equipmentItem) : "";
@@ -195,9 +203,55 @@ export default function InspectionCycleManagement({ type }) {
     setResultForm({
       ...EMPTY_RESULT_FORM,
       tgl_jatuh_tempo: dateOnly(cycle.tgl_jatuh_tempo),
+      tgl_kalibrasi: dateOnly(cycle.tgl_kalibrasi),
+      no_sertifikat: cycle.no_sertifikat || "",
+      diterbitkan_oleh: cycle.diterbitkan_oleh || "",
+      tgl_pemeriksaan_terakhir: dateOnly(cycle.tgl_pemeriksaan_terakhir),
+      pelaksana: cycle.pelaksana || "",
+      hasil: cycle.hasil || "sesuai",
+      no_laporan: cycle.no_laporan || "",
     });
     setPanel("result");
   }
+
+  function openCheckout(cycle) {
+    setSelectedCycle(cycle);
+    setCheckoutForm({
+      metode: cycle.metode || "Eksternal",
+      lab_kalibrasi: cycle.lab_kalibrasi || "",
+      tanggal_keluar: dateOnly(cycle.tanggal_keluar),
+      perkiraan_kembali: dateOnly(cycle.perkiraan_kembali),
+    });
+    setPanel("checkout");
+  }
+
+  useEffect(() => {
+    if (loading || loadError) return;
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get("action");
+    if (!["result", "checkout"].includes(action)) return;
+    const cycleId = params.get("cycleId");
+    const cycle = cycles.find((item) => String(item.id) === cycleId);
+    if (!cycle) {
+      error(`Siklus ${config.title.toLowerCase()} tidak ditemukan.`);
+      window.history.replaceState({}, "", window.location.pathname);
+      return;
+    }
+
+    setActiveView(cycle.status === "dalam_proses" ? "in-progress" : "planned");
+    if (canManage) {
+      if (action === "checkout" && type === "kalibrasi" && cycle.status === "direncanakan") {
+        openCheckout(cycle);
+      } else if (action === "result" && (cycle.status === "dalam_proses" || type !== "kalibrasi")) {
+        openResult(cycle);
+      } else {
+        error("Aksi tidak sesuai dengan status siklus pemeriksaan.");
+      }
+    } else {
+      error("Anda tidak memiliki akses untuk mencatat pemeriksaan.");
+    }
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [loading, loadError, cycles, type, canManage, error]);
 
   function updateCreateField(event) {
     const { name, value, checked, type: inputType } = event.target;
@@ -222,9 +276,6 @@ export default function InspectionCycleManagement({ type }) {
       if (type === "kalibrasi") {
         await config.api.create(Number(createForm.peralatan_id), {
           metode: createForm.metode,
-          lab_kalibrasi: createForm.lab_kalibrasi,
-          tanggal_keluar: dateTimeValue(createForm.tanggal_keluar),
-          perkiraan_kembali: dateTimeValue(createForm.perkiraan_kembali),
           status: createForm.status,
           interval_bulan: Number(createForm.interval_bulan || item?.interval_kalibrasi_bulan || 0),
         });
@@ -260,6 +311,22 @@ export default function InspectionCycleManagement({ type }) {
     }
   }
 
+  async function saveCheckout(event) {
+    event.preventDefault();
+    if (!selectedCycle) return;
+    setSaving(true);
+    try {
+      await kalibrasiApi.recordEquipmentOut(selectedCycle.id, checkoutForm);
+      success("Data alat keluar berhasil dicatat.");
+      setPanel(null);
+      await loadData();
+    } catch (saveError) {
+      error(saveError.message || "Gagal mencatat data alat keluar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveResult(event) {
     event.preventDefault();
     if (!selectedCycle) return;
@@ -280,7 +347,26 @@ export default function InspectionCycleManagement({ type }) {
     setResultForm((previous) => ({ ...previous, [name]: value }));
   }
 
-  const count = activeCycles.length;
+  function updateCheckoutField(name, value) {
+    setCheckoutForm((previous) => ({ ...previous, [name]: value }));
+  }
+
+  const statusTabs = [
+    {
+      id: "planned",
+      label: type === "kalibrasi" ? "Masuk rentang kalibrasi" : "Masuk rentang verifikasi",
+      count: plannedCycles.length,
+      Icon: CalendarClock,
+    },
+    {
+      id: "in-progress",
+      label: type === "kalibrasi" ? "Sedang dikalibrasi" : "Sedang diverifikasi",
+      count: inProgressCycles.length,
+      Icon: RefreshCw,
+    },
+    { id: "unscheduled", label: "Belum ada jadwal", count: withoutSchedule.length, Icon: Plus },
+    { id: "history", label: "History", count: completedCycles.length, Icon: FileText },
+  ];
   const today = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
   return (
@@ -301,19 +387,21 @@ export default function InspectionCycleManagement({ type }) {
         )}
       />
 
-      <InspectionTabs activeType={type} counts={{ [type]: count }} />
-
-      <div className="inspection-cycle-banner">
-        <span className="inspection-banner-icon"><CalendarClock size={17} /></span>
-        <span>
-          {type === "kalibrasi"
-            ? "Atur siklus kalibrasi dan catat alat keluar. Sertifikat serta tanggal jatuh tempo tersimpan setelah kalibrasi selesai."
-            : "Atur siklus verifikasi fungsi untuk peralatan yang memerlukannya. Hasil dan laporan tersimpan sebagai histori."}
-        </span>
-        <Button variant="ghost" size="sm" icon={<RefreshCw size={15} />} onClick={loadData} disabled={loading}>
-          Perbarui
-        </Button>
-      </div>
+      <nav className="inspection-tabs" aria-label="Status pemeriksaan berkala">
+        {statusTabs.map(({ id, label, count: tabCount, Icon }) => (
+          <button
+            type="button"
+            key={id}
+            className={`inspection-tab${activeView === id ? " is-active" : ""}`}
+            aria-pressed={activeView === id}
+            onClick={() => setActiveView(id)}
+          >
+            <Icon size={16} aria-hidden="true" />
+            <span>{label}</span>
+            <span className="inspection-tab-count">{tabCount}</span>
+          </button>
+        ))}
+      </nav>
 
       {loading ? (
         <LoadingState message={`Memuat jadwal ${config.title.toLowerCase()}...`} />
@@ -322,76 +410,85 @@ export default function InspectionCycleManagement({ type }) {
       ) : (
         <div className={`inspection-cycle-layout${panel ? " has-panel" : ""}`}>
           <div className="inspection-cycle-sections">
-            <CycleTableSection
-              number="1"
-              title={type === "kalibrasi" ? "Masuk rentang kalibrasi" : "Masuk rentang pemeriksaan"}
-              hint={plannedCycles.length ? `${plannedCycles.length} jadwal · terdekat ditampilkan lebih dulu` : "Siklus aktif yang memerlukan tindak lanjut"}
-              cycles={plannedCycles}
-              type={type}
-              canManage={canManage}
-              saving={saving}
-              config={config}
-              onStart={(cycle) => changeStatus(cycle, "dalam_proses")}
-              onResult={openResult}
-              emptyText={`Belum ada jadwal ${config.title.toLowerCase()} yang menunggu.`}
-            />
-            <CycleTableSection
-              number="2"
-              title={type === "kalibrasi" ? "Sedang dikalibrasi" : "Sedang dalam proses"}
-              hint="Siklus yang sedang dikerjakan"
-              cycles={inProgressCycles}
-              type={type}
-              canManage={canManage}
-              saving={saving}
-              config={config}
-              onStart={(cycle) => changeStatus(cycle, "dalam_proses")}
-              onResult={openResult}
-              emptyText="Belum ada siklus yang sedang diproses."
-            />
-            <CycleTableSection
-              number="3"
-              title="Histori terbaru"
-              hint="Siklus yang telah selesai atau dibatalkan"
-              cycles={completedCycles}
-              type={type}
-              canManage={false}
-              saving={saving}
-              config={config}
-              onStart={() => {}}
-              onResult={openResult}
-              emptyText="Histori akan muncul setelah siklus selesai."
-            />
-            <section className="inspection-section inspection-empty-schedule">
-              <button
-                type="button"
-                className="inspection-empty-schedule__toggle"
-                onClick={() => setPanel(panel === "create" ? null : "create")}
-                aria-expanded={panel === "create"}
-              >
-                <span>4 · Belum ada jadwal</span>
-                <span className="inspection-empty-count">{withoutSchedule.length} alat</span>
-              </button>
-              {panel === "create" && withoutSchedule.length > 0 && (
-                <div className="inspection-unscheduled-list">
-                  {withoutSchedule.map((item) => (
-                    <button type="button" key={getEquipmentId(item)} onClick={() => openCreate(item)}>
-                      <span><strong>{item.nomor_aset || `ID ${getEquipmentId(item)}`}</strong>{item.nama_peralatan}</span>
-                      <Plus size={16} />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </section>
+            {activeView === "planned" && (
+              <CycleTableSection
+                number="1"
+                title={type === "kalibrasi" ? "Masuk rentang kalibrasi" : "Masuk rentang verifikasi"}
+                hint={plannedCycles.length ? `${plannedCycles.length} jadwal · terdekat ditampilkan lebih dulu` : "Siklus aktif yang memerlukan tindak lanjut"}
+                cycles={plannedCycles}
+                type={type}
+                canManage={canManage}
+                saving={saving}
+                config={config}
+                onStart={(cycle) => type === "kalibrasi"
+                  ? openCheckout(cycle)
+                  : changeStatus(cycle, "dalam_proses")}
+                onResult={openResult}
+                emptyText={`Belum ada jadwal ${config.title.toLowerCase()} yang menunggu.`}
+              />
+            )}
+            {activeView === "in-progress" && (
+              <CycleTableSection
+                number="2"
+                title={type === "kalibrasi" ? "Sedang dikalibrasi" : "Sedang diverifikasi"}
+                hint="Siklus yang sedang dikerjakan"
+                cycles={inProgressCycles}
+                type={type}
+                canManage={canManage}
+                saving={saving}
+                config={config}
+                onStart={(cycle) => type === "kalibrasi"
+                  ? openCheckout(cycle)
+                  : changeStatus(cycle, "dalam_proses")}
+                onResult={openResult}
+                emptyText="Belum ada siklus yang sedang diproses."
+              />
+            )}
+            {activeView === "history" && (
+              <CycleTableSection
+                number="3"
+                title="History"
+                hint="Siklus yang telah selesai atau dibatalkan"
+                cycles={completedCycles}
+                type={type}
+                canManage={false}
+                saving={saving}
+                config={config}
+                onStart={() => {}}
+                onResult={openResult}
+                emptyText="History akan muncul setelah siklus selesai."
+              />
+            )}
+            {activeView === "unscheduled" && (
+              <section className="inspection-section inspection-empty-schedule">
+                <header className="inspection-section__header">
+                  <div><h2>Belum ada jadwal</h2><span>Peralatan tanpa siklus pemeriksaan berkala</span></div>
+                  <span className="inspection-section-count">{withoutSchedule.length}</span>
+                </header>
+                {withoutSchedule.length === 0 ? (
+                  <div className="inspection-table-empty"><Clock3 size={16} />Semua peralatan sudah memiliki jadwal.</div>
+                ) : (
+                  <div className="inspection-unscheduled-list">
+                    {withoutSchedule.map((item) => (
+                      <button type="button" key={getEquipmentId(item)} onClick={() => openCreate(item)}>
+                        <span><strong>{item.nomor_aset || `ID ${getEquipmentId(item)}`}</strong>{item.nama_peralatan}</span>
+                        <Plus size={16} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
           </div>
 
           {panel && (
-            <aside className="inspection-action-panel" aria-label={panel === "create" ? "Buat jadwal pemeriksaan" : "Catat hasil pemeriksaan"}>
+            <aside className="inspection-action-panel" aria-label={panel === "create" ? "Buat jadwal pemeriksaan" : panel === "checkout" ? "Catat alat keluar" : "Catat hasil pemeriksaan"}>
               <div className="inspection-action-panel__header">
                 <div className="inspection-panel-heading-icon">
-                  {panel === "create" ? <CalendarClock size={17} /> : <CheckCircle2 size={17} />}
+                  {panel === "create" ? <CalendarClock size={17} /> : panel === "checkout" ? <Send size={17} /> : <CheckCircle2 size={17} />}
                 </div>
                 <div>
-                  <span>{panel === "create" ? `BUAT JADWAL ${config.title.toUpperCase()}` : `CATAT HASIL ${config.title.toUpperCase()}`}</span>
+                  <span>{panel === "create" ? `BUAT JADWAL ${config.title.toUpperCase()}` : panel === "checkout" ? "CATAT ALAT KELUAR" : `CATAT HASIL ${config.title.toUpperCase()}`}</span>
                   <strong>{panel === "create"
                     ? "Rencanakan siklus"
                     : `${selectedCycle?.peralatan?.nomor_aset || ""} ${selectedCycle?.peralatan?.nama_peralatan || ""}`}</strong>
@@ -405,6 +502,14 @@ export default function InspectionCycleManagement({ type }) {
                   form={createForm}
                   onChange={updateCreateField}
                   onSubmit={createCycle}
+                  onCancel={() => setPanel(null)}
+                  saving={saving}
+                />
+              ) : panel === "checkout" ? (
+                <EquipmentCheckoutForm
+                  form={checkoutForm}
+                  onChange={updateCheckoutField}
+                  onSubmit={saveCheckout}
                   onCancel={() => setPanel(null)}
                   saving={saving}
                 />
@@ -531,17 +636,6 @@ function CreateCycleForm({ type, equipment, form, onChange, onSubmit, onCancel, 
               <option value="Eksternal">Eksternal</option><option value="Internal">Internal</option>
             </select>
           </FormField>
-          <FormField label="Lab kalibrasi" htmlFor="cycle-lab" required>
-            <input id="cycle-lab" className="form-input" name="lab_kalibrasi" value={form.lab_kalibrasi} onChange={onChange} placeholder="Nama laboratorium kalibrasi" required />
-          </FormField>
-          <div className="inspection-form-grid">
-            <FormField label="Tanggal keluar" htmlFor="cycle-out">
-              <input id="cycle-out" className="form-input" type="date" name="tanggal_keluar" value={form.tanggal_keluar} onChange={onChange} />
-            </FormField>
-            <FormField label="Perkiraan kembali" htmlFor="cycle-return">
-              <input id="cycle-return" className="form-input" type="date" name="perkiraan_kembali" value={form.perkiraan_kembali} onChange={onChange} />
-            </FormField>
-          </div>
           <FormField label="Interval (bulan)" htmlFor="cycle-interval">
             <input id="cycle-interval" className="form-input" type="number" min="1" max="120" name="interval_bulan" value={form.interval_bulan || selectedEquipment?.interval_kalibrasi_bulan || ""} onChange={onChange} required />
           </FormField>
@@ -566,12 +660,70 @@ function CreateCycleForm({ type, equipment, form, onChange, onSubmit, onCancel, 
       )}
       <FormField label="Status awal" htmlFor="cycle-status" required>
         <select id="cycle-status" className="form-select" name="status" value={form.status} onChange={onChange}>
-          <option value="direncanakan">Direncanakan</option><option value="dalam_proses">Dalam proses</option>
+          <option value="direncanakan">Direncanakan</option>
+          {type !== "kalibrasi" && <option value="dalam_proses">Dalam proses</option>}
         </select>
       </FormField>
       <div className="inspection-side-form__footer">
         <Button variant="secondary" onClick={onCancel} disabled={saving}>Batal</Button>
         <Button type="submit" icon={<Plus size={15} />} disabled={saving || !equipment.length}>{saving ? "Menyimpan..." : "Simpan jadwal"}</Button>
+      </div>
+    </form>
+  );
+}
+
+function EquipmentCheckoutForm({ form, onChange, onSubmit, onCancel, saving }) {
+  return (
+    <form className="inspection-side-form" onSubmit={onSubmit}>
+      <FormField label="Tujuan kalibrasi" htmlFor="checkout-calibration-method" required>
+        <select
+          id="checkout-calibration-method"
+          className="form-select"
+          value={form.metode}
+          onChange={(event) => onChange("metode", event.target.value)}
+          required
+        >
+          <option value="Eksternal">Eksternal</option>
+          <option value="Internal">Internal</option>
+        </select>
+      </FormField>
+      <FormField label="Lab kalibrasi" htmlFor="checkout-calibration-lab" required>
+        <input
+          id="checkout-calibration-lab"
+          className="form-input"
+          value={form.lab_kalibrasi}
+          onChange={(event) => onChange("lab_kalibrasi", event.target.value)}
+          placeholder="Nama laboratorium kalibrasi"
+          required
+        />
+      </FormField>
+      <div className="inspection-form-grid">
+        <FormField label="Tanggal keluar" htmlFor="checkout-calibration-out" required>
+          <input
+            id="checkout-calibration-out"
+            className="form-input"
+            type="date"
+            value={form.tanggal_keluar}
+            onChange={(event) => onChange("tanggal_keluar", event.target.value)}
+            required
+          />
+        </FormField>
+        <FormField label="Perkiraan kembali" htmlFor="checkout-calibration-return" required>
+          <input
+            id="checkout-calibration-return"
+            className="form-input"
+            type="date"
+            value={form.perkiraan_kembali}
+            onChange={(event) => onChange("perkiraan_kembali", event.target.value)}
+            min={form.tanggal_keluar || undefined}
+            required
+          />
+        </FormField>
+      </div>
+      <p className="inspection-form-note"><Send size={14} /> Data keluar disimpan sebelum proses pencatatan hasil kalibrasi.</p>
+      <div className="inspection-side-form__footer">
+        <Button variant="secondary" onClick={onCancel} disabled={saving}>Batal</Button>
+        <Button type="submit" icon={<Send size={15} />} disabled={saving}>{saving ? "Menyimpan..." : "Simpan alat keluar"}</Button>
       </div>
     </form>
   );

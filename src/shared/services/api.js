@@ -426,6 +426,13 @@ export const peralatanApi = {
     form.append('foto', file);
     return fetchFormData(`/api/peralatan/${id}/foto`, form);
   },
+  downloadBulkTemplate: () => fetchBlobWithAuth('/api/peralatan/template-bulk'),
+  uploadBulk: (workbook, attachments = []) => {
+    const form = new FormData();
+    form.append('file_excel', workbook);
+    attachments.forEach((file) => form.append('lampiran', file));
+    return fetchFormData('/api/peralatan/bulk-upload', form);
+  },
   getQRCodeUrl: (id) => `${API_BASE}/api/peralatan/${id}/qr`,
 };
 
@@ -443,12 +450,24 @@ export const kalibrasiApi = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
-  complete: (id, { no_sertifikat, diterbitkan_oleh, tgl_kalibrasi, sertifikat_pdf }) => {
+  recordEquipmentOut: (id, body) =>
+    fetchWithAuth(`/api/kalibrasi/${id}/alat-keluar`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  complete: (id, {
+    no_sertifikat,
+    diterbitkan_oleh,
+    tgl_kalibrasi,
+    sertifikat_pdf,
+    buat_rencana_berikutnya = true,
+  }) => {
     const form = new FormData();
     form.append('no_sertifikat', no_sertifikat);
     form.append('diterbitkan_oleh', diterbitkan_oleh);
     form.append('tgl_kalibrasi', tgl_kalibrasi);
     form.append('sertifikat_pdf', sertifikat_pdf);
+    form.append('buat_rencana_berikutnya', String(buat_rencana_berikutnya));
     return fetchFormData(`/api/kalibrasi/${id}/selesai`, form);
   },
 };

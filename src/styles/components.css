@@ -359,6 +359,27 @@
   border-bottom: 1px solid var(--clr-dark-100);
 }
 
+.dashboard-calendar-agenda-row.is-actionable {
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-calendar-agenda-row.is-actionable:hover {
+  background: #f8fafc;
+}
+
+.dashboard-calendar-agenda-row.is-actionable:focus-visible {
+  outline: 2px solid var(--clr-primary-500);
+  outline-offset: -2px;
+}
+
 .dashboard-calendar-agenda-row:last-child {
   border-bottom: 0;
 }
