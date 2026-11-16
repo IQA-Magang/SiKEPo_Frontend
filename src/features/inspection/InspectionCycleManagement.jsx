@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
+import "./inspection.css";
 import {
   AlertCircle,
   CalendarClock,
-  CheckCircle2,
   Clock3,
   FileText,
   Plus,
   RefreshCw,
   Send,
-  X,
 } from "lucide-react";
 import { useToast } from "../../app/providers/ToastContext.jsx";
+import { useNavigate } from "../../app/router/Router.jsx";
 import {
   Button,
   ErrorState,
   FormField,
   LoadingState,
+  Modal,
   PageHeader,
 } from "../../shared/components/ui/index.js";
 import {
@@ -65,19 +66,6 @@ const EMPTY_CREATE_FORM = {
   status: "direncanakan",
 };
 
-const EMPTY_RESULT_FORM = {
-  tgl_kalibrasi: "",
-  no_sertifikat: "",
-  diterbitkan_oleh: "",
-  sertifikat_pdf: null,
-  tgl_pemeriksaan_terakhir: "",
-  tgl_jatuh_tempo: "",
-  pelaksana: "",
-  hasil: "sesuai",
-  no_laporan: "",
-  pdf_laporan: null,
-};
-
 const EMPTY_CHECKOUT_FORM = {
   metode: "Eksternal",
   lab_kalibrasi: "",
@@ -118,6 +106,7 @@ function dueState(value) {
 
 export default function InspectionCycleManagement({ type }) {
   const config = CYCLE_CONFIG[type];
+  const navigate = useNavigate();
   const { success, error } = useToast();
   const [equipment, setEquipment] = useState([]);
   const [cycles, setCycles] = useState([]);
@@ -128,7 +117,6 @@ export default function InspectionCycleManagement({ type }) {
   const [activeView, setActiveView] = useState("planned");
   const [selectedCycle, setSelectedCycle] = useState(null);
   const [createForm, setCreateForm] = useState(EMPTY_CREATE_FORM);
-  const [resultForm, setResultForm] = useState(EMPTY_RESULT_FORM);
   const [checkoutForm, setCheckoutForm] = useState(EMPTY_CHECKOUT_FORM);
 
   const user = useMemo(() => getCurrentUser(), []);
@@ -198,20 +186,13 @@ export default function InspectionCycleManagement({ type }) {
     setPanel("create");
   }
 
-  function openResult(cycle) {
-    setSelectedCycle(cycle);
-    setResultForm({
-      ...EMPTY_RESULT_FORM,
-      tgl_jatuh_tempo: dateOnly(cycle.tgl_jatuh_tempo),
-      tgl_kalibrasi: dateOnly(cycle.tgl_kalibrasi),
-      no_sertifikat: cycle.no_sertifikat || "",
-      diterbitkan_oleh: cycle.diterbitkan_oleh || "",
-      tgl_pemeriksaan_terakhir: dateOnly(cycle.tgl_pemeriksaan_terakhir),
-      pelaksana: cycle.pelaksana || "",
-      hasil: cycle.hasil || "sesuai",
-      no_laporan: cycle.no_laporan || "",
-    });
-    setPanel("result");
+  function openEquipmentVerification(cycle) {
+    const equipmentId = getEquipmentId(cycle.peralatan) ?? cycle.peralatan_id;
+    if (equipmentId == null || equipmentId === "") {
+      error("ID peralatan tidak ditemukan untuk membuka halaman verifikasi.");
+      return;
+    }
+    navigate(`/verifikasi/${equipmentId}`);
   }
 
   function openCheckout(cycle) {
@@ -240,10 +221,15 @@ export default function InspectionCycleManagement({ type }) {
 
     setActiveView(cycle.status === "dalam_proses" ? "in-progress" : "planned");
     if (canManage) {
-      if (action === "checkout" && type === "kalibrasi" && cycle.status === "direncanakan") {
+      if (
+        action === "result" &&
+        (type === "verifikasi-fungsi" || (type === "kalibrasi" && cycle.status === "dalam_proses"))
+      ) {
+        window.history.replaceState({}, "", window.location.pathname);
+        openEquipmentVerification(cycle);
+        return;
+      } else if (action === "checkout" && type === "kalibrasi" && cycle.status === "direncanakan") {
         openCheckout(cycle);
-      } else if (action === "result" && (cycle.status === "dalam_proses" || type !== "kalibrasi")) {
-        openResult(cycle);
       } else {
         error("Aksi tidak sesuai dengan status siklus pemeriksaan.");
       }
@@ -251,7 +237,7 @@ export default function InspectionCycleManagement({ type }) {
       error("Anda tidak memiliki akses untuk mencatat pemeriksaan.");
     }
     window.history.replaceState({}, "", window.location.pathname);
-  }, [loading, loadError, cycles, type, canManage, error]);
+  }, [loading, loadError, cycles, type, canManage, error, navigate]);
 
   function updateCreateField(event) {
     const { name, value, checked, type: inputType } = event.target;
@@ -327,26 +313,6 @@ export default function InspectionCycleManagement({ type }) {
     }
   }
 
-  async function saveResult(event) {
-    event.preventDefault();
-    if (!selectedCycle) return;
-    setSaving(true);
-    try {
-      await config.api.complete(selectedCycle.id, resultForm);
-      success(`Hasil ${config.title.toLowerCase()} berhasil disimpan.`);
-      setPanel(null);
-      await loadData();
-    } catch (completeError) {
-      error(completeError.message || `Gagal menyimpan hasil ${config.title.toLowerCase()}.`);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function updateResultField(name, value) {
-    setResultForm((previous) => ({ ...previous, [name]: value }));
-  }
-
   function updateCheckoutField(name, value) {
     setCheckoutForm((previous) => ({ ...previous, [name]: value }));
   }
@@ -376,15 +342,6 @@ export default function InspectionCycleManagement({ type }) {
         eyebrow="PEMANTAUAN SIKLUS PERALATAN"
         title={config.title}
         subtitle={`Lab Anda · ${today} · Jadwal, proses, dan histori ${config.title.toLowerCase()} dalam satu tampilan.`}
-        actions={(
-          <Button
-            icon={<Plus size={16} />}
-            onClick={() => openCreate()}
-            disabled={!canManage || availableEquipment.length === 0}
-          >
-            Buat Jadwal
-          </Button>
-        )}
       />
 
       <nav className="inspection-tabs" aria-label="Status pemeriksaan berkala">
@@ -408,7 +365,7 @@ export default function InspectionCycleManagement({ type }) {
       ) : loadError ? (
         <ErrorState title={`Gagal memuat ${config.title.toLowerCase()}`} message={loadError} onRetry={loadData} />
       ) : (
-        <div className={`inspection-cycle-layout${panel ? " has-panel" : ""}`}>
+        <div className="inspection-cycle-layout">
           <div className="inspection-cycle-sections">
             {activeView === "planned" && (
               <CycleTableSection
@@ -423,7 +380,7 @@ export default function InspectionCycleManagement({ type }) {
                 onStart={(cycle) => type === "kalibrasi"
                   ? openCheckout(cycle)
                   : changeStatus(cycle, "dalam_proses")}
-                onResult={openResult}
+                onResult={openEquipmentVerification}
                 emptyText={`Belum ada jadwal ${config.title.toLowerCase()} yang menunggu.`}
               />
             )}
@@ -440,7 +397,7 @@ export default function InspectionCycleManagement({ type }) {
                 onStart={(cycle) => type === "kalibrasi"
                   ? openCheckout(cycle)
                   : changeStatus(cycle, "dalam_proses")}
-                onResult={openResult}
+                onResult={openEquipmentVerification}
                 emptyText="Belum ada siklus yang sedang diproses."
               />
             )}
@@ -455,7 +412,7 @@ export default function InspectionCycleManagement({ type }) {
                 saving={saving}
                 config={config}
                 onStart={() => {}}
-                onResult={openResult}
+                onResult={openEquipmentVerification}
                 emptyText="History akan muncul setelah siklus selesai."
               />
             )}
@@ -482,19 +439,18 @@ export default function InspectionCycleManagement({ type }) {
           </div>
 
           {panel && (
-            <aside className="inspection-action-panel" aria-label={panel === "create" ? "Buat jadwal pemeriksaan" : panel === "checkout" ? "Catat alat keluar" : "Catat hasil pemeriksaan"}>
-              <div className="inspection-action-panel__header">
-                <div className="inspection-panel-heading-icon">
-                  {panel === "create" ? <CalendarClock size={17} /> : panel === "checkout" ? <Send size={17} /> : <CheckCircle2 size={17} />}
-                </div>
-                <div>
-                  <span>{panel === "create" ? `BUAT JADWAL ${config.title.toUpperCase()}` : panel === "checkout" ? "CATAT ALAT KELUAR" : `CATAT HASIL ${config.title.toUpperCase()}`}</span>
-                  <strong>{panel === "create"
-                    ? "Rencanakan siklus"
-                    : `${selectedCycle?.peralatan?.nomor_aset || ""} ${selectedCycle?.peralatan?.nama_peralatan || ""}`}</strong>
-                </div>
-                <button type="button" className="inspection-panel-close" onClick={() => setPanel(null)} aria-label="Tutup panel"><X size={17} /></button>
-              </div>
+            <Modal
+              isOpen={Boolean(panel)}
+              onClose={() => setPanel(null)}
+              title={panel === "create"
+                ? `Buat Jadwal ${config.title}`
+                : "Catat Alat Keluar"}
+              description={panel === "create"
+                ? `Lengkapi informasi siklus ${config.title.toLowerCase()}.`
+                : `${selectedCycle?.peralatan?.nomor_aset || ""} ${selectedCycle?.peralatan?.nama_peralatan || ""}`}
+              size="lg"
+              className="inspection-cycle-modal"
+            >
               {panel === "create" ? (
                 <CreateCycleForm
                   type={type}
@@ -505,7 +461,7 @@ export default function InspectionCycleManagement({ type }) {
                   onCancel={() => setPanel(null)}
                   saving={saving}
                 />
-              ) : panel === "checkout" ? (
+              ) : (
                 <EquipmentCheckoutForm
                   form={checkoutForm}
                   onChange={updateCheckoutField}
@@ -513,17 +469,8 @@ export default function InspectionCycleManagement({ type }) {
                   onCancel={() => setPanel(null)}
                   saving={saving}
                 />
-              ) : (
-                <ResultCycleForm
-                  type={type}
-                  form={resultForm}
-                  onChange={updateResultField}
-                  onSubmit={saveResult}
-                  onCancel={() => setPanel(null)}
-                  saving={saving}
-                />
               )}
-            </aside>
+            </Modal>
           )}
         </div>
       )}
@@ -729,63 +676,3 @@ function EquipmentCheckoutForm({ form, onChange, onSubmit, onCancel, saving }) {
   );
 }
 
-function ResultCycleForm({ type, form, onChange, onSubmit, onCancel, saving }) {
-  return (
-    <form className="inspection-side-form" onSubmit={onSubmit}>
-      {type === "kalibrasi" ? (
-        <>
-          <div className="inspection-form-grid">
-            <FormField label="Tanggal kalibrasi" htmlFor="result-calibration-date" required>
-              <input id="result-calibration-date" className="form-input" type="date" value={form.tgl_kalibrasi} onChange={(event) => onChange("tgl_kalibrasi", event.target.value)} required />
-            </FormField>
-            <FormField label="Nomor sertifikat" htmlFor="result-certificate-number" required>
-              <input id="result-certificate-number" className="form-input" value={form.no_sertifikat} onChange={(event) => onChange("no_sertifikat", event.target.value)} required />
-            </FormField>
-          </div>
-          <FormField label="Diterbitkan oleh" htmlFor="result-certificate-issuer" required>
-            <input id="result-certificate-issuer" className="form-input" value={form.diterbitkan_oleh} onChange={(event) => onChange("diterbitkan_oleh", event.target.value)} required />
-          </FormField>
-          <FormField label="Sertifikat (PDF, maks. 15 MB)" htmlFor="result-certificate-file" required>
-            <input id="result-certificate-file" className="form-input" type="file" accept="application/pdf,.pdf" onChange={(event) => onChange("sertifikat_pdf", event.target.files?.[0] || null)} required />
-          </FormField>
-        </>
-      ) : (
-        <>
-          <div className="inspection-form-grid">
-            <FormField label="Tanggal pelaksanaan" htmlFor="result-function-date" required>
-              <input id="result-function-date" className="form-input" type="date" value={form.tgl_pemeriksaan_terakhir} onChange={(event) => onChange("tgl_pemeriksaan_terakhir", event.target.value)} required />
-            </FormField>
-            <FormField label="Hasil" htmlFor="result-function-result" required>
-              <select id="result-function-result" className="form-select" value={form.hasil} onChange={(event) => onChange("hasil", event.target.value)}>
-                <option value="sesuai">Sesuai</option><option value="tidak sesuai">Tidak sesuai</option>
-              </select>
-            </FormField>
-          </div>
-          <FormField label="Pelaksana / lab mitra" htmlFor="result-function-operator" required>
-            <input id="result-function-operator" className="form-input" value={form.pelaksana} onChange={(event) => onChange("pelaksana", event.target.value)} required />
-          </FormField>
-          <div className="inspection-form-grid">
-            <FormField label="Jatuh tempo berikutnya" htmlFor="result-function-due">
-              <input id="result-function-due" className="form-input" type="date" value={form.tgl_jatuh_tempo} onChange={(event) => onChange("tgl_jatuh_tempo", event.target.value)} />
-            </FormField>
-            <FormField label="Nomor laporan" htmlFor="result-function-number" required>
-              <input id="result-function-number" className="form-input" value={form.no_laporan} onChange={(event) => onChange("no_laporan", event.target.value)} required />
-            </FormField>
-          </div>
-          <FormField label="Laporan (PDF, maks. 15 MB)" htmlFor="result-function-file" required>
-            <input id="result-function-file" className="form-input" type="file" accept="application/pdf,.pdf" onChange={(event) => onChange("pdf_laporan", event.target.files?.[0] || null)} required />
-          </FormField>
-          <p className={`inspection-result-callout${form.hasil === "sesuai" ? " is-good" : " is-warning"}`}>
-            {form.hasil === "sesuai" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-            {form.hasil === "sesuai" ? "Hasil sesuai. Peralatan dapat digunakan setelah dokumentasi tersimpan." : "Hasil tidak sesuai. Peralatan perlu ditinjau sebelum digunakan."}
-          </p>
-        </>
-      )}
-      <p className="inspection-form-note"><Send size={14} /> Data hasil dan dokumen akan dicatat pada histori peralatan.</p>
-      <div className="inspection-side-form__footer">
-        <Button variant="secondary" onClick={onCancel} disabled={saving}>Batal</Button>
-        <Button type="submit" icon={<CheckCircle2 size={15} />} disabled={saving}>{saving ? "Menyimpan..." : "Simpan hasil"}</Button>
-      </div>
-    </form>
-  );
-}

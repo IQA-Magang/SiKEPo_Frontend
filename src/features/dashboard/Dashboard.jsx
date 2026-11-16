@@ -13,10 +13,15 @@ export default function Dashboard({ onNavigate }) {
 
   return (
     <div className="page-container fade-in-up">
-      <ScheduleDateCards onNavigate={onNavigate} />
-      {role === 'admin' && <AdminDashboard onNavigate={onNavigate} />}
-      {role === 'manager' && <ManagerDashboard onNavigate={onNavigate} user={user} />}
-      {role === 'staff'   && <StaffDashboard onNavigate={onNavigate} user={user} />}
+      {role === 'admin' ? (
+        <AdminDashboard onNavigate={onNavigate} />
+      ) : (
+        <>
+          <ScheduleDateCards onNavigate={onNavigate} />
+          {role === 'manager' && <ManagerDashboard onNavigate={onNavigate} user={user} />}
+          {role === 'staff' && <StaffDashboard onNavigate={onNavigate} user={user} />}
+        </>
+      )}
     </div>
   );
 }
@@ -265,7 +270,7 @@ function ScheduleDateCards({ onNavigate }) {
               const isSelected = selectedCategoryId === categoryId;
               return (
                 <button
-                  className={`dashboard-category-tab${isSelected ? ' is-active' : ''}`}
+                  className={`dashboard-category-tab dashboard-category-tab--${categoryId}${isSelected ? ' is-active' : ''}`}
                   id={`dashboard-category-tab-${categoryId}`}
                   key={categoryId}
                   type="button"
@@ -747,7 +752,7 @@ function AdminDashboard({ onNavigate }) {
 
       {/* Level 1: 4 KPI Stat Cards */}
       <div className="stats-grid">
-        <div className="stat-card stat-card-clickable black" onClick={() => onNavigate('/peralatan')}>
+        <div className="stat-card stat-card-clickable blue" onClick={() => onNavigate('/peralatan')}>
           <div>
             <div className="stat-header">
               <span className="stat-badge">Inventaris</span>
@@ -761,7 +766,7 @@ function AdminDashboard({ onNavigate }) {
           </div>
         </div>
 
-        <div className="stat-card stat-card-clickable red" onClick={() => onNavigate('/admin/users')}>
+        <div className="stat-card stat-card-clickable violet" onClick={() => onNavigate('/admin/users')}>
           <div>
             <div className="stat-header">
               <span className="stat-badge">Pengguna</span>
@@ -775,7 +780,7 @@ function AdminDashboard({ onNavigate }) {
           </div>
         </div>
 
-        <div className="stat-card stat-card-clickable gray" onClick={() => onNavigate('/peralatan')}>
+        <div className="stat-card stat-card-clickable red" onClick={() => onNavigate('/peralatan')}>
           <div>
             <div className="stat-header">
               <span className="stat-badge">Alat Rusak</span>
@@ -789,7 +794,7 @@ function AdminDashboard({ onNavigate }) {
           </div>
         </div>
 
-        <div className="stat-card stat-card-clickable darkgray" onClick={() => onNavigate('/admin/labs')}>
+        <div className="stat-card stat-card-clickable teal" onClick={() => onNavigate('/admin/labs')}>
           <div>
             <div className="stat-header">
               <span className="stat-badge">Laboratorium</span>
@@ -803,6 +808,8 @@ function AdminDashboard({ onNavigate }) {
           </div>
         </div>
       </div>
+
+      <ScheduleDateCards onNavigate={onNavigate} />
 
       {/* Ringkasan 5 Kotak Alur Peminjaman Peralatan (TLKM13/IK/005) */}
       <LoanPipelineSummary loans={loans} onNavigate={onNavigate} loading={loading} />
