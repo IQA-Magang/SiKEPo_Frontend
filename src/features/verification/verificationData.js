@@ -154,6 +154,33 @@ export function getActivityLabel(code) {
   );
 }
 
+export function getEquipmentInspectionMethod(equipment) {
+  const method = String(
+    equipment?.metode_pemeriksaan ||
+      equipment?.detail?.metode_pemeriksaan ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+
+  if (method.includes("verifikasi")) return "verifikasi_fungsi";
+  if (method.includes("kalibrasi")) return "kalibrasi";
+
+  const activityCode = String(equipment?.kode_aktivitas || "").toUpperCase();
+  if (activityCode === "A5") return "verifikasi_fungsi";
+  if (activityCode === "A2") return "kalibrasi";
+
+  if (
+    equipment?.detail?.jenis_pemeriksaan_berkala ||
+    equipment?.detail?.no_laporan ||
+    equipment?.detail?.pdf_laporan
+  ) {
+    return "verifikasi_fungsi";
+  }
+
+  return "kalibrasi";
+}
+
 export function getEquipmentKeterangan(equipment) {
   if (equipment?.status_verifikasi === "Ditolak") {
     return "Perlu verifikasi ulang";
@@ -197,6 +224,12 @@ export const emptyForm = () => ({
   acuan_kriteria: "",
   nomor_sertifikat: "",
   penyedia_kalibrasi: "",
+  tanggal_kalibrasi: "",
+  tanggal_verifikasi_fungsi: "",
+  nomor_laporan: "",
+  pelaksana_verifikasi: "",
+  hasil_verifikasi_fungsi: "sesuai",
+  dokumen_pemeriksaan: null,
   berlaku_sampai: "",
   nilai_koreksi: "T Tidak diterapkan",
   firmware_versi_aktual: "",

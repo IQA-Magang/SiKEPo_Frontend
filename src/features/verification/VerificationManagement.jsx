@@ -5,6 +5,7 @@ import {
   getSavedSignature,
   removeSavedSignature,
   saveSignature,
+  dokumenApi,
   verifikasiApi,
 } from "../../shared/services/api.js";
 import { useToast } from "../../app/providers/ToastContext.jsx";
@@ -20,6 +21,7 @@ import {
   CHECK_LABELS,
   emptyForm,
   getEquipmentFirmwareVersion,
+  getEquipmentInspectionMethod,
   getApplicableRequirements,
   getAutomaticFollowUp,
   isFirmwareOptionalForEquipment,
@@ -170,6 +172,46 @@ export default function VerificationManagement({
   async function submitVerifikasi(event) {
     event.preventDefault();
 
+    const inspectionMethod = getEquipmentInspectionMethod(equipmentInfo);
+    const inspectionDocument = form.dokumen_pemeriksaan;
+    if (
+      inspectionMethod === "kalibrasi" &&
+      (!form.tanggal_kalibrasi ||
+        !form.nomor_sertifikat.trim() ||
+        !form.penyedia_kalibrasi.trim())
+    ) {
+      error("Lengkapi tanggal kalibrasi, nomor sertifikat, dan penerbit sertifikat.");
+      return;
+    }
+    if (
+      inspectionMethod === "verifikasi_fungsi" &&
+      (!form.tanggal_verifikasi_fungsi ||
+        !form.nomor_laporan.trim() ||
+        !form.pelaksana_verifikasi.trim())
+    ) {
+      error("Lengkapi tanggal, nomor laporan, dan pelaksana verifikasi fungsi.");
+      return;
+    }
+    if (!inspectionDocument) {
+      error("Dokumen hasil pemeriksaan wajib diunggah.");
+      return;
+    }
+    if (
+      !/\.pdf$/i.test(inspectionDocument.name) ||
+      (inspectionDocument.type &&
+        inspectionDocument.type !== "application/pdf")
+    ) {
+      error("Dokumen hasil pemeriksaan harus berupa PDF.");
+      return;
+    }
+    if (
+      inspectionDocument.size <= 0 ||
+      inspectionDocument.size > 15 * 1024 * 1024
+    ) {
+      error("Ukuran dokumen PDF harus lebih dari 0 dan maksimal 15 MB.");
+      return;
+    }
+
     if (!picSignature) {
       error(
         "Tanda tangan Pengelola wajib tersedia sebelum verifikasi diajukan.",
@@ -272,6 +314,7 @@ export default function VerificationManagement({
         format: "TLKM13/F/003-v05",
         catatan_pic: form.catatan,
         acuan_kriteria: form.acuan_kriteria,
+        jenis_pemeriksaan: inspectionMethod,
         firmware: {
           versi_tercatat: getEquipmentFirmwareVersion(equipmentInfo),
           versi_aktual:
@@ -282,9 +325,17 @@ export default function VerificationManagement({
         sertifikat: {
           nomor: form.nomor_sertifikat,
           penyedia: form.penyedia_kalibrasi,
+          tanggal_kalibrasi: form.tanggal_kalibrasi,
           berlaku_sampai: form.berlaku_sampai,
           penerapan_nilai_koreksi: form.nilai_koreksi,
         },
+        verifikasi_fungsi: {
+          tanggal_pemeriksaan: form.tanggal_verifikasi_fungsi,
+          nomor_laporan: form.nomor_laporan,
+          pelaksana: form.pelaksana_verifikasi,
+          hasil: form.hasil_verifikasi_fungsi,
+        },
+        dokumen_pemeriksaan: inspectionDocument.name,
 
         alasan_tb: form.tb_alasan,
         alasan_ts: form.ts_alasan,
@@ -320,8 +371,26 @@ export default function VerificationManagement({
       }
       await verifikasiApi.signPic(newId, picSignature);
 
+      try {
+        const documentType =
+          inspectionMethod === "kalibrasi"
+            ? "Sertifikat Kalibrasi"
+            : "Laporan Verifikasi Fungsi";
+        await dokumenApi.upload(
+          Number(form.id_peralatan),
+          inspectionDocument,
+          `${documentType} - ${inspectionDocument.name}`,
+        );
+      } catch (uploadError) {
+        error(
+          `Verifikasi berhasil diajukan, tetapi dokumen gagal diunggah. ${uploadError.message || "Silakan unggah dokumen melalui menu dokumen peralatan."}`,
+        );
+        navigate(returnPath);
+        return;
+      }
+
       success(
-        "Verifikasi berhasil diajukan kepada Manager Lab untuk ditinjau.",
+        "Verifikasi dan dokumen hasil pemeriksaan berhasil diajukan kepada Manager Lab.",
       );
 
       if (equipmentId) {

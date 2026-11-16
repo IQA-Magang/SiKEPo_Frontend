@@ -1,7 +1,10 @@
 import { ArrowLeft, Package, Send } from "lucide-react";
 import { getEquipmentId } from "../../../shared/services/api.js";
 import { Button } from "../../../shared/components/ui/index.js";
-import { getActivityLabel } from "../verificationData.js";
+import {
+  getActivityLabel,
+  getEquipmentInspectionMethod,
+} from "../verificationData.js";
 import VerificationIdentitySection from "./VerificationIdentitySection.jsx";
 import VerificationChecklistSection from "./VerificationChecklistSection.jsx";
 import VerificationCertificateSection from "./VerificationCertificateSection.jsx";
@@ -257,9 +260,11 @@ export default function VerificationFormPage({
             setForm={setForm}
             equipmentInfo={equipmentInfo}
           />
-          {activityCode !== "A3" && (
-            <VerificationCertificateSection form={form} setForm={setForm} />
-          )}
+          <VerificationCertificateSection
+            form={form}
+            setForm={setForm}
+            inspectionMethod={getEquipmentInspectionMethod(equipmentInfo)}
+          />
           <VerificationFollowUpSection
             form={form}
             setForm={setForm}

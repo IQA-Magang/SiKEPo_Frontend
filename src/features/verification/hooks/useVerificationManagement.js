@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  kalibrasiApi,
   getEquipmentId,
   peralatanApi,
   ruanganApi,
+  verifikasiFungsiApi,
   verifikasiApi,
 } from "../../../shared/services/api.js";
 import {
@@ -10,8 +12,54 @@ import {
   CHECKS,
   getApplicableRequirements,
   getEquipmentFirmwareVersion,
+  getEquipmentInspectionMethod,
   isEquipmentInUserLab,
 } from "../verificationData.js";
+
+function getInspectionMethodHint(equipment) {
+  const method = String(
+    equipment?.metode_pemeriksaan ||
+      equipment?.detail?.metode_pemeriksaan ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+  if (method.includes("verifikasi")) return "verifikasi_fungsi";
+  if (method.includes("kalibrasi")) return "kalibrasi";
+
+  const activityCode = String(equipment?.kode_aktivitas || "").toUpperCase();
+  if (activityCode === "A5") return "verifikasi_fungsi";
+  if (activityCode === "A2") return "kalibrasi";
+
+  const detail = equipment?.detail;
+  if (
+    detail?.jenis_pemeriksaan_berkala ||
+    detail?.no_laporan ||
+    detail?.pdf_laporan
+  ) {
+    return "verifikasi_fungsi";
+  }
+  if (
+    detail?.metode ||
+    detail?.no_sertifikat ||
+    detail?.tgl_kalibrasi ||
+    detail?.sertifikat_pdf
+  ) {
+    return "kalibrasi";
+  }
+  return "";
+}
+
+function getInspectionRecordTimestamp(record) {
+  const timestamp = Date.parse(
+    record.updated_at ||
+      record.created_at ||
+      record.tgl_pemeriksaan_terakhir ||
+      record.tgl_kalibrasi ||
+      "",
+  );
+  return Number.isNaN(timestamp) ? Number(record.id) || 0 : timestamp;
+}
 
 export default function useVerificationManagement({
   equipmentId,
@@ -253,8 +301,54 @@ export default function useVerificationManagement({
           ...equipmentDetails.peralatan,
           detail: equipmentDetails.detail,
         };
+        let inspectionMethod = getInspectionMethodHint(equipmentWithDetails);
+        let inspectionRecord = equipmentDetails.detail;
+        if (!inspectionMethod) {
+          const historyResults = await Promise.allSettled([
+            kalibrasiApi.getByEquipment(getEquipmentId(equipmentWithDetails)),
+            verifikasiFungsiApi.getByEquipment(
+              getEquipmentId(equipmentWithDetails),
+            ),
+          ]);
+          const historyRecords = [];
+          historyResults.forEach((result, index) => {
+            const method = index === 0 ? "kalibrasi" : "verifikasi_fungsi";
+            if (result.status === "rejected") {
+              onError(
+                result.reason?.message ||
+                  `Gagal memuat histori ${method === "kalibrasi" ? "kalibrasi" : "verifikasi fungsi"}.`,
+              );
+              return;
+            }
+            if (!Array.isArray(result.value?.data)) {
+              onError(
+                `Format histori ${method === "kalibrasi" ? "kalibrasi" : "verifikasi fungsi"} tidak valid.`,
+              );
+              return;
+            }
+            result.value.data.forEach((record) =>
+              historyRecords.push({ method, record }),
+            );
+          });
+          historyRecords.sort(
+            (left, right) =>
+              getInspectionRecordTimestamp(right.record) -
+                getInspectionRecordTimestamp(left.record) ||
+              Number(right.record.id) - Number(left.record.id),
+          );
+          inspectionRecord = historyRecords[0]?.record || inspectionRecord;
+          inspectionMethod =
+            historyRecords[0]?.method ||
+            getEquipmentInspectionMethod(equipmentWithDetails);
+        }
+        equipmentWithDetails.metode_pemeriksaan = inspectionMethod;
+        if (!active) return;
         setEquipmentInfo(equipmentWithDetails);
         const detail = equipmentDetails.detail || {};
+        const calibrationRecord =
+          inspectionMethod === "kalibrasi" ? inspectionRecord : null;
+        const functionVerificationRecord =
+          inspectionMethod === "verifikasi_fungsi" ? inspectionRecord : null;
         const autoActivity = equipmentWithDetails.kode_aktivitas || "A1";
         const requirements = getApplicableRequirements(
           equipmentWithDetails,
@@ -274,7 +368,29 @@ export default function useVerificationManagement({
             id_peralatan: String(equipmentId),
             kode_aktivitas: autoActivity,
             nomor_sertifikat:
-              detail.no_sertifikat || previous.nomor_sertifikat,
+              calibrationRecord?.no_sertifikat ||
+              previous.nomor_sertifikat,
+            penyedia_kalibrasi:
+              calibrationRecord?.diterbitkan_oleh ||
+              previous.penyedia_kalibrasi,
+            tanggal_kalibrasi: calibrationRecord?.tgl_kalibrasi
+              ? calibrationRecord.tgl_kalibrasi.slice(0, 10)
+              : previous.tanggal_kalibrasi,
+            tanggal_verifikasi_fungsi:
+              functionVerificationRecord?.tgl_pemeriksaan_terakhir
+                ? functionVerificationRecord.tgl_pemeriksaan_terakhir.slice(
+                    0,
+                    10,
+                  )
+                : previous.tanggal_verifikasi_fungsi,
+            nomor_laporan:
+              functionVerificationRecord?.no_laporan || previous.nomor_laporan,
+            pelaksana_verifikasi:
+              functionVerificationRecord?.pelaksana ||
+              previous.pelaksana_verifikasi,
+            hasil_verifikasi_fungsi:
+              functionVerificationRecord?.hasil ||
+              previous.hasil_verifikasi_fungsi,
             berlaku_sampai: detail.tgl_jatuh_tempo
               ? detail.tgl_jatuh_tempo.slice(0, 10)
               : previous.berlaku_sampai,
