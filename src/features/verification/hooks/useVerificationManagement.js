@@ -192,7 +192,7 @@ export default function useVerificationManagement({
             item.status_verifikasi !== "Disetujui" &&
             item.status_verifikasi !== "Diajukan" &&
             ((activityCode === "" || activityCode === "A1") ||
-              (activityCode === "A3" &&
+              (["A2", "A3"].includes(activityCode) &&
                 item.status_verifikasi === "Belum Diverifikasi")) &&
             !pendingFollowUpEquipmentIds.has(String(getEquipmentId(item)))
           );

@@ -204,13 +204,20 @@ export default function EquipmentList({
       .trim()
       .toUpperCase();
     const pending =
-      !approved && !rejected && activityCode === "A1";
+      !approved &&
+      !rejected &&
+      (activityCode === "A1" ||
+        (activityCode === "A2" &&
+          p.status_verifikasi === "Belum Diverifikasi"));
     const followUpVerification =
       ["Draft", "Diajukan"].includes(p.status_verifikasi) &&
       activityCode !== "" &&
       activityCode !== "A1";
     const returnedFromLoanAwaitingVerification =
       activityCode === "A3" &&
+      p.status_verifikasi === "Belum Diverifikasi";
+    const awaitingPostCalibrationVerification =
+      activityCode === "A2" &&
       p.status_verifikasi === "Belum Diverifikasi";
     const matchLifecycle =
       lifecycleView === "pending"
@@ -219,7 +226,8 @@ export default function EquipmentList({
           ? rejected
           : (available && approved) ||
             followUpVerification ||
-            returnedFromLoanAwaitingVerification;
+            returnedFromLoanAwaitingVerification ||
+            awaitingPostCalibrationVerification;
     return matchQ && matchKat && matchLab && matchLifecycle;
   });
   const pagination = usePagination(

@@ -94,13 +94,17 @@ export function filterEquipment(equipmentList, {
     const isReturnedFromLoanAwaitingVerification =
       activityCode === 'A3' &&
       equipment.status_verifikasi === 'Belum Diverifikasi';
+    const isAwaitingPostCalibrationVerification =
+      activityCode === 'A2' &&
+      equipment.status_verifikasi === 'Belum Diverifikasi';
     const matchesLifecycle = lifecycle === 'pending'
       ? pending
       : lifecycle === 'review'
         ? rejected
         : (['Aktif', 'Dipinjam'].includes(equipment.status_alat) && approved) ||
           isFollowUpVerification ||
-          isReturnedFromLoanAwaitingVerification;
+          isReturnedFromLoanAwaitingVerification ||
+          isAwaitingPostCalibrationVerification;
 
     return matchesSearch && matchesCategory && matchesLab && matchesLifecycle;
   });
