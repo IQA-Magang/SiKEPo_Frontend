@@ -108,20 +108,6 @@ function PeriodicActivityFields({ form, setField }) {
             </select>
           </FormField>
           <DetailInputField
-            id="d-tanggal-keluar"
-            label="Tanggal Keluar"
-            type="date"
-            value={form.tanggal_keluar}
-            onChange={(event) => setField('tanggal_keluar', event.target.value)}
-          />
-          <DetailInputField
-            id="d-perkiraan-kembali"
-            label="Perkiraan Kembali"
-            type="date"
-            value={form.perkiraan_kembali}
-            onChange={(event) => setField('perkiraan_kembali', event.target.value)}
-          />
-          <DetailInputField
             id="d-no-sertifikat-kalibrasi"
             label="No. Sertifikat Kalibrasi"
             value={form.no_sertifikat}
@@ -202,6 +188,8 @@ function PeriodicActivityFields({ form, setField }) {
             type="date"
             value={form.tgl_jatuh_tempo}
             onChange={(event) => setField('tgl_jatuh_tempo', event.target.value)}
+            helpText="Dihitung otomatis dari tanggal pemeriksaan terakhir dan interval verifikasi."
+            readOnly
           />
           <DetailInputField
             id="d-acuan-pembanding"

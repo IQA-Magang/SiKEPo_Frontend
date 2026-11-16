@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import {
   ClipboardCheck,
+  Download,
   Package,
   Plus,
   RotateCcw,
   Hand,
+  Upload,
+  X,
 } from "lucide-react";
 import {
   getEquipmentId,
@@ -21,6 +24,7 @@ import { usePagination } from "../../shared/components/ui/Pagination.jsx";
 import PaginatedDataTable from "../../shared/components/ui/PaginatedDataTable.jsx";
 import TableFilters from "../../shared/components/ui/TableFilters.jsx";
 import WorkflowGuide from "../../shared/components/ui/WorkflowGuide.jsx";
+import { useToast } from "../../app/providers/ToastContext.jsx";
 
 // ------------------------------------------------------------------
 // Daftar Peralatan
@@ -31,6 +35,7 @@ export default function EquipmentList({
   returnPath = "/peralatan",
 }) {
   const canCreate = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.ADD);
+  const { success, error: showError } = useToast();
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const canRequestLoan = can(ACCESS.LOAN_REQUEST, ACTIONS.ADD);
   const [list, setList] = useState([]);
@@ -42,6 +47,14 @@ export default function EquipmentList({
   const [labs, setLabs] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [jadwal, setJadwal] = useState([]);
+  const [bulkPanelOpen, setBulkPanelOpen] = useState(false);
+  const [templateDownloading, setTemplateDownloading] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkWorkbook, setBulkWorkbook] = useState(null);
+  const [bulkAttachments, setBulkAttachments] = useState([]);
+  const [bulkUploadError, setBulkUploadError] = useState("");
+  const [bulkResult, setBulkResult] = useState(null);
+  const [bulkInputKey, setBulkInputKey] = useState(0);
   const hariIni = new Date();
   const hariIniStr = `${hariIni.getFullYear()}-${String(hariIni.getMonth() + 1).padStart(2, "0")}-${String(hariIni.getDate()).padStart(2, "0")}`;
   const jadwalPerAlat = new Map();
@@ -105,6 +118,69 @@ export default function EquipmentList({
     } finally {
       setLoading(false);
     }
+  }
+
+  async function downloadBulkTemplate() {
+    setTemplateDownloading(true);
+    try {
+      const blob = await peralatanApi.downloadBulkTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "template-upload-peralatan.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
+    } catch (downloadError) {
+      showError(downloadError.message || "Gagal mengunduh template Excel.");
+    } finally {
+      setTemplateDownloading(false);
+    }
+  }
+
+  async function submitBulkUpload(event) {
+    event.preventDefault();
+    if (!canCreate || !bulkWorkbook) return;
+    setBulkUploading(true);
+    setBulkUploadError("");
+    setBulkResult(null);
+    try {
+      const result = await peralatanApi.uploadBulk(bulkWorkbook, bulkAttachments);
+      setBulkResult(result);
+      setBulkWorkbook(null);
+      setBulkAttachments([]);
+      setBulkInputKey((key) => key + 1);
+      await loadData();
+      if (result.gagal > 0) {
+        showError(`${result.message}. Periksa rincian baris yang gagal.`);
+      } else {
+        success(result.message || "Upload peralatan berhasil.");
+      }
+    } catch (uploadError) {
+      setBulkUploadError(uploadError.message || "Gagal mengunggah data peralatan.");
+    } finally {
+      setBulkUploading(false);
+    }
+  }
+
+  function addBulkAttachments(event) {
+    const selected = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!selected.length) return;
+    const names = new Set(bulkAttachments.map((file) => file.name.toLowerCase()));
+    const duplicate = selected.find((file) => {
+      const name = file.name.toLowerCase();
+      if (names.has(name)) return true;
+      names.add(name);
+      return false;
+    });
+    if (duplicate) {
+      setBulkUploadError(`Nama lampiran duplikat: ${duplicate.name}`);
+      return;
+    }
+    setBulkAttachments((files) => [...files, ...selected]);
+    setBulkUploadError("");
   }
 
   // Filter
@@ -466,16 +542,160 @@ export default function EquipmentList({
           style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)" }}
         >
           {canCreate && (
-            <button
-              className="btn btn-primary"
-              onClick={() => onNavigate("/peralatan/tambah")}
-              id="btn-tambah-peralatan"
-            >
-              <Plus size={16} /> Tambah Peralatan
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={downloadBulkTemplate}
+                disabled={templateDownloading || bulkUploading}
+                id="btn-download-template-peralatan"
+              >
+                <Download size={16} /> {templateDownloading ? "Mengunduh..." : "Template Excel"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setBulkPanelOpen((open) => !open);
+                  setBulkUploadError("");
+                  setBulkResult(null);
+                }}
+                aria-expanded={bulkPanelOpen}
+                id="btn-upload-excel-peralatan"
+              >
+                <Upload size={16} /> Upload Excel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => onNavigate("/peralatan/tambah")}
+                id="btn-tambah-peralatan"
+              >
+                <Plus size={16} /> Tambah Peralatan
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {canCreate && bulkPanelOpen && (
+        <section
+          className="card"
+          aria-label="Upload peralatan dari Excel"
+          style={{ padding: "var(--sp-4)", marginBottom: "var(--sp-4)" }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--sp-3)", alignItems: "flex-start" }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Upload peralatan dari Excel</h2>
+              <p style={{ margin: "var(--sp-1) 0 0", color: "var(--clr-dark-500)" }}>
+                Pilih kelompok aset, ruangan, dan Lab dari dropdown. Nama ruangan baru boleh diketik manual dan akan dibuat pada Lab yang dipilih. Pada sheet Alat Ukur dan Alat Bantu, baris pertama berwarna memisahkan kolom Kalibrasi dan Verifikasi Fungsi; isi bagian yang sesuai dengan pilihan metode di kolom H. Isi tanggal kalibrasi dan nomor sertifikat pada bagian Kalibrasi. Kolom K-M berisi pilihan alat standar, status alat, dan jenis label. Komponen Pendukung memiliki dropdown kategori dan ketersediaan.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setBulkPanelOpen(false)}
+              aria-label="Tutup upload Excel"
+              disabled={bulkUploading}
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <form onSubmit={submitBulkUpload} style={{ display: "grid", gap: "var(--sp-3)", marginTop: "var(--sp-3)" }}>
+            <label style={{ display: "grid", gap: "var(--sp-1)" }}>
+              <span>File workbook (.xlsx) <strong aria-hidden="true">*</strong></span>
+              <input
+                key={`workbook-${bulkInputKey}`}
+                type="file"
+                accept=".xlsx"
+                required={!bulkWorkbook}
+                disabled={bulkUploading}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  if (file && !file.name.toLowerCase().endsWith(".xlsx")) {
+                    setBulkUploadError("File Excel harus berformat .xlsx.");
+                    setBulkWorkbook(null);
+                    event.target.value = "";
+                    return;
+                  }
+                  if (file && file.size > 10 * 1024 * 1024) {
+                    setBulkUploadError("Ukuran file Excel maksimal 10 MB.");
+                    setBulkWorkbook(null);
+                    event.target.value = "";
+                    return;
+                  }
+                  setBulkWorkbook(file);
+                  setBulkUploadError("");
+                  setBulkResult(null);
+                }}
+              />
+              {bulkWorkbook && <small>{bulkWorkbook.name}</small>}
+            </label>
+
+            <label style={{ display: "grid", gap: "var(--sp-1)" }}>
+              <span>Lampiran (opsional)</span>
+              <input
+                key={`attachments-${bulkInputKey}`}
+                type="file"
+                multiple
+                accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                disabled={bulkUploading}
+                onChange={addBulkAttachments}
+              />
+            </label>
+            {bulkAttachments.length > 0 && (
+              <ul style={{ margin: 0, paddingLeft: "var(--sp-5)" }}>
+                {bulkAttachments.map((file) => (
+                  <li key={`${file.name}-${file.size}`}>
+                    {file.name}{" "}
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setBulkAttachments((files) => files.filter((item) => item !== file))}
+                      disabled={bulkUploading}
+                      aria-label={`Hapus lampiran ${file.name}`}
+                    >
+                      <X size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p style={{ margin: 0, color: "var(--clr-dark-500)", fontSize: "var(--text-sm)" }}>
+              Maksimal 500 baris per upload. Nama lampiran harus sama persis dengan nama pada workbook.
+            </p>
+            {bulkUploadError && <p role="alert" style={{ margin: 0, color: "var(--clr-danger-700, #b42318)" }}>{bulkUploadError}</p>}
+            <div>
+              <button type="submit" className="btn btn-primary" disabled={bulkUploading || !bulkWorkbook}>
+                <Upload size={16} /> {bulkUploading ? "Mengunggah..." : "Mulai Upload"}
+              </button>
+            </div>
+          </form>
+
+          {bulkResult && (
+            <div role="status" style={{ marginTop: "var(--sp-4)" }}>
+              <p><strong>{bulkResult.message}</strong></p>
+              {Array.isArray(bulkResult.hasil) && bulkResult.hasil.length > 0 && (
+                <div className="table-card" style={{ overflowX: "auto" }}>
+                  <table className="data-table">
+                    <thead><tr><th>Sheet</th><th>Baris</th><th>No. Aset</th><th>Hasil</th></tr></thead>
+                    <tbody>
+                      {bulkResult.hasil.map((row, index) => (
+                        <tr key={`${row.sheet}-${row.row}-${index}`}>
+                          <td>{row.sheet}</td>
+                          <td>{row.row}</td>
+                          <td>{row.nomor_aset || "—"}</td>
+                          <td>{row.error ? `Gagal: ${row.error}` : "Berhasil"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       <WorkflowGuide
         title="Alur Pengelolaan Peralatan"

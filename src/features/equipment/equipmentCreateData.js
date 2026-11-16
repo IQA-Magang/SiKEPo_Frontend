@@ -70,8 +70,6 @@ export function getEquipmentStepValidationError(form, step, photoFile, documentC
         const calibrationFields = [
           ['metode_kalibrasi', 'Metode kalibrasi wajib dipilih.'],
           ['lab_kalibrasi', 'Laboratorium kalibrasi wajib diisi.'],
-          ['tanggal_keluar', 'Tanggal keluar wajib diisi.'],
-          ['perkiraan_kembali', 'Perkiraan tanggal kembali wajib diisi.'],
           ['interval_bulan', 'Interval kalibrasi wajib diisi.'],
           ['no_sertifikat', 'Nomor sertifikat kalibrasi wajib diisi.'],
           ['diterbitkan_oleh', 'Penerbit sertifikat wajib diisi.'],
@@ -93,9 +91,6 @@ export function getEquipmentStepValidationError(form, step, photoFile, documentC
           }
         }
         if (Number(form.interval_bulan) <= 0) return 'Interval kalibrasi harus lebih dari 0 bulan.';
-        if (form.perkiraan_kembali < form.tanggal_keluar) {
-          return 'Perkiraan tanggal kembali tidak boleh sebelum tanggal keluar.';
-        }
       } else {
         const verificationFields = [
           ['jenis_pemeriksaan_berkala', 'Jenis verifikasi fungsi wajib dipilih.'],
@@ -220,8 +215,8 @@ export function buildCalibrationPayload(form) {
   return {
     metode: form.metode_kalibrasi,
     lab_kalibrasi: form.lab_kalibrasi.trim(),
-    tanggal_keluar: toIsoDate(form.tanggal_keluar),
-    perkiraan_kembali: toIsoDate(form.perkiraan_kembali),
+    tanggal_keluar: null,
+    perkiraan_kembali: null,
     status: 'direncanakan',
     interval_bulan: Number(form.interval_bulan),
   };

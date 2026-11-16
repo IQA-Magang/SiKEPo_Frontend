@@ -60,8 +60,6 @@ export default function EquipmentCreate({ onNavigate }) {
     metode_pemeriksaan: 'kalibrasi',
     metode_kalibrasi: 'Eksternal',
     lab_kalibrasi: '',
-    tanggal_keluar: '',
-    perkiraan_kembali: '',
     interval_bulan: '',
     no_sertifikat: '',
     diterbitkan_oleh: '',
@@ -127,12 +125,19 @@ export default function EquipmentCreate({ onNavigate }) {
         updated.ruangan_id = '';
         updated.kelompok_aset_id = '';
       }
-      if (
-        Number(prev.kategori_id) === 3 &&
-        ['tgl_karakterisasi_terakhir', 'interval_bulan'].includes(name)
-      ) {
+      const categoryId = Number(prev.kategori_id);
+      const isArtifactDueDate =
+        categoryId === 3 &&
+        ['tgl_karakterisasi_terakhir', 'interval_bulan'].includes(name);
+      const isFunctionVerificationDueDate =
+        [1, 2].includes(categoryId) &&
+        updated.metode_pemeriksaan !== 'kalibrasi' &&
+        ['metode_pemeriksaan', 'tgl_pemeriksaan_terakhir', 'interval_bulan'].includes(name);
+      if (isArtifactDueDate || isFunctionVerificationDueDate) {
         updated.tgl_jatuh_tempo = calculateCalibrationDueDate(
-          updated.tgl_karakterisasi_terakhir,
+          isArtifactDueDate
+            ? updated.tgl_karakterisasi_terakhir
+            : updated.tgl_pemeriksaan_terakhir,
           updated.interval_bulan,
         );
       }
@@ -256,6 +261,7 @@ export default function EquipmentCreate({ onNavigate }) {
               diterbitkan_oleh: form.diterbitkan_oleh.trim(),
               tgl_kalibrasi: form.tgl_kalibrasi,
               sertifikat_pdf: form.sertifikat_pdf_file,
+              buat_rencana_berikutnya: false,
             });
           }
         } else {
