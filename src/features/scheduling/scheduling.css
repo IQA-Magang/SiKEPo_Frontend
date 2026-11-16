@@ -52,55 +52,6 @@
   line-height: 1.5;
 }
 
-.scheduling-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--clr-dark-100);
-  background: #fff;
-}
-
-.scheduling-tab {
-  display: flex;
-  min-width: 0;
-  min-height: 46px;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 8px 14px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--clr-dark-600);
-  font-size: var(--text-sm);
-  font-weight: var(--fw-medium);
-  transition: border-color var(--duration-fast), color var(--duration-fast);
-}
-
-.scheduling-tab:hover {
-  color: var(--clr-primary-700);
-}
-
-.scheduling-tab.is-active {
-  border-bottom-color: var(--clr-primary-500);
-  color: var(--clr-primary-700);
-  font-weight: var(--fw-bold);
-}
-
-.schedule-review-count {
-  display: inline-grid;
-  min-width: 20px;
-  height: 20px;
-  place-items: center;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: #fee2e2;
-  color: #b91c1c;
-  font-size: 11px;
-  font-weight: var(--fw-bold);
-}
-
 .schedule-review-list {
   display: grid;
   gap: 12px;
@@ -1055,16 +1006,6 @@
 
   .schedule-detail-schedule-card {
     padding: 12px;
-  }
-
-  .scheduling-tabs {
-    padding: 0 12px;
-  }
-
-  .scheduling-tab {
-    gap: 5px;
-    padding: 8px;
-    font-size: 11px;
   }
 
   .scheduling-filters {

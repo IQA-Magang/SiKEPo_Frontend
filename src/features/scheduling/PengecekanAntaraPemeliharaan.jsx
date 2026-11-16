@@ -2,8 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   CalendarClock,
   CheckCircle2,
+  Clock3,
+  FileText,
   Grid2X2,
   Plus,
+  RefreshCw,
   XCircle,
 } from "lucide-react";
 import { useToast } from "../../app/providers/ToastContext.jsx";
@@ -26,7 +29,6 @@ import {
   ruanganApi,
 } from "../../shared/services/api.js";
 import { getUserRole, isStaffPengelola } from "../../shared/utils/permissions.js";
-import InspectionTabs from "../inspection/InspectionTabs.jsx";
 import ScheduleFormModal from "./components/ScheduleFormModal.jsx";
 import ScheduleRealizationModal from "./components/ScheduleRealizationModal.jsx";
 import ScheduleEquipmentTable from "./components/ScheduleEquipmentTable.jsx";
@@ -63,7 +65,6 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
     || SCHEDULE_TYPES[0].label;
   const currentUser = getCurrentUser();
   const userRole = getUserRole(currentUser);
-  const canReviewSchedules = userRole === "manager" || userRole === "admin";
   const [schedules, setSchedules] = useState([]);
   const [equipment, setEquipment] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -81,9 +82,8 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
   const [labFilter, setLabFilter] = useState("");
   const [onlyMyEquipment, setOnlyMyEquipment] = useState(false);
   const [showAllStatuses, setShowAllStatuses] = useState(true);
-  const [activeView, setActiveView] = useState(() => (
-    userRole === "manager" ? "review" : "actions"
-  ));
+  const activeView = userRole === "manager" ? "review" : "actions";
+  const [activeScheduleView, setActiveScheduleView] = useState("planned");
   const [reviewNotes, setReviewNotes] = useState({});
   const [realizationTarget, setRealizationTarget] = useState(null);
   const [realizationForm, setRealizationForm] = useState({
@@ -98,6 +98,8 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
     menyentuh_komponen: false,
   });
   const [selectedEquipmentId, setSelectedEquipmentId] = useState(null);
+  const selectedScheduleTitle =
+    SCHEDULE_TYPES.find(({ key }) => key === typeFilter)?.label || pageTitle;
 
   async function loadData() {
     setLoading(true);
@@ -165,11 +167,25 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
     )),
     [schedules, selectedEquipmentId],
   );
+  const activeScheduleEquipmentIds = new Set(
+    schedules
+      .filter(
+        (schedule) =>
+          (!typeFilter || schedule.jenis_jadwal === typeFilter) &&
+          ["Terjadwal", "Menunggu Verifikasi", "Ditolak"].includes(
+            schedule.status_realisasi,
+          ),
+      )
+      .map((schedule) => String(schedule.peralatan_id)),
+  );
   const availableEquipment = Array.from(equipmentById.values()).filter((item) => {
     const id = getEquipmentId(item);
     return id != null && (!form.jenis_jadwal || !schedules.some((schedule) => (
       String(schedule.peralatan_id) === String(id)
       && schedule.jenis_jadwal === form.jenis_jadwal
+      && ["Terjadwal", "Menunggu Verifikasi", "Ditolak"].includes(
+        schedule.status_realisasi,
+      )
     )));
   });
   const currentUserId = currentUser?.user_id ?? currentUser?.id;
@@ -244,7 +260,21 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
     });
   }, [schedules, equipmentById, search, typeFilter, labFilter, onlyMyEquipment, currentUserId]);
   const filterKey = `${search}-${statusFilter}-${typeFilter}-${labFilter}-${onlyMyEquipment}-${showAllStatuses}`;
-  const schedulePagination = usePagination(filteredSchedules.length, filterKey);
+  const scheduleRowsByView = {
+    planned: filteredSchedules.filter(
+      (schedule) => schedule.status_realisasi === "Terjadwal",
+    ),
+    "in-progress": filteredSchedules.filter((schedule) =>
+      ["Menunggu Verifikasi", "Ditolak"].includes(schedule.status_realisasi),
+    ),
+    history: filteredSchedules.filter(
+      (schedule) => schedule.status_realisasi === "Disetujui",
+    ),
+  };
+  const schedulePagination = usePagination(
+    scheduleRowsByView[activeScheduleView]?.length || 0,
+    `${filterKey}-${activeScheduleView}`,
+  );
   const equipmentGroups = useMemo(
     () => groupSchedulesByEquipment(filteredMatrixSchedules, equipmentById),
     [filteredMatrixSchedules, equipmentById],
@@ -272,6 +302,33 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
 
   const pendingReviews = filteredMatrixSchedules.filter(
     (schedule) => schedule.status_realisasi === "Menunggu Verifikasi",
+  );
+  const plannedSchedules = scheduleRowsByView.planned;
+  const inProgressSchedules = scheduleRowsByView["in-progress"];
+  const historySchedules = scheduleRowsByView.history;
+  const unscheduledEquipment = Array.from(equipmentById.values()).filter(
+    (item) => {
+      const equipmentId = getEquipmentId(item);
+      const query = search.trim().toLowerCase();
+      const matchesSearch =
+        !query ||
+        [item.nama_peralatan, item.nomor_aset, item.merek].some((value) =>
+          String(value || "").toLowerCase().includes(query),
+        );
+      const matchesLab =
+        !labFilter || String(item.lab?.id) === labFilter;
+      const matchesOwner =
+        !onlyMyEquipment ||
+        (currentUserId != null &&
+          String(item.ruangan?.pic_user_id) === String(currentUserId));
+      return (
+        equipmentId != null &&
+        !activeScheduleEquipmentIds.has(String(equipmentId)) &&
+        matchesSearch &&
+        matchesLab &&
+        matchesOwner
+      );
+    },
   );
 
   async function reviewSchedule(schedule, decision) {
@@ -403,8 +460,6 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
           </Button>
         ) : null}
       />
-      <InspectionTabs activeType={typeFilter} />
-
       <ScheduleFormModal
         isOpen={showCreateForm}
         onClose={() => setShowCreateForm(false)}
@@ -448,42 +503,51 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
       />
 
       <section className="scheduling-workspace">
-        <nav className="scheduling-tabs" aria-label="Tampilan jadwal">
-          {canReviewSchedules && (
-            <button
-              type="button"
-              className={`scheduling-tab${activeView === "review" ? " is-active" : ""}`}
-              aria-pressed={activeView === "review"}
-              onClick={() => setActiveView("review")}
-            >
-              <CheckCircle2 size={16} aria-hidden="true" />
-              Persetujuan Manager
-              <span className="schedule-review-count">{pendingReviews.length}</span>
-            </button>
-          )}
-          <button
-            type="button"
-            className={`scheduling-tab${activeView === "actions" ? " is-active" : ""}`}
-            aria-pressed={activeView === "actions"}
-            onClick={() => {
-              setActiveView("actions");
-              setStatusFilter("");
-              setShowAllStatuses(true);
-            }}
+        {activeView === "actions" && (
+          <nav
+            className="inspection-tabs"
+            aria-label="Status jadwal pemeriksaan"
           >
-            <CalendarClock size={16} aria-hidden="true" />
-            Jadwal
-          </button>
-          <button
-            type="button"
-            className={`scheduling-tab${activeView === "equipment" ? " is-active" : ""}`}
-            aria-pressed={activeView === "equipment"}
-            onClick={() => setActiveView("equipment")}
-          >
-            <Grid2X2 size={16} aria-hidden="true" />
-            Per Alat
-          </button>
-        </nav>
+            {[
+              {
+                id: "planned",
+                label: `Masuk rentang ${selectedScheduleTitle.toLowerCase()}`,
+                count: plannedSchedules.length,
+                Icon: CalendarClock,
+              },
+              {
+                id: "in-progress",
+                label: `Sedang ${selectedScheduleTitle.toLowerCase()}`,
+                count: inProgressSchedules.length,
+                Icon: RefreshCw,
+              },
+              {
+                id: "unscheduled",
+                label: "Belum ada jadwal",
+                count: unscheduledEquipment.length,
+                Icon: Plus,
+              },
+              {
+                id: "history",
+                label: "History",
+                count: historySchedules.length,
+                Icon: FileText,
+              },
+            ].map(({ id, label, count, Icon }) => (
+              <button
+                type="button"
+                key={id}
+                className={`inspection-tab${activeScheduleView === id ? " is-active" : ""}`}
+                aria-pressed={activeScheduleView === id}
+                onClick={() => setActiveScheduleView(id)}
+              >
+                <Icon size={16} aria-hidden="true" />
+                <span>{label}</span>
+                <span className="inspection-tab-count">{count}</span>
+              </button>
+            ))}
+          </nav>
+        )}
 
         <TableFilters
           className={`scheduling-filters${activeView === "actions" ? " has-status-filter" : ""}`}
@@ -517,7 +581,7 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
             ...(activeView === "actions"
               ? [{
                 id: "schedule-status",
-                label: "Status jadwal",
+                label: "Status jatuh tempo",
                 type: "select",
                 placeholder: "Perlu tindakan",
                 value: statusFilter || (showAllStatuses ? "all" : "needs_action"),
@@ -593,17 +657,43 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
             onReview={reviewSchedule}
             saving={saving}
           />
-        ) : activeView === "actions" && filteredSchedules.length === 0 ? (
+        ) : activeView === "actions" &&
+          activeScheduleView === "planned" &&
+          plannedSchedules.length === 0 ? (
           <EmptyState
             icon={<CalendarClock size={28} />}
             title={
               search || statusFilter || typeFilter || labFilter || onlyMyEquipment
                 ? "Jadwal tidak ditemukan"
-                : "Belum ada jadwal pemeriksaan"
+                : `Belum ada jadwal ${selectedScheduleTitle.toLowerCase()}`
             }
             description={search || statusFilter || typeFilter || labFilter || onlyMyEquipment
               ? "Coba ubah atau atur ulang filter."
               : "Buat jadwal untuk mencatat pemeriksaan berkala peralatan."}
+          />
+        ) : activeView === "actions" &&
+          activeScheduleView === "in-progress" &&
+          inProgressSchedules.length === 0 ? (
+          <EmptyState
+            icon={<RefreshCw size={28} />}
+            title={`Belum ada ${selectedScheduleTitle.toLowerCase()} yang berlangsung`}
+            description="Hasil yang menunggu persetujuan atau tindak lanjut akan tampil di sini."
+          />
+        ) : activeView === "actions" &&
+          activeScheduleView === "history" &&
+          historySchedules.length === 0 ? (
+          <EmptyState
+            icon={<FileText size={28} />}
+            title="History masih kosong"
+            description="Jadwal yang hasil pemeriksaannya telah disetujui akan tampil di sini."
+          />
+        ) : activeView === "actions" &&
+          activeScheduleView === "unscheduled" &&
+          unscheduledEquipment.length === 0 ? (
+          <EmptyState
+            icon={<Clock3 size={28} />}
+            title="Semua peralatan sudah memiliki jadwal aktif"
+            description="Peralatan tanpa jadwal akan tampil di sini."
           />
         ) : activeView === "equipment" && equipmentGroups.length === 0 ? (
           <EmptyState
@@ -611,15 +701,54 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
             title={search || typeFilter || labFilter || onlyMyEquipment ? "Peralatan tidak ditemukan" : "Belum ada jadwal pemeriksaan"}
             description="Buat jadwal untuk mengelompokkan pemeriksaan berdasarkan peralatan."
           />
-        ) : activeView === "actions" ? (
+        ) : activeView === "actions" &&
+          activeScheduleView === "planned" ? (
           <ScheduleTable
-            schedules={filteredSchedules}
+            schedules={plannedSchedules}
             equipmentById={equipmentById}
             pagination={schedulePagination}
             onRecordRealization={openRealization}
             onOpenDetails={(id) => setSelectedEquipmentId(id)}
             canManage={canManageSchedules}
           />
+        ) : activeView === "actions" &&
+          activeScheduleView === "in-progress" ? (
+          <ScheduleTable
+            schedules={inProgressSchedules}
+            equipmentById={equipmentById}
+            pagination={schedulePagination}
+            onRecordRealization={openRealization}
+            onOpenDetails={(id) => setSelectedEquipmentId(id)}
+            canManage={canManageSchedules}
+          />
+        ) : activeView === "actions" &&
+          activeScheduleView === "history" ? (
+          <ScheduleTable
+            schedules={historySchedules}
+            equipmentById={equipmentById}
+            pagination={schedulePagination}
+            onRecordRealization={openRealization}
+            onOpenDetails={(id) => setSelectedEquipmentId(id)}
+            canManage={false}
+          />
+        ) : activeView === "actions" &&
+          activeScheduleView === "unscheduled" ? (
+          <div className="inspection-unscheduled-list">
+            {unscheduledEquipment.map((item) => (
+              <button
+                type="button"
+                key={getEquipmentId(item)}
+                onClick={() => openCreate(item)}
+                disabled={!canManageSchedules}
+              >
+                <span>
+                  <strong>{item.nomor_aset || `ID ${getEquipmentId(item)}`}</strong>
+                  {item.nama_peralatan}
+                </span>
+                {canManageSchedules && <Plus size={16} />}
+              </button>
+            ))}
+          </div>
         ) : (
           <ScheduleEquipmentTable
             groups={equipmentGroups}
