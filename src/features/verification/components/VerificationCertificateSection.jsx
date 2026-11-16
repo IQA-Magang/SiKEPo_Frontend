@@ -1,3 +1,5 @@
+import { formatPhotoUrl } from "../../../shared/services/api.js";
+
 function DocumentUploadField({ form, setForm, label, id }) {
   const file = form.dokumen_pemeriksaan;
 
@@ -34,12 +36,54 @@ function DocumentUploadField({ form, setForm, label, id }) {
   );
 }
 
+function ExistingDocument({ path, name }) {
+  const url = formatPhotoUrl(path);
+  if (!url) return null;
+  const fileName =
+    name || String(path).split(/[\\/]/).pop() || "Dokumen PDF";
+
+  return (
+    <div
+      className="form-group"
+      style={{ gridColumn: "1 / -1" }}
+    >
+      <label className="form-label">Dokumen PDF</label>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "var(--sp-3)",
+          flexWrap: "wrap",
+          padding: "var(--sp-3)",
+          border: "1px solid #d1d5db",
+          borderRadius: "var(--radius-md, 6px)",
+          background: "#e5e7eb",
+        }}
+      >
+        <span style={{ color: "#374151", overflowWrap: "anywhere" }}>
+          {fileName}
+        </span>
+        <a
+          className="btn btn-secondary btn-sm"
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Lihat PDF
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export default function VerificationCertificateSection({
   form,
   setForm,
   inspectionMethod,
 }) {
   const isFunctionVerification = inspectionMethod === "verifikasi_fungsi";
+  const lockedFields = form.kunci_field_pemeriksaan || {};
 
   return (
     <div style={{ marginBottom: "var(--sp-6)" }}>
@@ -66,6 +110,7 @@ export default function VerificationCertificateSection({
               className="form-input"
               type="date"
               value={form.tanggal_verifikasi_fungsi}
+              disabled={lockedFields.tanggal_verifikasi_fungsi}
               onChange={(event) =>
                 setForm({
                   ...form,
@@ -84,6 +129,7 @@ export default function VerificationCertificateSection({
               id="nomor-laporan-fungsi"
               className="form-input"
               value={form.nomor_laporan}
+              disabled={lockedFields.nomor_laporan}
               onChange={(event) =>
                 setForm({ ...form, nomor_laporan: event.target.value })
               }
@@ -99,6 +145,7 @@ export default function VerificationCertificateSection({
               id="pelaksana-verifikasi-fungsi"
               className="form-input"
               value={form.pelaksana_verifikasi}
+              disabled={lockedFields.pelaksana_verifikasi}
               onChange={(event) =>
                 setForm({ ...form, pelaksana_verifikasi: event.target.value })
               }
@@ -114,6 +161,7 @@ export default function VerificationCertificateSection({
               id="hasil-verifikasi-fungsi"
               className="form-select"
               value={form.hasil_verifikasi_fungsi}
+              disabled={lockedFields.hasil_verifikasi_fungsi}
               onChange={(event) =>
                 setForm({
                   ...form,
@@ -127,12 +175,19 @@ export default function VerificationCertificateSection({
             </select>
           </div>
 
-          <DocumentUploadField
-            form={form}
-            setForm={setForm}
-            id="dokumen-verifikasi-fungsi"
-            label="Laporan verifikasi fungsi (PDF)"
-          />
+          {form.dokumen_pemeriksaan_url ? (
+            <ExistingDocument
+              path={form.dokumen_pemeriksaan_url}
+              name={form.dokumen_pemeriksaan_nama}
+            />
+          ) : (
+            <DocumentUploadField
+              form={form}
+              setForm={setForm}
+              id="dokumen-verifikasi-fungsi"
+              label="Laporan verifikasi fungsi (PDF)"
+            />
+          )}
         </div>
       ) : (
         <div className="form-grid-2">
@@ -145,6 +200,7 @@ export default function VerificationCertificateSection({
               className="form-input"
               type="date"
               value={form.tanggal_kalibrasi}
+              disabled={lockedFields.tanggal_kalibrasi}
               onChange={(event) =>
                 setForm({ ...form, tanggal_kalibrasi: event.target.value })
               }
@@ -160,6 +216,7 @@ export default function VerificationCertificateSection({
               id="nomor-sertifikat"
               className="form-input"
               value={form.nomor_sertifikat}
+              disabled={lockedFields.nomor_sertifikat}
               onChange={(event) =>
                 setForm({ ...form, nomor_sertifikat: event.target.value })
               }
@@ -175,6 +232,7 @@ export default function VerificationCertificateSection({
               id="penerbit-sertifikat"
               className="form-input"
               value={form.penyedia_kalibrasi}
+              disabled={lockedFields.penyedia_kalibrasi}
               onChange={(event) =>
                 setForm({ ...form, penyedia_kalibrasi: event.target.value })
               }
@@ -182,12 +240,19 @@ export default function VerificationCertificateSection({
             />
           </div>
 
-          <DocumentUploadField
-            form={form}
-            setForm={setForm}
-            id="dokumen-sertifikat-kalibrasi"
-            label="Sertifikat (PDF)"
-          />
+          {form.dokumen_pemeriksaan_url ? (
+            <ExistingDocument
+              path={form.dokumen_pemeriksaan_url}
+              name={form.dokumen_pemeriksaan_nama}
+            />
+          ) : (
+            <DocumentUploadField
+              form={form}
+              setForm={setForm}
+              id="dokumen-sertifikat-kalibrasi"
+              label="Sertifikat (PDF)"
+            />
+          )}
         </div>
       )}
     </div>

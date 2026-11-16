@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   kalibrasiApi,
+  dokumenApi,
   getEquipmentId,
   peralatanApi,
   ruanganApi,
@@ -239,6 +240,17 @@ export default function useVerificationManagement({
     setForm((previous) => ({
       ...previous,
       id_peralatan: String(equipmentId),
+      nomor_sertifikat: "",
+      penyedia_kalibrasi: "",
+      tanggal_kalibrasi: "",
+      tanggal_verifikasi_fungsi: "",
+      nomor_laporan: "",
+      pelaksana_verifikasi: "",
+      hasil_verifikasi_fungsi: "",
+      dokumen_pemeriksaan: null,
+      dokumen_pemeriksaan_url: "",
+      dokumen_pemeriksaan_nama: "",
+      kunci_field_pemeriksaan: {},
     }));
     let active = true;
 
@@ -341,6 +353,93 @@ export default function useVerificationManagement({
             historyRecords[0]?.method ||
             getEquipmentInspectionMethod(equipmentWithDetails);
         }
+        const detailHasInspectionData =
+          inspectionMethod === "kalibrasi"
+            ? Boolean(
+                inspectionRecord?.no_sertifikat ||
+                  inspectionRecord?.tgl_kalibrasi ||
+                  inspectionRecord?.sertifikat_pdf,
+              )
+            : Boolean(
+                inspectionRecord?.no_laporan ||
+                  inspectionRecord?.tgl_pemeriksaan_terakhir ||
+                  inspectionRecord?.pdf_laporan,
+              );
+        if (!detailHasInspectionData) {
+          const historyApi =
+            inspectionMethod === "kalibrasi"
+              ? kalibrasiApi
+              : verifikasiFungsiApi;
+          const historyResponse = await historyApi.getByEquipment(
+            getEquipmentId(equipmentWithDetails),
+          );
+          if (!Array.isArray(historyResponse?.data)) {
+            throw new Error(
+              `Format histori ${inspectionMethod === "kalibrasi" ? "kalibrasi" : "verifikasi fungsi"} tidak valid.`,
+            );
+          }
+          inspectionRecord = [...historyResponse.data].sort(
+            (left, right) =>
+              getInspectionRecordTimestamp(right) -
+                getInspectionRecordTimestamp(left) ||
+              Number(right.id) - Number(left.id),
+          )[0] || inspectionRecord;
+        }
+        let inspectionDocumentPath =
+          inspectionMethod === "kalibrasi"
+            ? inspectionRecord?.sertifikat_pdf
+            : inspectionRecord?.pdf_laporan;
+        let inspectionDocumentName = "";
+        try {
+          const documentsResponse = await dokumenApi.getByPeralatanId(
+            getEquipmentId(equipmentWithDetails),
+          );
+          if (!Array.isArray(documentsResponse?.data)) {
+            throw new Error("Format daftar dokumen peralatan tidak valid.");
+          }
+          const documentPrefix =
+            inspectionMethod === "kalibrasi"
+              ? "sertifikat kalibrasi -"
+              : "laporan verifikasi fungsi -";
+          const referenceNumber =
+            inspectionMethod === "kalibrasi"
+              ? inspectionRecord?.no_sertifikat
+              : inspectionRecord?.no_laporan;
+          const expectedDocumentName = referenceNumber
+            ? `${documentPrefix} ${String(referenceNumber).trim()}`.toLowerCase()
+            : "";
+          const matchingDocuments = documentsResponse.data.filter(
+            (document) =>
+              String(document.nama_dokumen || "")
+                .trim()
+                .toLowerCase()
+                .startsWith(documentPrefix),
+          );
+          const matchingDocument =
+            matchingDocuments.find(
+              (document) =>
+                String(document.nama_dokumen || "")
+                  .trim()
+                  .toLowerCase() === expectedDocumentName,
+            ) ||
+            matchingDocuments.sort(
+              (left, right) =>
+                Date.parse(right.created_at || "") -
+                Date.parse(left.created_at || ""),
+            )[0];
+          if (matchingDocument) {
+            inspectionDocumentPath =
+              matchingDocument.path_dokumen || inspectionDocumentPath;
+            inspectionDocumentName = matchingDocument.nama_dokumen || "";
+          } else if (!inspectionDocumentPath) {
+            inspectionDocumentPath = "";
+          }
+        } catch (documentError) {
+          onError(
+            documentError.message ||
+              "Gagal memuat dokumen hasil pemeriksaan peralatan.",
+          );
+        }
         equipmentWithDetails.metode_pemeriksaan = inspectionMethod;
         if (!active) return;
         setEquipmentInfo(equipmentWithDetails);
@@ -391,6 +490,27 @@ export default function useVerificationManagement({
             hasil_verifikasi_fungsi:
               functionVerificationRecord?.hasil ||
               previous.hasil_verifikasi_fungsi,
+            dokumen_pemeriksaan_url:
+              inspectionDocumentPath || previous.dokumen_pemeriksaan_url,
+            dokumen_pemeriksaan_nama:
+              inspectionDocumentName || previous.dokumen_pemeriksaan_nama,
+            kunci_field_pemeriksaan: {
+              tanggal_kalibrasi: Boolean(calibrationRecord?.tgl_kalibrasi),
+              nomor_sertifikat: Boolean(calibrationRecord?.no_sertifikat),
+              penyedia_kalibrasi: Boolean(
+                calibrationRecord?.diterbitkan_oleh,
+              ),
+              tanggal_verifikasi_fungsi: Boolean(
+                functionVerificationRecord?.tgl_pemeriksaan_terakhir,
+              ),
+              nomor_laporan: Boolean(functionVerificationRecord?.no_laporan),
+              pelaksana_verifikasi: Boolean(
+                functionVerificationRecord?.pelaksana,
+              ),
+              hasil_verifikasi_fungsi: Boolean(
+                functionVerificationRecord?.hasil,
+              ),
+            },
             berlaku_sampai: detail.tgl_jatuh_tempo
               ? detail.tgl_jatuh_tempo.slice(0, 10)
               : previous.berlaku_sampai,

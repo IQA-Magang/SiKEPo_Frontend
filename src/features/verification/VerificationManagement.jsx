@@ -180,33 +180,40 @@ export default function VerificationManagement({
         !form.nomor_sertifikat.trim() ||
         !form.penyedia_kalibrasi.trim())
     ) {
-      error("Lengkapi tanggal kalibrasi, nomor sertifikat, dan penerbit sertifikat.");
+      error(
+        "Lengkapi tanggal kalibrasi, nomor sertifikat, dan penerbit sertifikat.",
+      );
       return;
     }
     if (
       inspectionMethod === "verifikasi_fungsi" &&
       (!form.tanggal_verifikasi_fungsi ||
         !form.nomor_laporan.trim() ||
-        !form.pelaksana_verifikasi.trim())
+        !form.pelaksana_verifikasi.trim() ||
+        !form.hasil_verifikasi_fungsi)
     ) {
-      error("Lengkapi tanggal, nomor laporan, dan pelaksana verifikasi fungsi.");
+      error(
+        "Lengkapi tanggal, nomor laporan, pelaksana, dan hasil verifikasi fungsi.",
+      );
       return;
     }
-    if (!inspectionDocument) {
+    if (!inspectionDocument && !form.dokumen_pemeriksaan_url) {
       error("Dokumen hasil pemeriksaan wajib diunggah.");
       return;
     }
     if (
-      !/\.pdf$/i.test(inspectionDocument.name) ||
-      (inspectionDocument.type &&
-        inspectionDocument.type !== "application/pdf")
+      inspectionDocument &&
+      (!/\.pdf$/i.test(inspectionDocument.name) ||
+        (inspectionDocument.type &&
+          inspectionDocument.type !== "application/pdf"))
     ) {
       error("Dokumen hasil pemeriksaan harus berupa PDF.");
       return;
     }
     if (
-      inspectionDocument.size <= 0 ||
-      inspectionDocument.size > 15 * 1024 * 1024
+      inspectionDocument &&
+      (inspectionDocument.size <= 0 ||
+        inspectionDocument.size > 15 * 1024 * 1024)
     ) {
       error("Ukuran dokumen PDF harus lebih dari 0 dan maksimal 15 MB.");
       return;
@@ -335,7 +342,8 @@ export default function VerificationManagement({
           pelaksana: form.pelaksana_verifikasi,
           hasil: form.hasil_verifikasi_fungsi,
         },
-        dokumen_pemeriksaan: inspectionDocument.name,
+        dokumen_pemeriksaan:
+          inspectionDocument?.name || form.dokumen_pemeriksaan_url,
 
         alasan_tb: form.tb_alasan,
         alasan_ts: form.ts_alasan,
@@ -371,26 +379,34 @@ export default function VerificationManagement({
       }
       await verifikasiApi.signPic(newId, picSignature);
 
-      try {
-        const documentType =
-          inspectionMethod === "kalibrasi"
-            ? "Sertifikat Kalibrasi"
-            : "Laporan Verifikasi Fungsi";
-        await dokumenApi.upload(
-          Number(form.id_peralatan),
-          inspectionDocument,
-          `${documentType} - ${inspectionDocument.name}`,
-        );
-      } catch (uploadError) {
-        error(
-          `Verifikasi berhasil diajukan, tetapi dokumen gagal diunggah. ${uploadError.message || "Silakan unggah dokumen melalui menu dokumen peralatan."}`,
-        );
-        navigate(returnPath);
-        return;
+      if (inspectionDocument) {
+        try {
+          const documentType =
+            inspectionMethod === "kalibrasi"
+              ? "Sertifikat Kalibrasi"
+              : "Laporan Verifikasi Fungsi";
+          const documentNumber =
+            inspectionMethod === "kalibrasi"
+              ? form.nomor_sertifikat.trim()
+              : form.nomor_laporan.trim();
+          await dokumenApi.upload(
+            Number(form.id_peralatan),
+            inspectionDocument,
+            `${documentType} - ${documentNumber}`,
+          );
+        } catch (uploadError) {
+          error(
+            `Verifikasi berhasil diajukan, tetapi dokumen gagal diunggah. ${uploadError.message || "Silakan unggah dokumen melalui menu dokumen peralatan."}`,
+          );
+          navigate(returnPath);
+          return;
+        }
       }
 
       success(
-        "Verifikasi dan dokumen hasil pemeriksaan berhasil diajukan kepada Manager Lab.",
+        inspectionDocument
+          ? "Verifikasi dan dokumen hasil pemeriksaan berhasil diajukan kepada Manager Lab."
+          : "Verifikasi berhasil diajukan kepada Manager Lab.",
       );
 
       if (equipmentId) {
