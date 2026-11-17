@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Building2, DoorOpen, Users, Plus, Bell, RefreshCw, ClipboardCheck, AlertTriangle, Clock3, CheckCircle2, CalendarDays, ArrowRight, ChevronLeft, ChevronRight, FileSignature } from 'lucide-react';
-import { getCurrentUser, getEquipmentCategoryId, STATIC_EQUIPMENT_CATEGORIES, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, kategoriPeralatanApi, notificationApi, peminjamanApi, markNotificationsAsReadByRef, kalibrasiApi, verifikasiFungsiApi } from '../../shared/services/api.js';
+import { getCurrentUser, getEquipmentCategoryId, STATIC_EQUIPMENT_CATEGORIES, usersApi, labsApi, ruanganApi, kelompokAssetApi, peralatanApi, kategoriPeralatanApi, notificationApi, peminjamanApi, markNotificationsAsReadByRef, kalibrasiApi, verifikasiFungsiApi, getAllPemeriksaanSchedules } from '../../shared/services/api.js';
 import { can, ACCESS, ACTIONS } from '../../shared/utils/permissions.js';
 import DataTable from '../../shared/components/ui/DataTable.jsx';
 
@@ -41,17 +41,33 @@ function ScheduleDateCards({ onNavigate }) {
   useEffect(() => {
     async function load() {
       try {
-        const [equipmentResponse, categoryResponse, loanResponse] = await Promise.all([
+        const [equipmentResult, categoryResult, loanResult, pemeriksaanResult] = await Promise.allSettled([
           peralatanApi.getAll(),
           kategoriPeralatanApi.getAll(),
           peminjamanApi.getAll(),
+          getAllPemeriksaanSchedules({ silent: true }),
         ]);
+
+        if (equipmentResult.status === 'rejected') {
+          throw new Error(equipmentResult.reason?.message || 'Gagal memuat data peralatan.');
+        }
+        if (categoryResult.status === 'rejected') {
+          throw new Error(categoryResult.reason?.message || 'Gagal memuat data kategori.');
+        }
+
+        const equipmentResponse = equipmentResult.value;
+        const categoryResponse = categoryResult.value;
+        const loanResponse = loanResult.status === 'fulfilled' ? loanResult.value : { data: [] };
+        const pemeriksaanSchedules = pemeriksaanResult.status === 'fulfilled' ? pemeriksaanResult.value : [];
+
         if (
           !Array.isArray(equipmentResponse?.data) ||
-          !Array.isArray(categoryResponse?.data) ||
-          !Array.isArray(loanResponse?.data)
+          !Array.isArray(categoryResponse?.data)
         ) {
-          throw new Error('Format data peminjaman, peralatan, atau kategori tidak valid.');
+          throw new Error('Format data peralatan atau kategori tidak valid.');
+        }
+        if (!Array.isArray(loanResponse?.data)) {
+          loanResponse.data = [];
         }
         const equipmentById = new Map(
           equipmentResponse.data.map((equipment) => [
@@ -59,49 +75,105 @@ function ScheduleDateCards({ onNavigate }) {
             equipment,
           ])
         );
-        const periodicEquipment = equipmentResponse.data.filter((equipment) =>
-          [1, 2].includes(getEquipmentCategoryId(equipment))
+
+        // Fetch kalibrasi & verifikasi fungsi untuk semua peralatan secara paralel
+        // Gunakan allSettled agar satu peralatan gagal tidak merusak seluruh kalender
+        const allEquipment = equipmentResponse.data;
+        const cycleResults = await Promise.allSettled(
+          allEquipment.map(async (equipment) => {
+            const equipmentId = equipment.id ?? equipment.peralatan_id;
+            const categoryId = getEquipmentCategoryId(equipment);
+            const [calibrationResult, verificationResult] = await Promise.allSettled([
+              kalibrasiApi.getByEquipment(equipmentId),
+              verifikasiFungsiApi.getByEquipment(equipmentId),
+            ]);
+            const calibrationData = calibrationResult.status === 'fulfilled' &&
+              Array.isArray(calibrationResult.value?.data)
+              ? calibrationResult.value.data
+              : [];
+            const verificationData = verificationResult.status === 'fulfilled' &&
+              Array.isArray(verificationResult.value?.data)
+              ? verificationResult.value.data
+              : [];
+
+            const toEvents = (records, kind, eventLabel, scheduleType) => {
+              const events = [];
+              records.forEach((cycle) => {
+                if (['direncanakan', 'dalam_proses'].includes(cycle.status)) {
+                  const rawDue = kind === 'calibration-cycle'
+                    ? cycle.tgl_jatuh_tempo || cycle.perkiraan_kembali || cycle.tanggal_keluar
+                    : cycle.tgl_jatuh_tempo;
+                  const dueDate = rawDue ? String(rawDue).slice(0, 10) : '';
+                  if (dueDate && !Number.isNaN(new Date(`${dueDate}T00:00:00`).getTime())) {
+                    events.push({
+                      ...cycle,
+                      id: `periodic-${kind}-${cycle.id}`,
+                      cycleId: cycle.id,
+                      kind,
+                      jenis_jadwal: scheduleType,
+                      eventLabel,
+                      equipment,
+                      categoryId: categoryId != null ? String(categoryId) : '',
+                      startDate: dueDate,
+                      endDate: dueDate,
+                      dueDate,
+                    });
+                  }
+                } else if (cycle.status === 'selesai') {
+                  const rawDone = kind === 'calibration-cycle'
+                    ? cycle.tgl_kalibrasi || cycle.updated_at
+                    : cycle.tgl_pemeriksaan_terakhir || cycle.updated_at;
+                  const doneDate = rawDone ? String(rawDone).slice(0, 10) : '';
+                  if (doneDate && !Number.isNaN(new Date(`${doneDate}T00:00:00`).getTime())) {
+                    events.push({
+                      ...cycle,
+                      id: `periodic-${kind}-${cycle.id}-completed`,
+                      cycleId: cycle.id,
+                      kind,
+                      jenis_jadwal: scheduleType,
+                      eventLabel: `${eventLabel} (Disetujui)`,
+                      equipment,
+                      categoryId: categoryId != null ? String(categoryId) : '',
+                      startDate: doneDate,
+                      endDate: doneDate,
+                      dueDate: doneDate,
+                      isApproved: true,
+                    });
+                  }
+
+                  const rawNext = cycle.tgl_jatuh_tempo;
+                  const nextDate = rawNext ? String(rawNext).slice(0, 10) : '';
+                  if (nextDate && nextDate !== doneDate && !Number.isNaN(new Date(`${nextDate}T00:00:00`).getTime())) {
+                    events.push({
+                      ...cycle,
+                      id: `periodic-${kind}-${cycle.id}-next`,
+                      cycleId: cycle.id,
+                      kind,
+                      jenis_jadwal: scheduleType,
+                      eventLabel: `Jadwal ${eventLabel}`,
+                      equipment,
+                      categoryId: categoryId != null ? String(categoryId) : '',
+                      startDate: nextDate,
+                      endDate: nextDate,
+                      dueDate: nextDate,
+                      status: 'direncanakan',
+                    });
+                  }
+                }
+              });
+              return events;
+            };
+
+            return [
+              ...toEvents(calibrationData, 'calibration-cycle', 'Kalibrasi', 'kalibrasi'),
+              ...toEvents(verificationData, 'verification-cycle', 'Verifikasi Fungsi', 'verifikasi_fungsi'),
+            ];
+          })
         );
-        const periodicCycleResults = await Promise.all(periodicEquipment.map(async (equipment) => {
-          const equipmentId = equipment.id ?? equipment.peralatan_id;
-          const categoryId = getEquipmentCategoryId(equipment);
-          const [calibrationResponse, verificationResponse] = await Promise.all([
-            kalibrasiApi.getByEquipment(equipmentId),
-            verifikasiFungsiApi.getByEquipment(equipmentId),
-          ]);
-          if (!Array.isArray(calibrationResponse?.data) || !Array.isArray(verificationResponse?.data)) {
-            throw new Error(`Format histori pemeriksaan berkala tidak valid untuk ${equipment.nama_peralatan || 'peralatan'}.`);
-          }
-          const toEvents = (records, kind, eventLabel, scheduleType) => records
-            .filter((cycle) => ['direncanakan', 'dalam_proses'].includes(cycle.status))
-            .map((cycle) => {
-              const dueDate = kind === 'calibration-cycle'
-                ? cycle.tgl_jatuh_tempo || cycle.perkiraan_kembali || cycle.tanggal_keluar
-                : cycle.tgl_jatuh_tempo;
-              const normalizedDueDate = dueDate ? String(dueDate).slice(0, 10) : '';
-              return {
-                ...cycle,
-                id: `periodic-${kind}-${cycle.id}`,
-                cycleId: cycle.id,
-                kind,
-                jenis_jadwal: scheduleType,
-                eventLabel,
-                equipment,
-                categoryId: String(categoryId),
-                startDate: normalizedDueDate,
-                endDate: normalizedDueDate,
-                dueDate: normalizedDueDate,
-              };
-            })
-            .filter((cycle) =>
-              cycle.dueDate &&
-              !Number.isNaN(new Date(`${cycle.dueDate}T00:00:00`).getTime())
-            );
-          return [
-            ...toEvents(calibrationResponse.data, 'calibration-cycle', 'Kalibrasi', 'kalibrasi'),
-            ...toEvents(verificationResponse.data, 'verification-cycle', 'Verifikasi Fungsi', 'verifikasi_fungsi'),
-          ];
-        }));
+        const periodicSchedules = cycleResults
+          .filter((result) => result.status === 'fulfilled')
+          .flatMap((result) => result.value);
+
         setCategories(
           STATIC_EQUIPMENT_CATEGORIES.map((category) => {
             const backendCategory = categoryResponse.data.find(
@@ -113,7 +185,86 @@ function ScheduleDateCards({ onNavigate }) {
             };
           })
         );
-        const periodicSchedules = periodicCycleResults.flat();
+
+        // Jadwal pengecekan antara & pemeliharaan — masuk kalender aktivitas peralatan
+        const pemeriksaanEvents = [];
+        if (Array.isArray(pemeriksaanSchedules)) {
+          pemeriksaanSchedules.forEach((s) => {
+            const equipmentItem = equipmentById.get(String(s.peralatan_id));
+            const categoryId = getEquipmentCategoryId(equipmentItem) ?? '';
+            const baseLabel = s.jenis_jadwal === 'pengecekan_antara'
+              ? 'Pengecekan Antara'
+              : 'Pemeliharaan';
+
+            if (s.status_realisasi === 'Terjadwal') {
+              const dueDate = s.tanggal_jatuh_tempo ? String(s.tanggal_jatuh_tempo).slice(0, 10) : '';
+              if (dueDate && !Number.isNaN(new Date(`${dueDate}T00:00:00`).getTime())) {
+                pemeriksaanEvents.push({
+                  ...s,
+                  id: `pemeriksaan-${s.id}`,
+                  kind: 'pemeriksaan',
+                  eventLabel: baseLabel,
+                  equipment: equipmentItem || null,
+                  categoryId: categoryId ? String(categoryId) : '',
+                  startDate: dueDate,
+                  endDate: dueDate,
+                  dueDate,
+                });
+              }
+            } else if (s.status_realisasi === 'Menunggu Verifikasi') {
+              const actionDate = s.tanggal_realisasi || s.tanggal_jatuh_tempo;
+              const dateStr = actionDate ? String(actionDate).slice(0, 10) : '';
+              if (dateStr && !Number.isNaN(new Date(`${dateStr}T00:00:00`).getTime())) {
+                pemeriksaanEvents.push({
+                  ...s,
+                  id: `pemeriksaan-${s.id}-pending`,
+                  kind: 'pemeriksaan',
+                  eventLabel: `${baseLabel} (Menunggu Verifikasi)`,
+                  equipment: equipmentItem || null,
+                  categoryId: categoryId ? String(categoryId) : '',
+                  startDate: dateStr,
+                  endDate: dateStr,
+                  dueDate: dateStr,
+                });
+              }
+            } else if (s.status_realisasi === 'Disetujui') {
+              const doneDateRaw = s.tanggal_realisasi || s.tanggal_terakhir || s.updated_at;
+              const doneDate = doneDateRaw ? String(doneDateRaw).slice(0, 10) : '';
+              if (doneDate && !Number.isNaN(new Date(`${doneDate}T00:00:00`).getTime())) {
+                pemeriksaanEvents.push({
+                  ...s,
+                  id: `pemeriksaan-${s.id}-approved`,
+                  kind: 'pemeriksaan',
+                  eventLabel: `${baseLabel} (Disetujui)`,
+                  equipment: equipmentItem || null,
+                  categoryId: categoryId ? String(categoryId) : '',
+                  startDate: doneDate,
+                  endDate: doneDate,
+                  dueDate: doneDate,
+                  isApproved: true,
+                });
+              }
+
+              const nextDueRaw = s.tanggal_jatuh_tempo;
+              const nextDue = nextDueRaw ? String(nextDueRaw).slice(0, 10) : '';
+              if (nextDue && nextDue !== doneDate && !Number.isNaN(new Date(`${nextDue}T00:00:00`).getTime())) {
+                pemeriksaanEvents.push({
+                  ...s,
+                  id: `pemeriksaan-${s.id}-next`,
+                  kind: 'pemeriksaan',
+                  eventLabel: `Jadwal ${baseLabel}`,
+                  equipment: equipmentItem || null,
+                  categoryId: categoryId ? String(categoryId) : '',
+                  startDate: nextDue,
+                  endDate: nextDue,
+                  dueDate: nextDue,
+                  status_realisasi: 'Terjadwal',
+                });
+              }
+            }
+          });
+        }
+
         const activeLoanStatuses = new Set([
           'MENUNGGU_MANAGER_PEMINJAM',
           'MENUNGGU_PENGELOLA',
@@ -154,7 +305,8 @@ function ScheduleDateCards({ onNavigate }) {
             !Number.isNaN(new Date(`${schedule.startDate}T00:00:00`).getTime()) &&
             !Number.isNaN(new Date(`${schedule.endDate}T00:00:00`).getTime())
           );
-        const schedules = [...periodicSchedules, ...loanSchedules]
+
+        const schedules = [...periodicSchedules, ...pemeriksaanEvents, ...loanSchedules]
           .sort((first, second) => first.startDate.localeCompare(second.startDate));
         setItems(schedules);
         setSelectedCategoryId('all');
@@ -175,6 +327,8 @@ function ScheduleDateCards({ onNavigate }) {
   const scheduleTypeLabels = {
     kalibrasi: 'Kalibrasi',
     verifikasi_fungsi: 'Verifikasi Fungsi',
+    pengecekan_antara: 'Pengecekan Antara',
+    pemeliharaan: 'Pemeliharaan',
   };
   const loanStatusLabels = {
     MENUNGGU_MANAGER_PEMINJAM: 'Menunggu persetujuan atasan peminjam',
@@ -235,12 +389,19 @@ function ScheduleDateCards({ onNavigate }) {
     onNavigate(`${path}?cycleId=${encodeURIComponent(schedule.cycleId)}&action=${action}`);
   }
 
+  function openPemeriksaanPage(schedule) {
+    const path = schedule.jenis_jadwal === 'pengecekan_antara'
+      ? '/pemeriksaan/pengecekan-antara'
+      : '/pemeriksaan/pemeliharaan';
+    onNavigate(path);
+  }
+
   return (
     <section className="dashboard-schedule-section" aria-labelledby="dashboard-schedule-title">
       <div className="dashboard-schedule-heading">
         <div>
-          <h2 className="card-title" id="dashboard-schedule-title">Kalender Pemeriksaan Berkala Peralatan</h2>
-          <p className="page-subtitle">Pilih bulan dan tanggal untuk melihat peralatan yang perlu diperiksa.</p>
+          <h2 className="card-title" id="dashboard-schedule-title">Kalender Aktivitas Peralatan</h2>
+          <p className="page-subtitle">Jadwal kalibrasi, verifikasi fungsi, pengecekan antara, pemeliharaan, dan peminjaman peralatan.</p>
         </div>
         <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('/penjadwalan')}>
           Semua jadwal <ArrowRight size={14} />
@@ -345,9 +506,11 @@ function ScheduleDateCards({ onNavigate }) {
                 {selectedSchedules.map((schedule) => {
                   const dueDate = new Date(`${schedule.dueDate}T00:00:00`);
                   const isPeriodicCycle = ['calibration-cycle', 'verification-cycle'].includes(schedule.kind);
+                  const isPemeriksaan = schedule.kind === 'pemeriksaan';
+                  const isApprovedItem = schedule.isApproved || schedule.status === 'selesai' || schedule.status_realisasi === 'Disetujui';
                   const agendaContent = (
                     <>
-                      <div className={`dashboard-calendar-agenda-marker ${getDueDateBadgeClass(dueDate)}`} />
+                      <div className={`dashboard-calendar-agenda-marker ${isApprovedItem ? 'badge-aktif' : getDueDateBadgeClass(dueDate)}`} />
                       <div className="dashboard-calendar-agenda-info">
                         <strong>{schedule.equipment?.nama_peralatan || `Peralatan #${schedule.peralatan_id}`}</strong>
                         <span>
@@ -359,12 +522,13 @@ function ScheduleDateCards({ onNavigate }) {
                           {schedule.kind === 'loan'
                             ? ` · ${schedule.startDate} s.d. ${schedule.endDate}`
                             : ''}
-                          {isPeriodicCycle ? ` · ${schedule.status === 'dalam_proses' ? 'Sedang diproses' : 'Direncanakan'}` : ''}
-                          {schedule.peran_jadwal ? ` · ${schedule.peran_jadwal}` : ''}
+                          {isPeriodicCycle ? ` · ${schedule.status === 'dalam_proses' ? 'Sedang diproses' : schedule.status === 'selesai' ? 'Disetujui / Selesai' : 'Direncanakan'}` : ''}
+                          {isPemeriksaan ? ` · ${schedule.status_realisasi || 'Terjadwal'}` : ''}
+                          {schedule.peran_jadwal && !isPemeriksaan ? ` · ${schedule.peran_jadwal}` : ''}
                         </span>
                       </div>
-                      <span className={`badge ${schedule.kind === 'loan' ? 'badge-dipinjam' : schedule.kind === 'inspection-approved' ? 'badge-aktif' : getDueDateBadgeClass(dueDate)}`}>
-                        {schedule.kind === 'inspection-approved'
+                      <span className={`badge ${schedule.kind === 'loan' ? 'badge-dipinjam' : isApprovedItem ? 'badge-aktif' : getDueDateBadgeClass(dueDate)}`}>
+                        {isApprovedItem
                           ? 'Disetujui'
                           : schedule.kind === 'loan'
                           ? selectedDate === schedule.startDate
@@ -383,6 +547,16 @@ function ScheduleDateCards({ onNavigate }) {
                       key={schedule.id}
                       onClick={() => openPeriodicCycle(schedule)}
                       aria-label={`Buka catat hasil ${schedule.eventLabel} untuk ${schedule.equipment?.nama_peralatan || 'peralatan'}`}
+                    >
+                      {agendaContent}
+                    </button>
+                  ) : isPemeriksaan ? (
+                    <button
+                      type="button"
+                      className="dashboard-calendar-agenda-row is-actionable"
+                      key={schedule.id}
+                      onClick={() => openPemeriksaanPage(schedule)}
+                      aria-label={`Buka halaman ${schedule.eventLabel} untuk ${schedule.equipment?.nama_peralatan || 'peralatan'}`}
                     >
                       {agendaContent}
                     </button>

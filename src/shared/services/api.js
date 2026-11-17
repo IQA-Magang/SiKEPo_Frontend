@@ -136,7 +136,7 @@ export async function fetchWithAuth(endpoint, options = {}) {
     }
 
     // 403: Forbidden handling
-    if (res.status === 403) {
+    if (res.status === 403 && !options.suppressForbiddenEvent) {
       window.dispatchEvent(new CustomEvent('sikepo_auth_forbidden', {
         detail: { message: data?.message || 'Akses ditolak: Role Anda tidak memiliki izin untuk tindakan ini.' }
       }));
@@ -569,11 +569,27 @@ export function normalizePemeriksaanSchedule(schedule, jenisJadwal) {
   };
 }
 
-export async function getAllPemeriksaanSchedules() {
-  const [pengecekanResponse, pemeliharaanResponse] = await Promise.all([
-    pengecekanAntaraApi.getAll(),
-    pemeliharaanApi.getAll(),
+export async function getAllPemeriksaanSchedules({ silent = false } = {}) {
+  const opts = silent ? { suppressForbiddenEvent: true } : {};
+
+  const [pengecekanResult, pemeliharaanResult] = await Promise.allSettled([
+    fetchWithAuth('/api/pengecekan-antara/', opts),
+    fetchWithAuth('/api/pemeliharaan/', opts),
   ]);
+
+  // Jika keduanya 403 (manager belum punya akses GET di backend lama), return []
+  const isForbidden = (r) => r.status === 'rejected' && r.reason?.status === 403;
+  if (isForbidden(pengecekanResult) && isForbidden(pemeliharaanResult)) {
+    return [];
+  }
+
+  // Jika bukan 403, lempar error agar caller bisa tahu
+  if (pengecekanResult.status === 'rejected') throw pengecekanResult.reason;
+  if (pemeliharaanResult.status === 'rejected') throw pemeliharaanResult.reason;
+
+  const pengecekanResponse = pengecekanResult.value;
+  const pemeliharaanResponse = pemeliharaanResult.value;
+
   if (!Array.isArray(pengecekanResponse?.data) || !Array.isArray(pemeliharaanResponse?.data)) {
     throw new Error('Format respons pengecekan antara atau pemeliharaan tidak valid.');
   }

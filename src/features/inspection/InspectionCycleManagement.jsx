@@ -120,7 +120,7 @@ export default function InspectionCycleManagement({ type }) {
   const [checkoutForm, setCheckoutForm] = useState(EMPTY_CHECKOUT_FORM);
 
   const user = useMemo(() => getCurrentUser(), []);
-  const canManage = getUserRole(user) === "admin" || isStaffPengelola(user);
+  const canManage = getUserRole(user) === "admin" || getUserRole(user) === "manager" || isStaffPengelola(user);
 
   async function loadData() {
     setLoading(true);
