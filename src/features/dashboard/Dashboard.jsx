@@ -549,7 +549,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
           onClick={() => onNavigate('/peminjaman')}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          Buka Modul Peminjaman &rarr;
+          Buka Peminjaman
         </button>
       </div>
 
@@ -576,7 +576,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
           <div style={{ fontSize: '12px', color: '#64748b' }}>Semua riwayat peminjaman</div>
         </div>
 
-        {/* TAHAP 1 (ATASAN) */}
+        {/* ATASAN */}
         <div
           className="card stat-card-clickable"
           onClick={() => onNavigate('/peminjaman')}
@@ -590,7 +590,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
           }}
         >
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            TAHAP 1 (ATASAN)
+            ATASAN
           </div>
           <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#d97706', margin: '4px 0 2px' }}>
             {loading ? '...' : tahap1}
@@ -598,7 +598,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
           <div style={{ fontSize: '12px', color: '#64748b' }}>Validasi atasan peminjam</div>
         </div>
 
-        {/* TAHAP 2 (PENGELOLA) */}
+        {/* PENGELOLA */}
         <div
           className="card stat-card-clickable"
           onClick={() => onNavigate('/peminjaman')}
@@ -612,7 +612,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
           }}
         >
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            TAHAP 2 (PENGELOLA)
+            PENGELOLA
           </div>
           <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0284c7', margin: '4px 0 2px' }}>
             {loading ? '...' : tahap2}
@@ -620,7 +620,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
           <div style={{ fontSize: '12px', color: '#64748b' }}>Review teknis & ketersediaan</div>
         </div>
 
-        {/* TAHAP 3 (MGR LAB) */}
+        {/* MGR LAB */}
         <div
           className="card stat-card-clickable"
           onClick={() => onNavigate('/peminjaman')}
@@ -634,7 +634,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
           }}
         >
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            TAHAP 3 (MGR LAB)
+            MGR LAB
           </div>
           <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#7c3aed', margin: '4px 0 2px' }}>
             {loading ? '...' : tahap3}
@@ -642,7 +642,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
           <div style={{ fontSize: '12px', color: '#64748b' }}>Pengesahan izin final</div>
         </div>
 
-        {/* TAHAP 4 (SERAH TERIMA) */}
+        {/* SERAH TERIMA */}
         <div
           className="card stat-card-clickable"
           onClick={() => onNavigate('/peminjaman')}
@@ -656,7 +656,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
           }}
         >
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            TAHAP 4 (SERAH TERIMA)
+            SERAH TERIMA
           </div>
           <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ea580c', margin: '4px 0 2px' }}>
             {loading ? '...' : tahap4}
@@ -1089,7 +1089,7 @@ function StaffDashboard({ onNavigate, user }) {
               onClick={() => onNavigate('/peminjaman')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              Buka Modul Peminjaman &rarr;
+              Buka Peminjaman
             </button>
           </div>
           <div className="table-wrapper table-borderless">

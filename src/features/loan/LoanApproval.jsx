@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   CheckCircle2,
   XCircle,
@@ -3602,66 +3603,27 @@ export default function LoanApproval({ onNavigate }) {
             };
           })();
 
-          return (
+          return createPortal(
             <div
-              className="modal-overlay"
-              style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(15, 23, 42, 0.65)",
-                backdropFilter: "blur(3px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 9999,
-                padding: "var(--sp-4)",
-              }}
+              className="modal-overlay verification-review-overlay"
+              role="presentation"
               onClick={() => setSelectedLoan(null)}
             >
               <div
-                className="modal-content card"
-                ref={modalContentRef}
-                style={{
-                  width: "100%",
-                  maxWidth: "960px",
-                  maxHeight: "92vh",
-                  overflowY: "auto",
-                  borderRadius: "var(--radius-lg, 12px)",
-                  padding: 0,
-                  background: "#ffffff",
-                  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-                }}
+                className="modal modal-xl verification-review-modal"
+                role="dialog"
+                aria-modal="true"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Modal Header */}
-                <div
-                  style={{
-                    padding: "var(--sp-4) var(--sp-6)",
-                    borderBottom: "1px solid #e2e8f0",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: "#f8fafc",
-                  }}
-                >
+                <div className="modal-header">
                   <div>
-                    <h2
-                      style={{
-                        fontSize: "var(--text-lg)",
-                        fontWeight: "bold",
-                        margin: 0,
-                        color: "#0f172a",
-                      }}
-                    >
+                    <h2 className="modal-title">
                       Lembar Persetujuan Peminjaman Peralatan
                     </h2>
                     <p
-                      style={{
-                        margin: 0,
-                        fontSize: "12px",
-                        color: "#64748b",
-                        marginTop: 3,
-                      }}
+                      className="page-subtitle"
+                      style={{ margin: "4px 0 0", fontSize: "var(--text-xs)" }}
                     >
                       Formulir Otorisasi & Riwayat Persetujuan Peminjaman
                     </p>
@@ -3703,7 +3665,7 @@ export default function LoanApproval({ onNavigate }) {
                       )}
                     <button
                       type="button"
-                      className="btn btn-ghost btn-icon"
+                      className="modal-close"
                       onClick={() => setSelectedLoan(null)}
                       aria-label="Tutup"
                     >
@@ -3713,7 +3675,7 @@ export default function LoanApproval({ onNavigate }) {
                 </div>
 
                 {/* Modal Body */}
-                <div style={{ padding: "var(--sp-6)" }}>
+                <div className="modal-body" ref={modalContentRef}>
                   {/* Banner Informasi / Aksi Perpanjangan Peminjaman */}
                   {selectedLoan.status === "SEDANG_DIPINJAM" &&
                     (() => {
@@ -6690,14 +6652,8 @@ export default function LoanApproval({ onNavigate }) {
 
                 {/* Modal Footer */}
                 <div
-                  style={{
-                    padding: "var(--sp-3) var(--sp-6)",
-                    borderTop: "1px solid #e2e8f0",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: "#f8fafc",
-                  }}
+                  className="modal-footer verification-review-footer"
+                  style={{ justifyContent: "space-between" }}
                 >
                   <span style={{ fontSize: "11px", color: "#94a3b8" }}>
                     SiKEPo — Sistem Informasi Kelayakan Peralatan
@@ -6706,116 +6662,69 @@ export default function LoanApproval({ onNavigate }) {
                     type="button"
                     className="btn btn-secondary"
                     onClick={() => setSelectedLoan(null)}
-                    style={{
-                      padding: "6px 16px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                    }}
                   >
                     Tutup
                   </button>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body,
           );
         })()}
 
       {/* ==================================================================== */}
       {/* 7. MODAL 2: SERAH TERIMA FISIK KELUAR (TAHAP 4 - LAMPIRAN A)          */}
       {/* ==================================================================== */}
-      {selectedLoan && modalMode === "checkout" && (
-        <div
-          className="modal-overlay"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(15, 23, 42, 0.7)",
-            backdropFilter: "blur(3px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-            padding: "var(--sp-4)",
-          }}
-          onClick={() => setSelectedLoan(null)}
-        >
+      {selectedLoan &&
+        modalMode === "checkout" &&
+        createPortal(
           <div
-            className="modal-content card"
-            ref={checkoutModalRef}
-            style={{
-              width: "100%",
-              maxWidth: "960px",
-              maxHeight: "92vh",
-              overflowY: "auto",
-              borderRadius: "var(--radius-lg, 12px)",
-              padding: 0,
-              background: "#ffffff",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-            }}
-            onClick={(e) => e.stopPropagation()}
+            className="modal-overlay verification-review-overlay"
+            role="presentation"
+            onClick={() => setSelectedLoan(null)}
           >
-            {/* Modal Header */}
             <div
-              style={{
-                padding: "var(--sp-4) var(--sp-6)",
-                borderBottom:
-                  checkoutStep === "peminjam"
-                    ? "1.5px solid #7dd3fc"
-                    : "1.5px solid #fdba74",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                background: checkoutStep === "peminjam" ? "#f0f9ff" : "#fff7ed",
-              }}
+              className="modal modal-xl verification-review-modal"
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Package
-                    size={22}
-                    style={{
-                      color:
-                        checkoutStep === "peminjam" ? "#0284c7" : "#ea580c",
-                    }}
-                  />
-                  <h2
-                    style={{
-                      fontSize: "var(--text-lg)",
-                      fontWeight: "bold",
-                      margin: 0,
-                      color:
-                        checkoutStep === "peminjam" ? "#0369a1" : "#9a3412",
-                    }}
+              {/* Modal Header */}
+              <div className="modal-header">
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Package
+                      size={20}
+                      style={{
+                        color:
+                          checkoutStep === "peminjam" ? "#0284c7" : "#ea580c",
+                      }}
+                    />
+                    <h2 className="modal-title">
+                      {checkoutStep === "peminjam"
+                        ? "Konfirmasi Penerimaan Peralatan & TTD — Peminjam"
+                        : "Pemeriksaan Serah Terima Fisik Keluar — Pengelola"}
+                    </h2>
+                  </div>
+                  <p
+                    className="page-subtitle"
+                    style={{ margin: "4px 0 0", fontSize: "var(--text-xs)" }}
                   >
                     {checkoutStep === "peminjam"
-                      ? "Tahap 4B: Konfirmasi Penerimaan Peralatan & TTD — Peminjam"
-                      : "Tahap 4A: Pemeriksaan Serah Terima Fisik Keluar — Pengelola"}
-                  </h2>
+                      ? `Tiket ${selectedLoan.kode || selectedLoan.id} — Periksa hasil kelayakan fisik 5 butir dari Pengelola dan bubuhkan tanda tangan tanda terima`
+                      : `Tiket ${selectedLoan.kode || selectedLoan.id} — Pemeriksaan fisik 5 butir kelayakan alat oleh Pengelola sebelum diserahkan ke Peminjam`}
+                  </p>
                 </div>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: "12px",
-                    color: checkoutStep === "peminjam" ? "#0284c7" : "#c2410c",
-                    marginTop: 2,
-                  }}
-                >
-                  {checkoutStep === "peminjam"
-                    ? `Tiket ${selectedLoan.kode || selectedLoan.id} — Periksa hasil kelayakan fisik 5 butir dari Pengelola dan bubuhkan tanda tangan tanda terima`
-                    : `Tiket ${selectedLoan.kode || selectedLoan.id} — Pemeriksaan fisik 5 butir kelayakan alat oleh Pengelola sebelum diserahkan ke Peminjam`}
-                </p>
-              </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-icon"
+                  className="modal-close"
                   onClick={() => setSelectedLoan(null)}
                   aria-label="Tutup"
                 >
                   <X size={18} />
                 </button>
               </div>
-            </div>
 
             {/* Stepper Progres Serah Terima 2 Langkah */}
             <div
@@ -6892,8 +6801,15 @@ export default function LoanApproval({ onNavigate }) {
             {/* Modal Body */}
             <form
               onSubmit={handleSubmitCheckout}
-              style={{ padding: "var(--sp-6)" }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                flex: 1,
+                minHeight: 0,
+                overflow: "hidden",
+              }}
             >
+              <div className="modal-body" ref={checkoutModalRef}>
               {/* Petunjuk Pengemasan Sesuai Butir 8.4 IK */}
               <div
                 style={{
@@ -7658,16 +7574,10 @@ export default function LoanApproval({ onNavigate }) {
                 )}
               </div>
 
+              </div>
+
               {/* Tombol Eksekusi Serah Terima */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  alignItems: "center",
-                  gap: 10,
-                  marginTop: "var(--sp-4)",
-                }}
-              >
+              <div className="modal-footer verification-review-footer">
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
@@ -7766,96 +7676,66 @@ export default function LoanApproval({ onNavigate }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* ==================================================================== */}
       {/* 8. MODAL 3: LEMBAR SERAH TERIMA PENGEMBALIAN                         */}
       {/* ==================================================================== */}
-      {selectedLoan && modalMode === "return" && (
-        <div
-          className="modal-overlay"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(15, 23, 42, 0.75)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-            padding: "var(--sp-4)",
-          }}
-          onClick={() => setSelectedLoan(null)}
-        >
+      {selectedLoan &&
+        modalMode === "return" &&
+        createPortal(
           <div
-            className="modal-content card"
-            ref={returnModalRef}
-            style={{
-              width: "100%",
-              maxWidth: "960px",
-              maxHeight: "94vh",
-              overflowY: "auto",
-              borderRadius: "var(--radius-lg, 12px)",
-              padding: 0,
-              background: "#ffffff",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-            }}
-            onClick={(e) => e.stopPropagation()}
+            className="modal-overlay verification-review-overlay"
+            role="presentation"
+            onClick={() => setSelectedLoan(null)}
           >
-            {/* Modal Header */}
             <div
-              style={{
-                padding: "var(--sp-4) var(--sp-6)",
-                borderBottom: "1.5px solid #a7f3d0",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                background: "#ecfdf5",
-              }}
+              className="modal modal-xl verification-review-modal"
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Package size={22} style={{ color: "#059669" }} />
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontSize: "17px",
-                      fontWeight: 800,
-                      color: "#064e3b",
-                    }}
+              {/* Modal Header */}
+              <div className="modal-header">
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Package size={20} style={{ color: "#059669" }} />
+                    <h2 className="modal-title">
+                      Lembar Serah Terima Peralatan — Pengembalian
+                    </h2>
+                  </div>
+                  <p
+                    className="page-subtitle"
+                    style={{ margin: "4px 0 0", fontSize: "var(--text-xs)" }}
                   >
-                    Lembar Serah Terima Peralatan — Pengembalian
-                  </h3>
+                    Pemeriksaan 5 Butir Kondisi Fisik & Fungsi Saat Kembali
+                    (Komparasi Kondisi Awal vs Akhir) & Bagian D
+                  </p>
                 </div>
-                <p
-                  style={{
-                    margin: "3px 0 0",
-                    fontSize: "12px",
-                    color: "#047857",
-                  }}
-                >
-                  Pemeriksaan 5 Butir Kondisi Fisik & Fungsi Saat Kembali
-                  (Komparasi Kondisi Awal vs Akhir) & Bagian D
-                </p>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-icon"
+                  className="modal-close"
                   onClick={() => setSelectedLoan(null)}
                   aria-label="Tutup"
                 >
                   <X size={18} />
                 </button>
               </div>
-            </div>
 
-            {/* Modal Form */}
-            <form
-              onSubmit={handleSubmitReturn}
-              style={{ padding: "var(--sp-6)" }}
-            >
+              {/* Modal Form */}
+              <form
+                onSubmit={handleSubmitReturn}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  flex: 1,
+                  minHeight: 0,
+                  overflow: "hidden",
+                }}
+              >
+                <div className="modal-body" ref={returnModalRef}>
               {/* Info keterlambatan pengembalian */}
               {hariTerlambat(selectedLoan) > 0 && (
                 <div
@@ -8775,17 +8655,10 @@ export default function LoanApproval({ onNavigate }) {
                 />
               </div>
 
+              </div>
+
               {/* Tombol Aksi */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  alignItems: "center",
-                  gap: 10,
-                  borderTop: "1px solid #e2e8f0",
-                  paddingTop: "var(--sp-4)",
-                }}
-              >
+              <div className="modal-footer verification-review-footer">
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
@@ -8847,88 +8720,68 @@ export default function LoanApproval({ onNavigate }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* ==================================================================== */}
       {/* 8. MODAL 8: AJUKAN PERPANJANGAN PEMINJAMAN (OLEH PEMINJAM)            */}
       {/* ==================================================================== */}
-      {selectedLoan && modalMode === "extension_request" && (
-        <div
-          className="modal-overlay"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(15, 23, 42, 0.75)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-            padding: "var(--sp-4)",
-          }}
-          onClick={() => !isExtensionSubmitting && setSelectedLoan(null)}
-        >
+      {selectedLoan &&
+        modalMode === "extension_request" &&
+        createPortal(
           <div
-            className="modal-content card"
-            style={{
-              width: "100%",
-              maxWidth: "560px",
-              maxHeight: "92vh",
-              overflowY: "auto",
-              borderRadius: "var(--radius-lg, 12px)",
-              padding: 0,
-              background: "#ffffff",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-            }}
-            onClick={(e) => e.stopPropagation()}
+            className="modal-overlay verification-review-overlay"
+            role="presentation"
+            onClick={() => !isExtensionSubmitting && setSelectedLoan(null)}
           >
-            {/* Header */}
             <div
-              style={{
-                padding: "var(--sp-4) var(--sp-6)",
-                borderBottom: "1.5px solid #fed7aa",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                background: "#fff7ed",
-              }}
+              className="modal modal-lg verification-review-modal"
+              style={{ maxWidth: "600px" }}
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <CalendarClock size={22} style={{ color: "#d97706" }} />
+              {/* Header */}
+              <div className="modal-header">
                 <div>
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontSize: "16px",
-                      fontWeight: 800,
-                      color: "#9a3412",
-                    }}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <CalendarClock size={20} style={{ color: "#d97706" }} />
+                    <h2 className="modal-title">
+                      Permohonan Perpanjangan Peminjaman
+                    </h2>
+                  </div>
+                  <p
+                    className="page-subtitle"
+                    style={{ margin: "4px 0 0", fontSize: "var(--text-xs)" }}
                   >
-                    Permohonan Perpanjangan Peminjaman
-                  </h3>
-                  <p style={{ margin: 0, fontSize: "11px", color: "#c2410c" }}>
                     Tiket: {selectedLoan.kode || selectedLoan.id} •{" "}
                     {selectedLoan.peralatan?.nama_peralatan}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={() => setSelectedLoan(null)}
+                  disabled={isExtensionSubmitting}
+                  aria-label="Tutup"
+                >
+                  <X size={18} />
+                </button>
               </div>
-              <button
-                type="button"
-                className="btn btn-ghost btn-icon"
-                onClick={() => setSelectedLoan(null)}
-                disabled={isExtensionSubmitting}
-                aria-label="Tutup"
-              >
-                <X size={18} />
-              </button>
-            </div>
 
-            {/* Body */}
-            <form
-              onSubmit={handleSubmitExtensionRequest}
-              style={{ padding: "var(--sp-6)" }}
-            >
+              {/* Body */}
+              <form
+                onSubmit={handleSubmitExtensionRequest}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  flex: 1,
+                  minHeight: 0,
+                  overflow: "hidden",
+                }}
+              >
+                <div className="modal-body">
               {/* Info Peralatan & Tanggal Saat Ini */}
               <div
                 style={{
@@ -9023,16 +8876,10 @@ export default function LoanApproval({ onNavigate }) {
                 />
               </div>
 
+              </div>
+
               {/* Action Buttons */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 10,
-                  borderTop: "1px solid #e2e8f0",
-                  paddingTop: "var(--sp-4)",
-                }}
-              >
+              <div className="modal-footer verification-review-footer">
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -9074,7 +8921,8 @@ export default function LoanApproval({ onNavigate }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* ==================================================================== */}
@@ -9087,79 +8935,43 @@ export default function LoanApproval({ onNavigate }) {
             (p) => p.status === "menunggu",
           );
 
-          return (
+          return createPortal(
             <div
-              className="modal-overlay"
-              style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(15, 23, 42, 0.75)",
-                backdropFilter: "blur(4px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 9999,
-                padding: "var(--sp-4)",
-              }}
+              className="modal-overlay verification-review-overlay"
+              role="presentation"
               onClick={() =>
                 !isExtensionDecisionSubmitting && setSelectedLoan(null)
               }
             >
               <div
-                className="modal-content card"
-                style={{
-                  width: "100%",
-                  maxWidth: "640px",
-                  maxHeight: "94vh",
-                  overflowY: "auto",
-                  borderRadius: "var(--radius-lg, 12px)",
-                  padding: 0,
-                  background: "#ffffff",
-                  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-                }}
+                className="modal modal-lg verification-review-modal"
+                style={{ maxWidth: "640px" }}
+                role="dialog"
+                aria-modal="true"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Header */}
-                <div
-                  style={{
-                    padding: "var(--sp-4) var(--sp-6)",
-                    borderBottom: "1.5px solid #fed7aa",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: "#fff7ed",
-                  }}
-                >
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
-                  >
-                    <ShieldCheck size={22} style={{ color: "#ea580c" }} />
-                    <div>
-                      <h3
-                        style={{
-                          margin: 0,
-                          fontSize: "16px",
-                          fontWeight: 800,
-                          color: "#9a3412",
-                        }}
-                      >
+                <div className="modal-header">
+                  <div>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    >
+                      <ShieldCheck size={20} style={{ color: "#ea580c" }} />
+                      <h2 className="modal-title">
                         Tinjau Perpanjangan Peminjaman Peralatan
-                      </h3>
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: "11px",
-                          color: "#c2410c",
-                        }}
-                      >
-                        Wewenang Pengelola Peralatan • Tiket{" "}
-                        {selectedLoan.kode || selectedLoan.id}
-                      </p>
+                      </h2>
                     </div>
+                    <p
+                      className="page-subtitle"
+                      style={{ margin: "4px 0 0", fontSize: "var(--text-xs)" }}
+                    >
+                      Wewenang Pengelola Peralatan • Tiket{" "}
+                      {selectedLoan.kode || selectedLoan.id}
+                    </p>
                   </div>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-icon"
+                    className="modal-close"
                     onClick={() => setSelectedLoan(null)}
                     disabled={isExtensionDecisionSubmitting}
                     aria-label="Tutup"
@@ -9171,8 +8983,15 @@ export default function LoanApproval({ onNavigate }) {
                 {/* Body */}
                 <form
                   onSubmit={handleSubmitExtensionDecision}
-                  style={{ padding: "var(--sp-6)" }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    flex: 1,
+                    minHeight: 0,
+                    overflow: "hidden",
+                  }}
                 >
+                  <div className="modal-body">
                   {/* Box Detail Pengajuan */}
                   <div
                     style={{
@@ -9418,16 +9237,10 @@ export default function LoanApproval({ onNavigate }) {
                     />
                   </div>
 
+                  </div>
+
                   {/* Action Buttons */}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "flex-end",
-                      gap: 10,
-                      borderTop: "1px solid #e2e8f0",
-                      paddingTop: "var(--sp-4)",
-                    }}
-                  >
+                  <div className="modal-footer verification-review-footer">
                     <button
                       type="button"
                       className="btn btn-secondary"
@@ -9480,7 +9293,8 @@ export default function LoanApproval({ onNavigate }) {
                   </div>
                 </form>
               </div>
-            </div>
+            </div>,
+            document.body,
           );
         })()}
     </div>
