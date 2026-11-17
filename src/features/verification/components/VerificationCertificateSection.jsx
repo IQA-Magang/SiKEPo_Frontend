@@ -81,6 +81,7 @@ export default function VerificationCertificateSection({
   form,
   setForm,
   inspectionMethod,
+  readOnly = false,
 }) {
   const isFunctionVerification = inspectionMethod === "verifikasi_fungsi";
   const lockedFields = form.kunci_field_pemeriksaan || {};
@@ -110,7 +111,7 @@ export default function VerificationCertificateSection({
               className="form-input"
               type="date"
               value={form.tanggal_verifikasi_fungsi}
-              disabled={lockedFields.tanggal_verifikasi_fungsi}
+              disabled={readOnly || lockedFields.tanggal_verifikasi_fungsi}
               onChange={(event) =>
                 setForm({
                   ...form,
@@ -129,7 +130,7 @@ export default function VerificationCertificateSection({
               id="nomor-laporan-fungsi"
               className="form-input"
               value={form.nomor_laporan}
-              disabled={lockedFields.nomor_laporan}
+              disabled={readOnly || lockedFields.nomor_laporan}
               onChange={(event) =>
                 setForm({ ...form, nomor_laporan: event.target.value })
               }
@@ -145,7 +146,7 @@ export default function VerificationCertificateSection({
               id="pelaksana-verifikasi-fungsi"
               className="form-input"
               value={form.pelaksana_verifikasi}
-              disabled={lockedFields.pelaksana_verifikasi}
+              disabled={readOnly || lockedFields.pelaksana_verifikasi}
               onChange={(event) =>
                 setForm({ ...form, pelaksana_verifikasi: event.target.value })
               }
@@ -161,7 +162,7 @@ export default function VerificationCertificateSection({
               id="hasil-verifikasi-fungsi"
               className="form-select"
               value={form.hasil_verifikasi_fungsi}
-              disabled={lockedFields.hasil_verifikasi_fungsi}
+              disabled={readOnly || lockedFields.hasil_verifikasi_fungsi}
               onChange={(event) =>
                 setForm({
                   ...form,
@@ -170,6 +171,9 @@ export default function VerificationCertificateSection({
               }
               required
             >
+              <option value="" disabled>
+                Belum dicatat
+              </option>
               <option value="sesuai">Sesuai</option>
               <option value="tidak sesuai">Tidak sesuai</option>
             </select>
@@ -180,6 +184,10 @@ export default function VerificationCertificateSection({
               path={form.dokumen_pemeriksaan_url}
               name={form.dokumen_pemeriksaan_nama}
             />
+          ) : readOnly ? (
+            <p className="inspection-form-note">
+              Hasil verifikasi fungsi dicatat melalui menu Verifikasi Fungsi.
+            </p>
           ) : (
             <DocumentUploadField
               form={form}
@@ -200,7 +208,7 @@ export default function VerificationCertificateSection({
               className="form-input"
               type="date"
               value={form.tanggal_kalibrasi}
-              disabled={lockedFields.tanggal_kalibrasi}
+              disabled={readOnly || lockedFields.tanggal_kalibrasi}
               onChange={(event) =>
                 setForm({ ...form, tanggal_kalibrasi: event.target.value })
               }
@@ -216,7 +224,7 @@ export default function VerificationCertificateSection({
               id="nomor-sertifikat"
               className="form-input"
               value={form.nomor_sertifikat}
-              disabled={lockedFields.nomor_sertifikat}
+              disabled={readOnly || lockedFields.nomor_sertifikat}
               onChange={(event) =>
                 setForm({ ...form, nomor_sertifikat: event.target.value })
               }
@@ -232,7 +240,7 @@ export default function VerificationCertificateSection({
               id="penerbit-sertifikat"
               className="form-input"
               value={form.penyedia_kalibrasi}
-              disabled={lockedFields.penyedia_kalibrasi}
+              disabled={readOnly || lockedFields.penyedia_kalibrasi}
               onChange={(event) =>
                 setForm({ ...form, penyedia_kalibrasi: event.target.value })
               }
@@ -245,6 +253,10 @@ export default function VerificationCertificateSection({
               path={form.dokumen_pemeriksaan_url}
               name={form.dokumen_pemeriksaan_nama}
             />
+          ) : readOnly ? (
+            <p className="inspection-form-note">
+              Hasil kalibrasi dicatat melalui menu Kalibrasi.
+            </p>
           ) : (
             <DocumentUploadField
               form={form}
