@@ -62,6 +62,29 @@ function getInspectionRecordTimestamp(record) {
   return Number.isNaN(timestamp) ? Number(record.id) || 0 : timestamp;
 }
 
+function hasCompletedInspectionResult(method, record) {
+  if (String(record?.status || "").trim().toLowerCase() !== "selesai") {
+    return false;
+  }
+
+  if (method === "kalibrasi") {
+    return Boolean(
+      record.no_sertifikat &&
+        record.diterbitkan_oleh &&
+        record.tgl_kalibrasi &&
+        record.sertifikat_pdf,
+    );
+  }
+
+  return Boolean(
+    record.no_laporan &&
+      record.pelaksana &&
+      record.hasil &&
+      record.tgl_pemeriksaan_terakhir &&
+      record.pdf_laporan,
+  );
+}
+
 export default function useVerificationManagement({
   equipmentId,
   isLabScopedUser,
@@ -315,42 +338,58 @@ export default function useVerificationManagement({
         };
         let inspectionMethod = getInspectionMethodHint(equipmentWithDetails);
         let inspectionRecord = equipmentDetails.detail;
-        if (!inspectionMethod) {
-          const historyResults = await Promise.allSettled([
-            kalibrasiApi.getByEquipment(getEquipmentId(equipmentWithDetails)),
-            verifikasiFungsiApi.getByEquipment(
-              getEquipmentId(equipmentWithDetails),
-            ),
-          ]);
-          const historyRecords = [];
-          historyResults.forEach((result, index) => {
-            const method = index === 0 ? "kalibrasi" : "verifikasi_fungsi";
-            if (result.status === "rejected") {
-              onError(
-                result.reason?.message ||
-                  `Gagal memuat histori ${method === "kalibrasi" ? "kalibrasi" : "verifikasi fungsi"}.`,
-              );
-              return;
-            }
-            if (!Array.isArray(result.value?.data)) {
-              onError(
-                `Format histori ${method === "kalibrasi" ? "kalibrasi" : "verifikasi fungsi"} tidak valid.`,
-              );
-              return;
-            }
-            result.value.data.forEach((record) =>
-              historyRecords.push({ method, record }),
+        const historyMethods = inspectionMethod
+          ? [inspectionMethod]
+          : ["kalibrasi", "verifikasi_fungsi"];
+        const historyResults = await Promise.allSettled(
+          historyMethods.map((method) =>
+            method === "kalibrasi"
+              ? kalibrasiApi.getByEquipment(getEquipmentId(equipmentWithDetails))
+              : verifikasiFungsiApi.getByEquipment(
+                  getEquipmentId(equipmentWithDetails),
+                ),
+          ),
+        );
+        const historyRecords = [];
+        historyResults.forEach((result, index) => {
+          const method = historyMethods[index];
+          if (result.status === "rejected") {
+            onError(
+              result.reason?.message ||
+                `Gagal memuat histori ${method === "kalibrasi" ? "kalibrasi" : "verifikasi fungsi"}.`,
             );
-          });
-          historyRecords.sort(
+            return;
+          }
+          if (!Array.isArray(result.value?.data)) {
+            onError(
+              `Format histori ${method === "kalibrasi" ? "kalibrasi" : "verifikasi fungsi"} tidak valid.`,
+            );
+            return;
+          }
+          result.value.data.forEach((record) =>
+            historyRecords.push({ method, record }),
+          );
+        });
+        const sortHistory = (records) =>
+          records.sort(
             (left, right) =>
               getInspectionRecordTimestamp(right.record) -
                 getInspectionRecordTimestamp(left.record) ||
               Number(right.record.id) - Number(left.record.id),
           );
-          inspectionRecord = historyRecords[0]?.record || inspectionRecord;
+        const completedHistory = sortHistory(
+          historyRecords.filter(({ method, record }) =>
+            hasCompletedInspectionResult(method, record),
+          ),
+        );
+        if (completedHistory.length > 0) {
+          inspectionRecord = completedHistory[0].record;
+          inspectionMethod = completedHistory[0].method;
+        } else if (!inspectionMethod) {
+          const latestHistory = sortHistory(historyRecords);
+          inspectionRecord = latestHistory[0]?.record || inspectionRecord;
           inspectionMethod =
-            historyRecords[0]?.method ||
+            latestHistory[0]?.method ||
             getEquipmentInspectionMethod(equipmentWithDetails);
         }
         const detailHasInspectionData =
@@ -365,25 +404,11 @@ export default function useVerificationManagement({
                   inspectionRecord?.tgl_pemeriksaan_terakhir ||
                   inspectionRecord?.pdf_laporan,
               );
-        if (!detailHasInspectionData) {
-          const historyApi =
-            inspectionMethod === "kalibrasi"
-              ? kalibrasiApi
-              : verifikasiFungsiApi;
-          const historyResponse = await historyApi.getByEquipment(
-            getEquipmentId(equipmentWithDetails),
+        if (!completedHistory.length && !detailHasInspectionData) {
+          const latestHistory = sortHistory(
+            historyRecords.filter(({ method }) => method === inspectionMethod),
           );
-          if (!Array.isArray(historyResponse?.data)) {
-            throw new Error(
-              `Format histori ${inspectionMethod === "kalibrasi" ? "kalibrasi" : "verifikasi fungsi"} tidak valid.`,
-            );
-          }
-          inspectionRecord = [...historyResponse.data].sort(
-            (left, right) =>
-              getInspectionRecordTimestamp(right) -
-                getInspectionRecordTimestamp(left) ||
-              Number(right.id) - Number(left.id),
-          )[0] || inspectionRecord;
+          inspectionRecord = latestHistory[0]?.record || inspectionRecord;
         }
         let inspectionDocumentPath =
           inspectionMethod === "kalibrasi"

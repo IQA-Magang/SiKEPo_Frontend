@@ -73,6 +73,19 @@ const EMPTY_CHECKOUT_FORM = {
   perkiraan_kembali: "",
 };
 
+const EMPTY_RESULT_FORM = {
+  tgl_kalibrasi: "",
+  no_sertifikat: "",
+  diterbitkan_oleh: "",
+  sertifikat_pdf: null,
+  tgl_pemeriksaan_terakhir: "",
+  tgl_jatuh_tempo: "",
+  pelaksana: "",
+  hasil: "sesuai",
+  no_laporan: "",
+  pdf_laporan: null,
+};
+
 function dateOnly(value) {
   return value ? String(value).slice(0, 10) : "";
 }
@@ -118,6 +131,7 @@ export default function InspectionCycleManagement({ type }) {
   const [selectedCycle, setSelectedCycle] = useState(null);
   const [createForm, setCreateForm] = useState(EMPTY_CREATE_FORM);
   const [checkoutForm, setCheckoutForm] = useState(EMPTY_CHECKOUT_FORM);
+  const [resultForm, setResultForm] = useState(EMPTY_RESULT_FORM);
 
   const user = useMemo(() => getCurrentUser(), []);
   const canManage = getUserRole(user) === "admin" || isStaffPengelola(user);
@@ -180,19 +194,13 @@ export default function InspectionCycleManagement({ type }) {
     setCreateForm({
       ...EMPTY_CREATE_FORM,
       peralatan_id: equipmentId ? String(equipmentId) : "",
-      interval_bulan: equipmentItem?.interval_kalibrasi_bulan || "",
+      interval_bulan:
+        equipmentItem?.detail?.interval_bulan ||
+        equipmentItem?.interval_kalibrasi_bulan ||
+        "",
     });
     setSelectedCycle(null);
     setPanel("create");
-  }
-
-  function openEquipmentVerification(cycle) {
-    const equipmentId = getEquipmentId(cycle.peralatan) ?? cycle.peralatan_id;
-    if (equipmentId == null || equipmentId === "") {
-      error("ID peralatan tidak ditemukan untuk membuka halaman verifikasi.");
-      return;
-    }
-    navigate(`/verifikasi/${equipmentId}`);
   }
 
   function openCheckout(cycle) {
@@ -204,6 +212,22 @@ export default function InspectionCycleManagement({ type }) {
       perkiraan_kembali: dateOnly(cycle.perkiraan_kembali),
     });
     setPanel("checkout");
+  }
+
+  function openResult(cycle) {
+    setSelectedCycle(cycle);
+    setResultForm({
+      ...EMPTY_RESULT_FORM,
+      tgl_kalibrasi: dateOnly(cycle.tgl_kalibrasi),
+      no_sertifikat: cycle.no_sertifikat || "",
+      diterbitkan_oleh: cycle.diterbitkan_oleh || "",
+      tgl_pemeriksaan_terakhir: dateOnly(cycle.tgl_pemeriksaan_terakhir),
+      tgl_jatuh_tempo: dateOnly(cycle.tgl_jatuh_tempo),
+      pelaksana: cycle.pelaksana || "",
+      hasil: cycle.hasil || "sesuai",
+      no_laporan: cycle.no_laporan || "",
+    });
+    setPanel("result");
   }
 
   useEffect(() => {
@@ -223,10 +247,10 @@ export default function InspectionCycleManagement({ type }) {
     if (canManage) {
       if (
         action === "result" &&
-        (type === "verifikasi-fungsi" || (type === "kalibrasi" && cycle.status === "dalam_proses"))
+        cycle.status === "dalam_proses"
       ) {
         window.history.replaceState({}, "", window.location.pathname);
-        openEquipmentVerification(cycle);
+        openResult(cycle);
         return;
       } else if (action === "checkout" && type === "kalibrasi" && cycle.status === "direncanakan") {
         openCheckout(cycle);
@@ -237,7 +261,7 @@ export default function InspectionCycleManagement({ type }) {
       error("Anda tidak memiliki akses untuk mencatat pemeriksaan.");
     }
     window.history.replaceState({}, "", window.location.pathname);
-  }, [loading, loadError, cycles, type, canManage, error, navigate]);
+  }, [loading, loadError, cycles, type, canManage, error]);
 
   function updateCreateField(event) {
     const { name, value, checked, type: inputType } = event.target;
@@ -248,6 +272,13 @@ export default function InspectionCycleManagement({ type }) {
         ? {
           interval_bulan: equipment.find((item) => String(getEquipmentId(item)) === value)
             ?.interval_kalibrasi_bulan || "",
+        }
+        : {}),
+      ...(name === "peralatan_id" && type === "verifikasi-fungsi"
+        ? {
+          interval_bulan:
+            equipment.find((item) => String(getEquipmentId(item)) === value)
+              ?.detail?.interval_bulan || "",
         }
         : {}),
     }));
@@ -269,6 +300,7 @@ export default function InspectionCycleManagement({ type }) {
         await config.api.create(Number(createForm.peralatan_id), {
           jenis_pemeriksaan_berkala: createForm.jenis_pemeriksaan_berkala,
           status: createForm.status,
+          interval_bulan: Number(createForm.interval_bulan),
           tgl_jatuh_tempo: dateTimeValue(createForm.tgl_jatuh_tempo),
           fungsi_sbg_alat_standar: createForm.fungsi_sbg_alat_standar,
           acuan_pembanding: createForm.acuan_pembanding,
@@ -313,8 +345,52 @@ export default function InspectionCycleManagement({ type }) {
     }
   }
 
+  async function saveResult(event) {
+    event.preventDefault();
+    if (!selectedCycle) return;
+
+    setSaving(true);
+    try {
+      const equipmentId =
+        getEquipmentId(selectedCycle.peralatan) ?? selectedCycle.peralatan_id;
+      if (equipmentId == null || equipmentId === "") {
+        throw new Error("ID peralatan tidak ditemukan untuk membuka halaman verifikasi.");
+      }
+
+      if (type === "kalibrasi") {
+        await kalibrasiApi.complete(selectedCycle.id, {
+          no_sertifikat: resultForm.no_sertifikat.trim(),
+          diterbitkan_oleh: resultForm.diterbitkan_oleh.trim(),
+          tgl_kalibrasi: resultForm.tgl_kalibrasi,
+          sertifikat_pdf: resultForm.sertifikat_pdf,
+        });
+      } else {
+        await verifikasiFungsiApi.complete(selectedCycle.id, {
+          tgl_pemeriksaan_terakhir: resultForm.tgl_pemeriksaan_terakhir,
+          tgl_jatuh_tempo: resultForm.tgl_jatuh_tempo,
+          pelaksana: resultForm.pelaksana.trim(),
+          hasil: resultForm.hasil,
+          no_laporan: resultForm.no_laporan.trim(),
+          pdf_laporan: resultForm.pdf_laporan,
+        });
+      }
+
+      success(`Hasil ${config.title.toLowerCase()} berhasil disimpan.`);
+      setPanel(null);
+      navigate(`/verifikasi/${equipmentId}`);
+    } catch (saveError) {
+      error(saveError.message || `Gagal menyimpan hasil ${config.title.toLowerCase()}.`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function updateCheckoutField(name, value) {
     setCheckoutForm((previous) => ({ ...previous, [name]: value }));
+  }
+
+  function updateResultField(name, value) {
+    setResultForm((previous) => ({ ...previous, [name]: value }));
   }
 
   const statusTabs = [
@@ -380,7 +456,7 @@ export default function InspectionCycleManagement({ type }) {
                 onStart={(cycle) => type === "kalibrasi"
                   ? openCheckout(cycle)
                   : changeStatus(cycle, "dalam_proses")}
-                onResult={openEquipmentVerification}
+                onResult={openResult}
                 emptyText={`Belum ada jadwal ${config.title.toLowerCase()} yang menunggu.`}
               />
             )}
@@ -397,7 +473,7 @@ export default function InspectionCycleManagement({ type }) {
                 onStart={(cycle) => type === "kalibrasi"
                   ? openCheckout(cycle)
                   : changeStatus(cycle, "dalam_proses")}
-                onResult={openEquipmentVerification}
+                onResult={openResult}
                 emptyText="Belum ada siklus yang sedang diproses."
               />
             )}
@@ -412,7 +488,7 @@ export default function InspectionCycleManagement({ type }) {
                 saving={saving}
                 config={config}
                 onStart={() => {}}
-                onResult={openEquipmentVerification}
+                onResult={openResult}
                 emptyText="History akan muncul setelah siklus selesai."
               />
             )}
@@ -444,7 +520,9 @@ export default function InspectionCycleManagement({ type }) {
               onClose={() => setPanel(null)}
               title={panel === "create"
                 ? `Buat Jadwal ${config.title}`
-                : "Catat Alat Keluar"}
+                : panel === "checkout"
+                  ? "Catat Alat Keluar"
+                  : `Catat Hasil ${config.title}`}
               description={panel === "create"
                 ? `Lengkapi informasi siklus ${config.title.toLowerCase()}.`
                 : `${selectedCycle?.peralatan?.nomor_aset || ""} ${selectedCycle?.peralatan?.nama_peralatan || ""}`}
@@ -461,11 +539,21 @@ export default function InspectionCycleManagement({ type }) {
                   onCancel={() => setPanel(null)}
                   saving={saving}
                 />
-              ) : (
+              ) : panel === "checkout" ? (
                 <EquipmentCheckoutForm
                   form={checkoutForm}
                   onChange={updateCheckoutField}
                   onSubmit={saveCheckout}
+                  onCancel={() => setPanel(null)}
+                  saving={saving}
+                />
+              ) : (
+                <CycleResultForm
+                  type={type}
+                  cycle={selectedCycle}
+                  form={resultForm}
+                  onChange={updateResultField}
+                  onSubmit={saveResult}
                   onCancel={() => setPanel(null)}
                   saving={saving}
                 />
@@ -599,6 +687,21 @@ function CreateCycleForm({ type, equipment, form, onChange, onSubmit, onCancel, 
           <FormField label="Tanggal jatuh tempo" htmlFor="cycle-function-due">
             <input id="cycle-function-due" className="form-input" type="date" name="tgl_jatuh_tempo" value={form.tgl_jatuh_tempo} onChange={onChange} />
           </FormField>
+          <FormField label="Interval verifikasi fungsi" htmlFor="cycle-function-interval" required>
+            <select
+              id="cycle-function-interval"
+              className="form-select"
+              name="interval_bulan"
+              value={form.interval_bulan}
+              onChange={onChange}
+              required
+            >
+              <option value="">Pilih interval</option>
+              <option value="12">1 tahun (12 bulan)</option>
+              <option value="24">2 tahun (24 bulan)</option>
+              <option value="36">3 tahun (36 bulan)</option>
+            </select>
+          </FormField>
           <FormField label="Acuan pembanding" htmlFor="cycle-reference">
             <input id="cycle-reference" className="form-input" name="acuan_pembanding" value={form.acuan_pembanding} onChange={onChange} placeholder="Nama/nomor acuan" />
           </FormField>
@@ -671,6 +774,132 @@ function EquipmentCheckoutForm({ form, onChange, onSubmit, onCancel, saving }) {
       <div className="inspection-side-form__footer">
         <Button variant="secondary" onClick={onCancel} disabled={saving}>Batal</Button>
         <Button type="submit" icon={<Send size={15} />} disabled={saving}>{saving ? "Menyimpan..." : "Simpan alat keluar"}</Button>
+      </div>
+    </form>
+  );
+}
+
+function CycleResultForm({ type, cycle, form, onChange, onSubmit, onCancel, saving }) {
+  const isCalibration = type === "kalibrasi";
+  const file = isCalibration ? form.sertifikat_pdf : form.pdf_laporan;
+
+  return (
+    <form className="inspection-side-form" onSubmit={onSubmit}>
+      {isCalibration ? (
+        <>
+          <FormField label="Tanggal kalibrasi" htmlFor="result-calibration-date" required>
+            <input
+              id="result-calibration-date"
+              className="form-input"
+              type="date"
+              value={form.tgl_kalibrasi}
+              onChange={(event) => onChange("tgl_kalibrasi", event.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="Nomor sertifikat" htmlFor="result-certificate-number" required>
+            <input
+              id="result-certificate-number"
+              className="form-input"
+              value={form.no_sertifikat}
+              onChange={(event) => onChange("no_sertifikat", event.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="Diterbitkan oleh" htmlFor="result-certificate-issuer" required>
+            <input
+              id="result-certificate-issuer"
+              className="form-input"
+              value={form.diterbitkan_oleh}
+              onChange={(event) => onChange("diterbitkan_oleh", event.target.value)}
+              required
+            />
+          </FormField>
+        </>
+      ) : (
+        <>
+          <FormField label="Tanggal pemeriksaan" htmlFor="result-function-date" required>
+            <input
+              id="result-function-date"
+              className="form-input"
+              type="date"
+              value={form.tgl_pemeriksaan_terakhir}
+              onChange={(event) => onChange("tgl_pemeriksaan_terakhir", event.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="Nomor laporan" htmlFor="result-function-number" required>
+            <input
+              id="result-function-number"
+              className="form-input"
+              value={form.no_laporan}
+              onChange={(event) => onChange("no_laporan", event.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="Dilaksanakan oleh" htmlFor="result-function-performer" required>
+            <input
+              id="result-function-performer"
+              className="form-input"
+              value={form.pelaksana}
+              onChange={(event) => onChange("pelaksana", event.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="Hasil verifikasi fungsi" htmlFor="result-function-outcome" required>
+            <select
+              id="result-function-outcome"
+              className="form-select"
+              value={form.hasil}
+              onChange={(event) => onChange("hasil", event.target.value)}
+              required
+            >
+              <option value="sesuai">Sesuai</option>
+              <option value="tidak sesuai">Tidak sesuai</option>
+            </select>
+          </FormField>
+          <FormField label="Jatuh tempo verifikasi berikutnya" htmlFor="result-function-due" required>
+            <input
+              id="result-function-due"
+              className="form-input"
+              type="date"
+              value={form.tgl_jatuh_tempo}
+              onChange={(event) => onChange("tgl_jatuh_tempo", event.target.value)}
+              min={form.tgl_pemeriksaan_terakhir || undefined}
+              required
+            />
+          </FormField>
+          {cycle?.interval_bulan > 0 && (
+            <p className="inspection-form-note">
+              Jatuh tempo akan dihitung otomatis berdasarkan interval {cycle.interval_bulan} bulan.
+            </p>
+          )}
+        </>
+      )}
+      <FormField
+        label={isCalibration ? "Sertifikat (PDF)" : "Laporan verifikasi fungsi (PDF)"}
+        htmlFor="result-inspection-pdf"
+        required
+      >
+        <input
+          id="result-inspection-pdf"
+          className="form-input"
+          type="file"
+          accept=".pdf,application/pdf"
+          onChange={(event) =>
+            onChange(isCalibration ? "sertifikat_pdf" : "pdf_laporan", event.target.files?.[0] || null)
+          }
+          required
+        />
+        <small className="inspection-form-note">
+          PDF maksimal 15 MB{file ? ` · Dipilih: ${file.name}` : ""}.
+        </small>
+      </FormField>
+      <div className="inspection-side-form__footer">
+        <Button variant="secondary" onClick={onCancel} disabled={saving}>Batal</Button>
+        <Button type="submit" icon={<FileText size={15} />} disabled={saving}>
+          {saving ? "Menyimpan..." : "Simpan hasil"}
+        </Button>
       </div>
     </form>
   );
