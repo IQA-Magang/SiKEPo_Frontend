@@ -804,8 +804,6 @@ const INITIAL_LOAN_DATA = [
           keterangan:
             "Saat swauji unit gagal boot, timbul pesan error korelasi sensor mikrofon.",
         },
-        { status: "TB", keterangan: "" },
-        { status: "TB", keterangan: "" },
       ],
       ada_ts: true,
       ttd_pengelola: "data:image/png;base64,mockSign3",
@@ -881,8 +879,6 @@ const INITIAL_LOAN_DATA = [
         { status: "S", keterangan: "" },
         { status: "S", keterangan: "Lengkap test leads + kabel daya" },
         { status: "S", keterangan: "" },
-        { status: "TB", keterangan: "" },
-        { status: "TB", keterangan: "" },
       ],
       ada_ts: false,
       ttd_pengelola: "data:image/png;base64,mockSign3",
@@ -935,20 +931,6 @@ const INITIAL_LOAN_DATA = [
           butir: "Fungsi dasar normal (swauji berhasil)",
           status_keluar: "S",
           status: "S",
-          keterangan: "",
-        },
-        {
-          nomor_butir: 6,
-          butir: "Pemeriksaan fungsi khusus (bila perlu)",
-          status_keluar: "TB",
-          status: "TB",
-          keterangan: "",
-        },
-        {
-          nomor_butir: 7,
-          butir: "Pemeriksaan fungsi khusus (bila perlu)",
-          status_keluar: "TB",
-          status: "TB",
           keterangan: "",
         },
       ],
@@ -2421,11 +2403,11 @@ export default function LoanApproval({ onNavigate }) {
 
     // 3. Validasi Bagian D: Jika Ada Kejadian, tanggal dan uraian kejadian wajib diisi
     if (adaKejadian && !tanggalKejadian) {
-      toastError("Tanggal kejadian wajib diisi pada Bagian D.");
+      toastError("Tanggal kejadian wajib diisi.");
       return;
     }
     if (adaKejadian && !uraianKejadian.trim()) {
-      toastError("Uraian kejadian abnormal wajib diisi pada Bagian D.");
+      toastError("Uraian kejadian abnormal wajib diisi.");
       return;
     }
 
@@ -2468,22 +2450,16 @@ export default function LoanApproval({ onNavigate }) {
     }
   }
 
-  // Hitung berapa TS, TB, dan S yang dipilih di form Keluar (F/010)
+  // Hitung berapa TS dan S yang dipilih di form Keluar (F/010)
   const countTS = checkoutChecks
     .slice(0, LAMPIRAN_A_BUTIR.length)
     .filter((i) => i.status === "TS").length;
-  const countNA = checkoutChecks
-    .slice(0, LAMPIRAN_A_BUTIR.length)
-    .filter((i) => i.status === "N/A" || i.status === "TB").length;
   const countS = checkoutChecks
     .slice(0, LAMPIRAN_A_BUTIR.length)
     .filter((i) => i.status === "S").length;
 
-  // Hitung berapa TS, TB, dan S yang dipilih di form Pengembalian (F/010)
+  // Hitung berapa TS dan S yang dipilih di form Pengembalian (F/010)
   const countReturnTS = returnChecks.filter((i) => i.status === "TS").length;
-  const countReturnNA = returnChecks.filter(
-    (i) => i.status === "N/A" || i.status === "TB",
-  ).length;
   const countReturnS = returnChecks.filter((i) => i.status === "S").length;
 
   return (
@@ -2528,26 +2504,27 @@ export default function LoanApproval({ onNavigate }) {
           {
             title: "Pengajuan Peminjam",
             description:
-              "Peminjam mengisi form permohonan dengan jadwal yang diketahui atasannya. Sistem mencatat logbook dan mengirim notifikasi.",
+              "Peminjam mengisi formulir pengajuan dan jadwal peminjaman.",
           },
           {
             title: "Validasi Manajer Peminjam",
             description:
-              "Manajer peminjam memvalidasi urgensi dan jadwal kebutuhan pengujian.",
+              "Manajer peminjam memvalidasi urgensi dan jadwal pengujian.",
           },
           {
             title: "Pengelola Peralatan",
             description:
-              "Pengelola alat memeriksa ketersediaan, kelayakan fungsi, dan operator, lalu meneruskan ke Manager Lab pemilik.",
+              "Pengelola memeriksa ketersediaan, kelayakan alat, dan operator.",
           },
           {
             title: "Persetujuan Manager Lab Pemilik",
-            description: "Mgr. Lab mereview dan menyetujui peminjaman.",
+            description:
+              "Manager Lab pemilik meninjau dan menyetujui peminjaman.",
           },
           {
             title: "Serah Terima & Checklist Lampiran A",
             description:
-              "Pengelola peralatan dan peminjam memeriksa identitas, fisik, kelengkapan, dan fungsi alat sebelum digunakan.",
+              "Pengelola dan peminjam memeriksa kondisi alat sebelum serah terima.",
           },
         ]}
       />
@@ -3248,7 +3225,7 @@ export default function LoanApproval({ onNavigate }) {
                           {isReadyForHandover ? (
                             <button
                               type="button"
-                              className={`btn ${pendingAction?.step === "peminjam" ? "btn-success" : "btn-warning"} btn-sm`}
+                              className={`btn ${pendingAction?.step === "peminjam" ? "btn-success" : "btn-primary"} btn-sm`}
                               onClick={() => handleOpenCheckout(loan)}
                               style={{
                                 display: "inline-flex",
@@ -3259,17 +3236,15 @@ export default function LoanApproval({ onNavigate }) {
                                 padding: "5px 10px",
                                 height: "28px",
                                 boxSizing: "border-box",
-                                background:
-                                  pendingAction?.step === "peminjam"
-                                    ? "#16a34a"
-                                    : "#ea580c",
-                                borderColor:
-                                  pendingAction?.step === "peminjam"
-                                    ? "#15803d"
-                                    : "#c2410c",
-                                color: "#ffffff",
                                 fontWeight: 600,
                                 boxShadow: "0 1px 2px rgba(0, 0, 0, 0.08)",
+                                ...(pendingAction?.step === "peminjam"
+                                  ? {
+                                      background: "#16a34a",
+                                      borderColor: "#15803d",
+                                      color: "#ffffff",
+                                    }
+                                  : {}),
                               }}
                             >
                               {pendingAction?.step === "peminjam" ? (
@@ -4606,12 +4581,9 @@ export default function LoanApproval({ onNavigate }) {
                         {getPendingActionForUser(selectedLoan)?.canHandover && (
                           <button
                             type="button"
-                            className="btn btn-warning btn-sm"
+                            className="btn btn-primary btn-sm"
                             onClick={() => handleOpenCheckout(selectedLoan)}
                             style={{
-                              background: "#ea580c",
-                              borderColor: "#c2410c",
-                              color: "#ffffff",
                               fontWeight: 600,
                               fontSize: "12px",
                               padding: "6px 14px",
@@ -4805,7 +4777,7 @@ export default function LoanApproval({ onNavigate }) {
                           </span>
                         ) : (
                           <span style={{ color: "#16a34a", fontWeight: 600 }}>
-                            Memenuhi Syarat (Seluruh butir Sesuai/TB). Peralatan
+                            Memenuhi Syarat (Seluruh butir Sesuai). Peralatan
                             diserahterimakan kepada peminjam.
                           </span>
                         )}
@@ -5042,8 +5014,7 @@ export default function LoanApproval({ onNavigate }) {
                           }}
                         >
                           <ClipboardCheck size={16} />
-                          Rekaman Pengembalian Peralatan (Kolom Kembali & Bagian
-                          D)
+                          Rekaman Pengembalian Peralatan (Kolom Kembali & Kejadian)
                         </h4>
                         <span style={{ fontSize: "11px", color: "#64748b" }}>
                           Tanggal Kembali:{" "}
@@ -5225,16 +5196,15 @@ export default function LoanApproval({ onNavigate }) {
                                             color:
                                               it.status_keluar === "TS"
                                                 ? "#dc2626"
-                                                : it.status_keluar === "N/A" ||
-                                                  it.status_keluar === "TB"
-                                                  ? "#64748b"
-                                                  : "#15803d",
+                                                : it.status_keluar === "S"
+                                                  ? "#15803d"
+                                                  : "#64748b",
                                           }}
                                         >
-                                          {it.status_keluar === "N/A" ||
-                                            it.status_keluar === "TB"
-                                            ? "TB"
-                                            : it.status_keluar || "-"}
+                                          {it.status_keluar === "S" ||
+                                          it.status_keluar === "TS"
+                                            ? it.status_keluar
+                                            : "-"}
                                         </span>
                                       </td>
                                       <td
@@ -5250,16 +5220,15 @@ export default function LoanApproval({ onNavigate }) {
                                             color:
                                               it.status === "TS"
                                                 ? "#dc2626"
-                                                : it.status === "N/A" ||
-                                                  it.status === "TB"
-                                                  ? "#64748b"
-                                                  : "#15803d",
+                                                : it.status === "S"
+                                                  ? "#15803d"
+                                                  : "#64748b",
                                           }}
                                         >
-                                          {it.status === "N/A" ||
-                                            it.status === "TB"
-                                            ? "TB"
-                                            : it.status || "-"}
+                                          {it.status === "S" ||
+                                          it.status === "TS"
+                                            ? it.status
+                                            : "-"}
                                         </span>
                                       </td>
                                       <td
@@ -5289,7 +5258,7 @@ export default function LoanApproval({ onNavigate }) {
                         }}
                       >
                         <div style={{ fontWeight: 600, color: "#0f172a" }}>
-                          Bagian D — Kejadian Selama Peminjaman:
+                          Kejadian Selama Peminjaman:
                         </div>
                         <div
                           style={{
@@ -6765,7 +6734,7 @@ export default function LoanApproval({ onNavigate }) {
                 >
                   {checkoutStep === "peminjam" ? "✓" : "1"}
                 </span>
-                <span>Langkah 4A: Pengisian Lampiran A & TTD (Pengelola)</span>
+                <span>Pengisian Lampiran A & TTD (Pengelola)</span>
               </div>
               <span style={{ color: "#94a3b8" }}>➔</span>
               <div
@@ -6794,7 +6763,7 @@ export default function LoanApproval({ onNavigate }) {
                 >
                   2
                 </span>
-                <span>Langkah 4B: Konfirmasi Terima & TTD (Peminjam)</span>
+                <span>Konfirmasi Terima & TTD (Peminjam)</span>
               </div>
             </div>
 
@@ -6979,7 +6948,7 @@ export default function LoanApproval({ onNavigate }) {
                             whiteSpace: "nowrap",
                           }}
                         >
-                          Keluar (S/TS/TB)
+                          Keluar (S/TS)
                         </th>
                         <th style={{ padding: "8px 10px" }}>Keterangan</th>
                       </tr>
@@ -7634,21 +7603,18 @@ export default function LoanApproval({ onNavigate }) {
                   ) : (
                     <button
                       type="submit"
-                      className="btn btn-warning"
+                      className="btn btn-primary"
                       disabled={isSubmitting}
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
                         gap: 6,
                         fontWeight: 600,
-                        background: "#ea580c",
-                        borderColor: "#c2410c",
-                        color: "#ffffff",
                         padding: "8px 20px",
                         fontSize: "13px",
                       }}
                     >
-                      <ArrowRight size={16} />
+                      <CheckCircle2 size={15} />
                       Konfirmasi Serah Terima
                     </button>
                   )
@@ -7711,7 +7677,7 @@ export default function LoanApproval({ onNavigate }) {
                     style={{ margin: "4px 0 0", fontSize: "var(--text-xs)" }}
                   >
                     Pemeriksaan 5 Butir Kondisi Fisik & Fungsi Saat Kembali
-                    (Komparasi Kondisi Awal vs Akhir) & Bagian D
+                    (Komparasi Kondisi Awal vs Akhir) & Kejadian
                   </p>
                 </div>
                 <button
@@ -7781,7 +7747,7 @@ export default function LoanApproval({ onNavigate }) {
                     marginBottom: 8,
                   }}
                 >
-                  Bagian A: Identitas Peralatan & Peminjaman
+                  Identitas Peralatan & Peminjaman
                 </div>
                 <div
                   style={{
@@ -7897,7 +7863,7 @@ export default function LoanApproval({ onNavigate }) {
                       color: "#0f172a",
                     }}
                   >
-                    Bagian B: Pemeriksaan Kondisi Peralatan (5 Butir
+                    Pemeriksaan Kondisi Peralatan (5 Butir
                     Pemeriksaan)
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -7927,20 +7893,7 @@ export default function LoanApproval({ onNavigate }) {
                         {countReturnTS} Tidak Sesuai (TS)
                       </span>
                     )}
-                    {countReturnNA > 0 && (
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          background: "#e0f2fe",
-                          color: "#075985",
-                          padding: "2px 8px",
-                          borderRadius: 10,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {countReturnNA} TB
-                      </span>
-                    )}
+
                   </div>
                 </div>
 
@@ -8138,21 +8091,7 @@ export default function LoanApproval({ onNavigate }) {
                                     TS (Tidak Sesuai)
                                   </span>
                                 )}
-                                {(initialStatus === "N/A" ||
-                                  initialStatus === "TB") && (
-                                    <span
-                                      style={{
-                                        fontSize: "10.5px",
-                                        background: "#e0f2fe",
-                                        color: "#075985",
-                                        padding: "1px 6px",
-                                        borderRadius: 4,
-                                        fontWeight: 700,
-                                      }}
-                                    >
-                                      TB
-                                    </span>
-                                  )}
+
                               </div>
                               {initialKet && (
                                 <div
@@ -8325,7 +8264,7 @@ export default function LoanApproval({ onNavigate }) {
                       color: adaKejadian ? "#9f1239" : "#0f172a",
                     }}
                   >
-                    Bagian D: Kejadian Selama Peminjaman & Tindak Lanjut
+                    Kejadian Selama Peminjaman & Tindak Lanjut
                   </div>
                   {adaKejadian && (
                     <span
@@ -8564,7 +8503,7 @@ export default function LoanApproval({ onNavigate }) {
                         lineHeight: 1.4,
                       }}
                     >
-                      Terdapat <strong>laporan kejadian pada Bagian D</strong>.
+                      Terdapat <strong>laporan kejadian selama peminjaman</strong>.
                       Setelah dikonfirmasi, peralatan langsung masuk antrean{" "}
                       <strong>Verifikasi Peralatan</strong> sebelum dapat
                       dipinjam kembali.
@@ -8904,8 +8843,6 @@ export default function LoanApproval({ onNavigate }) {
                     padding: "8px 20px",
                     fontSize: "13px",
                     fontWeight: 600,
-                    background: "#ea580c",
-                    borderColor: "#c2410c",
                   }}
                 >
                   {isExtensionSubmitting ? (
