@@ -290,6 +290,14 @@
   color: #92400e;
 }
 
+.schedule-status--h7,
+.schedule-status--h30,
+.schedule-status--h60 {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
 .schedule-status--unset {
   border: 1px dashed #9ca3af;
   background: #fff;

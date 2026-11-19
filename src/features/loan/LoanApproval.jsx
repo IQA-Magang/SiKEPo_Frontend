@@ -1143,6 +1143,7 @@ export default function LoanApproval({ onNavigate }) {
   const [logbookData, setLogbookData] = useState([]);
   const [isLogbookLoading, setIsLogbookLoading] = useState(false);
   const [logbookError, setLogbookError] = useState(null);
+  const [expandedLoanLogId, setExpandedLoanLogId] = useState(null);
 
   // Refs untuk navigasi langsung ke form tanpa scroll manual
   const decisionFormRef = useRef(null);
@@ -1500,6 +1501,56 @@ export default function LoanApproval({ onNavigate }) {
     } finally {
       setIsLogbookLoading(false);
     }
+  }
+
+  function printLoanActivityLog(loan) {
+    const escapeHtml = (value) => String(value ?? "—").replace(/[&<>"']/g, (character) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[character]);
+    const ticketLogs = logbookData.filter(
+      (log) => String(log.referensi_id ?? "") === String(loan.id),
+    );
+    const rows = ticketLogs.map((log) => `
+      <tr>
+        <td>${escapeHtml(log.created_at ? new Date(log.created_at).toLocaleString("id-ID") : "—")}</td>
+        <td>${escapeHtml(String(log.judul || log.aksi || "—").replaceAll("_", " "))}</td>
+        <td>${escapeHtml(log.status)}</td>
+        <td>${escapeHtml(log.user?.name)}</td>
+        <td>${escapeHtml(log.keterangan)}</td>
+      </tr>
+    `).join("");
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Log Aktivitas Peminjaman ${escapeHtml(loan.kode || loan.id)}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #1f2937; }
+            h1 { font-size: 18px; margin: 0 0 4px; }
+            p { margin: 0 0 16px; color: #64748b; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; vertical-align: top; }
+            th { background: #f1f5f9; }
+          </style>
+        </head>
+        <body>
+          <h1>Log Aktivitas Peminjaman</h1>
+          <p>Tiket ${escapeHtml(loan.kode || loan.id)} — ${escapeHtml(loan.peralatan?.nama_peralatan || "Peralatan")} (${escapeHtml(loan.peralatan?.nomor_aset)})</p>
+          <table>
+            <thead><tr><th>Waktu</th><th>Aksi</th><th>Status</th><th>Pelaku</th><th>Keterangan</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="5">Belum ada aksi peminjaman untuk tiket ini.</td></tr>'}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   }
 
   // Filter data sesuai filter bar & role perspective
@@ -3388,7 +3439,6 @@ export default function LoanApproval({ onNavigate }) {
                               ) : null}
                             </>
                           ) : null}
-
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
@@ -3640,6 +3690,13 @@ export default function LoanApproval({ onNavigate }) {
                       )}
                     <button
                       type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => printLoanActivityLog(selectedLoan)}
+                    >
+                      <Printer size={14} /> Cetak PDF Log
+                    </button>
+                    <button
+                      type="button"
                       className="modal-close"
                       onClick={() => setSelectedLoan(null)}
                       aria-label="Tutup"
@@ -3651,6 +3708,90 @@ export default function LoanApproval({ onNavigate }) {
 
                 {/* Modal Body */}
                 <div className="modal-body" ref={modalContentRef}>
+                  <section style={{ marginBottom: "var(--sp-4)" }}>
+                    {isLogbookLoading ? (
+                      <p style={{ margin: 0, color: "var(--clr-dark-500)", fontSize: "var(--text-sm)" }}>
+                        Memuat log peminjaman...
+                      </p>
+                    ) : logbookError ? (
+                      <p className="alert alert-error" role="alert">{logbookError}</p>
+                    ) : (
+                      (() => {
+                        const ticketLogs = logbookData
+                          .filter((log) =>
+                            String(log.referensi_id ?? "") === String(selectedLoan.id)
+                          )
+                          .sort((first, second) =>
+                            new Date(second.created_at || 0) - new Date(first.created_at || 0)
+                          );
+                        const isExpanded = expandedLoanLogId === String(selectedLoan.id);
+                        return (
+                          <article className="equipment-verification-log-card">
+                            <div className="equipment-verification-log-entry">
+                              <span className="badge badge-primary">Tiket</span>
+                              <div className="equipment-verification-log-entry__content">
+                                <strong style={{ color: "var(--clr-dark-800)", fontSize: "var(--text-sm)" }}>
+                                  Log Aktivitas Peminjaman
+                                </strong>
+                                <div style={{ marginTop: 4, color: "var(--clr-dark-600)", fontSize: "var(--text-sm)" }}>
+                                  {ticketLogs.length} aksi tercatat untuk tiket {selectedLoan.kode || selectedLoan.id}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => setExpandedLoanLogId(isExpanded ? null : String(selectedLoan.id))}
+                                aria-expanded={isExpanded}
+                              >
+                                {isExpanded ? "Tutup Log" : `Log (${ticketLogs.length})`}
+                              </button>
+                            </div>
+                            {isExpanded && (
+                              <div>
+                                {ticketLogs.length === 0 ? (
+                                  <p className="empty-state-desc" style={{ margin: "0 16px 16px" }}>
+                                    Belum ada aksi peminjaman yang tercatat untuk tiket ini.
+                                  </p>
+                                ) : ticketLogs.map((log, index) => {
+                                  const status = log.status || "—";
+                                  const statusClass =
+                                    status === "DITOLAK"
+                                      ? "badge-rusak"
+                                      : ["DISETUJUI", "DIKEMBALIKAN", "SEDANG_DIPINJAM"].includes(status)
+                                        ? "badge-aktif"
+                                        : "badge-kalibrasi";
+                                  return (
+                                    <div
+                                      className="equipment-verification-log-entry"
+                                      key={log.id}
+                                      style={{ borderTop: "1px solid var(--clr-dark-100)" }}
+                                    >
+                                      <span className={`badge ${statusClass}`}>{status}</span>
+                                      <div className="equipment-verification-log-entry__content">
+                                        <strong style={{ color: "var(--clr-dark-800)", fontSize: "var(--text-sm)" }}>
+                                          {log.judul || String(log.aksi || "Aktivitas peminjaman").replaceAll("_", " ")}
+                                        </strong>
+                                        {log.keterangan && (
+                                          <div style={{ marginTop: 4, color: "var(--clr-dark-600)", fontSize: "var(--text-sm)", whiteSpace: "pre-wrap" }}>
+                                            {log.keterangan}
+                                          </div>
+                                        )}
+                                        <div style={{ marginTop: 4, color: "var(--clr-dark-500)", fontSize: "var(--text-xs)" }}>
+                                          {log.user?.name || "Pelaku tidak tersedia"}
+                                          {log.created_at && ` · ${new Date(log.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}`}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </article>
+                        );
+                      })()
+                    )}
+                  </section>
+
                   {/* Banner Informasi / Aksi Perpanjangan Peminjaman */}
                   {selectedLoan.status === "SEDANG_DIPINJAM" &&
                     (() => {

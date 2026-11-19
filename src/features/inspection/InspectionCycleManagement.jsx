@@ -8,6 +8,7 @@ import {
   Plus,
   RefreshCw,
   Send,
+  RotateCcw,
 } from "lucide-react";
 import { useToast } from "../../app/providers/ToastContext.jsx";
 import { useNavigate } from "../../app/router/Router.jsx";
@@ -18,7 +19,10 @@ import {
   LoadingState,
   Modal,
   PageHeader,
+  Tabs,
 } from "../../shared/components/ui/index.js";
+import TableFilters from "../../shared/components/ui/TableFilters.jsx";
+import WorkflowGuide from "../../shared/components/ui/WorkflowGuide.jsx";
 import {
   formatPhotoUrl,
   getCurrentUser,
@@ -112,8 +116,10 @@ function dueState(value) {
   const due = new Date(`${date}T00:00:00`);
   const days = Math.ceil((due.getTime() - today.getTime()) / 86400000);
   if (days < 0) return { label: `Terlambat ${Math.abs(days)} hari`, tone: "late", days };
-  if (days <= 7) return { label: days === 0 ? "Jatuh tempo hari ini" : `${days} hari lagi`, tone: "urgent", days };
-  if (days <= 30) return { label: `${days} hari lagi`, tone: "soon", days };
+  if (days === 0) return { label: "Jatuh tempo hari ini", tone: "urgent", days };
+  if (days <= 7) return { label: "H-7", tone: "urgent", days };
+  if (days <= 30) return { label: "H-30", tone: "soon", days };
+  if (days <= 60) return { label: "H-60", tone: "h60", days };
   return { label: `${days} hari lagi`, tone: "safe", days };
 }
 
@@ -128,6 +134,7 @@ export default function InspectionCycleManagement({ type }) {
   const [saving, setSaving] = useState(false);
   const [panel, setPanel] = useState(null);
   const [activeView, setActiveView] = useState("planned");
+  const [search, setSearch] = useState("");
   const [selectedCycle, setSelectedCycle] = useState(null);
   const [createForm, setCreateForm] = useState(EMPTY_CREATE_FORM);
   const [checkoutForm, setCheckoutForm] = useState(EMPTY_CHECKOUT_FORM);
@@ -187,6 +194,34 @@ export default function InspectionCycleManagement({ type }) {
     .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
   const withoutSchedule = equipment.filter(
     (item) => !equipmentWithCycles.has(String(getEquipmentId(item))),
+  );
+  const normalizedSearch = search.trim().toLocaleLowerCase("id-ID");
+  const matchesEquipmentSearch = (cycle) => {
+    if (!normalizedSearch) return true;
+    const item = cycle.peralatan || {};
+    return [
+      item.nomor_aset,
+      item.nama_peralatan,
+      cycle.nomor_aset,
+      cycle.nama_peralatan,
+      cycle.lab_kalibrasi,
+      cycle.pelaksana,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase("id-ID")
+      .includes(normalizedSearch);
+  };
+  const filteredPlannedCycles = plannedCycles.filter(matchesEquipmentSearch);
+  const filteredInProgressCycles = inProgressCycles.filter(matchesEquipmentSearch);
+  const filteredCompletedCycles = completedCycles.filter(matchesEquipmentSearch);
+  const filteredWithoutSchedule = withoutSchedule.filter((item) =>
+    !normalizedSearch ||
+    [item.nomor_aset, item.nama_peralatan, item.merek, item.tipe_model]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase("id-ID")
+      .includes(normalizedSearch),
   );
 
   function openCreate(equipmentItem = null) {
@@ -413,28 +448,111 @@ export default function InspectionCycleManagement({ type }) {
 
   return (
     <div className="page-container fade-in-up inspection-cycle-page">
-      <div className="inspection-breadcrumb"><span>Pemeriksaan Peralatan</span><span>/</span><strong>{config.title}</strong></div>
-      <PageHeader
-        eyebrow="PEMANTAUAN SIKLUS PERALATAN"
-        title={config.title}
-        subtitle={`Lab Anda · ${today} · Jadwal, proses, dan histori ${config.title.toLowerCase()} dalam satu tampilan.`}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">{config.title}</h1>
+          <p className="page-subtitle">
+            Kelola jadwal, proses, dan histori {config.title.toLowerCase()} peralatan laboratorium.
+          </p>
+        </div>
+      </div>
+
+      {type === "kalibrasi" ? (
+        <WorkflowGuide
+          title="Alur Kalibrasi Peralatan"
+          description="Ikuti tahapan kalibrasi dari pembuatan jadwal hingga sertifikat tercatat."
+          steps={[
+            {
+              title: "Buat Jadwal Kalibrasi",
+              description: "Pilih peralatan, metode, dan interval kalibrasi.",
+            },
+            {
+              title: "Masuk Rentang Kalibrasi",
+              description: "Jadwal ditinjau saat mendekati atau melewati jatuh tempo.",
+            },
+            {
+              title: "Catat Alat Keluar",
+              description: "Isi tujuan, laboratorium, tanggal keluar, dan perkiraan kembali.",
+            },
+            {
+              title: "Selesaikan Kalibrasi",
+              description: "Isi sertifikat, penerbit, tanggal, dan unggah sertifikat PDF.",
+            },
+            {
+              title: "Verifikasi Hasil",
+              description: "Ajukan hasil pemeriksaan untuk ditinjau Manager Lab.",
+            },
+          ]}
+        />
+      ) : (
+        <WorkflowGuide
+          title="Alur Verifikasi Fungsi"
+          description="Ikuti tahapan verifikasi fungsi berkala hingga hasil disetujui."
+          steps={[
+            {
+              title: "Buat Jadwal Verifikasi",
+              description: "Pilih peralatan, cara verifikasi, interval, dan acuan pembanding.",
+            },
+            {
+              title: "Masuk Rentang Verifikasi",
+              description: "Peralatan ditandai mendekati atau melewati jadwal verifikasi.",
+            },
+            {
+              title: "Mulai Verifikasi",
+              description: "Pengelola mengubah siklus menjadi sedang diverifikasi.",
+            },
+            {
+              title: "Catat Hasil Pemeriksaan",
+              description: "Isi tanggal, pelaksana, hasil, nomor laporan, dan PDF laporan.",
+            },
+            {
+              title: "Verifikasi dan Persetujuan",
+              description: "Ajukan hasil kepada Manager Lab untuk ditinjau dan disetujui.",
+            },
+          ]}
+        />
+      )}
+
+      <Tabs
+        className="settings-tabs"
+        ariaLabel="Status pemeriksaan berkala"
+        activeId={activeView}
+        onChange={setActiveView}
+        tabs={statusTabs.map(({ id, label, count: tabCount, Icon }) => ({
+          id,
+          idAttribute: `inspection-tab-${id}`,
+          label: (
+            <>
+              <Icon size={16} />
+              {label} ({tabCount})
+            </>
+          ),
+        }))}
       />
 
-      <nav className="inspection-tabs" aria-label="Status pemeriksaan berkala">
-        {statusTabs.map(({ id, label, count: tabCount, Icon }) => (
+      <TableFilters
+        fields={[
+          {
+            type: "search",
+            id: "inspection-search",
+            label: "Cari peralatan",
+            placeholder: "Nama, nomor aset, atau pelaksana",
+            value: search,
+            onChange: (event) => setSearch(event.target.value),
+          },
+        ]}
+        actions={
           <button
             type="button"
-            key={id}
-            className={`inspection-tab${activeView === id ? " is-active" : ""}`}
-            aria-pressed={activeView === id}
-            onClick={() => setActiveView(id)}
+            className="btn btn-secondary"
+            onClick={() => setSearch("")}
+            title="Reset pencarian"
+            aria-label="Reset pencarian pemeriksaan"
           >
-            <Icon size={16} aria-hidden="true" />
-            <span>{label}</span>
-            <span className="inspection-tab-count">{tabCount}</span>
+            <RotateCcw size={16} />
           </button>
-        ))}
-      </nav>
+        }
+      />
 
       {loading ? (
         <LoadingState message={`Memuat jadwal ${config.title.toLowerCase()}...`} />
@@ -447,8 +565,8 @@ export default function InspectionCycleManagement({ type }) {
               <CycleTableSection
                 number="1"
                 title={type === "kalibrasi" ? "Masuk rentang kalibrasi" : "Masuk rentang verifikasi"}
-                hint={plannedCycles.length ? `${plannedCycles.length} jadwal · terdekat ditampilkan lebih dulu` : "Siklus aktif yang memerlukan tindak lanjut"}
-                cycles={plannedCycles}
+                hint={filteredPlannedCycles.length ? `${filteredPlannedCycles.length} jadwal · terdekat ditampilkan lebih dulu` : "Siklus aktif yang memerlukan tindak lanjut"}
+                cycles={filteredPlannedCycles}
                 type={type}
                 canManage={canManage}
                 saving={saving}
@@ -465,7 +583,7 @@ export default function InspectionCycleManagement({ type }) {
                 number="2"
                 title={type === "kalibrasi" ? "Sedang dikalibrasi" : "Sedang diverifikasi"}
                 hint="Siklus yang sedang dikerjakan"
-                cycles={inProgressCycles}
+                cycles={filteredInProgressCycles}
                 type={type}
                 canManage={canManage}
                 saving={saving}
@@ -482,7 +600,7 @@ export default function InspectionCycleManagement({ type }) {
                 number="3"
                 title="History"
                 hint="Siklus yang telah selesai atau dibatalkan"
-                cycles={completedCycles}
+                cycles={filteredCompletedCycles}
                 type={type}
                 canManage={false}
                 saving={saving}
@@ -496,13 +614,16 @@ export default function InspectionCycleManagement({ type }) {
               <section className="inspection-section inspection-empty-schedule">
                 <header className="inspection-section__header">
                   <div><h2>Belum ada jadwal</h2><span>Peralatan tanpa siklus pemeriksaan berkala</span></div>
-                  <span className="inspection-section-count">{withoutSchedule.length}</span>
+                  <span className="inspection-section-count">{filteredWithoutSchedule.length}</span>
                 </header>
-                {withoutSchedule.length === 0 ? (
-                  <div className="inspection-table-empty"><Clock3 size={16} />Semua peralatan sudah memiliki jadwal.</div>
+                {filteredWithoutSchedule.length === 0 ? (
+                  <div className="inspection-table-empty">
+                    <Clock3 size={16} />
+                    {normalizedSearch ? "Tidak ada peralatan yang cocok dengan pencarian." : "Semua peralatan sudah memiliki jadwal."}
+                  </div>
                 ) : (
                   <div className="inspection-unscheduled-list">
-                    {withoutSchedule.map((item) => (
+                    {filteredWithoutSchedule.map((item) => (
                       <button type="button" key={getEquipmentId(item)} onClick={() => openCreate(item)}>
                         <span><strong>{item.nomor_aset || `ID ${getEquipmentId(item)}`}</strong>{item.nama_peralatan}</span>
                         <Plus size={16} />

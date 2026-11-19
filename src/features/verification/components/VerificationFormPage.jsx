@@ -264,7 +264,6 @@ export default function VerificationFormPage({
             form={form}
             setForm={setForm}
             inspectionMethod={getEquipmentInspectionMethod(equipmentInfo)}
-            readOnly
           />
           <VerificationFollowUpSection
             form={form}

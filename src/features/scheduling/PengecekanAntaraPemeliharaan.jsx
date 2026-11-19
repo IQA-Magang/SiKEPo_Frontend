@@ -8,6 +8,7 @@ import {
   FileText,
   Plus,
   RefreshCw,
+  RotateCcw,
   XCircle,
 } from "lucide-react";
 import { useToast } from "../../app/providers/ToastContext.jsx";
@@ -18,7 +19,10 @@ import {
   LoadingState,
   Modal,
   PageHeader,
+  Tabs,
 } from "../../shared/components/ui/index.js";
+import TableFilters from "../../shared/components/ui/TableFilters.jsx";
+import WorkflowGuide from "../../shared/components/ui/WorkflowGuide.jsx";
 import {
   getCurrentUser,
   getAllPemeriksaanSchedules,
@@ -63,8 +67,10 @@ function dueState(value) {
   const due = new Date(`${date}T00:00:00`);
   const days = Math.ceil((due.getTime() - today.getTime()) / 86400000);
   if (days < 0) return { label: `Terlambat ${Math.abs(days)} hari`, tone: "late", days };
-  if (days <= 7) return { label: days === 0 ? "Jatuh tempo hari ini" : `${days} hari lagi`, tone: "urgent", days };
-  if (days <= 30) return { label: `${days} hari lagi`, tone: "soon", days };
+  if (days === 0) return { label: "Jatuh tempo hari ini", tone: "urgent", days };
+  if (days <= 7) return { label: "H-7", tone: "urgent", days };
+  if (days <= 30) return { label: "H-30", tone: "soon", days };
+  if (days <= 60) return { label: "H-60", tone: "h60", days };
   return { label: `${days} hari lagi`, tone: "safe", days };
 }
 
@@ -95,6 +101,7 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [activeView, setActiveView] = useState("planned");
+  const [search, setSearch] = useState("");
 
   // Create form modal state
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -250,6 +257,34 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
 
   // Unscheduled equipment list (tab "Belum ada jadwal")
   const unscheduledEquipment = availableEquipment;
+  const normalizedSearch = search.trim().toLocaleLowerCase("id-ID");
+  const matchesScheduleSearch = (schedule) => {
+    if (!normalizedSearch) return true;
+    const equipmentItem = equipmentById.get(String(schedule.peralatan_id));
+    return [
+      equipmentItem?.nomor_aset,
+      equipmentItem?.nama_peralatan,
+      equipmentItem?.merek,
+      equipmentItem?.tipe_model,
+      schedule.acuan_pembanding,
+      schedule.hasil_realisasi,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase("id-ID")
+      .includes(normalizedSearch);
+  };
+  const filteredPlannedSchedules = plannedSchedules.filter(matchesScheduleSearch);
+  const filteredInProgressSchedules = inProgressSchedules.filter(matchesScheduleSearch);
+  const filteredHistorySchedules = historySchedules.filter(matchesScheduleSearch);
+  const filteredUnscheduledEquipment = unscheduledEquipment.filter((item) =>
+    !normalizedSearch ||
+    [item.nomor_aset, item.nama_peralatan, item.merek, item.tipe_model]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase("id-ID")
+      .includes(normalizedSearch),
+  );
 
   function openCreate(equipmentItem = null) {
     const equipmentId = equipmentItem ? getEquipmentId(equipmentItem) : "";
@@ -426,32 +461,138 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
 
   return (
     <div className="page-container fade-in-up inspection-cycle-page">
-      <div className="inspection-breadcrumb">
-        <span>Pemeriksaan Peralatan</span>
-        <span>/</span>
-        <strong>{pageTitle}</strong>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">{pageTitle}</h1>
+          <p className="page-subtitle">
+            Kelola jadwal, proses, dan histori {pageTitle.toLowerCase()} peralatan laboratorium.
+          </p>
+        </div>
       </div>
-      <PageHeader
-        eyebrow="PEMANTAUAN SIKLUS PERALATAN"
-        title={pageTitle}
-        subtitle={`Lab Anda · ${today} · Jadwal, proses, dan histori ${pageTitle.toLowerCase()} dalam satu tampilan.`}
+
+      {initialType === "pengecekan_antara" ? (
+        <WorkflowGuide
+          title="Alur Pengecekan Antara"
+          description="Ikuti tahapan pengecekan rutin antar periode kalibrasi atau verifikasi."
+          steps={[
+            {
+              title: "Buat Jadwal Pengecekan",
+              description: "Pilih peralatan, frekuensi penggunaan, interval, dan acuan pembanding.",
+            },
+            {
+              title: "Masuk Rentang Pengecekan",
+              description: "Sistem menampilkan jadwal mendekati atau melewati jatuh tempo.",
+            },
+            {
+              title: "Catat Hasil Pembacaan",
+              description: "Isi tanggal, nilai acuan, batas toleransi, dan lima hasil pembacaan.",
+            },
+            {
+              title: "Ajukan ke Manager",
+              description: "Pengelola mengajukan hasil pengecekan untuk ditinjau.",
+            },
+            {
+              title: "Persetujuan dan Riwayat",
+              description: "Manager menyetujui atau menolak, lalu hasil tercatat dalam history.",
+            },
+          ]}
+        />
+      ) : initialType === "pemeliharaan" ? (
+        <WorkflowGuide
+          title="Alur Pemeliharaan Peralatan"
+          description="Ikuti tahapan pemeliharaan dari penjadwalan hingga persetujuan hasil."
+          steps={[
+            {
+              title: "Buat Jadwal Pemeliharaan",
+              description: "Pilih peralatan, jenis pemeliharaan, interval, dan jadwal jatuh tempo.",
+            },
+            {
+              title: "Masuk Rentang Pemeliharaan",
+              description: "Pengelola melihat jadwal yang mendekati atau melewati jatuh tempo.",
+            },
+            {
+              title: "Laksanakan Pemeliharaan",
+              description: "Catat tanggal, versi perangkat lunak, pekerjaan, temuan, dan komponen yang disentuh.",
+            },
+            {
+              title: "Ajukan Hasil",
+              description: "Hasil realisasi diajukan kepada Manager Lab untuk ditinjau.",
+            },
+            {
+              title: "Persetujuan dan Riwayat",
+              description: "Manager menyetujui atau menolak; keputusan tercatat sebagai history.",
+            },
+          ]}
+        />
+      ) : (
+        <WorkflowGuide
+          title="Alur Penjadwalan Pemeriksaan"
+          description="Pilih jenis pemeriksaan yang akan dijadwalkan dan ikuti alurnya."
+          steps={[
+            {
+              title: "Pilih Jenis Pemeriksaan",
+              description: "Gunakan Pengecekan Antara atau Pemeliharaan sesuai kebutuhan peralatan.",
+            },
+            {
+              title: "Buat Jadwal",
+              description: "Pilih peralatan, interval, dan data acuan yang diperlukan.",
+            },
+            {
+              title: "Laksanakan Pemeriksaan",
+              description: "Catat hasil sesuai jenis pengecekan atau pemeliharaan.",
+            },
+            {
+              title: "Tinjauan Manager",
+              description: "Manager meninjau hasil dan memutuskan disetujui atau ditolak.",
+            },
+            {
+              title: "Riwayat Pemeriksaan",
+              description: "Hasil yang disetujui tersedia pada History dan dashboard kalender.",
+            },
+          ]}
+        />
+      )}
+
+      <Tabs
+        className="settings-tabs"
+        ariaLabel={`Status ${pageTitle.toLowerCase()}`}
+        activeId={activeView}
+        onChange={setActiveView}
+        tabs={statusTabs.map(({ id, label, count: tabCount, Icon }) => ({
+          id,
+          idAttribute: `schedule-tab-${id}`,
+          label: (
+            <>
+              <Icon size={16} />
+              {label} ({tabCount})
+            </>
+          ),
+        }))}
       />
 
-      <nav className="inspection-tabs" aria-label={`Status ${pageTitle.toLowerCase()}`}>
-        {statusTabs.map(({ id, label, count: tabCount, Icon }) => (
+      <TableFilters
+        fields={[
+          {
+            type: "search",
+            id: "schedule-search",
+            label: "Cari peralatan",
+            placeholder: "Nama, nomor aset, atau merek",
+            value: search,
+            onChange: (event) => setSearch(event.target.value),
+          },
+        ]}
+        actions={
           <button
             type="button"
-            key={id}
-            className={`inspection-tab${activeView === id ? " is-active" : ""}`}
-            aria-pressed={activeView === id}
-            onClick={() => setActiveView(id)}
+            className="btn btn-secondary"
+            onClick={() => setSearch("")}
+            title="Reset pencarian"
+            aria-label="Reset pencarian jadwal"
           >
-            <Icon size={16} aria-hidden="true" />
-            <span>{label}</span>
-            <span className="inspection-tab-count">{tabCount}</span>
+            <RotateCcw size={16} />
           </button>
-        ))}
-      </nav>
+        }
+      />
 
       {loading ? (
         <LoadingState message={`Memuat jadwal ${pageTitle.toLowerCase()}...`} />
@@ -470,17 +611,17 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
                   <div>
                     <h2>1 · Masuk rentang {pageTitle.toLowerCase()}</h2>
                     <span>
-                      {plannedSchedules.length
-                        ? `${plannedSchedules.length} jadwal · terdekat ditampilkan lebih dulu`
+                      {filteredPlannedSchedules.length
+                        ? `${filteredPlannedSchedules.length} jadwal · terdekat ditampilkan lebih dulu`
                         : "Siklus aktif yang memerlukan tindak lanjut"}
                     </span>
                   </div>
-                  <span className="inspection-section-count">{plannedSchedules.length}</span>
+                  <span className="inspection-section-count">{filteredPlannedSchedules.length}</span>
                 </header>
-                {plannedSchedules.length === 0 ? (
+                {filteredPlannedSchedules.length === 0 ? (
                   <div className="inspection-table-empty">
                     <Clock3 size={16} />
-                    Belum ada jadwal {pageTitle.toLowerCase()} yang menunggu.
+                    {normalizedSearch ? "Tidak ada jadwal yang cocok dengan pencarian." : `Belum ada jadwal ${pageTitle.toLowerCase()} yang menunggu.`}
                   </div>
                 ) : (
                   <div className="inspection-table-scroll">
@@ -495,7 +636,7 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {plannedSchedules.map((schedule) => {
+                        {filteredPlannedSchedules.map((schedule) => {
                           const equipmentItem = equipmentById.get(String(schedule.peralatan_id));
                           const due = dueState(schedule.tanggal_jatuh_tempo);
                           return (
@@ -566,17 +707,17 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
                   <div>
                     <h2>2 · Sedang {pageTitle.toLowerCase()}</h2>
                     <span>
-                      {inProgressSchedules.length
-                        ? `${inProgressSchedules.length} siklus dalam proses verifikasi atau tindak lanjut`
+                      {filteredInProgressSchedules.length
+                        ? `${filteredInProgressSchedules.length} siklus dalam proses verifikasi atau tindak lanjut`
                         : "Siklus yang sedang dikerjakan"}
                     </span>
                   </div>
-                  <span className="inspection-section-count">{inProgressSchedules.length}</span>
+                  <span className="inspection-section-count">{filteredInProgressSchedules.length}</span>
                 </header>
-                {inProgressSchedules.length === 0 ? (
+                {filteredInProgressSchedules.length === 0 ? (
                   <div className="inspection-table-empty">
                     <Clock3 size={16} />
-                    Belum ada {pageTitle.toLowerCase()} yang sedang berlangsung.
+                    {normalizedSearch ? "Tidak ada hasil yang cocok dengan pencarian." : `Belum ada ${pageTitle.toLowerCase()} yang sedang berlangsung.`}
                   </div>
                 ) : (
                   <div className="inspection-table-scroll">
@@ -591,7 +732,7 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {inProgressSchedules.map((schedule) => {
+                        {filteredInProgressSchedules.map((schedule) => {
                           const equipmentItem = equipmentById.get(String(schedule.peralatan_id));
                           const isPending = schedule.status_realisasi === "Menunggu Verifikasi";
                           const isRejected = schedule.status_realisasi === "Ditolak";
@@ -674,12 +815,12 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
                     <h2>3 · History</h2>
                     <span>Siklus yang telah selesai dan disetujui</span>
                   </div>
-                  <span className="inspection-section-count">{historySchedules.length}</span>
+                  <span className="inspection-section-count">{filteredHistorySchedules.length}</span>
                 </header>
-                {historySchedules.length === 0 ? (
+                {filteredHistorySchedules.length === 0 ? (
                   <div className="inspection-table-empty">
                     <Clock3 size={16} />
-                    History akan muncul setelah hasil pemeriksaan disetujui.
+                    {normalizedSearch ? "Tidak ada riwayat yang cocok dengan pencarian." : "History akan muncul setelah hasil pemeriksaan disetujui."}
                   </div>
                 ) : (
                   <div className="inspection-table-scroll">
@@ -694,7 +835,7 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {historySchedules.map((schedule) => {
+                        {filteredHistorySchedules.map((schedule) => {
                           const equipmentItem = equipmentById.get(String(schedule.peralatan_id));
                           return (
                             <tr key={`${schedule.peralatan_id}-${schedule.id}`}>
@@ -753,16 +894,16 @@ export default function PengecekanAntaraPemeliharaan({ initialType = "" }) {
                     <h2>Belum ada jadwal</h2>
                     <span>Peralatan tanpa siklus pemeriksaan berkala</span>
                   </div>
-                  <span className="inspection-section-count">{unscheduledEquipment.length}</span>
+                  <span className="inspection-section-count">{filteredUnscheduledEquipment.length}</span>
                 </header>
-                {unscheduledEquipment.length === 0 ? (
+                {filteredUnscheduledEquipment.length === 0 ? (
                   <div className="inspection-table-empty">
                     <Clock3 size={16} />
-                    Semua peralatan sudah memiliki jadwal.
+                    {normalizedSearch ? "Tidak ada peralatan yang cocok dengan pencarian." : "Semua peralatan sudah memiliki jadwal."}
                   </div>
                 ) : (
                   <div className="inspection-unscheduled-list">
-                    {unscheduledEquipment.map((item) => (
+                    {filteredUnscheduledEquipment.map((item) => (
                       <button
                         type="button"
                         key={getEquipmentId(item)}
