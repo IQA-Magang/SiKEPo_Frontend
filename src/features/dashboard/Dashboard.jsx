@@ -76,11 +76,12 @@ function ScheduleDateCards({ onNavigate }) {
           ])
         );
 
-        // Fetch kalibrasi & verifikasi fungsi untuk semua peralatan secara paralel
-        // Gunakan allSettled agar satu peralatan gagal tidak merusak seluruh kalender
-        const allEquipment = equipmentResponse.data;
+        // Kalibrasi and verifikasi fungsi are only supported for equipment categories 1 and 2.
+        const supportedCycleEquipment = equipmentResponse.data.filter((equipment) =>
+          [1, 2].includes(getEquipmentCategoryId(equipment))
+        );
         const cycleResults = await Promise.allSettled(
-          allEquipment.map(async (equipment) => {
+          supportedCycleEquipment.map(async (equipment) => {
             const equipmentId = equipment.id ?? equipment.peralatan_id;
             const categoryId = getEquipmentCategoryId(equipment);
             const [calibrationResult, verificationResult] = await Promise.allSettled([

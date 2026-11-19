@@ -5,6 +5,14 @@ import { verifikasiApi } from "../../../shared/services/api.js";
 
 const columns = [
   {
+    key: "waktu",
+    header: "Waktu",
+    render: (item) =>
+      item.created_at
+        ? new Date(item.created_at).toLocaleString("id-ID")
+        : "—",
+  },
+  {
     key: "aksi",
     header: "Aksi",
     render: (item) => String(item.aksi || "—").replaceAll("_", " "),

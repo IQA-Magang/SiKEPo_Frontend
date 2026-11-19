@@ -372,14 +372,6 @@ export default function VerificationListPage({
               Lihat Pengajuan
             </Button>
           )}
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={<History size={14} />}
-            onClick={() => setLogTarget(item)}
-          >
-            Log
-          </Button>
         </div>
       ),
     },
@@ -432,7 +424,7 @@ export default function VerificationListPage({
       key: "actions",
       header: "Aksi",
       render: (item) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "nowrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <Button
             variant="secondary"
             size="sm"
@@ -440,6 +432,14 @@ export default function VerificationListPage({
             onClick={() => onSelect(item)}
           >
             Detail
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<History size={14} />}
+            onClick={() => setLogTarget(item)}
+          >
+            Log
           </Button>
           {item.status === "Disetujui" && (canApprove || staffIsPengelola) && (
             <>
