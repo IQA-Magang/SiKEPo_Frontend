@@ -43,6 +43,7 @@ import {
 } from "../../shared/services/api.js";
 import WorkflowGuide from "../../shared/components/ui/WorkflowGuide.jsx";
 import TableFilters from "../../shared/components/ui/TableFilters.jsx";
+import Pagination, { usePagination } from "../../shared/components/ui/Pagination.jsx";
 import { useToast } from "../../app/providers/ToastContext.jsx";
 import {
   exportLoanF006Pdf,
@@ -1615,6 +1616,15 @@ export default function LoanApproval({ onNavigate }) {
     return true;
   });
 
+  const pagination = usePagination(
+    filteredLoans.length,
+    `${searchQuery}\u0000${roleFilter}\u0000${statusFilter}`,
+  );
+  const paginatedLoans = filteredLoans.slice(
+    pagination.startIndex,
+    pagination.endIndex,
+  );
+
   // Buka Modal untuk Review Persetujuan (Tahap 1, 2, 3) atau Detail
   async function handleOpenReview(loan) {
     setSelectedLoan(loan);
@@ -2742,7 +2752,7 @@ export default function LoanApproval({ onNavigate }) {
                     color: "#475569",
                   }}
                 >
-                  Status Alur
+                  Status
                 </th>
                 <th
                   style={{
@@ -2798,7 +2808,7 @@ export default function LoanApproval({ onNavigate }) {
                   </td>
                 </tr>
               ) : (
-                filteredLoans.map((loan) => {
+                paginatedLoans.map((loan) => {
                   const terlambat = hariTerlambat(loan);
                   const meta = terlambat > 0 ? metaTerlambat(terlambat) : STATUS_META[loan.status] || {
                     label: loan.status,
@@ -3501,6 +3511,16 @@ export default function LoanApproval({ onNavigate }) {
             </tbody>
           </table>
         </div>
+        {!isLoansLoading && (
+          <Pagination
+            totalItems={filteredLoans.length}
+            currentPage={pagination.currentPage}
+            onPageChange={pagination.setCurrentPage}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            totalPages={pagination.totalPages}
+          />
+        )}
       </div>
 
       {/* ==================================================================== */}
@@ -3543,7 +3563,7 @@ export default function LoanApproval({ onNavigate }) {
                   : null);
 
               return {
-                stage: "Tahap 2: Review Teknis Pengelola Peralatan",
+                stage: "Review Teknis Pengelola Peralatan",
                 role: "Pengelola Peralatan",
                 nama:
                   selectedLoan.approval_pengelola?.nama ||
@@ -3572,7 +3592,7 @@ export default function LoanApproval({ onNavigate }) {
 
             if (selectedLoan.approval_manager_lab?.status === "rejected") {
               return {
-                stage: "Tahap 3: Persetujuan Akhir Manager Lab Pemilik",
+                stage: "Persetujuan Akhir Manager Lab Pemilik",
                 role: "Manager Lab Pemilik Peralatan",
                 nama:
                   selectedLoan.approval_manager_lab?.nama ||
@@ -3591,7 +3611,7 @@ export default function LoanApproval({ onNavigate }) {
 
             if (selectedLoan.approval_manager_peminjam?.status === "rejected") {
               return {
-                stage: "Tahap 1: Validasi Atasan Peminjam",
+                stage: "Validasi Atasan Peminjam",
                 role: "Manager / Atasan Peminjam",
                 nama:
                   selectedLoan.approval_manager_peminjam?.nama ||
@@ -5901,11 +5921,11 @@ export default function LoanApproval({ onNavigate }) {
                           >
                             Tindakan Keputusan:{" "}
                             {activeReviewStage === "manager_peminjam" &&
-                              "Manager Peminjam (Tahap 1: Validasi Urgensi)"}
+                              "Manager Peminjam"}
                             {activeReviewStage === "pengelola" &&
-                              "Pengelola Peralatan (Tahap 2: Review Teknis & Ketersediaan)"}
+                              "Pengelola Peralatan"}
                             {activeReviewStage === "manager_lab" &&
-                              "Manager Lab Pemilik (Tahap 3: Pengesahan Final)"}
+                              "Manager Lab Pemilik"}
                           </h4>
                         </div>
                         <button
