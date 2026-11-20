@@ -26,6 +26,7 @@ import {
   formatPhotoUrl,
   getEquipmentId,
   getEquipmentCategoryId,
+  getCurrentUser,
   STATUS_BADGE_CLASS,
   API_BASE,
 } from "../../shared/services/api.js";
@@ -58,7 +59,7 @@ function getLogActionLabel(log, actionValue) {
   const record = log.record || log;
   const verification = record.verifikasi || record;
   if (log.jenis === "verifikasi" && verification.kode_aktivitas) {
-    return `${verification.kode_aktivitas} — ${getActivityName(verification.kode_aktivitas)}`;
+    return getActivityName(verification.kode_aktivitas);
   }
   if (record.aksi) return log.title || log.judul || record.aksi.replaceAll("_", " ");
   return log.title || log.judul || actionValue;
@@ -101,7 +102,10 @@ export default function EquipmentDetail({
   initialSection = "informasi",
 }) {
   const returnPath = getSafeReturnPath("/peralatan");
-  const canEditEquipment = can(ACCESS.INPUT_EQUIPMENT, ACTIONS.EDIT);
+  const currentUser = getCurrentUser();
+  const currentUserRole = String(currentUser?.role || "staff").toLowerCase();
+  const canEditEquipment =
+    currentUserRole === "admin" || isStaffPengelola(currentUser);
   const canViewVerification = can(ACCESS.EQUIPMENT_ELIGIBILITY, ACTIONS.VIEW);
   const canRequestLoan = can(ACCESS.LOAN_REQUEST, ACTIONS.ADD);
   const canExportVerification =
@@ -114,6 +118,7 @@ export default function EquipmentDetail({
   const [guideLoadError, setGuideLoadError] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
   const [msg, setMsg] = useState("");
   const [qrSrc, setQrSrc] = useState("");
   const [reviewLogs, setReviewLogs] = useState([]);
@@ -417,11 +422,29 @@ export default function EquipmentDetail({
     try {
       await peralatanApi.uploadFoto(equipmentId, file);
       setMsg("Foto berhasil diunggah!");
-      loadData();
+      await loadData();
     } catch (err) {
       setMsg(`Gagal upload: ${err.message}`);
     } finally {
       setUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  async function handleUploadDocument(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingDocument(true);
+    setMsg("");
+    try {
+      await dokumenApi.upload(equipmentId, file);
+      setMsg("Dokumen berhasil diunggah!");
+      await loadData();
+    } catch (err) {
+      setMsg(`Gagal mengunggah dokumen: ${err.message}`);
+    } finally {
+      setUploadingDocument(false);
+      e.target.value = "";
     }
   }
 
@@ -512,7 +535,9 @@ export default function EquipmentDetail({
         verificationId: String(log.id_verifikasi ?? log.id ?? `legacy-${index}`),
         date: log.tanggal_verifikasi || log.created_at,
         status: log.status || "Verifikasi",
-        title: `Verifikasi${log.kode_aktivitas ? ` — ${getActivityName(log.kode_aktivitas)}` : ""}`,
+        title: log.kode_aktivitas
+          ? `Verifikasi — ${getActivityName(log.kode_aktivitas)}`
+          : "Verifikasi",
         description: log.keputusan ? `Keputusan: ${log.keputusan}` : "",
         note: log.tindak_lanjut || "",
         record: log,
@@ -586,6 +611,14 @@ export default function EquipmentDetail({
     references.labs.find((item) => String(item.id) === String(labId)) ||
     room?.labs ||
     assetGroup?.lab;
+  const currentUserLabId =
+    currentUser?.labs_id ?? currentUser?.lab_id ?? currentUser?.labs?.id;
+  const isOtherLabStaff =
+    currentUserRole === "staff" &&
+    currentUserLabId != null &&
+    labId != null &&
+    String(currentUserLabId) !== String(labId);
+  const canViewLabDocuments = !isOtherLabStaff;
   const pic = [room?.pic_user, assetGroup?.pic].find(
     (person) =>
       person &&
@@ -790,11 +823,16 @@ export default function EquipmentDetail({
           {[
             ["informasi", "Informasi"],
             ["dokumen", "Dokumen"],
-            ["panduan-mutu", "Panduan Mutu"],
+            ["panduan-mutu", "Bukti Kelayakan"],
             ["qr", "QR Code"],
             ["log", "Log"],
           ]
             .filter(([section]) => section !== "qr" || isVerified)
+            .filter(
+              ([section]) =>
+                canViewLabDocuments ||
+                !["dokumen", "panduan-mutu"].includes(section),
+            )
             .map(([section, label]) => (
               <button
                 key={section}
@@ -1251,7 +1289,7 @@ export default function EquipmentDetail({
                     value={
                       peralatan.pemakai_terakhir
                         ? `${peralatan.pemakai_terakhir.nama}${peralatan.pemakai_terakhir.sedang_digunakan ? " (Sedang Digunakan)" : peralatan.pemakai_terakhir.tanggal_keluar ? ` (${String(peralatan.pemakai_terakhir.tanggal_keluar).slice(0, 10)})` : ""}`
-                        : "Belum pernah dipinjam"
+                        : "Belum pernah digunakan"
                     }
                   />
                   <InfoRow
@@ -1293,7 +1331,7 @@ export default function EquipmentDetail({
                           </>
                         ) : (
                           <>
-                            <Upload size={14} /> Ganti Foto
+                            <Upload size={14} /> {photoUrl ? "Ganti Foto" : "Unggah Foto"}
                           </>
                         )}
                       </label>
@@ -1325,10 +1363,10 @@ export default function EquipmentDetail({
             </section>
           )}
 
-          {visibleDetailSection === "panduan-mutu" && (
+          {visibleDetailSection === "panduan-mutu" && canViewLabDocuments && (
             <section className="card card-padded equipment-guide-card">
               <div className="equipment-guide-heading">
-                <h2 className="card-title">Panduan Mutu</h2>
+                <h2 className="card-title">Bukti Kelayakan</h2>
                 {/* <p>
                   Dokumen kalibrasi atau verifikasi fungsi untuk peralatan ini.
                 </p> */}
@@ -1391,13 +1429,35 @@ export default function EquipmentDetail({
             </section>
           )}
 
-          {visibleDetailSection === "dokumen" && (
+          {visibleDetailSection === "dokumen" && canViewLabDocuments && (
             <section className="card equipment-document-card">
               <div className="card-header">
                 <h2 className="card-title">Dokumen Peralatan</h2>
-                <span className="badge badge-gray">
-                  {dokumen.length} dokumen
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)" }}>
+                  <span className="badge badge-gray">
+                    {dokumen.length} dokumen
+                  </span>
+                  {canEditEquipment && (
+                    <label
+                      className="btn btn-secondary btn-sm"
+                      htmlFor="input-upload-dokumen"
+                      style={{ cursor: uploadingDocument ? "wait" : "pointer" }}
+                    >
+                      <Upload size={14} />
+                      {uploadingDocument ? "Mengunggah..." : "Unggah Dokumen"}
+                    </label>
+                  )}
+                  {canEditEquipment && (
+                    <input
+                      id="input-upload-dokumen"
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      style={{ display: "none" }}
+                      onChange={handleUploadDocument}
+                      disabled={uploadingDocument}
+                    />
+                  )}
+                </div>
               </div>
               {dokumen.length === 0 ? (
                 <div className="empty-state" style={{ padding: "var(--sp-8)" }}>

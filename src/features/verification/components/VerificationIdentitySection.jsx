@@ -72,9 +72,7 @@ export default function VerificationIdentitySection({equipmentInfo, form, setFor
                   className="form-input"
                   type="text"
                   value={
-                    role === "manager"
-                      ? form.kode_aktivitas
-                      : getActivityLabel(form.kode_aktivitas)
+                    getActivityLabel(form.kode_aktivitas)
                   }
                   readOnly
                   disabled
