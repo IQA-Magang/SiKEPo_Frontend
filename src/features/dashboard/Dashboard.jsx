@@ -711,7 +711,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
       >
         <div>
           <h2 className="card-title dash-section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            Alur & Persetujuan Peminjaman Peralatan
+            Persetujuan Peminjaman Peralatan
 
           </h2>
           <p className="page-subtitle" style={{ margin: 0, marginTop: 2 }}>
@@ -729,115 +729,35 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--sp-3)' }}>
-        {/* TOTAL PENGAJUAN */}
-        <div
-          className="card stat-card-clickable"
-          onClick={() => onNavigate('/peminjaman')}
-          style={{
-            padding: 'var(--sp-4)',
-            borderLeft: '4px solid #3b82f6',
-            borderRadius: 'var(--radius-lg, 12px)',
-            background: '#ffffff',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            TOTAL PENGAJUAN
+        {[
+          { title: 'TOTAL PENGAJUAN', value: total, subtitle: 'Semua riwayat peminjaman' },
+          { title: 'ATASAN', value: tahap1, subtitle: 'Validasi atasan peminjam' },
+          { title: 'PENGELOLA', value: tahap2, subtitle: 'Review teknis & ketersediaan' },
+          { title: 'MGR LAB', value: tahap3, subtitle: 'Pengesahan izin final' },
+          { title: 'SERAH TERIMA', value: tahap4, subtitle: 'Cek fisik Lampiran A bersama peminjam' },
+        ].map((item) => (
+          <div
+            key={item.title}
+            className="card stat-card-clickable"
+            onClick={() => onNavigate('/peminjaman')}
+            style={{
+              padding: 'var(--sp-4)',
+              borderLeft: '4px solid #e30613',
+              borderRadius: 'var(--radius-lg, 12px)',
+              background: '#ffffff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {item.title}
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0f172a', margin: '4px 0 2px' }}>
+              {loading ? '...' : item.value}
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748b' }}>{item.subtitle}</div>
           </div>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0f172a', margin: '4px 0 2px' }}>
-            {loading ? '...' : total}
-          </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Semua riwayat peminjaman</div>
-        </div>
-
-        {/* ATASAN */}
-        <div
-          className="card stat-card-clickable"
-          onClick={() => onNavigate('/peminjaman')}
-          style={{
-            padding: 'var(--sp-4)',
-            borderLeft: '4px solid #d97706',
-            borderRadius: 'var(--radius-lg, 12px)',
-            background: '#ffffff',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            ATASAN
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#d97706', margin: '4px 0 2px' }}>
-            {loading ? '...' : tahap1}
-          </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Validasi atasan peminjam</div>
-        </div>
-
-        {/* PENGELOLA */}
-        <div
-          className="card stat-card-clickable"
-          onClick={() => onNavigate('/peminjaman')}
-          style={{
-            padding: 'var(--sp-4)',
-            borderLeft: '4px solid #0284c7',
-            borderRadius: 'var(--radius-lg, 12px)',
-            background: '#ffffff',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            PENGELOLA
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0284c7', margin: '4px 0 2px' }}>
-            {loading ? '...' : tahap2}
-          </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Review teknis & ketersediaan</div>
-        </div>
-
-        {/* MGR LAB */}
-        <div
-          className="card stat-card-clickable"
-          onClick={() => onNavigate('/peminjaman')}
-          style={{
-            padding: 'var(--sp-4)',
-            borderLeft: '4px solid #7c3aed',
-            borderRadius: 'var(--radius-lg, 12px)',
-            background: '#ffffff',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            MGR LAB
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#7c3aed', margin: '4px 0 2px' }}>
-            {loading ? '...' : tahap3}
-          </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Pengesahan izin final</div>
-        </div>
-
-        {/* SERAH TERIMA */}
-        <div
-          className="card stat-card-clickable"
-          onClick={() => onNavigate('/peminjaman')}
-          style={{
-            padding: 'var(--sp-4)',
-            borderLeft: '4px solid #ea580c',
-            borderRadius: 'var(--radius-lg, 12px)',
-            background: '#ffffff',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            SERAH TERIMA
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ea580c', margin: '4px 0 2px' }}>
-            {loading ? '...' : tahap4}
-          </div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Cek fisik Lampiran A bersama peminjam</div>
-        </div>
+        ))}
       </div>
     </div>
   );
