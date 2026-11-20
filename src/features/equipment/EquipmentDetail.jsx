@@ -64,6 +64,16 @@ function getLogActionLabel(log, actionValue) {
   return log.title || log.judul || actionValue;
 }
 
+function getLogStatusBadgeClass(status) {
+  if (["Disetujui", "Divalidasi", "Selesai", "Aktif", "Aktif Kembali"].includes(status)) {
+    return "badge-aktif";
+  }
+  if (["Ditolak", "Dibatalkan", "Hentikan", "Tidak Aktif"].includes(status)) {
+    return "badge-rusak";
+  }
+  return "badge-kalibrasi";
+}
+
 function isLogInTimeRange(value, range) {
   if (range === "all") return true;
   const date = new Date(value);
@@ -732,6 +742,10 @@ export default function EquipmentDetail({
           new Date(first.created_at || 0),
       ),
     }),
+  ).sort(
+    (first, second) =>
+      new Date(second.logs[0]?.created_at || 0) -
+      new Date(first.logs[0]?.created_at || 0),
   );
   const displayedLogEntries =
     selectedLogType === "verifikasi"
@@ -1149,7 +1163,7 @@ export default function EquipmentDetail({
                         >
                           <div className="equipment-verification-log-entry">
                             <span
-                              className={`badge ${latestLog.status === "Disetujui" ? "badge-aktif" : latestLog.status === "Ditolak" ? "badge-rusak" : "badge-kalibrasi"}`}
+                              className={`badge ${getLogStatusBadgeClass(latestLog.status)}`}
                             >
                               {latestLog.status}
                             </span>
@@ -1324,9 +1338,10 @@ export default function EquipmentDetail({
                           <article
                             className="equipment-verification-log-card"
                             key={id}
+                            aria-label={`Log peminjaman: ${latestLog.title}`}
                           >
                             <div className="equipment-verification-log-entry">
-                              <span className="badge badge-primary">
+                              <span className={`badge ${getLogStatusBadgeClass(latestLog.status)}`}>
                                 {latestLog.status}
                               </span>
                               <div className="equipment-verification-log-entry__content">
@@ -1338,7 +1353,7 @@ export default function EquipmentDetail({
                                   }}
                                 >
                                   {selectedLogType === "peminjaman"
-                                    ? `Tiket peminjaman ${id}`
+                                    ? "Peminjaman peralatan"
                                     : latestLog.title}
                                 </div>
                                 <div style={{ marginTop: 4, fontSize: "var(--text-sm)", color: "var(--clr-dark-600)" }}>
@@ -1874,11 +1889,7 @@ export default function EquipmentDetail({
                         style={{ borderTop: index ? "1px solid var(--clr-dark-100)" : 0 }}
                       >
                         <span className={`badge ${
-                          ["Disetujui", "Selesai", "DISETUJUI"].includes(log.status)
-                            ? "badge-aktif"
-                            : ["Ditolak", "DITOLAK"].includes(log.status)
-                              ? "badge-rusak"
-                              : "badge-kalibrasi"
+                          getLogStatusBadgeClass(log.status)
                         }`}>
                           {log.status || "—"}
                         </span>
