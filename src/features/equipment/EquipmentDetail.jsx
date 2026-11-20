@@ -38,7 +38,6 @@ import {
   isStaffPengelola,
 } from "../../shared/utils/permissions.js";
 import { exportVerificationPdf } from "../../shared/lib/verificationPdf.js";
-import { exportLoanF006Pdf } from "../../shared/lib/loanPdf.js";
 import { getSafeReturnPath } from "../../app/router/Router.jsx";
 
 function getLogActionValue(log) {
@@ -93,6 +92,16 @@ function isLogInTimeRange(value, range) {
   return date >= start && date < end;
 }
 
+function escapeLogHtml(value) {
+  return String(value ?? "—").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character]);
+}
+
 // ------------------------------------------------------------------
 // Halaman Detail Peralatan
 // ------------------------------------------------------------------
@@ -128,13 +137,13 @@ export default function EquipmentDetail({
   const [verificationLogError, setVerificationLogError] = useState("");
   const [qrError, setQrError] = useState("");
   const [selectedActivityLog, setSelectedActivityLog] = useState(null);
-  const [logExportError, setLogExportError] = useState("");
   const [selectedLogType, setSelectedLogType] = useState("verifikasi");
   const [logActionFilter, setLogActionFilter] = useState("");
   const [logTimeFilter, setLogTimeFilter] = useState("all");
   const [logbookData, setLogbookData] = useState([]);
   const [logbookLoading, setLogbookLoading] = useState(false);
   const [logbookError, setLogbookError] = useState("");
+  const [periodicLogData, setPeriodicLogData] = useState([]);
   const [activeDetailSection, setActiveDetailSection] =
     useState(initialSection);
   const [references, setReferences] = useState({
@@ -202,12 +211,91 @@ export default function EquipmentDetail({
   }
 
   useEffect(() => {
-    if (!equipmentId || selectedLogType === "verifikasi") {
+    if (
+      !equipmentId ||
+      selectedLogType === "verifikasi" ||
+      ["kalibrasi", "verifikasi_fungsi"].includes(selectedLogType)
+    ) {
       setLogbookData([]);
       setLogbookError("");
       return;
     }
     fetchLogbook(equipmentId, selectedLogType);
+  }, [equipmentId, selectedLogType]);
+
+  useEffect(() => {
+    if (
+      !equipmentId ||
+      !["kalibrasi", "verifikasi_fungsi"].includes(selectedLogType)
+    ) {
+      setPeriodicLogData([]);
+      return;
+    }
+
+    let active = true;
+    setLogbookLoading(true);
+    setLogbookError("");
+    const api =
+      selectedLogType === "kalibrasi"
+        ? kalibrasiApi
+        : verifikasiFungsiApi;
+
+    api.getByEquipment(equipmentId)
+      .then((response) => {
+        if (!Array.isArray(response?.data)) {
+          throw new Error("Format histori pemeriksaan tidak valid.");
+        }
+        if (!active) return;
+        const isCalibration = selectedLogType === "kalibrasi";
+        setPeriodicLogData(
+          response.data
+            .map((record, index) => {
+              const statusLabels = {
+                direncanakan: "Direncanakan",
+                dalam_proses: "Sedang diproses",
+                selesai: "Selesai",
+                dibatalkan: "Dibatalkan",
+              };
+              const date =
+                (isCalibration
+                  ? record.tgl_kalibrasi
+                  : record.tgl_pemeriksaan_terakhir) ||
+                record.updated_at ||
+                record.created_at;
+              return {
+                id: `periodic-${selectedLogType}-${record.id ?? index}`,
+                jenis: selectedLogType,
+                date,
+                status: statusLabels[record.status] || record.status || "Pemeriksaan",
+                title: isCalibration
+                  ? `Kalibrasi${record.no_sertifikat ? ` — ${record.no_sertifikat}` : ""}`
+                  : `Verifikasi Fungsi${record.no_laporan ? ` — ${record.no_laporan}` : ""}`,
+                description: isCalibration
+                  ? `${record.metode || "Metode belum dicatat"}${record.lab_kalibrasi ? ` · ${record.lab_kalibrasi}` : ""}`
+                  : `${record.jenis_pemeriksaan_berkala || "Verifikasi fungsi"}${record.acuan_pembanding ? ` · Acuan: ${record.acuan_pembanding}` : ""}`,
+                actor: record.pelaksana || "",
+                record,
+              };
+            })
+            .sort(
+              (first, second) =>
+                new Date(second.date || 0) - new Date(first.date || 0),
+            ),
+        );
+      })
+      .catch((err) => {
+        if (active) {
+          setPeriodicLogData([]);
+          setLogbookError(err?.message || "Gagal memuat histori pemeriksaan.");
+        }
+      })
+      .finally(() => {
+        if (active) setLogbookLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [equipmentId, selectedLogType]);
 
   useEffect(() => {
@@ -567,13 +655,19 @@ export default function EquipmentDetail({
     )[0];
   const logTypeLabels = {
     verifikasi: "Log Verifikasi",
+    kalibrasi: "Log Kalibrasi",
+    verifikasi_fungsi: "Log Verifikasi Fungsi",
     peminjaman: "Log Peminjaman",
     perpindahan: "Log Perpindahan",
     penggunaan: "Log Penggunaan",
     pemeriksaan: "Log Pemeriksaan Berkala",
   };
   const activeLogEntries =
-    selectedLogType === "verifikasi" ? verificationHistory : logbookData;
+    selectedLogType === "verifikasi"
+      ? verificationHistory
+      : ["kalibrasi", "verifikasi_fungsi"].includes(selectedLogType)
+        ? periodicLogData
+        : logbookData;
   const logActionOptions = Array.from(
     new Map(
       activeLogEntries.map((log) => {
@@ -592,10 +686,59 @@ export default function EquipmentDetail({
     selectedLogType === "verifikasi"
       ? verificationHistory.filter(matchesLogFilters)
       : [];
+  const filteredPeriodicLogData =
+    ["kalibrasi", "verifikasi_fungsi"].includes(selectedLogType)
+      ? periodicLogData.filter(matchesLogFilters)
+      : [];
   const filteredLogbookData =
     selectedLogType !== "verifikasi"
       ? logbookData.filter(matchesLogFilters)
       : [];
+  const groupEntriesByVerification = (entries) => {
+    const groups = new Map();
+    entries.forEach((entry) => {
+      const key = entry.verificationId || entry.id;
+      const group = groups.get(key) || [];
+      group.push(entry);
+      groups.set(key, group);
+    });
+    return Array.from(groups, ([id, groupLogs]) => ({
+      id,
+      logs: groupLogs.sort(
+        (first, second) =>
+          new Date(second.date || 0) - new Date(first.date || 0),
+      ),
+    })).sort(
+      (first, second) =>
+        new Date(second.logs[0]?.date || 0) -
+        new Date(first.logs[0]?.date || 0),
+    );
+  };
+  const verificationLogGroups = groupEntriesByVerification(verificationHistory)
+    .filter((group) => group.logs.some(matchesLogFilters));
+  const loanLogGroups = Array.from(
+    filteredLogbookData.reduce((groups, log) => {
+      const key = log.referensi_id ?? `log-${log.id}`;
+      const group = groups.get(String(key)) || [];
+      group.push(log);
+      groups.set(String(key), group);
+      return groups;
+    }, new Map()),
+    ([id, logs]) => ({
+      id,
+      logs: logs.sort(
+        (first, second) =>
+          new Date(second.created_at || 0) -
+          new Date(first.created_at || 0),
+      ),
+    }),
+  );
+  const displayedLogEntries =
+    selectedLogType === "verifikasi"
+      ? verificationLogGroups.map((group) => group.logs[0])
+      : ["kalibrasi", "verifikasi_fungsi"].includes(selectedLogType)
+        ? filteredPeriodicLogData
+        : loanLogGroups.map((group) => group.logs[0]);
   const assetGroup = references.groups.find(
     (item) => String(item.id) === String(peralatan.kelompok_aset_id),
   );
@@ -634,9 +777,65 @@ export default function EquipmentDetail({
     ? selectedActivityLog.record.verifikasi || selectedActivityLog.record
     : null;
 
-  function handleSelectActivityLog(log) {
-    setLogExportError("");
-    setSelectedActivityLog(log);
+  function handleSelectActivityLog(log, groupLogs = [log], showAllLogs = false) {
+    setSelectedActivityLog({ ...log, groupLogs, showAllLogs });
+  }
+
+  function printLogEntries(entries, title) {
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (!printWindow) return;
+    const rows = entries.map((entry) => {
+      const record = entry.record || entry;
+      return `
+        <tr>
+          <td>${escapeLogHtml(formatDate(entry.date || entry.created_at))}</td>
+          <td>${escapeLogHtml(entry.title || entry.judul || record.aksi)}</td>
+          <td>${escapeLogHtml(entry.status || record.status)}</td>
+          <td>${escapeLogHtml(entry.actor || record.user?.name)}</td>
+          <td>${escapeLogHtml(entry.description || record.keterangan || entry.note)}</td>
+        </tr>
+      `;
+    }).join("");
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${escapeLogHtml(title)}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #1f2937; }
+            h1 { font-size: 18px; margin: 0 0 4px; }
+            p { margin: 4px 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; vertical-align: top; }
+            th { background: #f1f5f9; }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeLogHtml(title)}</h1>
+          <table>
+            <thead><tr><th>Waktu</th><th>Aksi</th><th>Status</th><th>Pelaku</th><th>Keterangan</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="5">Belum ada log.</td></tr>'}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  }
+
+  function handlePrintActivityLog() {
+    if (!selectedActivityLog) return;
+    printLogEntries(
+      selectedActivityLog.groupLogs || [selectedActivityLog],
+      `Log ${logTypeLabels[selectedActivityLog.jenis] || "Peralatan"}`,
+    );
+  }
+
+  function handlePrintAllEquipmentLogs() {
+    printLogEntries(
+      displayedLogEntries,
+      `Semua ${logTypeLabels[selectedLogType] || "Log Peralatan"}`,
+    );
   }
 
   async function handleDownloadQR() {
@@ -657,44 +856,6 @@ export default function EquipmentDetail({
       setQrError(err.message || "QR Code gagal diunduh.");
     } finally {
       if (blobUrl) URL.revokeObjectURL(blobUrl);
-    }
-  }
-
-  async function handleExportActivityLogPdf() {
-    setLogExportError("");
-    try {
-      if (selectedActivityLog.jenis === "verifikasi") {
-        const verificationId =
-          selectedActivityLog.record.verifikasi?.id_verifikasi ??
-          selectedActivityLog.record.id_verifikasi;
-        const verification =
-          verificationLogs.find(
-            (item) =>
-              String(item.id_verifikasi ?? item.id) ===
-              String(verificationId),
-          ) || selectedActivityLog.record.verifikasi;
-        if (!verification) {
-          throw new Error("Data verifikasi untuk PDF tidak tersedia.");
-        }
-        exportVerificationPdf(verification);
-        return;
-      }
-
-      if (selectedActivityLog.jenis !== "peminjaman") {
-        throw new Error("Ekspor PDF belum tersedia untuk jenis log ini.");
-      }
-
-      const loanId = selectedActivityLog.record.referensi_id;
-      if (!loanId) {
-        throw new Error("ID peminjaman untuk PDF tidak tersedia.");
-      }
-      const response = await peminjamanApi.getById(loanId);
-      if (!response?.success || !response.data) {
-        throw new Error(response?.message || "Data peminjaman untuk PDF tidak tersedia.");
-      }
-      await exportLoanF006Pdf(response.data);
-    } catch (err) {
-      setLogExportError(err.message || "Log gagal diekspor ke PDF.");
     }
   }
 
@@ -872,29 +1033,41 @@ export default function EquipmentDetail({
                   {activeLogEntries.length > 0 && (
                     <span className="badge badge-gray">
                       {selectedLogType === "verifikasi"
-                        ? filteredVerificationHistory.length
-                        : filteredLogbookData.length}
+                        ? verificationLogGroups.length
+                        : ["kalibrasi", "verifikasi_fungsi"].includes(selectedLogType)
+                          ? filteredPeriodicLogData.length
+                          : loanLogGroups.length}
                     </span>
                   )}
                 </div>
-                <select
-                  className="form-select"
-                  value={selectedLogType}
-                  onChange={(event) => {
-                    setSelectedLogType(event.target.value);
-                    setLogActionFilter("");
-                    setLogbookData([]);
-                    setLogbookError("");
-                  }}
-                  aria-label="Pilih jenis log peralatan"
-                  style={{ width: "auto", minWidth: 210 }}
-                >
-                  {Object.entries(logTypeLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", flexWrap: "wrap" }}>
+                  <select
+                    className="form-select"
+                    value={selectedLogType}
+                    onChange={(event) => {
+                      setSelectedLogType(event.target.value);
+                      setLogActionFilter("");
+                      setLogbookData([]);
+                      setLogbookError("");
+                    }}
+                    aria-label="Pilih jenis log peralatan"
+                    style={{ width: "auto", minWidth: 210 }}
+                  >
+                    {Object.entries(logTypeLabels).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handlePrintAllEquipmentLogs}
+                    disabled={displayedLogEntries.length === 0}
+                  >
+                    <Printer size={14} /> Cetak semua log yang tampil
+                  </button>
+                </div>
               </div>
 
               <div
@@ -966,17 +1139,19 @@ export default function EquipmentDetail({
                     </p>
                   ) : (
                     <div className="equipment-verification-log-list">
-                      {filteredVerificationHistory.map((log) => (
+                      {verificationLogGroups.map(({ id, logs }) => {
+                        const latestLog = logs[0];
+                        return (
                         <article
                           className="equipment-verification-log-card"
-                          key={log.id}
-                          aria-label={`Log verifikasi: ${log.title}`}
+                          key={id}
+                          aria-label={`Log verifikasi: ${latestLog.title}`}
                         >
                           <div className="equipment-verification-log-entry">
                             <span
-                              className={`badge ${log.status === "Disetujui" ? "badge-aktif" : log.status === "Ditolak" ? "badge-rusak" : "badge-kalibrasi"}`}
+                              className={`badge ${latestLog.status === "Disetujui" ? "badge-aktif" : latestLog.status === "Ditolak" ? "badge-rusak" : "badge-kalibrasi"}`}
                             >
-                              {log.status}
+                              {latestLog.status}
                             </span>
                             <div className="equipment-verification-log-entry__content">
                               <div
@@ -986,20 +1161,12 @@ export default function EquipmentDetail({
                                   fontWeight: "var(--fw-medium)",
                                 }}
                               >
-                                {log.title}
+                                Verifikasi peralatan
                               </div>
-                              {log.description && (
-                                <div
-                                  style={{
-                                    marginTop: 4,
-                                    fontSize: "var(--text-sm)",
-                                    color: "var(--clr-dark-600)",
-                                  }}
-                                >
-                                  {log.description}
-                                </div>
-                              )}
-                              {log.actor && (
+                              <div style={{ marginTop: 4, fontSize: "var(--text-sm)", color: "var(--clr-dark-600)" }}>
+                                {logs.length} aksi tercatat · aksi terakhir: {latestLog.title}
+                              </div>
+                              {latestLog.actor && (
                                 <div
                                   style={{
                                     marginTop: 4,
@@ -1007,10 +1174,10 @@ export default function EquipmentDetail({
                                     color: "var(--clr-dark-500)",
                                   }}
                                 >
-                                  Oleh: {log.actor}
+                                  Oleh: {latestLog.actor}
                                 </div>
                               )}
-                              {log.note && (
+                              {latestLog.date && (
                                 <div
                                   style={{
                                     marginTop: 4,
@@ -1018,25 +1185,72 @@ export default function EquipmentDetail({
                                     color: "var(--clr-dark-500)",
                                   }}
                                 >
-                                  {log.note}
+                                  {formatDate(latestLog.date)}
                                 </div>
                               )}
-                              <div
-                                style={{
-                                  marginTop: 4,
-                                  fontSize: "var(--text-xs)",
-                                  color: "var(--clr-dark-500)",
-                                }}
-                              >
-                                {formatDate(log.date)}
-                              </div>
                             </div>
                             <div className="equipment-verification-log-actions">
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-sm"
-                                onClick={() => handleSelectActivityLog(log)}
+                                onClick={() => handleSelectActivityLog(latestLog, logs, true)}
                               >
+                                Log ({logs.length})
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => handleSelectActivityLog(latestLog, logs)}
+                              >
+                                Detail
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      )})}
+                    </div>
+                  )}
+                </>
+              ) : ["kalibrasi", "verifikasi_fungsi"].includes(selectedLogType) ? (
+                <>
+                  {logbookLoading ? (
+                    <div style={{ textAlign: "center", padding: "var(--sp-4)", color: "#64748b", fontSize: "12px" }}>
+                      Memuat log pemeriksaan berkala...
+                    </div>
+                  ) : logbookError ? (
+                    <p className="alert alert-error" role="alert">{logbookError}</p>
+                  ) : filteredPeriodicLogData.length === 0 ? (
+                    <p style={{ margin: 0, color: "var(--clr-dark-500)", fontSize: "var(--text-sm)" }}>
+                      Belum ada riwayat {logTypeLabels[selectedLogType].toLowerCase()}.
+                    </p>
+                  ) : (
+                    <div className="equipment-verification-log-list">
+                      {filteredPeriodicLogData.map((log) => (
+                        <article className="equipment-verification-log-card" key={log.id}>
+                          <div className="equipment-verification-log-entry">
+                            <span className={`badge ${["Selesai", "Disetujui"].includes(log.status) ? "badge-aktif" : log.status === "Dibatalkan" ? "badge-rusak" : "badge-kalibrasi"}`}>
+                              {log.status}
+                            </span>
+                            <div className="equipment-verification-log-entry__content">
+                              <div style={{ fontSize: "var(--text-sm)", color: "var(--clr-dark-800)", fontWeight: "var(--fw-medium)" }}>
+                                {log.title}
+                              </div>
+                              {log.description && (
+                                <div style={{ marginTop: 4, fontSize: "var(--text-sm)", color: "var(--clr-dark-600)" }}>
+                                  {log.description}
+                                </div>
+                              )}
+                              {log.actor && (
+                                <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: "var(--clr-dark-500)" }}>
+                                  Pelaksana: {log.actor}
+                                </div>
+                              )}
+                              <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: "var(--clr-dark-500)" }}>
+                                {formatDate(log.date)}
+                              </div>
+                            </div>
+                            <div className="equipment-verification-log-actions">
+                              <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleSelectActivityLog(log)}>
                                 Detail
                               </button>
                             </div>
@@ -1094,9 +1308,9 @@ export default function EquipmentDetail({
                     </div>
                   ) : (
                     <div className="equipment-verification-log-list">
-                      {filteredLogbookData.map((log) => {
-                        const activityLog = {
-                          id: `loan-${log.id}`,
+                      {loanLogGroups.map(({ id, logs }) => {
+                        const activityLogs = logs.map((log) => ({
+                          id: `logbook-${log.id}`,
                           jenis: selectedLogType,
                           date: log.created_at,
                           status: log.status || "—",
@@ -1104,16 +1318,16 @@ export default function EquipmentDetail({
                           description: log.keterangan || "",
                           actor: log.user?.name || "",
                           record: log,
-                        };
-
+                        }));
+                        const latestLog = activityLogs[0];
                         return (
                           <article
                             className="equipment-verification-log-card"
-                            key={log.id}
+                            key={id}
                           >
                             <div className="equipment-verification-log-entry">
                               <span className="badge badge-primary">
-                                {activityLog.status}
+                                {latestLog.status}
                               </span>
                               <div className="equipment-verification-log-entry__content">
                                 <div
@@ -1123,21 +1337,14 @@ export default function EquipmentDetail({
                                     fontWeight: "var(--fw-medium)",
                                   }}
                                 >
-                                  {activityLog.title}
+                                  {selectedLogType === "peminjaman"
+                                    ? `Tiket peminjaman ${id}`
+                                    : latestLog.title}
                                 </div>
-                                {activityLog.description && (
-                                  <div
-                                    style={{
-                                      marginTop: 4,
-                                      fontSize: "var(--text-sm)",
-                                      color: "var(--clr-dark-600)",
-                                      whiteSpace: "pre-wrap",
-                                    }}
-                                  >
-                                    {activityLog.description}
-                                  </div>
-                                )}
-                                {activityLog.actor && (
+                                <div style={{ marginTop: 4, fontSize: "var(--text-sm)", color: "var(--clr-dark-600)" }}>
+                                  {activityLogs.length} aksi tercatat · aksi terakhir: {latestLog.title}
+                                </div>
+                                {latestLog.actor && (
                                   <div
                                     style={{
                                       marginTop: 4,
@@ -1145,26 +1352,33 @@ export default function EquipmentDetail({
                                       color: "var(--clr-dark-500)",
                                     }}
                                   >
-                                    Oleh: {activityLog.actor}
+                                    Oleh: {latestLog.actor}
                                   </div>
                                 )}
-                                <div
-                                  style={{
-                                    marginTop: 4,
-                                    fontSize: "var(--text-xs)",
-                                    color: "var(--clr-dark-500)",
-                                  }}
-                                >
-                                  {formatDate(activityLog.date)}
-                                </div>
+                                {latestLog.date && (
+                                  <div
+                                    style={{
+                                      marginTop: 4,
+                                      fontSize: "var(--text-xs)",
+                                      color: "var(--clr-dark-500)",
+                                    }}
+                                  >
+                                    {formatDate(latestLog.date)}
+                                  </div>
+                                )}
                               </div>
                               <div className="equipment-verification-log-actions">
                                 <button
                                   type="button"
                                   className="btn btn-secondary btn-sm"
-                                  onClick={() =>
-                                    handleSelectActivityLog(activityLog)
-                                  }
+                                  onClick={() => handleSelectActivityLog(latestLog, activityLogs, true)}
+                                >
+                                  Log ({activityLogs.length})
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => handleSelectActivityLog(latestLog, activityLogs)}
                                 >
                                   Detail
                                 </button>
@@ -1618,7 +1832,9 @@ export default function EquipmentDetail({
               <div className="modal-header">
                 <div>
                   <h2 className="modal-title" id="equipment-log-review-title">
-                    Detail {selectedActivityLog.title}
+                    {selectedActivityLog.showAllLogs
+                      ? `Log ${selectedActivityLog.title}`
+                      : `Detail ${selectedActivityLog.title}`}
                   </h2>
                   <p
                     className="page-subtitle"
@@ -1628,20 +1844,13 @@ export default function EquipmentDetail({
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: "var(--sp-2)" }}>
-                  {["verifikasi", "peminjaman"].includes(
-                    selectedActivityLog.jenis,
-                  ) && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={handleExportActivityLogPdf}
-                    >
-                      <Printer size={14} />{" "}
-                      {selectedActivityLog.jenis === "verifikasi"
-                        ? "PDF Verifikasi"
-                        : "PDF Peminjaman"}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handlePrintActivityLog}
+                  >
+                    <Printer size={14} /> Cetak PDF Log
+                  </button>
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
@@ -1652,11 +1861,53 @@ export default function EquipmentDetail({
                 </div>
               </div>
               <div className="modal-body">
-                {logExportError && (
-                  <p className="alert alert-error" role="alert">
-                    {logExportError}
-                  </p>
+                {selectedActivityLog.showAllLogs && (
+                  <section style={{ marginBottom: "var(--sp-4)" }}>
+                  <h3 className="section-title">
+                    Semua aksi ({(selectedActivityLog.groupLogs || [selectedActivityLog]).length})
+                  </h3>
+                  <div className="equipment-verification-log-card">
+                    {(selectedActivityLog.groupLogs || [selectedActivityLog]).map((log, index) => (
+                      <div
+                        className="equipment-verification-log-entry"
+                        key={log.id || `${log.date}-${index}`}
+                        style={{ borderTop: index ? "1px solid var(--clr-dark-100)" : 0 }}
+                      >
+                        <span className={`badge ${
+                          ["Disetujui", "Selesai", "DISETUJUI"].includes(log.status)
+                            ? "badge-aktif"
+                            : ["Ditolak", "DITOLAK"].includes(log.status)
+                              ? "badge-rusak"
+                              : "badge-kalibrasi"
+                        }`}>
+                          {log.status || "—"}
+                        </span>
+                        <div className="equipment-verification-log-entry__content">
+                          <strong style={{ color: "var(--clr-dark-800)", fontSize: "var(--text-sm)" }}>
+                            {log.title || log.judul || log.aksi || "Aktivitas"}
+                          </strong>
+                          {(log.description || log.keterangan) && (
+                            <div style={{ marginTop: 4, color: "var(--clr-dark-600)", fontSize: "var(--text-sm)", whiteSpace: "pre-wrap" }}>
+                              {log.description || log.keterangan}
+                            </div>
+                          )}
+                          {(log.actor || log.user?.name) && (
+                            <div style={{ marginTop: 4, color: "var(--clr-dark-500)", fontSize: "var(--text-xs)" }}>
+                              Oleh: {log.actor || log.user?.name}
+                            </div>
+                          )}
+                          {(log.date || log.created_at) && (
+                            <div style={{ marginTop: 4, color: "var(--clr-dark-500)", fontSize: "var(--text-xs)" }}>
+                              {formatDate(log.date || log.created_at)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  </section>
                 )}
+                {!selectedActivityLog.showAllLogs && (
                 <div className="equipment-info-grid">
                   <InfoRow
                     label="Jenis Log"
@@ -1752,7 +2003,9 @@ export default function EquipmentDetail({
                     </>
                   )}
                 </div>
-                {selectedActivityLog.jenis !== "peminjaman" &&
+                )}
+                {!selectedActivityLog.showAllLogs &&
+                  selectedActivityLog.jenis !== "peminjaman" &&
                   selectedLogNotes && (
                   <section style={{ marginTop: "var(--sp-4)" }}>
                     <h3 className="section-title">Data Pendukung Verifikasi</h3>
@@ -1796,7 +2049,8 @@ export default function EquipmentDetail({
                     </div>
                   </section>
                 )}
-                {selectedActivityLog.jenis !== "peminjaman" &&
+                {!selectedActivityLog.showAllLogs &&
+                  selectedActivityLog.jenis !== "peminjaman" &&
                   (selectedActivityLog.record.catatan ||
                     selectedActivityLog.record.verifikasi?.catatan) &&
                   !selectedLogNotes && (
@@ -1810,7 +2064,8 @@ export default function EquipmentDetail({
                       />
                     </div>
                   )}
-                {selectedActivityLog.jenis !== "peminjaman" &&
+                {!selectedActivityLog.showAllLogs &&
+                  selectedActivityLog.jenis !== "peminjaman" &&
                   selectedLogVerification.hasil_verifikasi?.[0] && (
                     <div style={{ marginTop: "var(--sp-4)" }}>
                       <h3 className="section-title">Hasil Pemeriksaan</h3>

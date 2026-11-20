@@ -71,8 +71,9 @@ export function getScheduleRole(schedule) {
 
 const SCHEDULE_STATUS = {
   late: { label: "Terlambat", className: "schedule-status--late", needsAction: true },
-  urgent: { label: "Mendesak", className: "schedule-status--urgent", needsAction: true },
-  soon: { label: "Mendekati jatuh tempo", className: "schedule-status--soon", needsAction: true },
+  h7: { label: "H-7", className: "schedule-status--h7", needsAction: true },
+  h30: { label: "H-30", className: "schedule-status--h30", needsAction: true },
+  h60: { label: "H-60", className: "schedule-status--h60", needsAction: true },
   unset: { label: "Belum diatur", className: "schedule-status--unset", needsAction: true },
   safe: { label: "Aman", className: "schedule-status--safe", needsAction: false },
 };
@@ -81,8 +82,9 @@ export function getScheduleStatus(schedule) {
   const days = getDaysUntilDue(schedule.tanggal_jatuh_tempo);
   if (days === null || !Number(schedule.interval_bulan)) return "unset";
   if (days < 0) return "late";
-  if (days <= 30) return "urgent";
-  if (days <= 90) return "soon";
+  if (days <= 7) return "h7";
+  if (days <= 30) return "h30";
+  if (days <= 60) return "h60";
   return "safe";
 }
 
@@ -91,7 +93,7 @@ export function getScheduleStatusInfo(status) {
 }
 
 export function getScheduleStatusOrder(status) {
-  return ["late", "urgent", "soon", "unset", "safe"].indexOf(status);
+  return ["late", "h7", "h30", "h60", "unset", "safe"].indexOf(status);
 }
 
 export function getEquipmentStatusInfo(value) {

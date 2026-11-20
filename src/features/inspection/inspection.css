@@ -273,6 +273,11 @@
   color: #047857 !important;
 }
 
+.inspection-due-text.is-h60 {
+  color: #92400e !important;
+  font-weight: var(--fw-semibold);
+}
+
 .inspection-due-text.is-neutral {
   color: var(--clr-dark-500) !important;
 }

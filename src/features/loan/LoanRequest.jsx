@@ -696,7 +696,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 disabled
               />
               <span className="form-hint">
-                Otomatis disinkronkan dengan Manajer Laboratorium asal peminjam untuk validasi (Tahap 1 Swimlane).
+                Otomatis disinkronkan dengan Manajer Laboratorium asal peminjam untuk validasi.
               </span>
             </div>
 
