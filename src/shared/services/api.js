@@ -450,6 +450,11 @@ export const kalibrasiApi = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+  updateDueDate: (id, tgl_jatuh_tempo) =>
+    fetchWithAuth(`/api/kalibrasi/${id}/jatuh-tempo`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tgl_jatuh_tempo }),
+    }),
   recordEquipmentOut: (id, body) =>
     fetchWithAuth(`/api/kalibrasi/${id}/alat-keluar`, {
       method: 'PATCH',
@@ -490,6 +495,11 @@ export const verifikasiFungsiApi = {
     fetchWithAuth(`/api/verifikasi-fungsi/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
+    }),
+  updateDueDate: (id, tgl_jatuh_tempo) =>
+    fetchWithAuth(`/api/verifikasi-fungsi/${id}/jatuh-tempo`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tgl_jatuh_tempo }),
     }),
   complete: (id, {
     tgl_pemeriksaan_terakhir,

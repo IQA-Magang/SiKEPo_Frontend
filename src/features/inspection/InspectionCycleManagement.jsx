@@ -90,6 +90,27 @@ const EMPTY_RESULT_FORM = {
   pdf_laporan: null,
 };
 
+const EMPTY_DUE_DATE_FORM = {
+  tgl_jatuh_tempo: "",
+};
+
+function matchesInspectionMethod(item, type) {
+  const selectedMethod = String(item.metode_pemeriksaan || "").trim().toLowerCase();
+  if (selectedMethod) {
+    const normalizedMethod = selectedMethod.replaceAll("_", " ").replaceAll("-", " ");
+    return type === "kalibrasi"
+      ? normalizedMethod === "kalibrasi"
+      : normalizedMethod === "verifikasi fungsi";
+  }
+
+  if (Number(item.interval_kalibrasi_bulan) > 0) {
+    return type === "kalibrasi";
+  }
+
+  const categoryId = getEquipmentCategoryId(item);
+  return type === "kalibrasi" ? categoryId === 1 : categoryId === 2;
+}
+
 function dateOnly(value) {
   return value ? String(value).slice(0, 10) : "";
 }
@@ -137,6 +158,7 @@ export default function InspectionCycleManagement({ type }) {
   const [search, setSearch] = useState("");
   const [selectedCycle, setSelectedCycle] = useState(null);
   const [createForm, setCreateForm] = useState(EMPTY_CREATE_FORM);
+  const [dueDateForm, setDueDateForm] = useState(EMPTY_DUE_DATE_FORM);
   const [checkoutForm, setCheckoutForm] = useState(EMPTY_CHECKOUT_FORM);
   const [resultForm, setResultForm] = useState(EMPTY_RESULT_FORM);
 
@@ -152,7 +174,9 @@ export default function InspectionCycleManagement({ type }) {
         throw new Error("Format respons daftar peralatan tidak valid.");
       }
       const equipmentList = equipmentResponse.data.filter(
-        (item) => config.categoryIds.includes(getEquipmentCategoryId(item)),
+        (item) =>
+          config.categoryIds.includes(getEquipmentCategoryId(item)) &&
+          matchesInspectionMethod(item, type),
       );
       const records = await Promise.all(equipmentList.map(async (item) => {
         const response = await config.api.getByEquipment(getEquipmentId(item));
@@ -187,14 +211,31 @@ export default function InspectionCycleManagement({ type }) {
     (item) => !activeEquipmentIds.has(String(getEquipmentId(item))),
   );
   const equipmentWithCycles = new Set(cycles.map((cycle) => String(cycle.peralatan_id)));
-  const inProgressCycles = activeCycles.filter((cycle) => cycle.status === "dalam_proses");
-  const plannedCycles = activeCycles.filter((cycle) => cycle.status === "direncanakan");
+  const inProgressCycles = activeCycles.filter(
+    (cycle) => cycle.status === "dalam_proses" && Boolean(dateOnly(cycle.tgl_jatuh_tempo)),
+  );
+  const plannedCycles = activeCycles.filter(
+    (cycle) => cycle.status === "direncanakan" && Boolean(dateOnly(cycle.tgl_jatuh_tempo)),
+  );
+  const missingDueDateCycleByEquipment = new Map(
+    cycles
+      .filter(
+        (cycle) =>
+          ["direncanakan", "dalam_proses"].includes(cycle.status) &&
+          !dateOnly(cycle.tgl_jatuh_tempo),
+      )
+      .map((cycle) => [String(cycle.peralatan_id), cycle]),
+  );
   const completedCycles = cycles
     .filter((cycle) => ["selesai", "dibatalkan"].includes(cycle.status))
     .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
-  const withoutSchedule = equipment.filter(
-    (item) => !equipmentWithCycles.has(String(getEquipmentId(item))),
-  );
+  const withoutSchedule = equipment.filter((item) => {
+    const equipmentId = String(getEquipmentId(item));
+    return (
+      !equipmentWithCycles.has(equipmentId) ||
+      missingDueDateCycleByEquipment.has(equipmentId)
+    );
+  });
   const normalizedSearch = search.trim().toLocaleLowerCase("id-ID");
   const matchesEquipmentSearch = (cycle) => {
     if (!normalizedSearch) return true;
@@ -236,6 +277,12 @@ export default function InspectionCycleManagement({ type }) {
     });
     setSelectedCycle(null);
     setPanel("create");
+  }
+
+  function openDueDate(cycle) {
+    setSelectedCycle(cycle);
+    setDueDateForm(EMPTY_DUE_DATE_FORM);
+    setPanel("due-date");
   }
 
   function openCheckout(cycle) {
@@ -330,6 +377,7 @@ export default function InspectionCycleManagement({ type }) {
           metode: createForm.metode,
           status: createForm.status,
           interval_bulan: Number(createForm.interval_bulan || item?.interval_kalibrasi_bulan || 0),
+          tgl_jatuh_tempo: dateTimeValue(createForm.tgl_jatuh_tempo),
         });
       } else {
         await config.api.create(Number(createForm.peralatan_id), {
@@ -346,6 +394,22 @@ export default function InspectionCycleManagement({ type }) {
       await loadData();
     } catch (saveError) {
       error(saveError.message || `Gagal membuat siklus ${config.title.toLowerCase()}.`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveDueDate(event) {
+    event.preventDefault();
+    if (!canManage || !selectedCycle) return;
+    setSaving(true);
+    try {
+      await config.api.updateDueDate(selectedCycle.id, dueDateForm.tgl_jatuh_tempo);
+      success(`Tanggal jatuh tempo ${config.title.toLowerCase()} berhasil disimpan.`);
+      setPanel(null);
+      await loadData();
+    } catch (saveError) {
+      error(saveError.message || `Gagal menyimpan tanggal jatuh tempo ${config.title.toLowerCase()}.`);
     } finally {
       setSaving(false);
     }
@@ -613,7 +677,7 @@ export default function InspectionCycleManagement({ type }) {
             {activeView === "unscheduled" && (
               <section className="inspection-section inspection-empty-schedule">
                 <header className="inspection-section__header">
-                  <div><h2>Belum ada jadwal</h2><span>Peralatan tanpa siklus pemeriksaan berkala</span></div>
+                  <div><h2>Belum ada jadwal</h2><span>Peralatan tanpa siklus atau belum memiliki tanggal jatuh tempo</span></div>
                   <span className="inspection-section-count">{filteredWithoutSchedule.length}</span>
                 </header>
                 {filteredWithoutSchedule.length === 0 ? (
@@ -623,12 +687,27 @@ export default function InspectionCycleManagement({ type }) {
                   </div>
                 ) : (
                   <div className="inspection-unscheduled-list">
-                    {filteredWithoutSchedule.map((item) => (
-                      <button type="button" key={getEquipmentId(item)} onClick={() => openCreate(item)}>
-                        <span><strong>{item.nomor_aset || `ID ${getEquipmentId(item)}`}</strong>{item.nama_peralatan}</span>
-                        <Plus size={16} />
-                      </button>
-                    ))}
+                    {filteredWithoutSchedule.map((item) => {
+                      const missingDueDateCycle = missingDueDateCycleByEquipment.get(
+                        String(getEquipmentId(item)),
+                      );
+                      return (
+                        <button
+                          type="button"
+                          key={getEquipmentId(item)}
+                          onClick={() => missingDueDateCycle
+                            ? openDueDate(missingDueDateCycle)
+                            : openCreate(item)}
+                        >
+                          <span>
+                            <strong>{item.nomor_aset || `ID ${getEquipmentId(item)}`}</strong>
+                            {item.nama_peralatan}
+                            {missingDueDateCycle && <small>Tanggal jatuh tempo belum diisi</small>}
+                          </span>
+                          {missingDueDateCycle ? <CalendarClock size={16} /> : <Plus size={16} />}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </section>
@@ -641,16 +720,37 @@ export default function InspectionCycleManagement({ type }) {
               onClose={() => setPanel(null)}
               title={panel === "create"
                 ? `Buat Jadwal ${config.title}`
-                : panel === "checkout"
-                  ? "Mulai Kalibrasi"
-                  : `Catat Hasil ${config.title}`}
+                : panel === "due-date"
+                  ? "Isi Tanggal Jatuh Tempo"
+                  : panel === "checkout"
+                    ? "Mulai Kalibrasi"
+                    : `Catat Hasil ${config.title}`}
               description={panel === "create"
                 ? `Lengkapi informasi siklus ${config.title.toLowerCase()}.`
                 : `${selectedCycle?.peralatan?.nomor_aset || ""} ${selectedCycle?.peralatan?.nama_peralatan || ""}`}
               size="lg"
               className="inspection-cycle-modal"
             >
-              {panel === "create" ? (
+              {panel === "due-date" ? (
+                <form className="inspection-side-form" onSubmit={saveDueDate}>
+                  <FormField label="Tanggal jatuh tempo" htmlFor="cycle-due-date" required>
+                    <input
+                      id="cycle-due-date"
+                      className="form-input"
+                      type="date"
+                      value={dueDateForm.tgl_jatuh_tempo}
+                      onChange={(event) => setDueDateForm({ tgl_jatuh_tempo: event.target.value })}
+                      required
+                    />
+                  </FormField>
+                  <div className="inspection-side-form__footer">
+                    <Button variant="secondary" onClick={() => setPanel(null)} disabled={saving}>Batal</Button>
+                    <Button type="submit" disabled={saving || !dueDateForm.tgl_jatuh_tempo}>
+                      {saving ? "Menyimpan..." : "Simpan tanggal"}
+                    </Button>
+                  </div>
+                </form>
+              ) : panel === "create" ? (
                 <CreateCycleForm
                   type={type}
                   equipment={availableEquipment}
@@ -795,6 +895,9 @@ function CreateCycleForm({ type, equipment, form, onChange, onSubmit, onCancel, 
           <FormField label="Interval (bulan)" htmlFor="cycle-interval">
             <input id="cycle-interval" className="form-input" type="number" min="1" max="120" name="interval_bulan" value={form.interval_bulan || selectedEquipment?.interval_kalibrasi_bulan || ""} onChange={onChange} required />
           </FormField>
+          <FormField label="Tanggal jatuh tempo" htmlFor="cycle-calibration-due" required>
+            <input id="cycle-calibration-due" className="form-input" type="date" name="tgl_jatuh_tempo" value={form.tgl_jatuh_tempo} onChange={onChange} required />
+          </FormField>
           <p className="inspection-form-note"><AlertCircle size={15} /> Sertifikat tidak diperlukan untuk membuat jadwal. Unggah saat kalibrasi selesai.</p>
         </>
       ) : (
@@ -805,8 +908,8 @@ function CreateCycleForm({ type, equipment, form, onChange, onSubmit, onCancel, 
               <option value="verifikasi fungsi metode tertentu">Metode tertentu</option>
             </select>
           </FormField>
-          <FormField label="Tanggal jatuh tempo" htmlFor="cycle-function-due">
-            <input id="cycle-function-due" className="form-input" type="date" name="tgl_jatuh_tempo" value={form.tgl_jatuh_tempo} onChange={onChange} />
+          <FormField label="Tanggal jatuh tempo" htmlFor="cycle-function-due" required>
+            <input id="cycle-function-due" className="form-input" type="date" name="tgl_jatuh_tempo" value={form.tgl_jatuh_tempo} onChange={onChange} required />
           </FormField>
           <FormField label="Interval verifikasi fungsi" htmlFor="cycle-function-interval" required>
             <select
