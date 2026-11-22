@@ -101,7 +101,7 @@ export function filterEquipment(equipmentList, {
       ? pending
       : lifecycle === 'review'
         ? rejected
-        : (['Aktif', 'Dipinjam', 'Dalam Kalibrasi'].includes(equipment.status_alat) && approved) ||
+        : (['Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Dalam Verifikasi Fungsi'].includes(equipment.status_alat) && approved) ||
           isFollowUpVerification ||
           isReturnedFromLoanAwaitingVerification ||
           isAwaitingPostCalibrationVerification;

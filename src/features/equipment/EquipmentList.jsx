@@ -197,10 +197,13 @@ export default function EquipmentList({
     const labId = getEquipmentLabId(p, roomsById);
     const matchLab = !filterLab || String(labId) === filterLab;
     const approved = p.status_verifikasi === "Disetujui";
-    // Peralatan yang sedang dikalibrasi tetap tampil di daftar utama.
-    const available = ["Aktif", "Dipinjam", "Dalam Kalibrasi"].includes(
-      p.status_alat,
-    );
+    // Peralatan yang sedang menjalani pemeriksaan tetap tampil di daftar utama.
+    const available = [
+      "Aktif",
+      "Dipinjam",
+      "Dalam Kalibrasi",
+      "Dalam Verifikasi Fungsi",
+    ].includes(p.status_alat);
     const rejected = p.status_verifikasi === "Ditolak";
     const activityCode = String(p.kode_aktivitas || "")
       .trim()
@@ -351,6 +354,8 @@ export default function EquipmentList({
               ? "Masuk inventaris"
               : equipment.status_alat === "Dalam Kalibrasi"
                 ? "Sedang dikalibrasi"
+                : equipment.status_alat === "Dalam Verifikasi Fungsi"
+                  ? "Sedang dalam verifikasi fungsi"
                 : equipment.status_alat === "Dipinjam"
                   ? "Sedang dipinjam"
                   : equipment.status_alat === "Rusak"

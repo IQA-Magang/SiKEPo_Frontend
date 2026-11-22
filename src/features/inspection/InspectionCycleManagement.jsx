@@ -11,6 +11,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useToast } from "../../app/providers/ToastContext.jsx";
+import { useConfirm } from "../../app/providers/ConfirmContext.jsx";
 import { useNavigate } from "../../app/router/Router.jsx";
 import {
   Button,
@@ -52,7 +53,7 @@ const CYCLE_CONFIG = {
     api: verifikasiFungsiApi,
     statusLabels: {
       direncanakan: "Direncanakan",
-      dalam_proses: "Dalam proses",
+      dalam_proses: "Sedang dalam verifikasi fungsi",
       selesai: "Selesai",
       dibatalkan: "Dibatalkan",
     },
@@ -147,6 +148,7 @@ function dueState(value) {
 export default function InspectionCycleManagement({ type }) {
   const config = CYCLE_CONFIG[type];
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { success, error } = useToast();
   const [equipment, setEquipment] = useState([]);
   const [cycles, setCycles] = useState([]);
@@ -428,6 +430,22 @@ export default function InspectionCycleManagement({ type }) {
     }
   }
 
+  async function startFunctionVerification(cycle) {
+    const equipmentName =
+      cycle.peralatan?.nama_peralatan ||
+      cycle.peralatan?.nomor_aset ||
+      `peralatan ID ${cycle.peralatan_id}`;
+    const confirmed = await confirm({
+      title: "Mulai Verifikasi Fungsi",
+      message: `Setuju memulai verifikasi fungsi untuk ${equipmentName}? Status alat akan berubah menjadi "Dalam Verifikasi Fungsi" dengan kode aktivitas A5.`,
+      confirmText: "Setuju",
+      cancelText: "Batal",
+      variant: "primary",
+    });
+    if (!confirmed) return;
+    await changeStatus(cycle, "dalam_proses");
+  }
+
   async function saveCheckout(event) {
     event.preventDefault();
     if (!selectedCycle) return;
@@ -637,7 +655,7 @@ export default function InspectionCycleManagement({ type }) {
                 config={config}
                 onStart={(cycle) => type === "kalibrasi"
                   ? openCheckout(cycle)
-                  : changeStatus(cycle, "dalam_proses")}
+                  : startFunctionVerification(cycle)}
                 onResult={openResult}
                 emptyText={`Belum ada jadwal ${config.title.toLowerCase()} yang menunggu.`}
               />
@@ -654,7 +672,7 @@ export default function InspectionCycleManagement({ type }) {
                 config={config}
                 onStart={(cycle) => type === "kalibrasi"
                   ? openCheckout(cycle)
-                  : changeStatus(cycle, "dalam_proses")}
+                  : startFunctionVerification(cycle)}
                 onResult={openResult}
                 emptyText="Belum ada siklus yang sedang diproses."
               />
@@ -851,7 +869,7 @@ function CycleTableSection({
                         {pdfUrl && <a className="inspection-row-file" href={pdfUrl} target="_blank" rel="noreferrer" aria-label="Buka dokumen"><FileText size={16} /></a>}
                         {canManage && cycle.status === "direncanakan" && (
                           <Button variant="secondary" size="sm" disabled={saving} onClick={() => onStart(cycle)}>
-                            {type === "kalibrasi" ? "Mulai Kalibrasi" : "Mulai"}
+                            {type === "kalibrasi" ? "Mulai Kalibrasi" : "Mulai Verifikasi Fungsi"}
                           </Button>
                         )}
                         {canManage && cycle.status === "dalam_proses" && (
