@@ -642,7 +642,7 @@ export default function InspectionCycleManagement({ type }) {
               title={panel === "create"
                 ? `Buat Jadwal ${config.title}`
                 : panel === "checkout"
-                  ? "Catat Alat Keluar"
+                  ? "Mulai Kalibrasi"
                   : `Catat Hasil ${config.title}`}
               description={panel === "create"
                 ? `Lengkapi informasi siklus ${config.title.toLowerCase()}.`
@@ -751,7 +751,7 @@ function CycleTableSection({
                         {pdfUrl && <a className="inspection-row-file" href={pdfUrl} target="_blank" rel="noreferrer" aria-label="Buka dokumen"><FileText size={16} /></a>}
                         {canManage && cycle.status === "direncanakan" && (
                           <Button variant="secondary" size="sm" disabled={saving} onClick={() => onStart(cycle)}>
-                            {type === "kalibrasi" ? "Catat alat keluar" : "Mulai"}
+                            {type === "kalibrasi" ? "Mulai Kalibrasi" : "Mulai"}
                           </Button>
                         )}
                         {canManage && cycle.status === "dalam_proses" && (
