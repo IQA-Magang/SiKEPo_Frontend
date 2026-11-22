@@ -197,8 +197,10 @@ export default function EquipmentList({
     const labId = getEquipmentLabId(p, roomsById);
     const matchLab = !filterLab || String(labId) === filterLab;
     const approved = p.status_verifikasi === "Disetujui";
-    // Peralatan berstatus Aktif maupun Dipinjam tetap tampil di daftar utama
-    const available = p.status_alat === "Aktif" || p.status_alat === "Dipinjam";
+    // Peralatan yang sedang dikalibrasi tetap tampil di daftar utama.
+    const available = ["Aktif", "Dipinjam", "Dalam Kalibrasi"].includes(
+      p.status_alat,
+    );
     const rejected = p.status_verifikasi === "Ditolak";
     const activityCode = String(p.kode_aktivitas || "")
       .trim()
@@ -453,7 +455,9 @@ export default function EquipmentList({
                 </button>
               </>
             )}
-            {canRequestLoan && approved && (
+            {canRequestLoan &&
+              approved &&
+              ["Aktif", "Dipinjam"].includes(equipment.status_alat) && (
               <div
                 style={{
                   display: "inline-flex",
@@ -495,7 +499,7 @@ export default function EquipmentList({
                   </span>
                 )}
               </div>
-            )}
+              )}
           </div>
         );
       },

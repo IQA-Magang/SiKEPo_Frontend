@@ -372,12 +372,18 @@ export default function EquipmentDetail({
         if (item) {
           const categoryId = getEquipmentCategoryId(item);
           const peralatanId = getEquipmentId(item);
-          const guideApi =
-            categoryId === 1
-              ? kalibrasiApi
-              : categoryId === 2
-                ? verifikasiFungsiApi
-                : null;
+          const method = String(item.metode_pemeriksaan || "")
+            .trim()
+            .toLowerCase();
+          const isCalibration =
+            method === "kalibrasi" || (!method && categoryId === 1);
+          const isFunctionVerification =
+            method === "verifikasi fungsi" || (!method && categoryId === 2);
+          const guideApi = isCalibration
+            ? kalibrasiApi
+            : isFunctionVerification
+              ? verifikasiFungsiApi
+              : null;
 
           if (guideApi && peralatanId) {
             try {
@@ -388,7 +394,6 @@ export default function EquipmentDetail({
                 );
               }
 
-              const isCalibration = categoryId === 1;
               setGuideDocuments(
                 response.data
                   .filter(
@@ -588,7 +593,10 @@ export default function EquipmentDetail({
   const canonicalEquipmentId = getEquipmentId(peralatan);
   const isVerified = peralatan.status_verifikasi === "Disetujui";
   const outRange = isCurrentlyOut();
-  const canBorrowNow = canRequestLoan && isVerified && !outRange;
+  const canBorrowNow =
+    canRequestLoan &&
+    isVerified &&
+    ["Aktif", "Dipinjam"].includes(peralatan.status_alat);
   const displayStatus = isVerified ? peralatan.status_alat : "Karantina";
   const visibleDetailSection =
     activeDetailSection === "qr" && !isVerified
@@ -929,7 +937,7 @@ export default function EquipmentDetail({
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {canRequestLoan && isVerified && (
+          {canBorrowNow && (
             <div
               style={{
                 display: "inline-flex",
@@ -2172,6 +2180,12 @@ function getActivityName(code) {
 
 function getEquipmentDetailRows(peralatan) {
   const categoryId = getEquipmentCategoryId(peralatan);
+  const method = String(peralatan.metode_pemeriksaan || "")
+    .trim()
+    .toLowerCase();
+  const isFunctionVerification =
+    method === "verifikasi fungsi" || (!method && categoryId === 2);
+  const isCalibration = method === "kalibrasi" || (!method && categoryId === 1);
   const detail =
     peralatan.detail ||
     peralatan.detail_alat_ukur ||
@@ -2179,34 +2193,46 @@ function getEquipmentDetailRows(peralatan) {
     peralatan.detail_artefak_acuan ||
     peralatan.detail_komponen_pendukung ||
     peralatan;
+  const verificationFields = [
+    ["Jenis Pemeriksaan Berkala", "jenis_pemeriksaan_berkala"],
+    ["Tgl. Pemeriksaan Terakhir", "tgl_pemeriksaan_terakhir", "date"],
+    ["Jatuh Tempo Verifikasi Fungsi", "tgl_jatuh_tempo", "date"],
+    ["Interval Verifikasi Fungsi", "interval_bulan", "months"],
+    ["Fungsi sebagai Alat Standar", "fungsi_sbg_alat_standar", "boolean"],
+    ["Acuan Pembanding", "acuan_pembanding"],
+    ["Pelaksana", "pelaksana"],
+    ["Hasil Verifikasi Fungsi", "hasil"],
+    ["No. Laporan Verifikasi", "no_laporan"],
+  ];
+  const calibrationFields = [
+    ["No. Sertifikat", "no_sertifikat"],
+    ["Kalibrasi Terakhir", "tgl_kalibrasi", "date"],
+    ["Jatuh Tempo Kalibrasi", "tgl_jatuh_tempo", "date"],
+    ["Interval Kalibrasi", "interval_bulan", "months"],
+  ];
   const fieldsByCategory = {
-    1: [
-      ["Metode Kelayakan", "metode_kelayakan"],
-      ["No. Sertifikat", "no_sertifikat"],
-      ["Kalibrasi Terakhir", "tgl_kalibrasi", "date"],
-      ["Jatuh Tempo Kalibrasi", "tgl_jatuh_tempo", "date"],
-      ["Interval Kalibrasi", "interval_bulan", "months"],
-      ["Fungsi sebagai Alat Standar", "fungsi_sbg_alat_standar", "boolean"],
-      ["Parameter / Rentang Ukur", "parameter_rentang_ukur"],
-      ["Resolusi", "resolusi"],
-      ["Akurasi Spesifikasi", "akurasi_spesifikasi"],
-      ["Satuan", "satuan"],
-      ["Nilai Koreksi", "nilai_koreksi"],
-      ["Ketidakpastian", "ketidakpastian"],
-      ["Jenis Label", "jenis_label"],
-      ["Status Kelayakan", "status_kelayakan"],
-    ],
-    2: [
-      ["Fungsi / Kegunaan", "fungsi_kegunaan"],
-      ["Jenis Pemeriksaan Berkala", "jenis_pemeriksaan_berkala"],
-      ["Kriteria Pemeriksaan", "kriteria_pemeriksaan"],
-      ["Tgl. Pemeriksaan Terakhir", "tgl_pemeriksaan_terakhir", "date"],
-      ["Jatuh Tempo Pemeriksaan", "tgl_jatuh_tempo", "date"],
-      ["Interval Pemeriksaan", "interval_bulan", "months"],
-      ["Fungsi sebagai Alat Standar", "fungsi_sbg_alat_standar", "boolean"],
-      ["Karakteristik Acuan", "karakteristik_acuan"],
-      ["Jadwal Karakterisasi Ulang", "jadwal_karakterisasi_ulang"],
-    ],
+    1: isFunctionVerification
+      ? verificationFields
+      : [
+          ["Metode Kelayakan", "metode_kelayakan"],
+          ...calibrationFields,
+          ["Fungsi sebagai Alat Standar", "fungsi_sbg_alat_standar", "boolean"],
+          ["Parameter / Rentang Ukur", "parameter_rentang_ukur"],
+          ["Resolusi", "resolusi"],
+          ["Akurasi Spesifikasi", "akurasi_spesifikasi"],
+          ["Satuan", "satuan"],
+          ["Nilai Koreksi", "nilai_koreksi"],
+          ["Ketidakpastian", "ketidakpastian"],
+          ["Jenis Label", "jenis_label"],
+          ["Status Kelayakan", "status_kelayakan"],
+        ],
+    2: isFunctionVerification
+      ? verificationFields
+      : [
+          ["Metode Kalibrasi", "metode"],
+          ["Laboratorium Kalibrasi", "lab_kalibrasi"],
+          ...calibrationFields,
+        ],
     3: [
       ["Jenis Deskripsi", "jenis_deskripsi"],
       ["Karakteristik yang Diacu", "karakteristik_yang_diacu"],
@@ -2236,9 +2262,12 @@ function getEquipmentDetailRows(peralatan) {
   return (fieldsByCategory[categoryId] || []).flatMap(([label, key, type]) => {
     const rawValue = detail[key];
     if (rawValue === null || rawValue === undefined || rawValue === "") {
+      if (isCalibration && ["tgl_kalibrasi", "tgl_jatuh_tempo"].includes(key)) {
+        return [{ label, value: "Belum tersedia" }];
+      }
       if (
-        categoryId === 1 &&
-        ["tgl_kalibrasi", "tgl_jatuh_tempo"].includes(key)
+        isFunctionVerification &&
+        ["tgl_pemeriksaan_terakhir", "tgl_jatuh_tempo"].includes(key)
       ) {
         return [{ label, value: "Belum tersedia" }];
       }

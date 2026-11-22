@@ -151,6 +151,7 @@ export function buildEquipmentPayload(form) {
     detail = {
       peranti_lunak_versi: form.peranti_lunak_versi || '',
       interval_bulan: Number(form.interval_bulan) || 0,
+      metode_pemeriksaan: form.metode_pemeriksaan,
       buat_histori_pemeriksaan_terpisah: true,
       fungsi_sbg_alat_standar: Boolean(form.fungsi_sbg_alat_standar),
       jenis_label: form.jenis_label || 'calibration',
@@ -165,6 +166,8 @@ export function buildEquipmentPayload(form) {
   } else if (categoryId === 2) {
     detail = {
       peranti_lunak_versi: form.peranti_lunak_versi || '',
+      interval_bulan: Number(form.interval_bulan) || 0,
+      metode_pemeriksaan: form.metode_pemeriksaan,
       buat_histori_pemeriksaan_terpisah: true,
     };
   } else if (categoryId === 3) {
@@ -219,6 +222,9 @@ export function buildCalibrationPayload(form) {
     perkiraan_kembali: null,
     status: 'direncanakan',
     interval_bulan: Number(form.interval_bulan),
+    tgl_jatuh_tempo: toIsoDate(
+      calculateCalibrationDueDate(form.tgl_kalibrasi, form.interval_bulan),
+    ),
   };
 }
 

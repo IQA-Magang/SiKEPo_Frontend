@@ -255,7 +255,11 @@ export default function EquipmentCreate({ onNavigate }) {
           if (!cycle && !hasCompletedCycle) {
             throw new Error('Siklus kalibrasi tersimpan, tetapi detail siklus tidak dapat ditemukan.');
           }
-          if (cycle && ['direncanakan', 'dalam_proses'].includes(cycle.status)) {
+          if (
+            cycle &&
+            !hasCompletedCycle &&
+            ['direncanakan', 'dalam_proses'].includes(cycle.status)
+          ) {
             await kalibrasiApi.complete(cycle.id, {
               no_sertifikat: form.no_sertifikat.trim(),
               diterbitkan_oleh: form.diterbitkan_oleh.trim(),
@@ -263,6 +267,23 @@ export default function EquipmentCreate({ onNavigate }) {
               sertifikat_pdf: form.sertifikat_pdf_file,
               buat_rencana_berikutnya: false,
             });
+          }
+
+          history = await kalibrasiApi.getByEquipment(equipmentId);
+          if (!Array.isArray(history?.data)) {
+            throw new Error('Format respons histori kalibrasi tidak valid.');
+          }
+          const hasPlannedCycle = history.data.some(
+            (item) => ['direncanakan', 'dalam_proses'].includes(item.status),
+          );
+          const hasCompletedCalibration = history.data.some(
+            (item) => item.status === 'selesai',
+          );
+          if (hasCompletedCalibration && !hasPlannedCycle) {
+            await kalibrasiApi.create(
+              equipmentId,
+              buildCalibrationPayload(form),
+            );
           }
         } else {
           let history = await verifikasiFungsiApi.getByEquipment(equipmentId);
@@ -272,6 +293,7 @@ export default function EquipmentCreate({ onNavigate }) {
           let cycle = history.data.find((item) =>
             ['direncanakan', 'dalam_proses'].includes(item.status),
           );
+          const hasCompletedCycle = history.data.some((item) => item.status === 'selesai');
           if (!cycle) {
             const created = await verifikasiFungsiApi.create(
               equipmentId,
@@ -288,15 +310,13 @@ export default function EquipmentCreate({ onNavigate }) {
               );
             }
           }
-          if (cycle) {
+          if (cycle && !hasCompletedCycle) {
             const detailResponse = await verifikasiFungsiApi.getById(cycle.id);
             cycle = detailResponse?.data;
             if (!cycle?.id) {
               throw new Error('Detail siklus verifikasi fungsi tidak ditemukan.');
             }
-            if (cycle.status === 'direncanakan') {
-              await verifikasiFungsiApi.updateStatus(cycle.id, 'dalam_proses');
-            } else if (cycle.status !== 'dalam_proses') {
+            if (!['direncanakan', 'dalam_proses'].includes(cycle.status)) {
               throw new Error('Status siklus verifikasi fungsi tidak dapat diproses.');
             }
             await verifikasiFungsiApi.complete(cycle.id, {
@@ -307,6 +327,35 @@ export default function EquipmentCreate({ onNavigate }) {
               no_laporan: form.no_laporan.trim(),
               pdf_laporan: form.pdf_laporan_file,
             });
+          }
+
+          history = await verifikasiFungsiApi.getByEquipment(equipmentId);
+          if (!Array.isArray(history?.data)) {
+            throw new Error('Format respons histori verifikasi fungsi tidak valid.');
+          }
+          const hasPlannedCycle = history.data.some(
+            (item) => ['direncanakan', 'dalam_proses'].includes(item.status),
+          );
+          const hasCompletedVerification = history.data.some(
+            (item) => item.status === 'selesai',
+          );
+          if (hasCompletedVerification && !hasPlannedCycle) {
+            const created = await verifikasiFungsiApi.create(
+              equipmentId,
+              buildFunctionVerificationPayload(form),
+            );
+            if (!created?.data?.id) {
+              history = await verifikasiFungsiApi.getByEquipment(equipmentId);
+              if (!Array.isArray(history?.data)) {
+                throw new Error('Format respons histori verifikasi fungsi tidak valid.');
+              }
+              const nextCycleExists = history.data.some(
+                (item) => ['direncanakan', 'dalam_proses'].includes(item.status),
+              );
+              if (!nextCycleExists) {
+                throw new Error('Jadwal verifikasi fungsi berikutnya tidak berhasil dibuat.');
+              }
+            }
           }
         }
       }
