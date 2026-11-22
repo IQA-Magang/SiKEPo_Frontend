@@ -343,6 +343,8 @@ export default function EquipmentList({
         const rejected = equipment.status_verifikasi === "Ditolak";
         const description = rejected
           ? "Perlu verifikasi ulang"
+          : equipment.status_verifikasi === "Draft"
+            ? "Perlu diverifikasi"
           : !approved
             ? "Menunggu verifikasi"
             : equipment.status_alat === "Aktif"
