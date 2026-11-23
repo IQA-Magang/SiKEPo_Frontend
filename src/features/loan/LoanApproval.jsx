@@ -1322,7 +1322,7 @@ export default function LoanApproval({ onNavigate }) {
         return {
           canHandover: true,
           step: "pengelola",
-          label: "Pengisian Lampiran A & TTD Pengelola",
+          label: "Pengisian Pemeriksaan Kondisi & TTD Pengelola",
         };
       }
       return null;
@@ -1397,7 +1397,7 @@ export default function LoanApproval({ onNavigate }) {
       return {
         canHandover: true,
         step: "pengelola",
-        label: "Pengisian Lampiran A & TTD Pengelola",
+        label: "Pengisian Pemeriksaan Kondisi & TTD Pengelola",
       };
     }
     // Tahap 4B: Peminjam konfirmasi penerimaan & TTD
@@ -2287,7 +2287,7 @@ export default function LoanApproval({ onNavigate }) {
                 tanggal: nowFormatted,
                 catatan:
                   decisionNote ||
-                  "Persetujuan peminjaman disahkan. Silakan laksanakan serah terima keluar fisik menggunakan Lampiran A.",
+                  "Persetujuan peminjaman disahkan. Silakan laksanakan serah terima keluar fisik menggunakan Pemeriksaan Kondisi.",
                 ttd: digitalSignature,
               };
             }
@@ -2583,7 +2583,7 @@ export default function LoanApproval({ onNavigate }) {
               "Manager Lab pemilik meninjau dan menyetujui peminjaman.",
           },
           {
-            title: "Serah Terima & Checklist Lampiran A",
+            title: "Serah Terima & Checklist Pemeriksaan Kondisi",
             description:
               "Pengelola dan peminjam memeriksa kondisi alat sebelum serah terima.",
           },
@@ -4734,8 +4734,8 @@ export default function LoanApproval({ onNavigate }) {
                             </div>
                             <div style={{ fontSize: "12px", color: "#c2410c" }}>
                               {getPendingActionForUser(selectedLoan)?.canHandover
-                                ? "Alur kini diarahkan kepada Anda untuk melakukan pemeriksaan fisik bersama dan pengisian Lampiran A."
-                                : "Persetujuan izin telah disahkan. Menunggu Pengelola Peralatan dan Peminjam melaksanakan serah terima fisik (Lampiran A)."}
+                                ? "Alur kini diarahkan kepada Anda untuk melakukan pemeriksaan fisik bersama dan pengisian Pemeriksaan Kondisi."
+                                : "Persetujuan izin telah disahkan. Menunggu Pengelola Peralatan dan Peminjam melaksanakan serah terima fisik (Pemeriksaan Kondisi)."}
                             </div>
                           </div>
                         </div>
@@ -4754,7 +4754,7 @@ export default function LoanApproval({ onNavigate }) {
                             }}
                           >
                             <Package size={14} /> Mulai Serah Terima Fisik
-                            (Lampiran A)
+                            (Pemeriksaan Kondisi)
                           </button>
                         )}
                       </div>
@@ -4796,11 +4796,11 @@ export default function LoanApproval({ onNavigate }) {
                               fontSize: "13px",
                             }}
                           >
-                            Checklist Lampiran A Telah Diisi Pengelola!
+                            Checklist Pemeriksaan Kondisi Telah Diisi Pengelola!
                           </div>
                           <div style={{ fontSize: "12px", color: "#0284c7" }}>
                             {getPendingActionForUser(selectedLoan)?.canHandover
-                              ? "Pengelola telah memeriksa dan menandatangani checklist Lampiran A. Silakan konfirmasi penerimaan dan bubuhkan tanda tangan Anda."
+                              ? "Pengelola telah memeriksa dan menandatangani checklist Pemeriksaan Kondisi. Silakan konfirmasi penerimaan dan bubuhkan tanda tangan Anda."
                               : "Pemeriksaan fisik telah selesai dilakukan oleh Pengelola. Menunggu Peminjam melakukan konfirmasi dan tanda tangan digital."}
                           </div>
                         </div>
@@ -6895,7 +6895,7 @@ export default function LoanApproval({ onNavigate }) {
                 >
                   {checkoutStep === "peminjam" ? "✓" : "1"}
                 </span>
-                <span>Pengisian Lampiran A & TTD (Pengelola)</span>
+                <span>Pengisian Pemeriksaan Kondisi & TTD (Pengelola)</span>
               </div>
               <span style={{ color: "#94a3b8" }}>➔</span>
               <div
@@ -7578,7 +7578,7 @@ export default function LoanApproval({ onNavigate }) {
                         onChange={setCheckoutSigPengelola}
                         label="Tanda Tangan Pengelola Peralatan"
                         required={true}
-                        helperText="Tanda tangan digital untuk mengesahkan inspeksi fisik Lampiran A"
+                        helperText="Tanda tangan digital untuk mengesahkan inspeksi fisik Pemeriksaan Kondisi"
                         savedSignature={userSavedSig}
                         onRestore={() => setCheckoutSigPengelola(userSavedSig)}
                         onForgetSaved={handleForgetSavedSig}
@@ -7638,7 +7638,7 @@ export default function LoanApproval({ onNavigate }) {
                             marginTop: 2,
                           }}
                         >
-                          Status: Telah memeriksa & menandatangani Lampiran A
+                          Status: Telah memeriksa & menandatangani Pemeriksaan Kondisi
                         </div>
                       </div>
 

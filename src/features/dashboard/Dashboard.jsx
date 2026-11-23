@@ -734,7 +734,7 @@ function LoanPipelineSummary({ loans = [], onNavigate, loading = false }) {
           { title: 'ATASAN', value: tahap1, subtitle: 'Validasi atasan peminjam' },
           { title: 'PENGELOLA', value: tahap2, subtitle: 'Review teknis & ketersediaan' },
           { title: 'MGR LAB', value: tahap3, subtitle: 'Pengesahan izin final' },
-          { title: 'SERAH TERIMA', value: tahap4, subtitle: 'Cek fisik Lampiran A bersama peminjam' },
+          { title: 'SERAH TERIMA', value: tahap4, subtitle: 'Cek fisik Pemeriksaan Kondisi bersama peminjam' },
         ].map((item) => (
           <div
             key={item.title}

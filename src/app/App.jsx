@@ -38,6 +38,7 @@ const LandingPage = lazy(() => import('../pages/LandingPage.jsx'));
 const GuestEquipmentPage = lazy(() => import('../features/guest-equipment/GuestEquipmentPage.jsx'));
 const LoanRequest = lazy(() => import('../features/loan/LoanRequest.jsx'));
 const LoanApproval = lazy(() => import('../features/loan/LoanApproval.jsx'));
+const EquipmentReviewManagement = lazy(() => import('../features/review/EquipmentReviewManagement.jsx'));
 const QRScannerModal = lazy(() => import('../shared/components/QRScannerModal.jsx'));
 
 // Wrapper for parameterized Equipment Detail
@@ -317,7 +318,7 @@ function AppContent() {
           }
         />
         <Route path="/peralatan/menunggu-verifikasi" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="pending" returnPath="/peralatan/menunggu-verifikasi" /></ProtectedRoute>} />
-        <Route path="/peralatan/dalam-peninjauan" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentLifecycleRoute lifecycle="review" returnPath="/peralatan/dalam-peninjauan" /></ProtectedRoute>} />
+        <Route path="/peralatan/dalam-peninjauan" element={<ProtectedRoute feature={ACCESS.EQUIPMENT_ELIGIBILITY}><EquipmentReviewManagement onNavigate={navigate} /></ProtectedRoute>} />
         <Route
           path="/verifikasi"
           element={
