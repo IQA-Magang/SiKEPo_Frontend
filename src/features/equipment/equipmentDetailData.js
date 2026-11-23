@@ -42,7 +42,7 @@ export function getActivityName(code) {
     A1: 'Penerimaan alat baru',
     A2: 'Kalibrasi',
     A3: 'Peminjaman / pemindahan / penyewaan',
-    A4: 'Pemeliharaan',
+    A4: 'Setelah pemeliharaan',
     A5: 'Pengecekan antara / verifikasi fungsi',
   };
   const activityCode = String(code || '').trim().toUpperCase();

@@ -347,9 +347,9 @@ export default function EquipmentList({
         const description = rejected
           ? "Perlu verifikasi ulang"
           : equipment.status_verifikasi === "Draft"
-            ? "Perlu diverifikasi"
+            ? "Menunggu Verifikasi"
           : !approved
-            ? "Menunggu verifikasi"
+            ? "Menunggu Persetujuan"
             : equipment.status_alat === "Aktif"
               ? "Masuk inventaris"
               : equipment.status_alat === "Dalam Kalibrasi"

@@ -109,7 +109,11 @@ export default function VerificationFormPage({
               variant="ghost"
               className="btn-icon"
               onClick={() => navigate(returnPath)}
-              aria-label={returnPath === "/verifikasi" ? "Kembali ke Verifikasi" : "Kembali ke Peralatan"}
+              aria-label={
+                returnPath === "/verifikasi"
+                  ? "Kembali ke Verifikasi"
+                  : "Kembali ke Peralatan"
+              }
               title={
                 returnPath === "/verifikasi"
                   ? "Kembali ke Verifikasi"
@@ -121,10 +125,10 @@ export default function VerificationFormPage({
             <div>
               <h1 className="page-title">
                 {role === "manager"
-              ? "Tinjau Verifikasi Alat Ukur"
-              : isRejected
-                ? "Verifikasi Ulang Peralatan"
-                : "Verifikasi Alat Ukur"}
+                  ? "Tinjau Verifikasi Alat Ukur"
+                  : isRejected
+                    ? "Verifikasi Ulang Peralatan"
+                    : "Verifikasi Alat Ukur"}
               </h1>
               {/* <p className="page-subtitle">
                 Form TLKM13/F/003 untuk mencatat pemeriksaan peralatan. Isi
@@ -133,7 +137,6 @@ export default function VerificationFormPage({
               </p> */}
             </div>
           </div>
-
         </div>
 
         {/* Informasi Peralatan */}
@@ -240,15 +243,16 @@ export default function VerificationFormPage({
                 color: "var(--clr-dark-600)",
               }}
             >
-              <strong>Keterangan:</strong>{" "}
-              {activityCode} — {getActivityLabel(activityCode)}
+              <strong>Keterangan:</strong> {getActivityLabel(activityCode)}
             </div>
-
           </div>
         ) : null}
 
         {/* Form Pengisian Verifikasi */}
-        <form className="card card-padded verification-form" onSubmit={submitVerifikasi}>
+        <form
+          className="card card-padded verification-form"
+          onSubmit={submitVerifikasi}
+        >
           <VerificationIdentitySection
             equipmentInfo={equipmentInfo}
             form={form}
@@ -281,10 +285,7 @@ export default function VerificationFormPage({
               paddingTop: "var(--sp-4)",
             }}
           >
-            <Button
-              variant="secondary"
-              onClick={() => navigate(returnPath)}
-            >
+            <Button variant="secondary" onClick={() => navigate(returnPath)}>
               Batal
             </Button>
             <Button

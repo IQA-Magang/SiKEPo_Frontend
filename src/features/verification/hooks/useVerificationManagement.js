@@ -218,6 +218,8 @@ export default function useVerificationManagement({
             ((activityCode === "" || activityCode === "A1") ||
               (["A2", "A3"].includes(activityCode) &&
                 item.status_verifikasi === "Belum Diverifikasi") ||
+              (activityCode === "A4" &&
+                item.status_verifikasi === "Belum Diverifikasi") ||
               (["A2", "A5"].includes(activityCode) &&
                 item.status_verifikasi === "Draft")) &&
             !pendingFollowUpEquipmentIds.has(String(getEquipmentId(item)))

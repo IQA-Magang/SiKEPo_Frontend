@@ -43,8 +43,12 @@ import { getSafeReturnPath } from "../../app/router/Router.jsx";
 function getLogActionValue(log) {
   const record = log.record || log;
   const verification = record.verifikasi || record;
-  if (log.jenis === "verifikasi" && verification.kode_aktivitas) {
-    return String(verification.kode_aktivitas).toUpperCase();
+  if (log.jenis === "verifikasi") {
+    if (verification?.kode_aktivitas) {
+      return String(verification.kode_aktivitas).toUpperCase();
+    }
+    const activityName = getVerificationActivityName(log);
+    if (activityName) return activityName;
   }
   return String(
     record.aksi ||
@@ -57,11 +61,28 @@ function getLogActionValue(log) {
 function getLogActionLabel(log, actionValue) {
   const record = log.record || log;
   const verification = record.verifikasi || record;
-  if (log.jenis === "verifikasi" && verification.kode_aktivitas) {
-    return getActivityName(verification.kode_aktivitas);
+  if (log.jenis === "verifikasi") {
+    const activityName = getVerificationActivityName(log);
+    if (activityName) return activityName;
   }
   if (record.aksi) return log.title || log.judul || record.aksi.replaceAll("_", " ");
   return log.title || log.judul || actionValue;
+}
+
+function getVerificationActivityName(log) {
+  const record = log?.record || log;
+  const verification = record?.verifikasi || record;
+  const name =
+    verification?.nama_aktivitas ||
+    record?.nama_aktivitas ||
+    log?.nama_aktivitas;
+  if (String(name || "").trim()) return String(name).trim();
+
+  const code =
+    verification?.kode_aktivitas ||
+    record?.kode_aktivitas ||
+    log?.kode_aktivitas;
+  return code ? getActivityName(code) : "";
 }
 
 function getLogStatusBadgeClass(status) {
@@ -1185,6 +1206,18 @@ export default function EquipmentDetail({
                               >
                                 Verifikasi peralatan
                               </div>
+                              {getVerificationActivityName(latestLog) && (
+                                <div
+                                  style={{
+                                    marginTop: 4,
+                                    fontSize: "var(--text-sm)",
+                                    color: "var(--clr-dark-700)",
+                                    fontWeight: "var(--fw-medium)",
+                                  }}
+                                >
+                                  Nama aktivitas: {getVerificationActivityName(latestLog)}
+                                </div>
+                              )}
                               <div style={{ marginTop: 4, fontSize: "var(--text-sm)", color: "var(--clr-dark-600)" }}>
                                 {logs.length} aksi tercatat · aksi terakhir: {latestLog.title}
                               </div>
@@ -2169,7 +2202,7 @@ function getActivityName(code) {
     A1: "Penerimaan alat baru",
     A2: "Kalibrasi",
     A3: "Peminjaman / pemindahan / penyewaan",
-    A4: "Pemeliharaan",
+    A4: "Setelah pemeliharaan",
     A5: "Pengecekan antara / verifikasi fungsi",
   };
   const activityCode = String(code || "")
