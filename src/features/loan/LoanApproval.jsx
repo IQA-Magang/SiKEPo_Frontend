@@ -956,6 +956,34 @@ function hariTerlambat(loan) {
   return selisih > 0 ? selisih : 0;
 }
 
+// Status pengajuan yang alatnya belum diserahkan. Bila hari ini sudah lewat dari
+// rencana tanggal kembali, backend mengubahnya menjadi KADALUARSA (job harian 07.00
+// atau saat ada aksi), jadi aksi persetujuan dan serah terima tidak ditampilkan lagi.
+const STATUS_BELUM_DISERAHKAN = [
+  "MENUNGGU_MANAGER_PEMINJAM",
+  "MENUNGGU_PENGELOLA",
+  "MENUNGGU_MANAGER_LAB",
+  "MENUNGGU_SERAH_TERIMA",
+  "DISETUJUI",
+  "SIAP_DISERAHKAN",
+];
+
+function lewatTanggalBelumDiserahkan(loan) {
+  if (!STATUS_BELUM_DISERAHKAN.includes(loan?.status) || !loan.rencana_tanggal_kembali) return false;
+  return String(loan.rencana_tanggal_kembali).slice(0, 10) < tanggalHariIni();
+}
+
+// Serah terima keluar dianggap selesai bila Pengelola dan Peminjam sama-sama sudah
+// menandatangani. Sebelum itu, surat peminjaman belum boleh dicetak (daftar, detail,
+// maupun form serah terima).
+function serahTerimaSelesai(loan) {
+  const st = loan?.serah_terima_keluar;
+  return (
+    ["SEDANG_DIPINJAM", "DIKEMBALIKAN"].includes(loan?.status) ||
+    Boolean(st?.ttd_pengelola && st?.ttd_peminjam)
+  );
+}
+
 // Badge pengganti "Sedang Dipinjam" bila alat sudah lewat rencana tanggal kembali
 function metaTerlambat(hari) {
   return {
@@ -1027,6 +1055,12 @@ const STATUS_META = {
     badgeClass: "badge-error",
     color: "#dc2626",
     bg: "#fee2e2",
+  },
+  KADALUARSA: {
+    label: "Kadaluarsa",
+    badgeClass: "badge-gray",
+    color: "#64748b",
+    bg: "#f1f5f9",
   },
 };
 
@@ -1272,6 +1306,7 @@ export default function LoanApproval({ onNavigate }) {
   // Mendeteksi apakah tiket sedang menunggu review/tindakan dari akun login
   function getPendingActionForUser(loan) {
     if (!loan) return null;
+    if (lewatTanggalBelumDiserahkan(loan)) return null;
     const {
       isPeminjam,
       isPengelola,
@@ -2305,6 +2340,10 @@ export default function LoanApproval({ onNavigate }) {
       setSelectedLoan(null);
     } catch (err) {
       toastError(err.message || "Gagal menyimpan keputusan.");
+      if (err.status === 409) {
+        setSelectedLoan(null);
+        await fetchLoans();
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -2387,6 +2426,10 @@ export default function LoanApproval({ onNavigate }) {
         }
       } catch (err) {
         toastError(err.message || "Gagal memproses serah terima keluar");
+        if (err.status === 409) {
+          setSelectedLoan(null);
+          await fetchLoans();
+        }
       } finally {
         setIsSubmitting(false);
       }
@@ -2428,6 +2471,10 @@ export default function LoanApproval({ onNavigate }) {
         );
       } catch (err) {
         toastError(err.message || "Gagal mengonfirmasi penerimaan peralatan");
+        if (err.status === 409) {
+          setSelectedLoan(null);
+          await fetchLoans();
+        }
       } finally {
         setIsSubmitting(false);
       }
@@ -2651,6 +2698,7 @@ export default function LoanApproval({ onNavigate }) {
               { value: "SIAP_DISERAHKAN", label: "Siap Diserahkan (TTD Peminjam)" },
               { value: "SEDANG_DIPINJAM", label: "Sedang Dipinjam (Alat Diserahkan)" },
               { value: "TERLAMBAT", label: "Belum Dikembalikan (Terlambat)" },
+              { value: "KADALUARSA", label: "Kadaluarsa" },
               { value: "DIKEMBALIKAN", label: "Dikembalikan" },
               { value: "DIBATALKAN_TS", label: "Dibatalkan (Ada TS - DO NOT USE)" },
               { value: "DITOLAK", label: "Ditolak" },
@@ -2810,7 +2858,11 @@ export default function LoanApproval({ onNavigate }) {
               ) : (
                 paginatedLoans.map((loan) => {
                   const terlambat = hariTerlambat(loan);
-                  const meta = terlambat > 0 ? metaTerlambat(terlambat) : STATUS_META[loan.status] || {
+                  const meta = terlambat > 0
+                    ? metaTerlambat(terlambat)
+                    : lewatTanggalBelumDiserahkan(loan)
+                      ? { ...STATUS_META.KADALUARSA, label: "Kadaluarsa (lewat rencana kembali)" }
+                      : STATUS_META[loan.status] || {
                     label: loan.status,
                     badgeClass: "badge-gray",
                     color: "#64748b",
@@ -3470,14 +3522,7 @@ export default function LoanApproval({ onNavigate }) {
                             <Eye size={13} /> Detail
                           </button>
 
-                          {(loan.approval_manager_lab?.status === "approved" ||
-                            [
-                              "DISETUJUI",
-                              "MENUNGGU_SERAH_TERIMA",
-                              "SIAP_DISERAHKAN",
-                              "SEDANG_DIPINJAM",
-                              "DIKEMBALIKAN",
-                            ].includes(loan.status)) && (
+                          {serahTerimaSelesai(loan) && (
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-sm"
@@ -3497,7 +3542,7 @@ export default function LoanApproval({ onNavigate }) {
                                   fontWeight: 600,
                                   boxShadow: "0 1px 2px rgba(0, 0, 0, 0.08)",
                                 }}
-                                title="Cetak Surat Keterangan Peminjaman Peralatan (TLKM13/F/006 Versi 03)"
+                                title="Cetak Surat Peminjaman Peralatan (TLKM13/F/00X Versi 01)"
                               >
                                 <Printer size={13} /> PDF
                               </button>
@@ -3677,16 +3722,8 @@ export default function LoanApproval({ onNavigate }) {
                   <div
                     style={{ display: "flex", alignItems: "center", gap: 8 }}
                   >
-                    {/* Tombol Cetak F/006 bila sudah disahkan Manager Lab atau masuk proses serah terima */}
-                    {(selectedLoan.approval_manager_lab?.status ===
-                      "approved" ||
-                      [
-                        "DISETUJUI",
-                        "MENUNGGU_SERAH_TERIMA",
-                        "SIAP_DISERAHKAN",
-                        "SEDANG_DIPINJAM",
-                        "DIKEMBALIKAN",
-                      ].includes(selectedLoan.status)) && (
+                    {/* Tombol cetak surat peminjaman hanya setelah serah terima keluar selesai */}
+                    {serahTerimaSelesai(selectedLoan) && (
                         <button
                           type="button"
                           className="btn btn-secondary btn-sm"
@@ -3703,9 +3740,9 @@ export default function LoanApproval({ onNavigate }) {
                             height: "32px",
                           }}
                           onClick={() => exportLoanF006Pdf(selectedLoan)}
-                          title="Cetak Surat Keterangan Peminjaman Peralatan (TLKM13/F/006 Versi 03)"
+                          title="Cetak Surat Peminjaman Peralatan (TLKM13/F/00X Versi 01)"
                         >
-                          <Printer size={14} /> Cetak F/006 (PDF)
+                          <Printer size={14} /> Cetak Surat (PDF)
                         </button>
                       )}
                     <button
@@ -3775,7 +3812,7 @@ export default function LoanApproval({ onNavigate }) {
                                 ) : ticketLogs.map((log, index) => {
                                   const status = log.status || "—";
                                   const statusClass =
-                                    status === "DITOLAK"
+                                    status === "DITOLAK" || status === "KADALUARSA"
                                       ? "badge-rusak"
                                       : ["DISETUJUI", "DIKEMBALIKAN", "SEDANG_DIPINJAM"].includes(status)
                                         ? "badge-aktif"
@@ -3797,7 +3834,7 @@ export default function LoanApproval({ onNavigate }) {
                                           </div>
                                         )}
                                         <div style={{ marginTop: 4, color: "var(--clr-dark-500)", fontSize: "var(--text-xs)" }}>
-                                          {log.user?.name || "Pelaku tidak tersedia"}
+                                          {log.user?.name || (log.aksi === "kadaluarsa" ? "Sistem" : "Pelaku tidak tersedia")}
                                           {log.created_at && ` · ${new Date(log.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}`}
                                         </div>
                                       </div>
@@ -3811,6 +3848,34 @@ export default function LoanApproval({ onNavigate }) {
                       })()
                     )}
                   </section>
+
+                  {/* Alasan pengajuan kadaluarsa */}
+                  {selectedLoan.status === "KADALUARSA" && (
+                    <div
+                      style={{
+                        background: "#f8fafc",
+                        border: "1.5px solid #cbd5e1",
+                        borderRadius: 8,
+                        padding: "12px 14px",
+                        marginBottom: "var(--sp-4)",
+                        fontSize: "12px",
+                        color: "#334155",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 10,
+                      }}
+                    >
+                      <Clock size={18} style={{ color: "#64748b", flexShrink: 0, marginTop: 1 }} />
+                      <div>
+                        <strong style={{ color: "#0f172a" }}>Pengajuan kadaluarsa.</strong>{" "}
+                        {selectedLoan.alasan_pembatalan ||
+                          `Belum sampai serah terima hingga rencana tanggal kembali ${selectedLoan.rencana_tanggal_kembali}.`}
+                        <div style={{ marginTop: 4, color: "#64748b" }}>
+                          Pengajuan ini tidak dapat diproses lagi. Bila peralatan masih dibutuhkan, ajukan peminjaman baru.
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Banner Informasi / Aksi Perpanjangan Peminjaman */}
                   {selectedLoan.status === "SEDANG_DIPINJAM" &&
@@ -7465,12 +7530,15 @@ export default function LoanApproval({ onNavigate }) {
                           marginTop: 2,
                         }}
                       >
-                        {selectedLoan.is_eksternal
-                          ? "Peminjaman Eksternal: Wajib dicetak dan dibawa bersama alat untuk pemeriksaan pos Petugas Pengamanan TTH."
-                          : "Peminjaman Internal: Siap dicetak atau diunduh sebagai arsip."}
+                        {!serahTerimaSelesai(selectedLoan)
+                          ? "Dokumen dapat dicetak setelah Pengelola Peralatan dan Peminjam sama-sama menyelesaikan serah terima."
+                          : selectedLoan.is_eksternal
+                            ? "Peminjaman Eksternal: Wajib dicetak dan dibawa bersama alat untuk pemeriksaan pos Petugas Pengamanan TTH."
+                            : "Peminjaman Internal: Siap dicetak atau diunduh sebagai arsip."}
                       </div>
                     </div>
                   </div>
+                  {serahTerimaSelesai(selectedLoan) && (
                   <div
                     style={{ display: "flex", alignItems: "center", gap: 8 }}
                   >
@@ -7519,6 +7587,7 @@ export default function LoanApproval({ onNavigate }) {
                       <Download size={13} /> Word
                     </button>
                   </div>
+                  )}
                 </div>
               )}
 

@@ -1,12 +1,11 @@
 /**
- * Utility untuk mengekspor Surat Keterangan Peminjaman Peralatan (TLKM13/F/006 Versi 03)
- * ke format PDF melalui dialog cetak browser (Save as PDF) dan Word (.doc)
- * dengan tata letak resmi standar Telkom Test House (TTH).
- * 
- * Sesuai pemutakhiran Versi 03:
- * - Berlaku untuk peminjaman INTERNAL maupun EKSTERNAL oleh personel TTH (TLKM13/IK/005).
- * - Satu formulir untuk satu unit peralatan.
- * - 4 pihak penandatangan: Peminjam, Mengetahui Mgr. Lab Peminjam, Diperiksa PIC Peralatan, Menyetujui Mgr. Lab Pemilik Peralatan.
+ * Utility untuk mengekspor Surat Peminjaman Peralatan (TLKM13/F/00X Versi 01)
+ * ke format PDF melalui dialog cetak browser (Save as PDF) dan Word (.doc).
+ *
+ * Isi mengikuti TLKM13/F/00X Versi 01:
+ * - A. Data Peminjaman & Pengguna Peralatan, B. Data Peralatan,
+ * - C. Persetujuan Peminjaman (Peminjam, Mgr. Lab Peminjam, Mgr. Lab Pemilik),
+ * - D. Serah Terima dan Pemeriksaan Kondisi (kondisi keluar dan kembali).
  */
 
 import { peminjamanApi } from '../services/api.js';
@@ -73,6 +72,37 @@ function getCleanSignature(rawTtd, roleSeed = '1') {
   return str;
 }
 
+// Escape teks dari data pengguna sebelum dimasukkan ke HTML cetak
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Butir pemeriksaan serah terima sesuai TLKM13/F/00X bagian D
+const BUTIR_SERAH_TERIMA = [
+  'Identitas peralatan dan label status',
+  'Kelengkapan aksesori dan manual',
+  'Kondisi fisik',
+  'Keutuhan segel',
+  'Fungsi awal (bila relevan)',
+];
+
+function renderKondisi(status) {
+  const s = String(status || '').toUpperCase();
+  return `${renderCheckbox(s === 'S', 'S')}${renderCheckbox(s === 'TS', 'TS')}`;
+}
+
+// Kotak tanda tangan: gambar bila ada, catatan bila tahap sudah tercatat tanpa tanda tangan
+function renderSigBox(ttd, alt, sudahTercatat, catatan) {
+  if (ttd) return `<img class="sig-img" src="${esc(ttd)}" alt="${esc(alt)}" />`;
+  if (sudahTercatat) return `<span class="sig-digital-badge">${esc(catatan)}</span>`;
+  return '';
+}
+
 export function buildLoanF006Html(loan, options = {}) {
   if (!loan) return '';
 
@@ -81,527 +111,336 @@ export function buildLoanF006Html(loan, options = {}) {
   const peralatan = loan.peralatan || {};
   const peminjam = loan.peminjam || {};
   const serahKeluar = loan.serah_terima_keluar || {};
+  const serahKembali = loan.serah_terima_kembali || {};
   const appMgrPeminjam = loan.approval_manager_peminjam || {};
   const appPengelola = loan.approval_pengelola || {};
   const appMgrLab = loan.approval_manager_lab || {};
 
-  // Deteksi lab pemilik untuk checkbox di header
+  // Laboratorium pemilik peralatan
   const labPemilik = (peralatan.lab_pemilik || '').toUpperCase();
   const isIQA = labPemilik.includes('IQA');
   const isDES = labPemilik.includes('DES');
   const isSSA = labPemilik.includes('SSA');
 
-  // Metadata Surat
-  const nomorSurat = loan.f006_nomor || loan.kode || loan.id || '........................................';
-  const rawTanggal = serahKeluar.tanggal || loan.tanggal_keluar_aktual || appMgrLab.tanggal || loan.tanggal_pengajuan || new Date();
-  const tanggalSurat = formatTanggalIndo(rawTanggal);
+  const nomorSurat = loan.kode || loan.f006_nomor || loan.id || '........................................';
 
-  // Bagian A: Data Peminjaman
+  // Bagian A: Data Peminjaman & Pengguna Peralatan
   const isEksternal = Boolean(loan.is_eksternal);
   const peminjamNama = peminjam.nama || loan.peminjam_nama || '-';
-  const operatorNama = loan.nama_operator || peminjam.operator || '';
   const unitPeminjam = peminjam.lab_asal || peminjam.unit || '-';
+  const kontakPeminjam = peminjam.kontak || peminjam.email || peminjam.telepon || '';
+  const operatorNama = (loan.nama_operator || peminjam.operator || '').trim();
 
-  // Keperluan peminjaman
   const tujuan = (loan.tujuan_penggunaan || loan.keperluan || '').trim();
   const tujuanLower = tujuan.toLowerCase();
-  const isPengujian = tujuanLower.includes('pengujian') || (!tujuanLower.includes('uji lokasi') && !tujuanLower.includes('pengecekan antara') && tujuanLower.length > 0 && !tujuanLower.includes('lainnya'));
   const isUjiLokasi = tujuanLower.includes('uji lokasi') || tujuanLower.includes('site') || tujuanLower.includes('outdoor');
   const isPengecekanAntara = tujuanLower.includes('pengecekan antara') || tujuanLower.includes('verifikasi fungsi');
+  const isPengujian = tujuanLower.length > 0 && !isUjiLokasi && !isPengecekanAntara && !tujuanLower.includes('lainnya');
   const isLainnya = !isPengujian && !isUjiLokasi && !isPengecekanAntara;
 
-  // Dasar Pelaksanaan
   const noSPK = (loan.nomor_spk || '').trim();
   const spkLower = noSPK.toLowerCase();
-  const isDasarSPK = spkLower.includes('spk') || spkLower.includes('reg') || spkLower.length > 0;
-  const isDasarST = spkLower.includes('st') || spkLower.includes('tugas');
   const isDasarND = spkLower.includes('nd') || spkLower.includes('nota');
-  const isDasarLainnya = !isDasarSPK && !isDasarST && !isDasarND;
+  const isDasarSPK = noSPK.length > 0 && !isDasarND;
+  const isDasarLainnya = !isDasarSPK && !isDasarND;
 
   const lokasiPenggunaan = loan.lokasi_penggunaan || (isEksternal ? 'Lokasi Eksternal' : 'Internal Telkom Test House');
-  const tglKeluarFormatted = formatTanggalIndo(loan.rencana_tanggal_keluar || loan.tanggal_keluar_aktual);
-  const tglKembaliFormatted = formatTanggalIndo(loan.rencana_tanggal_kembali);
+  const tglKeluar = formatTanggalIndo(loan.tanggal_keluar_aktual || loan.rencana_tanggal_keluar);
+  const tglKembali = formatTanggalIndo(loan.rencana_tanggal_kembali);
 
   // Bagian B: Data Peralatan
   const namaAlat = peralatan.nama_peralatan || '-';
-  const nomorAset = peralatan.nomor_aset || '-';
-  const nomorSeri = peralatan.nomor_seri || '-';
-  const merek = peralatan.merek || '-';
-  const tipeModel = peralatan.tipe || peralatan.tipe_model || '-';
-  const kelengkapan = loan.kelengkapan || loan.kebutuhan_kelengkapan || loan.kebutuhan_aksesori || 'Sesuai daftar inventaris standar pabrikan';
+  const kelengkapan = loan.kebutuhan_kelengkapan || loan.kelengkapan || loan.kebutuhan_aksesori || '-';
   const tglJatuhTempo = peralatan.tgl_jatuh_tempo ? formatTanggalIndo(peralatan.tgl_jatuh_tempo) : '-';
 
-  // Status Kelayakan: Layak jika serah terima tidak ada TS
-  const isAdaTS = serahKeluar.ada_ts === true;
-  const isLayak = !isAdaTS;
-
-  // Bagian C: 4 Penandatangan dengan resolver tanda tangan valid
-  // 1. Peminjam
-  const ttdPeminjam = getCleanSignature(checkoutSigPeminjam || serahKeluar.ttd_peminjam || loan.peminjam?.ttd || peminjam.ttd || null, '1');
-  const tglTtdPeminjam = formatTanggalIndo(serahKeluar.tanggal_diterima || serahKeluar.tanggal || rawTanggal);
-
-  // 2. Mengetahui, Mgr. Lab Peminjam
-  const mgrPeminjamNama = appMgrPeminjam.nama || 'Mgr. Lab Peminjam';
+  // Bagian C: Persetujuan Peminjaman (3 pihak)
+  const labPeminjamLabel = unitPeminjam !== '-' ? unitPeminjam : 'Lab Peminjam';
+  const labPemilikLabel = peralatan.lab_pemilik || 'Lab Pemilik';
+  const ttdPeminjamAju = getCleanSignature(peminjam.ttd || null, '1');
   const ttdMgrPeminjam = getCleanSignature(appMgrPeminjam.ttd || null, '2');
-  const tglTtdMgrPeminjam = formatTanggalIndo(appMgrPeminjam.tanggal || rawTanggal);
-
-  // 3. Diperiksa, PIC Peralatan
-  const picNama = appPengelola.nama || serahKeluar.pic_petugas || 'PIC Peralatan / Pengelola';
-  const ttdPIC = getCleanSignature(checkoutSigPengelola || serahKeluar.ttd_pengelola || appPengelola.ttd || null, '3');
-  const tglTtdPIC = formatTanggalIndo(serahKeluar.tanggal || appPengelola.tanggal || rawTanggal);
-
-  // 4. Menyetujui, Mgr. Lab Pemilik Peralatan
-  const mgrLabNama = appMgrLab.nama || 'Mgr. Lab Pemilik Peralatan';
   const ttdMgrLab = getCleanSignature(appMgrLab.ttd || null, '4');
-  const tglTtdMgrLab = formatTanggalIndo(appMgrLab.tanggal || rawTanggal);
+  const mgrPeminjamSkip = appMgrPeminjam.status === 'skipped';
+
+  // Bagian D: Serah Terima dan Pemeriksaan Kondisi
+  const butirKeluar = Array.isArray(serahKeluar.lampiran_a) ? serahKeluar.lampiran_a : [];
+  const butirKembali = Array.isArray(serahKembali.lampiran_a) ? serahKembali.lampiran_a : [];
+  const sudahKembali = Boolean(serahKembali.tanggal);
+  const rowsButir = BUTIR_SERAH_TERIMA.map((label, idx) => {
+    const keluar = butirKeluar[idx] || {};
+    const kembali = butirKembali[idx] || {};
+    const ket = kembali.keterangan || keluar.keterangan || kembali.keterangan_keluar || '';
+    return `<tr>
+      <td style="text-align:center;">${idx + 1}.</td>
+      <td>${esc(label)}</td>
+      <td style="text-align:center;">${renderKondisi(keluar.status || kembali.status_keluar)}</td>
+      <td style="text-align:center;">${renderKondisi(kembali.status)}</td>
+      <td>${ket ? esc(ket) : (idx === 4 ? '<em>(wajib diisi)</em>' : '')}</td>
+    </tr>`;
+  }).join('');
+
+  const perpanjanganDisetujui = (loan.perpanjangan || []).filter((p) => p.status === 'disetujui');
+  const perpanjanganTerakhir = perpanjanganDisetujui[perpanjanganDisetujui.length - 1];
+  const tglPerpanjangan = perpanjanganTerakhir ? formatTanggalIndo(perpanjanganTerakhir.tanggal_kembali_baru) : '..............................';
+  const parafPerpanjangan = perpanjanganTerakhir ? esc(perpanjanganTerakhir.diputuskan_oleh || '-') : '.........................';
+
+  const adaKejadian = Boolean(serahKembali.ada_kejadian);
+  const ketKejadian = adaKejadian
+    ? [serahKembali.uraian_kejadian,
+      serahKembali.tanggal_kejadian ? `tanggal ${formatTanggalIndo(serahKembali.tanggal_kejadian)}` : '',
+      serahKembali.lokasi_kejadian ? `lokasi ${serahKembali.lokasi_kejadian}` : '']
+      .filter(Boolean).join('; ')
+    : '';
+  const tindakLanjut = serahKembali.tindak_lanjut || '';
+
+  const pengelolaNama = serahKeluar.pic_petugas || appPengelola.nama || '';
+  const ttdKeluarPengelola = getCleanSignature(checkoutSigPengelola || serahKeluar.ttd_pengelola || null, '3');
+  const ttdKeluarPeminjam = getCleanSignature(checkoutSigPeminjam || serahKeluar.ttd_peminjam || null, '1');
+  const ttdKembaliPeminjam = getCleanSignature(serahKembali.ttd_peminjam || null, '1');
+  const ttdKembaliPengelola = getCleanSignature(serahKembali.ttd_pengelola || null, '3');
+
+  const tglOrKosong = (d) => (d ? formatTanggalIndo(d) : '');
 
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Surat_Keterangan_Peminjaman_${peralatan.nomor_aset || 'Alat'}_TLKM13-F-006</title>
+  <title>Surat_Peminjaman_${esc(peralatan.nomor_aset || 'Alat')}_TLKM13-F-00X</title>
   <style>
-    @page {
-      size: A4 portrait;
-      margin: 10mm 15mm 10mm 15mm;
-    }
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-    body {
-      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
-      font-size: 9.5pt;
-      line-height: 1.3;
-      color: #000000;
-      background: #ffffff;
-      padding: 4px;
-    }
-    
-    /* Header Table */
-    .header-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1.5px solid #000000;
-      margin-bottom: 8px;
-    }
-    .header-table td {
-      border: 1px solid #000000;
-      padding: 4px 8px;
-      vertical-align: middle;
-    }
-    .logo-td {
-      width: 32%;
-    }
-    .telkom-logo {
-      font-size: 14pt;
-      font-weight: 900;
-      color: #EE2E24;
-      letter-spacing: 0.5px;
-      display: inline-block;
-    }
-    .telkom-sub {
-      font-size: 8pt;
-      font-weight: 700;
-      color: #1f2937;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      margin-top: 1px;
-    }
-    .lab-box {
-      margin-top: 4px;
-      font-size: 8.5pt;
-      font-weight: 600;
-      color: #111827;
-    }
-    .title-td {
-      width: 44%;
-      text-align: center;
-    }
-    .doc-main-title {
-      font-size: 11pt;
-      font-weight: bold;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      line-height: 1.25;
-    }
-    .meta-td {
-      width: 24%;
-      font-size: 8.5pt;
-      text-align: left;
-      line-height: 1.35;
-      font-weight: 600;
-    }
-
-    /* Nomor & Tanggal Bar */
-    .meta-bar-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid #000000;
-      margin-bottom: 8px;
-      font-size: 9.5pt;
-    }
-    .meta-bar-table td {
-      padding: 4px 8px;
-      border: 1px solid #000000;
-    }
-
-    /* Section Header */
-    .section-banner {
-      background-color: #f1f5f9;
-      border: 1px solid #000000;
-      border-bottom: none;
-      padding: 4px 8px;
-      font-size: 9.5pt;
-      font-weight: bold;
-      text-transform: uppercase;
-    }
-
-    /* Form Data Table */
-    .form-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid #000000;
-      margin-bottom: 8px;
-      font-size: 9pt;
-    }
-    .form-table td {
-      border: 1px solid #000000;
-      padding: 4px 6px;
-      vertical-align: top;
-    }
-    .col-label {
-      width: 24%;
-      font-weight: 600;
-      background-color: #fafafa;
-    }
-    .col-content {
-      width: 76%;
-    }
-    .sub-col-label {
-      width: 18%;
-      font-weight: 600;
-      background-color: #fafafa;
-    }
-    .sub-col-content {
-      width: 32%;
-    }
-
-    .footnote {
-      font-size: 7.5pt;
-      color: #374151;
-      font-style: italic;
-      margin: -4px 0 8px 2px;
-      line-height: 1.2;
-    }
-
-    /* Signature Table - Gunakan display block & text-align center agar stabil di print engine */
-    .sig-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid #000000;
-      margin-bottom: 8px;
-      font-size: 8.5pt;
-    }
-    .sig-table th {
-      border: 1px solid #000000;
-      padding: 5px 4px;
-      background-color: #f1f5f9;
-      text-align: center;
-      font-weight: bold;
-      width: 25%;
-      height: 32px;
-      vertical-align: middle;
-    }
-    .sig-table td {
-      border: 1px solid #000000;
-      padding: 6px 6px 4px 6px;
-      text-align: center;
-      vertical-align: top;
-      width: 25%;
-      height: 95px;
-    }
-    .sig-box-img {
-      height: 52px;
-      line-height: 52px;
-      text-align: center;
-      margin-bottom: 4px;
-    }
-    .sig-img {
-      max-height: 50px;
-      max-width: 140px;
-      display: inline-block;
-      vertical-align: middle;
-      margin: 0 auto;
-    }
-    .sig-digital-badge {
-      display: inline-block;
-      font-size: 7.5pt;
-      line-height: normal;
-      color: #047857;
-      background: #ecfdf5;
-      border: 1px solid #a7f3d0;
-      padding: 3px 6px;
-      border-radius: 4px;
-      font-weight: 600;
-      vertical-align: middle;
-    }
-    .sig-meta-line {
-      font-size: 8pt;
-      line-height: 1.25;
-      margin-top: 1px;
-      text-align: left;
-    }
-
-    /* Notes Box */
-    .notes-box {
-      border: 1px solid #000000;
-      padding: 5px 8px;
-      font-size: 7.5pt;
-      line-height: 1.3;
-      margin-bottom: 6px;
-      background-color: #ffffff;
-    }
-    .notes-title {
-      font-weight: bold;
-      margin-bottom: 2px;
-    }
-    .notes-box ul {
-      margin-left: 14px;
-      padding: 0;
-    }
-
-    /* Footer Meta */
-    .footer-bar {
-      display: flex;
-      justify-content: space-between;
-      font-size: 7.5pt;
-      color: #6b7280;
-      border-top: 1px solid #d1d5db;
-      padding-top: 3px;
-    }
-
-    @media print {
-      body {
-        padding: 0;
-      }
-      .no-print {
-        display: none !important;
-      }
-    }
+    @page { size: A4 portrait; margin: 10mm 15mm 10mm 15mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; font-size: 9pt; line-height: 1.3; color: #000; background: #fff; padding: 4px; }
+    .header-table { width: 100%; border-collapse: collapse; border: 1.5px solid #000; margin-bottom: 8px; }
+    .header-table td { border: 1px solid #000; padding: 4px 8px; vertical-align: middle; }
+    .telkom-logo { font-size: 14pt; font-weight: 900; color: #EE2E24; letter-spacing: 0.5px; }
+    .telkom-sub { font-size: 8pt; font-weight: 700; color: #1f2937; text-transform: uppercase; }
+    .doc-main-title { font-size: 11pt; font-weight: bold; text-transform: uppercase; text-align: center; letter-spacing: 0.5px; }
+    .meta-td { width: 24%; font-size: 8.5pt; line-height: 1.35; font-weight: 600; }
+    .section-banner { background-color: #f1f5f9; border: 1px solid #000; border-bottom: none; padding: 4px 8px; font-size: 9pt; font-weight: bold; }
+    .section-banner em { font-weight: normal; }
+    .form-table { width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 8px; font-size: 8.5pt; }
+    .form-table td, .form-table th { border: 1px solid #000; padding: 4px 6px; vertical-align: top; }
+    .form-table th { background-color: #fafafa; font-weight: 600; text-align: center; }
+    .lbl { font-weight: 600; background-color: #fafafa; width: 22%; }
+    .sig-table { width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 8px; font-size: 8.5pt; table-layout: fixed; }
+    .sig-table th { border: 1px solid #000; padding: 4px; background-color: #f1f5f9; text-align: center; font-weight: normal; vertical-align: middle; }
+    .sig-table td { border: 1px solid #000; padding: 4px 6px; text-align: center; vertical-align: top; }
+    .sig-box { height: 54px; line-height: 54px; text-align: center; }
+    .sig-img { max-height: 50px; max-width: 130px; display: inline-block; vertical-align: middle; }
+    .sig-digital-badge { display: inline-block; font-size: 7pt; line-height: normal; color: #475569; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 2px 5px; border-radius: 3px; vertical-align: middle; }
+    .sig-meta { font-size: 8pt; text-align: left; line-height: 1.3; }
+    .row-note td { font-size: 8.5pt; }
+    .notes { font-size: 7.5pt; line-height: 1.35; margin: 2px 0 6px 2px; }
+    .footer-bar { display: flex; justify-content: space-between; font-size: 7.5pt; color: #6b7280; border-top: 1px solid #d1d5db; padding-top: 3px; }
+    @media print { body { padding: 0; } }
   </style>
 </head>
 <body>
 
-  <!-- 1. HEADER DOKUMEN -->
+  <!-- HEADER DOKUMEN -->
   <table class="header-table">
     <tr>
-      <td class="logo-td">
+      <td style="width:32%;">
         <div class="telkom-logo">Telkom Indonesia</div>
         <div class="telkom-sub">Telkom Test House (TTH)</div>
-        <div class="lab-box">
-          Laboratorium: &nbsp;
-          ${renderCheckbox(isIQA, 'IQA')}
-          ${renderCheckbox(isDES, 'DES')}
-          ${renderCheckbox(isSSA, 'SSA')}
-        </div>
       </td>
-      <td class="title-td">
-        <div class="doc-main-title">SURAT KETERANGAN PEMINJAMAN PERALATAN</div>
-      </td>
+      <td style="width:44%;"><div class="doc-main-title">SURAT PEMINJAMAN PERALATAN</div></td>
       <td class="meta-td">
-        <div>No. Dok : <strong>TLKM13/F/006</strong></div>
-        <div>Versi &nbsp; &nbsp; : <strong>03</strong></div>
+        <div>No. Dok : <strong>TLKM13/F/00X</strong></div>
+        <div>Versi &nbsp; &nbsp; : <strong>01</strong></div>
         <div>Halaman : <strong>1 dari 1</strong></div>
       </td>
     </tr>
   </table>
 
-  <!-- 2. METADATA SURAT (NOMOR & TANGGAL) -->
-  <table class="meta-bar-table">
+  <table class="form-table">
     <tr>
-      <td style="width: 58%;">
-        <strong>Nomor Surat</strong> : &nbsp;${nomorSurat}
+      <td style="width:55%;"><strong>Laboratorium Pemilik Peralatan:</strong> &nbsp;
+        ${renderCheckbox(isIQA, 'IQA')}${renderCheckbox(isDES, 'DES')}${renderCheckbox(isSSA, 'SSA')}
       </td>
-      <td style="width: 42%;">
-        <strong>Tanggal</strong> : &nbsp;${tanggalSurat}
-      </td>
+      <td style="width:45%;"><strong>Nomor Surat:</strong> &nbsp;${esc(nomorSurat)}</td>
     </tr>
   </table>
 
-  <!-- 3. BAGIAN A: DATA PEMINJAMAN -->
-  <div class="section-banner">A. DATA PEMINJAMAN</div>
+  <!-- A. DATA PEMINJAMAN & PENGGUNA PERALATAN -->
+  <div class="section-banner">A. DATA PEMINJAMAN &amp; PENGGUNA PERALATAN <em>(diisi Peminjam)</em></div>
   <table class="form-table">
     <tr>
-      <td class="col-label">Jenis Peminjaman</td>
-      <td class="col-content">
+      <td class="lbl">Jenis Peminjaman</td>
+      <td colspan="3">
         ${renderCheckbox(!isEksternal, 'Internal (di dalam lingkungan TTH)')}
-        &nbsp;&nbsp;&nbsp;
         ${renderCheckbox(isEksternal, 'Eksternal (di luar lingkungan TTH)')}
       </td>
     </tr>
     <tr>
-      <td class="col-label">Personel TTH Peminjam</td>
-      <td class="col-content">
-        <div>1. <strong>${peminjamNama}</strong> &nbsp;<em>(penanggung jawab)</em></div>
-        ${operatorNama && operatorNama !== peminjamNama ? `<div>2. ${operatorNama} &nbsp;<em>(operator pelaksana)</em></div>` : '<div>2. ..........................................................................................</div>'}
-        <div>3. ..........................................................................................</div>
-      </td>
+      <th style="width:8%;">No.</th>
+      <th>Nama Personel TTH</th>
+      <th style="width:24%;">Laboratorium / Unit</th>
+      <th style="width:26%;">Kontak (Telp / Email)</th>
     </tr>
     <tr>
-      <td class="col-label">Laboratorium / Unit Peminjam</td>
-      <td class="col-content">
-        <strong>${unitPeminjam}</strong>
-      </td>
+      <td style="text-align:center;">1.</td>
+      <td><strong>${esc(peminjamNama)}</strong> <em>(Peminjam dan/atau Pengguna)</em></td>
+      <td>${esc(unitPeminjam)}</td>
+      <td>${esc(kontakPeminjam)}</td>
     </tr>
     <tr>
-      <td class="col-label">Keperluan</td>
-      <td class="col-content">
+      <td style="text-align:center;">2.</td>
+      <td>${operatorNama && operatorNama !== peminjamNama ? `${esc(operatorNama)} <em>(Pengguna)</em>` : ''}</td>
+      <td>${operatorNama && operatorNama !== peminjamNama ? esc(unitPeminjam) : ''}</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td class="lbl">Keperluan</td>
+      <td colspan="3">
         <div>
-          ${renderCheckbox(isPengujian, 'Pengujian')}
-          ${renderCheckbox(isUjiLokasi, 'Uji lokasi')}
-          ${renderCheckbox(isPengecekanAntara, 'Pengecekan antara')}
-          ${renderCheckbox(isLainnya, 'Lainnya')}
+          ${renderCheckbox(isPengujian, 'Pengujian')}${renderCheckbox(isUjiLokasi, 'Uji lokasi')}
+          ${renderCheckbox(isPengecekanAntara, 'Pengecekan antara')}${renderCheckbox(isLainnya, 'Lainnya')}
         </div>
-        <div style="margin-top: 3px; font-style: italic; color: #1e293b;">
-          Keterangan: ${tujuan || '-'}
-        </div>
+        <div style="margin-top:3px;">Keterangan: ${esc(tujuan || '-')}</div>
       </td>
     </tr>
     <tr>
-      <td class="col-label">Dasar Pelaksanaan</td>
-      <td class="col-content">
+      <td class="lbl">Dasar Pelaksanaan</td>
+      <td colspan="3">
         <div>
-          ${renderCheckbox(isDasarSPK, 'No. Registrasi/SPK')}
-          ${renderCheckbox(isDasarST, 'Surat Tugas')}
-          ${renderCheckbox(isDasarND, 'Nota Dinas')}
-          ${renderCheckbox(isDasarLainnya, 'Lainnya')}
+          ${renderCheckbox(isDasarSPK, 'No. Registrasi/SPK')}${renderCheckbox(isDasarND, 'Nota Dinas')}${renderCheckbox(isDasarLainnya, 'Lainnya')}
         </div>
-        <div style="margin-top: 2px;">
-          Nomor: <strong>${noSPK || '-'}</strong>
-        </div>
+        <div style="margin-top:2px;">Nomor: <strong>${esc(noSPK || '-')}</strong></div>
       </td>
     </tr>
     <tr>
-      <td class="col-label">Lokasi / Alamat Penggunaan</td>
-      <td class="col-content">
-        <strong>${lokasiPenggunaan}</strong>
-      </td>
+      <td class="lbl">Lokasi / Alamat Penggunaan</td>
+      <td colspan="3"><strong>${esc(lokasiPenggunaan)}</strong></td>
     </tr>
     <tr>
-      <td class="col-label">Waktu Peminjaman</td>
-      <td class="col-content">
-        Tanggal keluar: <strong>${tglKeluarFormatted}</strong> &nbsp;&nbsp;s.d.&nbsp;&nbsp; Rencana tanggal kembali: <strong>${tglKembaliFormatted}</strong>
-      </td>
+      <td class="lbl">Tanggal Keluar</td>
+      <td><strong>${esc(tglKeluar)}</strong></td>
+      <td class="lbl">Rencana Tanggal Kembali</td>
+      <td><strong>${esc(tglKembali)}</strong></td>
     </tr>
   </table>
 
-  <!-- 4. BAGIAN B: DATA PERALATAN DAN PEMERIKSAAN KELAYAKAN -->
-  <div class="section-banner">B. DATA PERALATAN DAN PEMERIKSAAN KELAYAKAN</div>
+  <!-- B. DATA PERALATAN -->
+  <div class="section-banner">B. DATA PERALATAN <em>(diisi Pengelola Peralatan)</em></div>
   <table class="form-table">
     <tr>
-      <td class="col-label">Nama Peralatan</td>
-      <td class="col-content" colspan="3">
-        <strong>${namaAlat}</strong>
-      </td>
+      <td class="lbl">Nama / Jenis Peralatan</td>
+      <td colspan="3"><strong>${esc(namaAlat)}</strong></td>
     </tr>
     <tr>
-      <td class="sub-col-label">Nomor Aset</td>
-      <td class="sub-col-content"><strong>${nomorAset}</strong></td>
-      <td class="sub-col-label">Nomor Seri</td>
-      <td class="sub-col-content"><strong>${nomorSeri}</strong></td>
+      <td class="lbl">Nomor Aset</td><td><strong>${esc(peralatan.nomor_aset || '-')}</strong></td>
+      <td class="lbl">Nomor Seri</td><td><strong>${esc(peralatan.nomor_seri || '-')}</strong></td>
     </tr>
     <tr>
-      <td class="sub-col-label">Merek</td>
-      <td class="sub-col-content"><strong>${merek}</strong></td>
-      <td class="sub-col-label">Tipe / Model</td>
-      <td class="sub-col-content"><strong>${tipeModel}</strong></td>
+      <td class="lbl">Merek</td><td>${esc(peralatan.merek || '-')}</td>
+      <td class="lbl">Tipe / Model</td><td>${esc(peralatan.tipe || peralatan.tipe_model || '-')}</td>
     </tr>
     <tr>
-      <td class="col-label">Kelengkapan yang dibawa</td>
-      <td class="col-content" colspan="3">
-        ${kelengkapan}
-      </td>
+      <td class="lbl">Jumlah</td><td>1 unit</td>
+      <td class="lbl">Kelengkapan yang dibawa</td><td>${esc(kelengkapan)}</td>
     </tr>
     <tr>
-      <td class="col-label">Status Kelayakan*</td>
-      <td class="sub-col-content">
-        ${renderCheckbox(isLayak, 'Layak')}
-        &nbsp;&nbsp;
-        ${renderCheckbox(!isLayak, 'Tidak layak')}
-      </td>
-      <td class="sub-col-label">Jatuh Tempo Pemeriksaan*</td>
-      <td class="sub-col-content">
-        <strong>${tglJatuhTempo}</strong>
-      </td>
+      <td class="lbl">Jatuh Tempo Pemeriksaan</td>
+      <td colspan="3"><strong>${esc(tglJatuhTempo)}</strong> <em>(Jatuh tempo pemeriksaan tidak boleh sebelum rencana tanggal kembali)</em></td>
     </tr>
   </table>
-  <div class="footnote">
-    *Diisi PIC peralatan. Peralatan berpenanda "Do Not Use", tercatat pada TLKM13/F/011, atau jatuh tempo pemeriksaannya sebelum rencana tanggal kembali tidak boleh dipinjam (TLKM13/IK/005 butir 7).
-  </div>
 
-  <!-- 5. BAGIAN C: PERSETUJUAN (4 TANDA TANGAN DIGITAL) -->
-  <div class="section-banner">C. PERSETUJUAN</div>
+  <!-- C. PERSETUJUAN PEMINJAMAN -->
+  <div class="section-banner">C. PERSETUJUAN PEMINJAMAN</div>
   <table class="sig-table">
-    <thead>
-      <tr>
-        <th>Peminjam</th>
-        <th>Mengetahui,<br>Mgr. Lab Peminjam</th>
-        <th>Diperiksa,<br>PIC Peralatan</th>
-        <th>Menyetujui,<br>Mgr. Lab Pemilik Peralatan</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>
-          <div class="sig-box-img">
-            ${ttdPeminjam ? `<img class="sig-img" src="${ttdPeminjam}" alt="TTD Peminjam" />` : '<span class="sig-digital-badge">Disetujui Digital</span>'}
-          </div>
-          <div class="sig-meta-line">Nama: <strong>${peminjamNama}</strong></div>
-          <div class="sig-meta-line">Tanggal: ${tglTtdPeminjam}</div>
-        </td>
-        <td>
-          <div class="sig-box-img">
-            ${ttdMgrPeminjam ? `<img class="sig-img" src="${ttdMgrPeminjam}" alt="TTD Mgr Peminjam" />` : '<span class="sig-digital-badge">Disahkan Digital</span>'}
-          </div>
-          <div class="sig-meta-line">Nama: <strong>${mgrPeminjamNama}</strong></div>
-          <div class="sig-meta-line">Tanggal: ${tglTtdMgrPeminjam}</div>
-        </td>
-        <td>
-          <div class="sig-box-img">
-            ${ttdPIC ? `<img class="sig-img" src="${ttdPIC}" alt="TTD PIC" />` : '<span class="sig-digital-badge">Disahkan Digital</span>'}
-          </div>
-          <div class="sig-meta-line">Nama: <strong>${picNama}</strong></div>
-          <div class="sig-meta-line">Tanggal: ${tglTtdPIC}</div>
-        </td>
-        <td>
-          <div class="sig-box-img">
-            ${ttdMgrLab ? `<img class="sig-img" src="${ttdMgrLab}" alt="TTD Mgr Lab" />` : '<span class="sig-digital-badge">Disahkan Digital</span>'}
-          </div>
-          <div class="sig-meta-line">Nama: <strong>${mgrLabNama}</strong></div>
-          <div class="sig-meta-line">Tanggal: ${tglTtdMgrLab}</div>
-        </td>
-      </tr>
-    </tbody>
+    <tr>
+      <th>Diajukan,<br><strong>Peminjam</strong></th>
+      <th>Mengetahui,<br><strong>Mgr. ${esc(labPeminjamLabel)}</strong></th>
+      <th>Disetujui,<br><strong>Mgr. ${esc(labPemilikLabel)}</strong></th>
+    </tr>
+    <tr>
+      <td>
+        <div class="sig-box">${renderSigBox(ttdPeminjamAju, 'TTD Peminjam', Boolean(loan.tanggal_pengajuan), 'Diajukan di sistem')}</div>
+        <div class="sig-meta">Nama: <strong>${esc(peminjamNama)}</strong></div>
+        <div class="sig-meta">Tgl: ${esc(tglOrKosong(loan.tanggal_pengajuan))}</div>
+      </td>
+      <td>
+        <div class="sig-box">${renderSigBox(ttdMgrPeminjam, 'TTD Mgr Lab Peminjam', appMgrPeminjam.status === 'approved' || mgrPeminjamSkip, mgrPeminjamSkip ? 'Sama dengan Mgr. Lab Pemilik' : 'Disetujui di sistem')}</div>
+        <div class="sig-meta">Nama: <strong>${esc(appMgrPeminjam.nama || '')}</strong></div>
+        <div class="sig-meta">Tgl: ${esc(tglOrKosong(appMgrPeminjam.tanggal))}</div>
+      </td>
+      <td>
+        <div class="sig-box">${renderSigBox(ttdMgrLab, 'TTD Mgr Lab Pemilik', appMgrLab.status === 'approved', 'Disetujui di sistem')}</div>
+        <div class="sig-meta">Nama: <strong>${esc(appMgrLab.nama || '')}</strong></div>
+        <div class="sig-meta">Tgl: ${esc(tglOrKosong(appMgrLab.tanggal))}</div>
+      </td>
+    </tr>
   </table>
 
-  <!-- 6. CATATAN RESMI -->
-  <div class="notes-box">
-    <div class="notes-title">Catatan:</div>
-    <ul>
-      <li>Satu formulir digunakan untuk satu peralatan; peminjaman beberapa peralatan menggunakan formulir terpisah.</li>
-      <li>Tandai pilihan dengan tanda centang (✓) pada kotak ☐.</li>
-      <li>Untuk peminjaman eksternal, surat ini dibawa bersama peralatan selama berada di luar lingkungan TTH.</li>
-      <li>Kondisi peralatan saat keluar dan kembali dicatat pada Lembar Serah Terima Peralatan (lampiran TLKM13/F/010).</li>
-    </ul>
+  <!-- D. SERAH TERIMA DAN PEMERIKSAAN KONDISI -->
+  <div class="section-banner">D. SERAH TERIMA DAN PEMERIKSAAN KONDISI <em>(diisi Pengelola Peralatan bersama Peminjam)</em></div>
+  <table class="form-table">
+    <tr>
+      <th style="width:6%;">No.</th>
+      <th>Butir Pemeriksaan</th>
+      <th style="width:15%;">Kondisi Keluar</th>
+      <th style="width:15%;">Kondisi Kembali</th>
+      <th style="width:26%;">Keterangan</th>
+    </tr>
+    ${rowsButir}
+    <tr class="row-note">
+      <td colspan="5"><strong>Perpanjangan s.d. tanggal:</strong> ${tglPerpanjangan} &nbsp;&nbsp; <strong>Paraf Pengelola Peralatan:</strong> ${parafPerpanjangan}</td>
+    </tr>
+    <tr class="row-note">
+      <td colspan="5"><strong>Kejadian selama peminjaman:</strong>
+        ${renderCheckbox(sudahKembali && !adaKejadian, 'Tidak ada')}${renderCheckbox(adaKejadian, 'Ada')}
+        (Keterangan: ${adaKejadian ? esc(ketKejadian) : '......................'} )
+      </td>
+    </tr>
+    <tr class="row-note">
+      <td colspan="5"><strong>Tindak lanjut:</strong>
+        ${renderCheckbox(tindakLanjut === 'SIAP_DIPINJAM', 'Peralatan kembali Aktif')}
+        ${renderCheckbox(tindakLanjut === 'PERLU_VERIFIKASI' || tindakLanjut === 'DO_NOT_USE', 'Peralatan masuk proses Verifikasi')}
+      </td>
+    </tr>
+  </table>
+  <table class="sig-table">
+    <tr>
+      <th colspan="2"><strong>Saat keluar</strong></th>
+      <th colspan="2"><strong>Saat kembali</strong></th>
+    </tr>
+    <tr>
+      <th>Diserahkan,<br><strong>Pengelola Peralatan</strong></th>
+      <th>Diterima,<br><strong>Peminjam</strong></th>
+      <th>Diserahkan,<br><strong>Peminjam</strong></th>
+      <th>Diterima dan diperiksa,<br><strong>Pengelola Peralatan</strong></th>
+    </tr>
+    <tr>
+      <td>
+        <div class="sig-box">${renderSigBox(ttdKeluarPengelola, 'TTD Pengelola saat keluar', Boolean(serahKeluar.tanggal), 'Dicatat di sistem')}</div>
+        <div class="sig-meta">Nama: <strong>${esc(pengelolaNama)}</strong></div>
+        <div class="sig-meta">Tgl: ${esc(tglOrKosong(serahKeluar.tanggal))}</div>
+      </td>
+      <td>
+        <div class="sig-box">${renderSigBox(ttdKeluarPeminjam, 'TTD Peminjam saat keluar', Boolean(serahKeluar.tanggal_diterima), 'Dicatat di sistem')}</div>
+        <div class="sig-meta">Nama: <strong>${esc(serahKeluar.peminjam_penerima || (serahKeluar.tanggal_diterima ? peminjamNama : ''))}</strong></div>
+        <div class="sig-meta">Tgl: ${esc(tglOrKosong(serahKeluar.tanggal_diterima))}</div>
+      </td>
+      <td>
+        <div class="sig-box">${renderSigBox(ttdKembaliPeminjam, 'TTD Peminjam saat kembali', sudahKembali, 'Dicatat di sistem')}</div>
+        <div class="sig-meta">Nama: <strong>${esc(serahKembali.peminjam_penyerah || '')}</strong></div>
+        <div class="sig-meta">Tgl: ${esc(tglOrKosong(serahKembali.tanggal))}</div>
+      </td>
+      <td>
+        <div class="sig-box">${renderSigBox(ttdKembaliPengelola, 'TTD Pengelola saat kembali', sudahKembali, 'Dicatat di sistem')}</div>
+        <div class="sig-meta">Nama: <strong>${esc(serahKembali.pic_penerima || '')}</strong></div>
+        <div class="sig-meta">Tgl: ${esc(tglOrKosong(serahKembali.tanggal))}</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="notes">
+    Tandai pilihan dengan (✓) pada kotak ☐.<br>
+    Kode kondisi: S = Sesuai · TS = Tidak Sesuai. Satu butir TS saat kembali mewajibkan tindak lanjut di proses Verifikasi.
   </div>
 
-  <!-- 7. FOOTER PENGENDALIAN -->
   <div class="footer-bar">
-    <span>Dokumen resmi sistem SiKEPo — Telkom Test House. Sah dan terverifikasi secara elektronik.</span>
+    <span>Dokumen sistem SiKEPo — Telkom Test House.</span>
     <span>Dokumen ini tidak terkendali apabila diunduh &bull; Hal 1 dari 1</span>
   </div>
 
@@ -610,7 +449,7 @@ export function buildLoanF006Html(loan, options = {}) {
 }
 
 /**
- * Mengekspor Surat Keterangan Peminjaman (F/006) ke dialog cetak browser (Save as PDF).
+ * Mengekspor Surat Peminjaman Peralatan (F/00X) ke dialog cetak browser (Save as PDF).
  * Secara otomatis memuat detail gambar TTD dari backend jika objek loan belum memuatnya.
  */
 export async function exportLoanF006Pdf(loanInput, options = {}) {
@@ -639,7 +478,7 @@ export async function exportLoanF006Pdf(loanInput, options = {}) {
 
   const html = buildLoanF006Html(loan, options);
   if (!html) {
-    alert('Data peminjaman tidak lengkap untuk mencetak formulir F/006.');
+    alert('Data peminjaman tidak lengkap untuk mencetak Surat Peminjaman Peralatan.');
     return;
   }
 
@@ -661,7 +500,7 @@ export async function exportLoanF006Pdf(loanInput, options = {}) {
 }
 
 /**
- * Mengekspor Surat Keterangan Peminjaman (F/006) ke format Word (.doc)
+ * Mengekspor Surat Peminjaman Peralatan (F/00X) ke format Word (.doc)
  * Secara otomatis memuat detail gambar TTD dari backend jika objek loan belum memuatnya.
  */
 export async function exportLoanF006Word(loanInput, options = {}) {
@@ -694,7 +533,7 @@ export async function exportLoanF006Word(loanInput, options = {}) {
   const link = document.createElement('a');
   link.href = url;
   const noAset = loan.peralatan?.nomor_aset || loan.kode || 'Peminjaman';
-  link.download = `Surat_Peminjaman_${noAset}_TLKM13-F-006.doc`;
+  link.download = `Surat_Peminjaman_${noAset}_TLKM13-F-00X.doc`;
   document.body.appendChild(link);
   link.click();
   link.remove();
