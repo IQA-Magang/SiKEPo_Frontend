@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  AlertTriangle,
   ArrowLeft,
   Building2,
   CheckCircle2,
@@ -78,6 +79,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
   const [labs, setLabs] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [equipmentDetail, setEquipmentDetail] = useState({});
+  const [detailEquipment, setDetailEquipment] = useState(null);
   const [listLoading, setListLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -229,54 +231,53 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
     ? [selectedEquipment, ...eligibleEquipment]
     : eligibleEquipment;
 
-  // Muat jadwal pemeriksaan berikutnya untuk butir 7.d.
+  // Muat detail peralatan (termasuk jatuh tempo pemeriksaan & flag sedang_diajukan terbaru).
   useEffect(() => {
     if (!selectedEquipment?.nomor_aset) {
       setEquipmentDetail({});
+      setDetailEquipment(null);
+      setSchedules([]);
       return undefined;
     }
 
     let cancelled = false;
     setDetailLoading(true);
+    setScheduleLoading(true);
 
     async function loadDetail() {
       try {
         const res = await peralatanApi.getByAssetNumber(selectedEquipment.nomor_aset);
-        if (!cancelled) setEquipmentDetail(res?.data?.detail || {});
+        if (!cancelled) {
+          const freshEquipment = res?.data?.peralatan || (res?.data?.id ? res.data : null);
+          setDetailEquipment(freshEquipment);
+          setEquipmentDetail(res?.data?.detail || {});
+          setSchedules(
+            freshEquipment?.pengajuan_aktif
+              ? [freshEquipment.pengajuan_aktif]
+              : [],
+          );
+        }
       } catch (err) {
-        if (!cancelled) console.warn('Gagal memuat jadwal pemeriksaan peralatan:', err);
+        if (!cancelled) {
+          console.warn('Gagal memuat jadwal pemeriksaan peralatan:', err);
+          setDetailEquipment(null);
+          setSchedules(
+            selectedEquipment?.pengajuan_aktif
+              ? [selectedEquipment.pengajuan_aktif]
+              : [],
+          );
+        }
       } finally {
-        if (!cancelled) setDetailLoading(false);
+        if (!cancelled) {
+          setDetailLoading(false);
+          setScheduleLoading(false);
+        }
       }
     }
 
     loadDetail();
     return () => { cancelled = true; };
   }, [selectedEquipment]);
-
-  // Muat jadwal peminjaman lain yang masih berjalan untuk satu alat.
-  useEffect(() => {
-    if (!selectedId) {
-      setSchedules([]);
-      return undefined;
-    }
-
-    let cancelled = false;
-    setScheduleLoading(true);
-
-    peminjamanApi
-      .getJadwal(selectedId)
-      .then((res) => { if (!cancelled) setSchedules(res?.data || []); })
-      .catch((err) => {
-        if (!cancelled) {
-          setSchedules([]);
-          console.warn('Gagal memuat jadwal peminjaman peralatan:', err);
-        }
-      })
-      .finally(() => { if (!cancelled) setScheduleLoading(false); });
-
-    return () => { cancelled = true; };
-  }, [selectedId]);
 
   function formatTgl(dateStr) {
     if (!dateStr) return '';
@@ -286,10 +287,22 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
     return dateStr;
   }
 
-  // Pesan yang sama dengan validasi di backend, supaya peminjam langsung tahu
-  // sebelum mengirim pengajuan.
-  const JADWAL_BENTROK_MESSAGE =
-    'Alat sedang dipinjam orang lain pada rentang tanggal tersebut. Silakan pilih tanggal lain.';
+  const activeEquipmentInfo = detailEquipment || selectedEquipment;
+  const activePengajuan =
+    activeEquipmentInfo?.pengajuan_aktif || schedules[0] || null;
+  const isEquipmentBeingRequested = Boolean(
+    activeEquipmentInfo?.sedang_diajukan ||
+      activePengajuan ||
+      (activeEquipmentInfo && activeEquipmentInfo.status_alat === 'Dipinjam'),
+  );
+  const isEquipmentUnavailable = Boolean(
+    activeEquipmentInfo &&
+      (activeEquipmentInfo.status_verifikasi !== 'Disetujui' ||
+        activeEquipmentInfo.status_alat !== 'Aktif'),
+  );
+  const submitBlockedByExistingLoan = Boolean(
+    isEquipmentBeingRequested || isEquipmentUnavailable,
+  );
 
   // Cari jadwal yang bentrok dengan rentang tanggal yang dipilih peminjam
   const conflictingSchedule = selectedId ? schedules.find((jadwal) => {
@@ -300,6 +313,16 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
   }) : null;
 
   const jadwalBentrok = Boolean(conflictingSchedule);
+
+  const STATUS_PENGAJUAN_LABEL = {
+    MENUNGGU_MANAGER_PEMINJAM: 'Menunggu Atasan Peminjam',
+    MENUNGGU_PENGELOLA: 'Menunggu Review Pengelola',
+    MENUNGGU_MANAGER_LAB: 'Menunggu Manager Lab Pemilik',
+    DISETUJUI: 'Disetujui (Menunggu Serah Terima)',
+    MENUNGGU_SERAH_TERIMA: 'Disetujui (Menunggu Serah Terima)',
+    SIAP_DISERAHKAN: 'Siap Diserahkan',
+    SEDANG_DIPINJAM: 'Sedang Dipinjam',
+  };
 
   function handleLocationTypeChange(isExternal) {
     setForm((prev) => ({
@@ -351,6 +374,14 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
 
   function validate() {
     if (!selectedId) return 'Peralatan yang akan dipinjam wajib dipilih.';
+    if (isEquipmentBeingRequested) {
+      return activePengajuan?.kode
+        ? `Peralatan ini sedang diajukan/dipinjam oleh orang lain (${activePengajuan.kode}). Pengajuan baru tidak dapat dikirim saat ini.`
+        : 'Peralatan ini sedang diajukan atau dipinjam oleh orang lain. Pengajuan baru tidak dapat dikirim saat ini.';
+    }
+    if (isEquipmentUnavailable) {
+      return 'Peralatan tidak sedang dalam status layak pakai (Aktif & Disetujui) untuk dipinjam.';
+    }
     if (!form.nama_peminjam.trim()) return 'Nama peminjam wajib diisi.';
     if (!tujuanOpsi) return 'Keperluan / tujuan penggunaan wajib dipilih.';
     if (tujuanOpsi === 'Lainnya' && !tujuanLainnya.trim()) {
@@ -376,7 +407,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
     if (jadwalBentrok) {
       return conflictingSchedule
         ? `Alat sedang dipinjam orang lain pada rentang tanggal tersebut (${formatTgl(conflictingSchedule.rencana_tanggal_keluar)} s.d. ${formatTgl(conflictingSchedule.rencana_tanggal_kembali)}). Silakan pilih tanggal lain.`
-        : JADWAL_BENTROK_MESSAGE;
+        : 'Alat sedang dipinjam orang lain pada rentang tanggal tersebut.';
     }
     if (!form.kebutuhan_kelengkapan?.trim()) {
       return 'Kelengkapan dan aksesori wajib diisi.';
@@ -546,33 +577,53 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             )}
           </div>
 
-          {selectedEquipment && (scheduleLoading ? (
+          {selectedEquipment && (scheduleLoading && !isEquipmentBeingRequested ? (
             <div style={{ marginTop: 'var(--sp-2)', fontSize: 'var(--text-xs)', color: 'var(--clr-dark-500, #64748B)' }}>
-              Memuat jadwal peminjaman...
+              Memuat status pengajuan peralatan...
             </div>
-          ) : schedules.length > 0 ? (
+          ) : (isEquipmentBeingRequested || isEquipmentUnavailable) ? (
             <div
               style={{
                 marginTop: 'var(--sp-3)',
                 padding: 'var(--sp-3)',
-                background: 'var(--clr-primary-50, #fff5f5)',
-                border: '1px solid var(--clr-primary-200, #fed7d7)',
+                background: '#fef2f2',
+                border: '1.5px solid #fecaca',
                 borderRadius: 'var(--radius-md, 6px)',
                 fontSize: 'var(--text-xs)',
-                color: 'var(--clr-primary-900, #7f1d1d)',
+                color: '#991b1b',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
               }}
             >
-              <strong>Periode peminjaman yang sedang berlangsung / terjadwal:</strong>
-              <ul style={{ margin: '6px 0 4px', paddingLeft: 18 }}>
-                {schedules.map((jadwal) => (
-                  <li key={jadwal.id}>
-                    <strong>{formatTgl(jadwal.rencana_tanggal_keluar)} s.d. {formatTgl(jadwal.rencana_tanggal_kembali)}</strong>
-                    {' '}({jadwal.kode || `PJM-${jadwal.id}`})
-                  </li>
-                ))}
-              </ul>
-              <div style={{ color: 'var(--clr-dark-600, #475569)', marginTop: 4 }}>
-                ℹ️ Anda tetap dapat mengajukan peminjaman sebelum atau sesudah rentang tanggal di atas.
+              <AlertTriangle size={18} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '12.5px', color: '#991b1b' }}>
+                  {isEquipmentBeingRequested
+                    ? 'Peralatan ini sedang diajukan atau dipinjam oleh orang lain'
+                    : `Peralatan tidak dapat dipinjam (Status: ${activeEquipmentInfo?.status_alat || '-'})`}
+                </div>
+                {activePengajuan ? (
+                  <div style={{ marginTop: 4, lineHeight: 1.45, color: '#7f1d1d' }}>
+                    Kode Tiket: <strong>{activePengajuan.kode || `PJM-${activePengajuan.peminjaman_id}`}</strong>{' '}
+                    &bull; Status:{' '}
+                    <strong>
+                      {STATUS_PENGAJUAN_LABEL[activePengajuan.status] || activePengajuan.status}
+                    </strong>
+                    {activePengajuan.rencana_tanggal_keluar && activePengajuan.rencana_tanggal_kembali && (
+                      <>
+                        {' '}&bull; Jadwal:{' '}
+                        <strong>
+                          {formatTgl(activePengajuan.rencana_tanggal_keluar)} s.d.{' '}
+                          {formatTgl(activePengajuan.rencana_tanggal_kembali)}
+                        </strong>
+                      </>
+                    )}
+                  </div>
+                ) : null}
+                <div style={{ color: '#991b1b', marginTop: 4 }}>
+                  Tombol <strong>Ajukan Peminjaman</strong> dinonaktifkan sampai pengajuan yang berjalan selesai, ditolak, atau dibatalkan.
+                </div>
               </div>
             </div>
           ) : null)}
@@ -601,13 +652,12 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 {equipmentOptions.map((item) => (
                   <option key={getEquipmentId(item)} value={String(getEquipmentId(item))}>
                     {item.nama_peralatan} — {item.nomor_aset || 'tanpa no. aset'}
+                    {item.sedang_diajukan ? ' (Sedang Diajukan)' : ''}
                   </option>
                 ))}
               </select>
               <span className="form-hint">
-                Hanya peralatan berstatus layak pakai yang dapat dipinjam. Alat yang sedang
-                dipinjam orang lain tetap bisa diajukan selama tanggal pengajuan dan kembali
-                berada di luar rentang peminjaman yang sudah berjalan.
+                Hanya peralatan berstatus layak pakai dan tidak sedang memiliki pengajuan aktif yang dapat dipinjam.
               </span>
             </div>
 
@@ -1093,8 +1143,8 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               }}
             >
               ⚠️ {conflictingSchedule
-                ? `Alat sedang dipinjam orang lain pada ${formatTgl(conflictingSchedule.rencana_tanggal_keluar)} s.d. ${formatTgl(conflictingSchedule.rencana_tanggal_kembali)}. Silakan pilih tanggal lain.`
-                : JADWAL_BENTROK_MESSAGE}
+                ? `Alat sedang dipinjam/diajukan orang lain pada ${formatTgl(conflictingSchedule.rencana_tanggal_keluar)} s.d. ${formatTgl(conflictingSchedule.rencana_tanggal_kembali)}.`
+                : 'Alat sedang dipinjam/diajukan orang lain pada rentang tanggal tersebut.'}
             </div>
           )}
         </div>
@@ -1152,6 +1202,31 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
           />
         </div>
 
+        {/* Peringatan dekat tombol submit bila peralatan sedang diajukan */}
+        {submitBlockedByExistingLoan && (
+          <div
+            style={{
+              marginBottom: 'var(--sp-4)',
+              padding: '10px 14px',
+              background: '#fef2f2',
+              border: '1.5px solid #fecaca',
+              borderRadius: 'var(--radius-md, 6px)',
+              fontSize: '12px',
+              color: '#991b1b',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <AlertTriangle size={16} style={{ color: '#dc2626', flexShrink: 0 }} />
+            <span>
+              {isEquipmentBeingRequested
+                ? `Peralatan ini sedang diajukan oleh pengguna lain${activePengajuan?.kode ? ` (${activePengajuan.kode})` : ''}. Tombol Ajukan Peminjaman dinonaktifkan.`
+                : 'Peralatan tidak sedang dalam status Aktif & Disetujui. Tombol Ajukan Peminjaman dinonaktifkan.'}
+            </span>
+          </div>
+        )}
+
         {/* Tombol Aksi */}
         <div
           style={{
@@ -1175,8 +1250,8 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
           </button>
           <button
             type="submit"
-            className={`btn ${jadwalBentrok ? 'btn-secondary' : 'btn-primary'}`}
-            disabled={isSubmitting || listLoading || detailLoading || jadwalBentrok}
+            className={`btn ${jadwalBentrok || submitBlockedByExistingLoan ? 'btn-secondary' : 'btn-primary'}`}
+            disabled={isSubmitting || listLoading || detailLoading || jadwalBentrok || submitBlockedByExistingLoan}
             id="btn-ajukan-peminjaman"
             style={{
               display: 'inline-flex',
@@ -1185,8 +1260,17 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
               padding: '8px 20px',
               fontSize: '13px',
               fontWeight: 600,
+              ...(jadwalBentrok || submitBlockedByExistingLoan
+                ? { opacity: 0.65, cursor: 'not-allowed' }
+                : {}),
             }}
-            title={jadwalBentrok ? 'Tidak dapat mengajukan — jadwal bertumpuk dengan peminjaman lain' : ''}
+            title={
+              submitBlockedByExistingLoan
+                ? 'Tidak dapat mengajukan — peralatan sedang diajukan/dipinjam oleh pengguna lain'
+                : jadwalBentrok
+                  ? 'Tidak dapat mengajukan — jadwal bertumpuk dengan peminjaman lain'
+                  : ''
+            }
           >
             <Send size={15} />
             {isSubmitting ? 'Mengirim Pengajuan...' : 'Ajukan Peminjaman'}

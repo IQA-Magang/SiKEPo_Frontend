@@ -196,6 +196,9 @@ export default function EquipmentDetail({
 
   function isCurrentlyOut() {
     if (!peralatan) return null;
+    if (peralatan.pengajuan_aktif) {
+      return peralatan.pengajuan_aktif;
+    }
     const pid = String(getEquipmentId(peralatan));
     for (const r of jadwal) {
       if (String(r.peralatan_id) === pid) {
@@ -613,12 +616,18 @@ export default function EquipmentDetail({
   const photoUrl = formatPhotoUrl(peralatan.foto);
   const canonicalEquipmentId = getEquipmentId(peralatan);
   const isVerified = peralatan.status_verifikasi === "Disetujui";
+  const isDoNotUse =
+    String(peralatan.status_alat || "").trim().toLowerCase() === "do not use";
   const outRange = isCurrentlyOut();
   const canBorrowNow =
     canRequestLoan &&
     isVerified &&
-    ["Aktif", "Dipinjam"].includes(peralatan.status_alat);
-  const displayStatus = isVerified ? peralatan.status_alat : "Karantina";
+    peralatan.status_alat === "Aktif";
+  const displayStatus = isDoNotUse
+    ? "Do Not Use"
+    : isVerified
+      ? peralatan.status_alat
+      : "Karantina";
   const visibleDetailSection =
     activeDetailSection === "qr" && !isVerified
       ? "informasi"
@@ -973,34 +982,32 @@ export default function EquipmentDetail({
                 onClick={() =>
                   onNavigate(`/peminjaman/${canonicalEquipmentId}`)
                 }
-                title={
-                  outRange
-                    ? `Alat sedang dipinjam: ${outRange.rencana_tanggal_keluar} s.d. ${outRange.rencana_tanggal_kembali}. Klik untuk meminjam pada jadwal lain.`
-                    : "Pinjam peralatan (TLKM13/IK/005)"
-                }
+                title="Pinjam peralatan (TLKM13/IK/005)"
                 id="btn-pinjam-detail"
               >
                 <Hand size={14} /> Pinjam Peralatan
               </button>
-              {outRange && (
-                <span
-                  style={{
-                    fontSize: "11px",
-                    color: "var(--clr-primary-700, #c53030)",
-                    background: "var(--clr-primary-50, #fff5f5)",
-                    border: "1px solid var(--clr-primary-200, #fed7d7)",
-                    padding: "2px 8px",
-                    borderRadius: "var(--radius-sm, 4px)",
-                    fontWeight: "var(--fw-medium, 500)",
-                    lineHeight: 1.25,
-                  }}
-                >
-                  Sedang dipinjam: {formatTgl(outRange.rencana_tanggal_keluar)}{" "}
-                  – {formatTgl(outRange.rencana_tanggal_kembali)}
-                </span>
-              )}
             </div>
           )}
+          {!canBorrowNow &&
+            peralatan.status_alat === "Dipinjam" &&
+            outRange && (
+              <span
+                style={{
+                  fontSize: "11px",
+                  color: "var(--clr-primary-700, #c53030)",
+                  background: "var(--clr-primary-50, #fff5f5)",
+                  border: "1px solid var(--clr-primary-200, #fed7d7)",
+                  padding: "4px 10px",
+                  borderRadius: "var(--radius-sm, 4px)",
+                  fontWeight: "var(--fw-medium, 500)",
+                  lineHeight: 1.25,
+                }}
+              >
+                Sedang dipinjam: {formatTgl(outRange.rencana_tanggal_keluar)} –{" "}
+                {formatTgl(outRange.rencana_tanggal_kembali)}
+              </span>
+            )}
           {canViewVerification && !isVerified && (
             <button
               className="btn btn-secondary btn-sm"

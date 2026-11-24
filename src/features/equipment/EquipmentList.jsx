@@ -72,6 +72,9 @@ export default function EquipmentList({
   }
 
   function isCurrentlyOut(p) {
+    if (p?.pengajuan_aktif) {
+      return p.pengajuan_aktif;
+    }
     const pid = String(getEquipmentId(p));
     const ranges = jadwalPerAlat.get(pid) || [];
     for (const r of ranges) {
@@ -197,13 +200,16 @@ export default function EquipmentList({
     const labId = getEquipmentLabId(p, roomsById);
     const matchLab = !filterLab || String(labId) === filterLab;
     const approved = p.status_verifikasi === "Disetujui";
-    // Peralatan yang sedang menjalani pemeriksaan tetap tampil di daftar utama.
+    const isDoNotUse =
+      String(p.status_alat || "").trim().toLowerCase() === "do not use";
+    // Peralatan yang sedang menjalani pemeriksaan atau berstatus Do Not Use tetap tampil di daftar utama.
     const available = [
       "Aktif",
       "Dipinjam",
       "Dalam Kalibrasi",
       "Dalam Verifikasi Fungsi",
-    ].includes(p.status_alat);
+      "Do Not Use",
+    ].includes(p.status_alat) || isDoNotUse;
     const rejected = p.status_verifikasi === "Ditolak";
     const activityCode = String(p.kode_aktivitas || "")
       .trim()
@@ -229,7 +235,8 @@ export default function EquipmentList({
         ? pending
         : lifecycleView === "review"
           ? rejected
-          : (available && approved) ||
+          : isDoNotUse ||
+            (available && approved) ||
             followUpVerification ||
             returnedFromLoanAwaitingVerification ||
             awaitingPostCalibrationVerification;
@@ -344,23 +351,34 @@ export default function EquipmentList({
       render: (equipment) => {
         const approved = equipment.status_verifikasi === "Disetujui";
         const rejected = equipment.status_verifikasi === "Ditolak";
-        const description = rejected
-          ? "Perlu verifikasi ulang"
-          : equipment.status_verifikasi === "Draft"
-            ? "Menunggu Verifikasi"
-          : !approved
-            ? "Menunggu Persetujuan"
-            : equipment.status_alat === "Aktif"
-              ? "Masuk inventaris"
-              : equipment.status_alat === "Dalam Kalibrasi"
-                ? "Sedang dikalibrasi"
-                : equipment.status_alat === "Dalam Verifikasi Fungsi"
-                  ? "Sedang dalam verifikasi fungsi"
-                : equipment.status_alat === "Dipinjam"
-                  ? "Sedang dipinjam"
-                  : equipment.status_alat === "Rusak"
-                    ? "Dalam kondisi rusak"
-                    : equipment.status_alat || "Dalam proses";
+        const isDoNotUse =
+          String(equipment.status_alat || "").trim().toLowerCase() === "do not use";
+        const description = isDoNotUse
+          ? "Do Not Use"
+          : rejected
+            ? "Perlu verifikasi ulang"
+            : equipment.status_verifikasi === "Draft"
+              ? "Menunggu Verifikasi"
+            : !approved
+              ? "Menunggu Persetujuan"
+              : equipment.status_alat === "Aktif"
+                ? "Masuk inventaris"
+                : equipment.status_alat === "Dalam Kalibrasi"
+                  ? "Sedang dikalibrasi"
+                  : equipment.status_alat === "Dalam Verifikasi Fungsi"
+                    ? "Sedang dalam verifikasi fungsi"
+                  : equipment.status_alat === "Dipinjam"
+                    ? "Sedang dipinjam"
+                    : equipment.status_alat === "Rusak"
+                      ? "Dalam kondisi rusak"
+                      : equipment.status_alat || "Dalam proses";
+        const badgeKey = isDoNotUse
+          ? "Do Not Use"
+          : rejected
+            ? "Rusak"
+            : approved
+              ? equipment.status_alat
+              : "Karantina";
         return (
           <div
             style={{
@@ -371,7 +389,7 @@ export default function EquipmentList({
             }}
           >
             <span
-              className={`badge ${STATUS_BADGE_CLASS[rejected ? "Rusak" : approved ? equipment.status_alat : "Karantina"] || "badge-gray"}`}
+              className={`badge ${STATUS_BADGE_CLASS[badgeKey] || "badge-gray"}`}
             >
               <span className="badge-dot" />
               {description}
@@ -464,7 +482,7 @@ export default function EquipmentList({
             )}
             {canRequestLoan &&
               approved &&
-              ["Aktif", "Dipinjam"].includes(equipment.status_alat) && (
+              equipment.status_alat === "Aktif" && (
               <div
                 style={{
                   display: "inline-flex",
@@ -477,36 +495,32 @@ export default function EquipmentList({
                   type="button"
                   className="btn btn-primary btn-sm"
                   onClick={() => onNavigate(`/peminjaman/${equipmentId}`)}
-                  title={
-                    out
-                      ? `Alat sedang dipinjam: ${out.rencana_tanggal_keluar} s.d. ${out.rencana_tanggal_kembali}. Klik untuk mengajukan peminjaman pada jadwal lain.`
-                      : "Pinjam peralatan"
-                  }
+                  title="Pinjam peralatan"
                   id={`btn-pinjam-${equipmentId}`}
                 >
                   <Hand size={14} /> Pinjam
                 </button>
-                {out && (
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      color: "var(--clr-primary-700, #c53030)",
-                      background: "var(--clr-primary-50, #fff5f5)",
-                      border: "1px solid var(--clr-primary-200, #fed7d7)",
-                      padding: "1px 5px",
-                      borderRadius: "var(--radius-sm, 4px)",
-                      whiteSpace: "nowrap",
-                      lineHeight: 1.25,
-                      fontWeight: "var(--fw-medium, 500)",
-                    }}
-                    title={`Dipinjam dari ${out.rencana_tanggal_keluar} s.d. ${out.rencana_tanggal_kembali}`}
-                  >
-                    Dipinjam: {formatTgl(out.rencana_tanggal_keluar)} –{" "}
-                    {formatTgl(out.rencana_tanggal_kembali)}
-                  </span>
-                )}
               </div>
               )}
+            {approved && equipment.status_alat === "Dipinjam" && out && (
+              <span
+                style={{
+                  fontSize: "11px",
+                  color: "var(--clr-primary-700, #c53030)",
+                  background: "var(--clr-primary-50, #fff5f5)",
+                  border: "1px solid var(--clr-primary-200, #fed7d7)",
+                  padding: "3px 8px",
+                  borderRadius: "var(--radius-sm, 4px)",
+                  whiteSpace: "nowrap",
+                  lineHeight: 1.25,
+                  fontWeight: "var(--fw-medium, 500)",
+                }}
+                title={`Dipinjam dari ${out.rencana_tanggal_keluar} s.d. ${out.rencana_tanggal_kembali}`}
+              >
+                Dipinjam: {formatTgl(out.rencana_tanggal_keluar)} –{" "}
+                {formatTgl(out.rencana_tanggal_kembali)}
+              </span>
+            )}
           </div>
         );
       },

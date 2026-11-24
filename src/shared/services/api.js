@@ -795,7 +795,7 @@ export const akunApi = {
 
 
 export const STATUS_ALAT_OPTIONS = [
-  'Karantina', 'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Dalam Verifikasi Fungsi', 'Rusak'
+  'Karantina', 'Aktif', 'Dipinjam', 'Dalam Kalibrasi', 'Dalam Verifikasi Fungsi', 'Do Not Use', 'Rusak'
 ];
 
 export const STATUS_BADGE_CLASS = {
@@ -803,6 +803,7 @@ export const STATUS_BADGE_CLASS = {
   'Dipinjam': 'badge-dipinjam',
   'Dalam Kalibrasi': 'badge-kalibrasi',
   'Dalam Verifikasi Fungsi': 'badge-kalibrasi',
+  'Do Not Use': 'badge-rusak',
   'Rusak': 'badge-rusak',
   'Karantina': 'badge-rusak',
 };
