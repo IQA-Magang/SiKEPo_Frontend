@@ -453,7 +453,7 @@ export default function EquipmentList({
         const out = isCurrentlyOut(equipment);
         return (
           <div style={{ display: "flex", gap: "var(--sp-1)" }}>
-            {canViewVerification && !approved && !rejected && (
+            {lifecycleView !== "all" && canViewVerification && !approved && !rejected && (
               <button
                 className="btn btn-primary btn-sm"
                 onClick={() => onNavigate(verificationPath)}
@@ -462,7 +462,7 @@ export default function EquipmentList({
                 <ClipboardCheck size={14} /> Verifikasi
               </button>
             )}
-            {canViewVerification && rejected && (
+            {lifecycleView !== "all" && canViewVerification && rejected && (
               <>
                 <button
                   className="btn btn-ghost btn-sm text-error"
