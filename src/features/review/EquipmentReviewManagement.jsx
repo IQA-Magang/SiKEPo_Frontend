@@ -531,13 +531,6 @@ export default function EquipmentReviewManagement({ onNavigate }) {
     pagination.endIndex,
   );
 
-  // Statistik kartu ringkasan
-  const countTotal = reviews.length;
-  const countTahap2 = reviews.filter((r) => r.status_tinjauan === "TAHAP_2_EVALUASI_LOG").length;
-  const countTahap3 = reviews.filter((r) => r.status_tinjauan === "TAHAP_3_TINDAKAN_LAPORAN").length;
-  const countTahap4 = reviews.filter((r) => r.status_tinjauan === "TAHAP_4_SEBAB_PENYIMPANGAN").length;
-  const countTahap5 = reviews.filter((r) => r.status_tinjauan === "TAHAP_5_TINDAK_LANJUT").length;
-
   function handleOpenModal(review) {
     setSelectedReviewId(review.id);
     const meta = STATUS_META[review.status_tinjauan];
@@ -890,87 +883,7 @@ export default function EquipmentReviewManagement({ onNavigate }) {
         ]}
       />
 
-      {/* 3. KARTU RINGKASAN TAHAP PENINJAUAN (Konsisten aksen merah #e30613 & angka hitam #0f172a) */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: "var(--sp-3)",
-          marginBottom: "var(--sp-4)",
-        }}
-      >
-        {[
-          {
-            title: "TOTAL PENINJAUAN",
-            value: countTotal,
-            subtitle: "Semua tiket daftar F/011",
-            filterVal: "SEMUA",
-          },
-          {
-            title: "EVALUASI LOG",
-            value: countTahap2,
-            subtitle: "3 pertanyaan per baris log",
-            filterVal: "TAHAP_2_EVALUASI_LOG",
-          },
-          {
-            title: "TINDAKAN LAPORAN",
-            value: countTahap3,
-            subtitle: "Amandemen, tarik, ganti, uji ulang",
-            filterVal: "TAHAP_3_TINDAKAN_LAPORAN",
-          },
-          {
-            title: "SEBAB PENYIMPANGAN",
-            value: countTahap4,
-            subtitle: "Alat, personel, metode, bahan acuan",
-            filterVal: "TAHAP_4_SEBAB_PENYIMPANGAN",
-          },
-          {
-            title: "TINDAK LANJUT & IK",
-            value: countTahap5,
-            subtitle: "Korektif, rujukan IK & review Mgr",
-            filterVal: "TAHAP_5_TINDAK_LANJUT",
-          },
-        ].map((card) => (
-          <div
-            key={card.title}
-            className="card stat-card-clickable"
-            onClick={() => setStatusFilter(card.filterVal)}
-            style={{
-              padding: "var(--sp-4)",
-              borderLeft: "4px solid #e30613",
-              borderRadius: "var(--radius-lg, 12px)",
-              background: statusFilter === card.filterVal ? "#fff5f5" : "#ffffff",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-              cursor: "pointer",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "11px",
-                fontWeight: 700,
-                color: "#64748b",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              {card.title}
-            </div>
-            <div
-              style={{
-                fontSize: "28px",
-                fontWeight: "bold",
-                color: "#0f172a",
-                margin: "4px 0 2px",
-              }}
-            >
-              {card.value}
-            </div>
-            <div style={{ fontSize: "12px", color: "#64748b" }}>{card.subtitle}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* 4. FILTER & PENCARIAN */}
+      {/* 3. FILTER & PENCARIAN */}
       <TableFilters
         fields={[
           {
@@ -1203,7 +1116,7 @@ export default function EquipmentReviewManagement({ onNavigate }) {
                         </div>
                       </td>
 
-                      {/* 6. Status + Mini Stepper */}
+                      {/* 6. Status */}
                       <td style={{ padding: "12px 16px", verticalAlign: "top" }}>
                         <span
                           style={{
@@ -1221,24 +1134,6 @@ export default function EquipmentReviewManagement({ onNavigate }) {
                         >
                           {meta.label}
                         </span>
-                        <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-                          {[1, 2, 3, 4].map((bar) => (
-                            <span
-                              key={bar}
-                              style={{
-                                width: 14,
-                                height: 6,
-                                borderRadius: 3,
-                                background:
-                                  meta.stepIndex > bar || rev.status_tinjauan === "SELESAI"
-                                    ? "#16a34a"
-                                    : meta.stepIndex === bar
-                                      ? "#e30613"
-                                      : "#cbd5e1",
-                              }}
-                            />
-                          ))}
-                        </div>
                       </td>
 
                       {/* 7. Aksi */}
