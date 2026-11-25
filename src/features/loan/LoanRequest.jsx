@@ -1142,7 +1142,7 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
                 color: '#991b1b',
               }}
             >
-              ⚠️ {conflictingSchedule
+              {conflictingSchedule
                 ? `Alat sedang dipinjam/diajukan orang lain pada ${formatTgl(conflictingSchedule.rencana_tanggal_keluar)} s.d. ${formatTgl(conflictingSchedule.rencana_tanggal_kembali)}.`
                 : 'Alat sedang dipinjam/diajukan orang lain pada rentang tanggal tersebut.'}
             </div>
@@ -1155,9 +1155,11 @@ export default function LoanRequest({ equipmentId = null, onNavigate }) {
             F. Kelengkapan dan Aksesori
           </h3>
           <div className="form-group">
+            <label className="form-label" htmlFor="input-kelengkapan">
+              Kelengkapan dan Aksesori yang Dibutuhkan <span className="required">*</span>
+            </label>
             <textarea
               id="input-kelengkapan"
-              aria-label="Kelengkapan dan Aksesori yang Dibutuhkan"
               className="form-textarea"
               rows={3}
               required

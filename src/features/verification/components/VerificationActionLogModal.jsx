@@ -129,15 +129,17 @@ export default function VerificationActionLogModal({ verification, onClose }) {
                   key={item.id_histori}
                   style={{ borderTop: index ? "1px solid var(--clr-dark-100)" : 0 }}
                 >
-                  <span className={`badge ${
-                    item.status === "Disetujui"
-                      ? "badge-aktif"
-                      : item.status === "Ditolak"
-                        ? "badge-rusak"
-                        : "badge-kalibrasi"
-                  }`}>
-                    {item.status || "Verifikasi"}
-                  </span>
+                  <div className="equipment-verification-log-entry__status">
+                    <span className={`badge ${
+                      item.status === "Disetujui"
+                        ? "badge-aktif"
+                        : item.status === "Ditolak"
+                          ? "badge-rusak"
+                          : "badge-kalibrasi"
+                    }`}>
+                      {item.status || "Verifikasi"}
+                    </span>
+                  </div>
                   <div className="equipment-verification-log-entry__content">
                     <div style={{ fontSize: "var(--text-sm)", fontWeight: "var(--fw-semibold)", color: "var(--clr-dark-800)" }}>
                       {item.judul || String(item.aksi || "Aktivitas verifikasi").replaceAll("_", " ")}

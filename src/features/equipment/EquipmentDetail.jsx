@@ -38,6 +38,10 @@ import {
   isStaffPengelola,
 } from "../../shared/utils/permissions.js";
 import { exportVerificationPdf } from "../../shared/lib/verificationPdf.js";
+import {
+  formatLogStatusLabel,
+  getLogStatusBadgeClass,
+} from "../../shared/lib/logStatus.js";
 import { getSafeReturnPath } from "../../app/router/Router.jsx";
 
 function getLogActionValue(log) {
@@ -83,16 +87,6 @@ function getVerificationActivityName(log) {
     record?.kode_aktivitas ||
     log?.kode_aktivitas;
   return code ? getActivityName(code) : "";
-}
-
-function getLogStatusBadgeClass(status) {
-  if (["Disetujui", "Divalidasi", "Selesai", "Aktif", "Aktif Kembali"].includes(status)) {
-    return "badge-aktif";
-  }
-  if (["Ditolak", "Dibatalkan", "Hentikan", "Tidak Aktif"].includes(status)) {
-    return "badge-rusak";
-  }
-  return "badge-kalibrasi";
 }
 
 function isLogInTimeRange(value, range) {
@@ -842,7 +836,7 @@ export default function EquipmentDetail({
         <tr>
           <td>${escapeLogHtml(formatDate(entry.date || entry.created_at))}</td>
           <td>${escapeLogHtml(entry.title || entry.judul || record.aksi)}</td>
-          <td>${escapeLogHtml(entry.status || record.status)}</td>
+          <td>${escapeLogHtml(formatLogStatusLabel(entry.status || record.status))}</td>
           <td>${escapeLogHtml(entry.actor || record.user?.name)}</td>
           <td>${escapeLogHtml(entry.description || record.keterangan || entry.note)}</td>
         </tr>
@@ -1198,11 +1192,13 @@ export default function EquipmentDetail({
                           aria-label={`Log verifikasi: ${latestLog.title}`}
                         >
                           <div className="equipment-verification-log-entry">
-                            <span
-                              className={`badge ${getLogStatusBadgeClass(latestLog.status)}`}
-                            >
-                              {latestLog.status}
-                            </span>
+                            <div className="equipment-verification-log-entry__status">
+                              <span
+                                className={`badge ${getLogStatusBadgeClass(latestLog.status)}`}
+                              >
+                                {formatLogStatusLabel(latestLog.status)}
+                              </span>
+                            </div>
                             <div className="equipment-verification-log-entry__content">
                               <div
                                 style={{
@@ -1290,9 +1286,11 @@ export default function EquipmentDetail({
                       {filteredPeriodicLogData.map((log) => (
                         <article className="equipment-verification-log-card" key={log.id}>
                           <div className="equipment-verification-log-entry">
-                            <span className={`badge ${["Selesai", "Disetujui"].includes(log.status) ? "badge-aktif" : log.status === "Dibatalkan" ? "badge-rusak" : "badge-kalibrasi"}`}>
-                              {log.status}
-                            </span>
+                            <div className="equipment-verification-log-entry__status">
+                              <span className={`badge ${["Selesai", "Disetujui"].includes(log.status) ? "badge-aktif" : log.status === "Dibatalkan" ? "badge-rusak" : "badge-kalibrasi"}`}>
+                                {formatLogStatusLabel(log.status)}
+                              </span>
+                            </div>
                             <div className="equipment-verification-log-entry__content">
                               <div style={{ fontSize: "var(--text-sm)", color: "var(--clr-dark-800)", fontWeight: "var(--fw-medium)" }}>
                                 {log.title}
@@ -1389,9 +1387,11 @@ export default function EquipmentDetail({
                             aria-label={`Log peminjaman: ${latestLog.title}`}
                           >
                             <div className="equipment-verification-log-entry">
-                              <span className={`badge ${getLogStatusBadgeClass(latestLog.status)}`}>
-                                {latestLog.status}
-                              </span>
+                              <div className="equipment-verification-log-entry__status">
+                                <span className={`badge ${getLogStatusBadgeClass(latestLog.status)}`}>
+                                  {formatLogStatusLabel(latestLog.status)}
+                                </span>
+                              </div>
                               <div className="equipment-verification-log-entry__content">
                                 <div
                                   style={{
@@ -1936,11 +1936,13 @@ export default function EquipmentDetail({
                         key={log.id || `${log.date}-${index}`}
                         style={{ borderTop: index ? "1px solid var(--clr-dark-100)" : 0 }}
                       >
-                        <span className={`badge ${
-                          getLogStatusBadgeClass(log.status)
-                        }`}>
-                          {log.status || "—"}
-                        </span>
+                        <div className="equipment-verification-log-entry__status">
+                          <span className={`badge ${
+                            getLogStatusBadgeClass(log.status)
+                          }`}>
+                            {formatLogStatusLabel(log.status)}
+                          </span>
+                        </div>
                         <div className="equipment-verification-log-entry__content">
                           <strong style={{ color: "var(--clr-dark-800)", fontSize: "var(--text-sm)" }}>
                             {log.title || log.judul || log.aksi || "Aktivitas"}
@@ -1974,7 +1976,7 @@ export default function EquipmentDetail({
                       logTypeLabels[selectedActivityLog.jenis] || "Peninjauan"
                     }
                   />
-                  <InfoRow label="Status" value={selectedActivityLog.status} />
+                  <InfoRow label="Status" value={formatLogStatusLabel(selectedActivityLog.status)} />
                   <InfoRow
                     label="Tanggal"
                     value={formatDate(selectedActivityLog.date)}

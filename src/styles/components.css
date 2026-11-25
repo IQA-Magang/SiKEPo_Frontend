@@ -2889,9 +2889,33 @@
   border-top: 1px solid var(--clr-dark-100);
 }
 
+.equipment-verification-log-entry__status {
+  flex: 0 0 195px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.equipment-verification-log-entry__status .badge {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.25;
+}
+
 .equipment-verification-log-entry__content {
   flex: 1;
   min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .equipment-verification-log-entry {
+    flex-wrap: wrap;
+  }
+
+  .equipment-verification-log-entry__status {
+    flex: 0 0 auto;
+    width: 100%;
+  }
 }
 
 .equipment-verification-log-actions {
